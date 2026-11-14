@@ -21,6 +21,7 @@ export function createPlayer(id: string, name: string, color: string, spawn: Vec
     vz: 0,
     thrown: null,
     leap: false,
+    rest: 0,
     pound: null,
     climb: null,
     walk: 0,

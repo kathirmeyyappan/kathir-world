@@ -13,6 +13,7 @@ import {
   PLAYER_RADIUS,
   GEAR,
   JUMP_VELOCITY,
+  LEAP_REST,
   RUN_MULTIPLIER,
   SCOPED_SPEED_MULTIPLIER,
   SPEEDY_MULTIPLIER,
@@ -183,7 +184,7 @@ test("pickups drift about their own areas, never leaving them or crossing a ring
   }
 });
 
-test('a jump at a run is a long jump for a look that has one: lower and further, and over when it lands', () => {
+test('a jump at a run is a long jump for a look that has one: lower and further, over when it lands, and held into the next only after its feet have been down a moment', () => {
   // A running jump from the origin: how far it carries and how high the feet get.
   const flight = (avatar: AvatarId) => {
     const p = createPlayer('a', 'a', '#fff', { x: 0, y: EYE_HEIGHT, z: 0 });
@@ -196,12 +197,20 @@ test('a jump at a run is a long jump for a look that has one: lower and further,
       leapt ||= p.leap;
       if (i > 1 && isGrounded(p)) break;
     }
-    return { far: p.pos.z, peak, leapt, leaping: p.leap };
+    // Still holding the jump and the run: the ticks its feet stay down before it's off again.
+    let down = 0;
+    for (let i = 200; i < 260 && isGrounded(p); i++) {
+      stepPlayer(p, frame(i, { my: 1, jump: true, actions: ['run'] }), TICK_DT, WORLD_SHAPE);
+      down++;
+    }
+    return { far: p.pos.z, peak, leapt, down, again: p.leap };
   };
   const plain = flight('sulley'); // a running jump of about Mario's power, and no long jump
   const long = flight('mario');
   assert.ok(!plain.leapt && long.leapt, 'only the look with a long jump leaps');
-  assert.ok(!long.leaping, 'the long jump is over on landing');
+  assert.ok(long.again, 'and the long jump is over on landing, the next one taken with the keys still held');
+  assert.ok(long.down >= Math.floor(LEAP_REST * TICK_RATE), `after ${long.down} ticks down`);
+  assert.equal(plain.down, 1, 'a plain jump is off again at once');
   assert.ok(long.far > plain.far * 1.4, `further: ${long.far.toFixed(1)} m against ${plain.far.toFixed(1)} m`);
   assert.ok(long.peak < plain.peak * 0.75, `lower: ${long.peak.toFixed(2)} m against ${plain.peak.toFixed(2)} m`);
 });

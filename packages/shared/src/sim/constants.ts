@@ -29,6 +29,9 @@ export const MAX_PITCH = Math.PI / 2 - 0.1;
 
 // Running (the `run` action, held): the walk this many times as fast, except down a scope.
 export const RUN_MULTIPLIER = 1.6;
+// Seconds a long jump's landing keeps the feet down before they can jump again (walker.ts), so
+// one held into the next is seen to land between.
+export const LEAP_REST = 0.15;
 
 // /speedy: temporary movement multiplier, counted down by the sim so prediction matches. A boosted
 // walk gains nothing by running: the faster of the two multipliers applies, never both.
