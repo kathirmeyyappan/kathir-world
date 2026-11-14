@@ -46,7 +46,7 @@ export const ABILITIES: Record<AbilityId, Entry> = {
   leap: plain('Long jump', 'A jump while running goes low and far, with little steering until it lands.'),
   pound: plain(
     'Ground pound',
-    'In the air, turns over and drops straight down, hurting everyone on foot near where it lands. A jump clears it.',
+    'In the air, turns over and drops straight down, hurting everyone on foot near where it lands and knocking them back. A jump clears it.',
   ),
 };
 

@@ -73,7 +73,7 @@ export interface Leap {
 
 // A ground pound: what the pound action does in the air, for a look that has one (walker.ts). The
 // body stops where it is and turns over, drops straight down, and hurts everyone else on foot near
-// where it lands (the Room), its feet planted a moment after. The keys and a jetpack do nothing
+// where it lands, knocking them back off their feet (the Room), its own feet planted a moment after. The keys and a jetpack do nothing
 // from its start until it's back on its feet.
 export interface Pound {
   damage: number; // hearts it takes off everyone it lands near
@@ -81,6 +81,9 @@ export interface Pound {
   twirl: number; // seconds it hangs turning over before it drops
   speed: number; // m/s it starts down at, gravity adding to it as to any fall
   recover: number; // seconds its feet stay planted once it's down
+  // The throw it gives everyone it hurts (walker.ts `throwWalker`): away from where it landed at
+  // `speed` m/s and up at `lift`, with `grip` m/s² of the keys left to them until they land.
+  knock: { speed: number; lift: number; grip: number };
 }
 
 // A look is of a class (classes.ts), and brings what its class's sim needs of it: a walker how it
@@ -188,7 +191,8 @@ const LOOKS = {
     walk: 8,
     jump: 1.35,
     leap: { rise: 0.5, speed: 1.6, float: 0.5, grip: 6 }, // 1.6 times a running jump's distance at half its height
-    pound: { damage: 1.5, reach: 2.5, twirl: 1 / 3, speed: 20, recover: 0.35 }, // the twirl as long as its clip (Jointed.ts)
+    // The twirl as long as its clip (Jointed.ts); the knock a hop back, a third of a second off the ground.
+    pound: { damage: 1.5, reach: 3, twirl: 1 / 3, speed: 20, recover: 0.35, knock: { speed: 4, lift: 3, grip: 6 } },
   },
   luigi: {
     id: 'luigi',
@@ -202,7 +206,8 @@ const LOOKS = {
     walk: 8,
     jump: 1.55,
     leap: { rise: 0.5, speed: 1.6, float: 0.5, grip: 6 }, // 1.6 times a running jump's distance at half its height
-    pound: { damage: 1.5, reach: 2.5, twirl: 1 / 3, speed: 20, recover: 0.35 }, // the twirl as long as its clip (Jointed.ts)
+    // The twirl as long as its clip (Jointed.ts); the knock a hop back, a third of a second off the ground.
+    pound: { damage: 1.5, reach: 3, twirl: 1 / 3, speed: 20, recover: 0.35, knock: { speed: 4, lift: 3, grip: 6 } },
   },
   mike: {
     id: 'mike',

@@ -1120,12 +1120,14 @@ test('a ground pound: pressed in the air it hangs, drops faster than a fall, pla
   assert.ok(ticks < 12, `down in ${ticks} ticks`);
   assert.equal(alice.pos.y, EYE_HEIGHT);
   assert.equal(bob.hearts, MAX_HEARTS - pound.damage, 'bob, within reach, is hurt');
+  room.step();
+  assert.ok(bob.pos.x > 2 && bob.pos.y > EYE_HEIGHT, 'and knocked back off his feet');
   assert.equal(carol.hearts, MAX_HEARTS, 'carol, past it, is not');
   assert.equal(alice.hearts, MAX_HEARTS, 'and it lands as the plain fall it began as, unhurt');
   room.receive(ida, { t: 'input', f: { ...frame(0, []), my: 1 } });
   room.step();
   assert.equal(alice.pos.z, 0, 'feet planted');
-  for (let i = 0; i < Math.round(pound.recover * TICK_RATE) + 1; i++) room.step();
+  for (let i = 0; i < Math.round(pound.recover * TICK_RATE); i++) room.step();
   assert.equal(alice.pound, null);
   assert.equal(bob.hearts, MAX_HEARTS - pound.damage, 'hurt once');
 });
