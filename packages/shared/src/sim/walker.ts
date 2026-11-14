@@ -8,6 +8,7 @@ import {
   CHILLED_SPEED_MULTIPLIER,
   EYE_HEIGHT,
   GRAVITY,
+  LEAP_REST,
   PLAYER_PADDING,
   PLAYER_RADIUS,
   RUN_MULTIPLIER,
@@ -44,6 +45,7 @@ export const WALKER: ClassSpec = {
   exit(p) {
     p.climb = null;
     p.leap = false;
+    p.rest = 0;
     p.pound = null;
   },
   step: stepWalker,
@@ -104,7 +106,8 @@ export function stepWalker(
     if (hold && takeHold(p, backing ? { ...hold, side: flipped(hold.side) } : hold, structures, backing))
       return climb(p, input, dt, structures);
   }
-  if (input?.jump && grounded && !p.dead && !p.scoped) {
+  if (grounded) p.rest = Math.max(0, p.rest - dt);
+  if (input?.jump && grounded && !p.dead && !p.scoped && p.rest === 0) {
     const takeoff = structures.footing(p.pos.x, p.pos.z, p.pos.y - EYE_HEIGHT + STEP_UP, PLAYER_RADIUS);
     const grip = SURFACES[takeoff.surface].grip;
     const jump = jumpVelocityOf(p.avatar);
@@ -154,6 +157,7 @@ export function stepWalker(
   }
   const standing = p.pos.y <= floor;
   if (standing) {
+    if (p.leap) p.rest = LEAP_REST;
     p.thrown = null;
     p.leap = false;
   }

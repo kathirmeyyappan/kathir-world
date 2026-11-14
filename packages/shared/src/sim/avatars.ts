@@ -190,7 +190,7 @@ const LOOKS = {
     hitbox: { top: 2.0, radius: 0.5, head: 0.85 }, // as tall as the standard body; the head, cap and all, is 0.8 m across and everything over the shoulders
     walk: 8,
     jump: 1.35,
-    leap: { rise: 0.5, speed: 1.6, float: 0.5, grip: 6 }, // 1.6 times a running jump's distance at half its height
+    leap: { rise: 0.5, speed: 1.25, float: 0.5, grip: 6 }, // at twice its walk, a quarter over its run, and half its jump's height
     // The twirl as long as its clip (Jointed.ts); the knock a hop back, a third of a second off the ground.
     pound: { damage: 1.5, reach: 3, twirl: 1 / 3, speed: 20, recover: 0.35, knock: { speed: 4, lift: 3, grip: 6 } },
   },
@@ -205,7 +205,7 @@ const LOOKS = {
     hitbox: { top: 2.2, radius: 0.45, head: 0.9 }, // a tenth taller than Mario, as their models stand, and narrower: a head 0.66 m across
     walk: 8,
     jump: 1.55,
-    leap: { rise: 0.5, speed: 1.6, float: 0.5, grip: 6 }, // 1.6 times a running jump's distance at half its height
+    leap: { rise: 0.5, speed: 1.25, float: 0.5, grip: 6 }, // at twice its walk, a quarter over its run, and half its jump's height
     // The twirl as long as its clip (Jointed.ts); the knock a hop back, a third of a second off the ground.
     pound: { damage: 1.5, reach: 3, twirl: 1 / 3, speed: 20, recover: 0.35, knock: { speed: 4, lift: 3, grip: 6 } },
   },
