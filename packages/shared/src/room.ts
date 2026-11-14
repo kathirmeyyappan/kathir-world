@@ -532,6 +532,9 @@ export class Room {
         if (!classOf(me.avatar).kit) return tell(`not as ${aClass(me.avatar)}`);
         this.wear(seat, command.gear);
         return;
+      case 'unequip':
+        this.unequip(seat);
+        return;
       case 'avatar':
         if (this.become(seat, command.avatar))
           this.broadcast({ t: 'system', text: `${me.name} is now ${command.avatar}` });
@@ -683,6 +686,22 @@ export class Room {
       },
       me.id,
     );
+  }
+
+  // Puts down the weapon and takes off the gear. A locked item is the look's own and stays.
+  private unequip(seat: Seat): void {
+    const me = seat.state;
+    const held = me.item && !me.item.locked ? me.item.id : null;
+    const worn = me.gear?.id ?? null;
+    if (!held && !worn) {
+      seat.link.send({ t: 'system', text: 'nothing to unequip' });
+      return;
+    }
+    if (held) me.item = null;
+    me.gear = null;
+    const what = [held, worn].filter((id) => id !== null).join(' and ');
+    seat.link.send({ t: 'system', text: `you put away your ${what}` });
+    this.broadcast({ t: 'system', text: `${me.name} put away their ${what}` }, me.id);
   }
 
   // A bot's chosen spot (feet at `feet`), kept inside the world, on whatever is within a step of
