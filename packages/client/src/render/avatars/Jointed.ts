@@ -116,6 +116,7 @@ export interface Style {
   dead: BodyPose; // lying on its back
   follow: number; // the share of the look's pitch the head takes
   bank: number; // radians it leans into a turn for each radian a second it's turning, at a full walk
+  glance: number; // one time through its idle in this many it looks about as the clip has it; the rest its head stays ahead
 }
 
 export interface JointedSpec {
@@ -182,6 +183,7 @@ const FIST = 0.05; // metres a fist's middle is from the palm's, on the palm's s
 const HOLD = new Vector3(0, 0.02, 0.06);
 const POUND_IN = 0.07; // seconds a ground pound takes to pull the body into its turn
 const GETS_UP = 0.5; // the share of a ground pound's landing after which it's on its feet, and eases into what it does next
+const HEAD_AT = turnAt(CLIP_BONES.indexOf('head')); // where the head's turn is in a clip's moment
 const CLIMB_REACH = 0.35; // radians a hand goes up and down the rail with each rung
 
 export class JointedAvatar extends WalkerAvatar {
@@ -215,6 +217,7 @@ export class JointedAvatar extends WalkerAvatar {
   private impact = 0; // how hard it last landed, 0 to 1
   private landing = Infinity; // seconds since it last landed
   private stood = 0; // seconds it has been drawn, for its idle
+  private readonly ahead: Float32Array; // the head's turn as its idle starts: looking ahead
 
   constructor(engine: Engine, id: string, kind: AvatarId, spec: JointedSpec, color: string) {
     let rig: Rig | undefined;
@@ -242,6 +245,8 @@ export class JointedAvatar extends WalkerAvatar {
       pound: raw.pound ? clip(raw.pound) : null,
       pounded: raw.pounded ? clip(raw.pounded) : null,
     };
+    sample(this.third, this.clips.idle, 0, true);
+    this.ahead = this.third.slice(HEAD_AT, HEAD_AT + 4);
   }
 
   // On the ground or in the air: its idle, its walk or run where its stride has got to, its jump,
@@ -277,7 +282,13 @@ export class JointedAvatar extends WalkerAvatar {
     // point in the stride the feet have got to (run backward, a stride is the same one reversed).
     this.moving = eased(this.moving, p.grounded && pace > 0.02 ? 1 : 0, dt, EASE_MOVING);
     const striding = this.moving > 0.999 ? 1 : this.moving < 0.001 ? 0 : smooth(this.moving);
-    if (striding < 1) sample(out, clips.idle, this.stood / clips.idle.seconds, true);
+    if (striding < 1) {
+      const through = this.stood / clips.idle.seconds;
+      sample(out, clips.idle, through, true);
+      // Mostly it only breathes: the head is held where the idle starts, ahead, but for one time
+      // through in `glance`, which starts and ends there too.
+      if (Math.floor(through) % style.glance !== style.glance - 1) out.set(this.ahead, HEAD_AT);
+    }
     let grip = GRIP_IDLE;
     if (striding > 0) {
       const stride = striding < 1 ? other : out;
