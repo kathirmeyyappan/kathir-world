@@ -44,6 +44,7 @@ interface Walker {
   step: number; // the last step played, so the next differs
   footfalls: number; // steps taken since they last landed: which foot is down
   liftedFrom: number | null; // height their feet left the ground at, until it's called a jump or not
+  climbing: boolean; // on a ladder when last seen
   peak: number; // highest they've been this time in the air
   falling: number; // fastest downward speed this time in the air, m/s, when it's known
 }
@@ -77,6 +78,7 @@ export class Footsteps {
       avatar: AvatarId;
       grounded: boolean;
       leap: boolean;
+      climbing: boolean; // on a ladder (sim/types.ts `climb`): off the ground, and neither jumping nor falling
       pound: boolean; // in a ground pound (sim/avatars.ts `Pound`): it lands as hard as a landing gets
       falling?: number;
       self: boolean;
@@ -99,6 +101,7 @@ export class Footsteps {
           step: -1,
           footfalls: 0,
           liftedFrom: null,
+          climbing: p.climbing,
           peak: p.pos.y,
           falling: 0,
         });
@@ -111,6 +114,8 @@ export class Footsteps {
       const across = Math.hypot(p.pos.x - w.at.x, p.pos.z - w.at.z);
       const down = w.at.y - p.pos.y;
       const wasGrounded = w.grounded;
+      const wasClimbing = w.climbing;
+      w.climbing = p.climbing;
       w.at = { ...p.pos };
       w.grounded = p.grounded;
       if (across > JUMPED || Math.abs(down) > JUMPED) continue;
@@ -120,6 +125,14 @@ export class Footsteps {
           w.liftedFrom = p.pos.y + down;
           w.peak = w.liftedFrom;
           w.falling = 0;
+        }
+        // A ladder is climbed, not jumped up or fallen down: only a jump off it is a jump, from
+        // where it left the rungs.
+        if (p.climbing || wasClimbing) {
+          w.liftedFrom = p.climbing ? null : p.pos.y + down;
+          w.peak = p.pos.y;
+          w.falling = 0;
+          if (p.climbing) continue;
         }
         w.peak = Math.max(w.peak, p.pos.y);
         w.falling = Math.max(w.falling, p.falling ?? 0);
