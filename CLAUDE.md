@@ -408,8 +408,8 @@ POUND button) is a ground pound, `PlayerState.pound`: the body hangs turning ove
 drops straight down from `speed` under gravity, and lands planted for `recover`, the keys and a
 jetpack doing nothing throughout; the landing is judged as the plain fall it began as, and the Room
 takes `damage` off everyone else on foot within `reach` across the floor, about level with it
-(`POUND_HEIGHT`, so a jump clears it) and in its sight, a kill by it announced with `item:
-'pound'`; the client plays its turn's sound and runs a ring out over the floor it hurt across,
+(`POUND_HEIGHT`, so a jump clears it) and in its sight, and throws them back off their feet (its
+`knock`, a `throwWalker` like the storm's), a kill by it announced with `item: 'pound'`; the client plays its turn's sound and runs a ring out over the floor it hurt across,
 `render/PoundRing.ts`) and a builder in `packages/client/src/render/avatars/` (`MAKERS` in `index.ts`,
 which the compiler asks for). Everyone on foot is a `Figure` (`render/avatars/Walker.ts`): the
 builder makes the avatar's parts under the base node and says which plays which role (what tips

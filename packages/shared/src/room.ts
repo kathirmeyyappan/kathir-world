@@ -437,7 +437,8 @@ export class Room {
 
   // What the end of a step does: a landing at `speed` m/s hurts by its speed, and a ground pound
   // landing this tick (avatars.ts `Pound`) hurts everyone else on foot within its reach across the
-  // floor, about level with it and in its sight, so not through a wall or a floor.
+  // floor, about level with it and in its sight, so not through a wall or a floor, and throws them
+  // back from it.
   private land(seat: Seat, speed: number): void {
     const me = seat.state;
     const damage = fallDamage(speed);
@@ -449,6 +450,12 @@ export class Room {
       if (p === me || p.dead || classOf(p.avatar).id !== 'walker') continue;
       if (Math.hypot(p.pos.x - me.pos.x, p.pos.z - me.pos.z) > pound.reach) continue;
       if (Math.abs(p.pos.y - me.pos.y) > POUND_HEIGHT || !this.structures.clear(me.pos, p.pos)) continue;
+      const dx = p.pos.x - me.pos.x;
+      const dz = p.pos.z - me.pos.z;
+      const flat = Math.hypot(dx, dz);
+      const out = flat > 1e-6 ? { x: dx / flat, z: dz / flat } : { x: 1, z: 0 };
+      const { speed, lift, grip } = pound.knock;
+      throwWalker(p, { x: out.x * speed, y: lift, z: out.z * speed }, grip);
       this.damage(p, pound.damage, { shooter: seat, headshot: false, pound: true });
     }
   }
