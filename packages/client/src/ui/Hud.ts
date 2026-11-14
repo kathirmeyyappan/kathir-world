@@ -2,7 +2,15 @@
 // the chat offers the commands it could be the start of (commands.ts), listed above the box with
 // the best nearest it: Up picks from the bottom, Down comes back, Enter or Tab (or a click) puts
 // the pick in the box, where Enter sends it as anything else.
-import { MAX_CHAT_LENGTH, MAX_HEARTS, heartsOf, type AvatarId, type Element, type PlayerClass } from '@world/shared';
+import {
+  MAX_CHAT_LENGTH,
+  MAX_HEARTS,
+  heartsOf,
+  type AvatarId,
+  type Element,
+  type ItemId,
+  type PlayerClass,
+} from '@world/shared';
 import { HEART, KNIFE, ROBOT, SKULL, pixelSvg } from './pixelIcons';
 
 import { IS_TOUCH } from '../input/touch';
@@ -329,10 +337,10 @@ export class Hud {
   }
 
   // A kill, worded and coloured like an announcement: "ann killed bob with a sniper headshot".
-  announceKill(shooter: string, victim: string, item: string, headshot: boolean): void {
+  announceKill(shooter: string, victim: string, item: ItemId | 'pound', headshot: boolean): void {
     const li = document.createElement('li');
     li.className = 'kill';
-    li.textContent = `${this.playerName(shooter)} killed ${this.playerName(victim)} with a ${item}${headshot ? ' headshot' : ''}`;
+    li.textContent = `${this.playerName(shooter)} killed ${this.playerName(victim)} with a ${item === 'pound' ? 'ground pound' : item}${headshot ? ' headshot' : ''}`;
     this.pushLine(li);
   }
 

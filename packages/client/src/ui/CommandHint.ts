@@ -1,4 +1,4 @@
-// Onboarding nudge: a banner across the screen pointing at the commands (C) and the menu (X), its
+// Onboarding nudge: a banner across the screen pointing at the commands (C) and the menu (M), its
 // keys tapping down and up in turn. It comes up once, DELAY_MS into play, and counts itself down
 // for SHOW_MS; after that, or once the player has opened chat, the commands or the menu, whichever
 // comes first, it's retired and this device never shows it again. Pure DOM, driven once a frame by
@@ -13,7 +13,7 @@ const DONE_KEY = 'world.hint-done'; // localStorage: this device is done with th
 // The keys are drawn like the Q in the windows' close hints; on touch they're the buttons to tap.
 const LINES = IS_TOUCH
   ? ['TAP <kbd>CMDS</kbd> FOR COMMANDS', 'TAP <kbd class="gear-key"></kbd> FOR MENU']
-  : ['PRESS <kbd>C</kbd> FOR COMMANDS', 'PRESS <kbd>X</kbd> FOR MENU'];
+  : ['PRESS <kbd>C</kbd> FOR COMMANDS', 'PRESS <kbd>M</kbd> FOR MENU'];
 
 export class CommandHint {
   private readonly el = document.getElementById('command-hint')!;

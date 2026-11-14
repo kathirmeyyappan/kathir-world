@@ -7,6 +7,7 @@ import {
   HEADSHOT_MULTIPLIER,
   ITEMS,
   MAX_HEARTS,
+  poundOf,
   NAMED_COLORS,
   MAX_BOTS,
   MAX_PITCH,
@@ -1092,4 +1093,39 @@ test('/light-dragon: 40 hearts, full, breath for good and no kit, 1.5 hearts bac
   assert.ok(!room.players.some((p) => p.id === ida), 'gone at 30 s');
   const snap = [...b.inbox].reverse().find((m) => m.t === 'snap')!;
   assert.equal(snap.pickups.filter((p) => p.kind === 'big-heart').length, 5);
+});
+
+test('a ground pound: pressed in the air it hangs, drops faster than a fall, plants its feet, and hurts whoever is on foot near where it lands, at no cost to itself', () => {
+  const room = new Room('pound', { seed: 3, structures: new Structures([]) });
+  const [a, b, c] = [link(), link(), link()];
+  const [ida, idb, idc] = [room.join('alice', a)!, room.join('bob', b)!, room.join('carol', c)!];
+  const [alice, bob, carol] = [ida, idb, idc].map((id) => room.players.find((p) => p.id === id)!);
+  room.receive(ida, { t: 'chat', text: '/mario' });
+  // Alice 6 m up, bob 2 m from under her, carol 5 m.
+  alice.pos = { x: 0, y: EYE_HEIGHT + 6, z: 0 };
+  bob.pos = { x: 2, y: EYE_HEIGHT, z: 0 };
+  carol.pos = { x: 5, y: EYE_HEIGHT, z: 0 };
+  room.step();
+  const pound = poundOf('mario')!;
+  const stage = () => alice.pound?.stage;
+  room.receive(ida, { t: 'input', f: frame(0, ['pound']) });
+  room.step();
+  const from = alice.pos.y;
+  assert.equal(stage(), 'twirl');
+  for (let i = 0; i < Math.round(pound.twirl * TICK_RATE) - 1; i++) room.step();
+  assert.ok(stage() === 'twirl' && alice.pos.y === from, 'hanging where it began, turning over');
+  let ticks = 0;
+  while (stage() !== 'land' && ticks++ < 60) room.step();
+  // A plain fall of that height takes sqrt(2h/g): about 23 ticks.
+  assert.ok(ticks < 12, `down in ${ticks} ticks`);
+  assert.equal(alice.pos.y, EYE_HEIGHT);
+  assert.equal(bob.hearts, MAX_HEARTS - pound.damage, 'bob, within reach, is hurt');
+  assert.equal(carol.hearts, MAX_HEARTS, 'carol, past it, is not');
+  assert.equal(alice.hearts, MAX_HEARTS, 'and it lands as the plain fall it began as, unhurt');
+  room.receive(ida, { t: 'input', f: { ...frame(0, []), my: 1 } });
+  room.step();
+  assert.equal(alice.pos.z, 0, 'feet planted');
+  for (let i = 0; i < Math.round(pound.recover * TICK_RATE) + 1; i++) room.step();
+  assert.equal(alice.pound, null);
+  assert.equal(bob.hearts, MAX_HEARTS - pound.damage, 'hurt once');
 });

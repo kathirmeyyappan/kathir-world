@@ -21,6 +21,11 @@ export interface PlayerState {
   // Thrown (by ice, or by a weapon): in the air with the keys given only this much grip on the
   // flight, m/s² (0: none), until it lands; null on its own feet (walker.ts `throwWalker`).
   thrown: number | null;
+  leap: boolean; // in a long jump (avatars.ts `Leap`), until it lands or something else moves it
+  // In a ground pound (avatars.ts `Pound`, walker.ts): the stage it's at and the seconds into it,
+  // 0 on the tick the stage began, with the eye height and vertical speed (m/s) it began at, which
+  // its landing is judged as a plain fall from; null otherwise.
+  pound: { stage: 'twirl' | 'drop' | 'land'; t: number; from: number; vy: number } | null;
   // On a ladder (structures.ts `ladder`, walker.ts): the piece, the face it climbs (±1 along the
   // ladder's local z), and which way round the ladder it last went to it (-1 by its left, 1 by its
   // right), for the swing; null on foot.

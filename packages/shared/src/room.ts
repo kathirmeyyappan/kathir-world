@@ -30,7 +30,7 @@ import {
   TICK_RATE,
 } from './sim/constants';
 import { parseCommand, type BotCallArgs, type Command } from './commands';
-import { AVATARS, eyeOf, type AvatarId } from './sim/avatars';
+import { AVATARS, eyeOf, poundOf, type AvatarId } from './sim/avatars';
 import { classOf, heartsOf } from './sim/classes';
 import { resolveFire } from './sim/combat';
 import { frostDisc, sprayFrost } from './sim/frost';
@@ -65,6 +65,7 @@ const BOT_CORPSE_TICKS = 5 * TICK_RATE;
 const BROWSER_CORPSE_TICKS = (DEATH_SCREEN_SECONDS + 3) * TICK_RATE;
 const SPAWN_CUBE_MARGIN = 4;
 const GONE: ClientLink = { send() {} }; // the link of a body whose client has left
+const POUND_HEIGHT = 1; // metres over or under where a ground pound lands that its reach goes: a jump clears it
 const CALLED_BOT_RANGE = 50; // metres from the caller, across the floor, that a called bot spawns within
 
 export interface ClientLink {
@@ -407,9 +408,13 @@ export class Room {
     this.broadcast({ t: 'door', id, open, by: me.id });
   }
 
-  // Takes hearts off `victim`, for a shot by `by.shooter` or, with no `by`, a fall, and kills them
-  // at zero. A death is one structured message; clients word the announcement.
-  private damage(victim: PlayerState, damage: number, by: { shooter: Seat; headshot: boolean } | null): void {
+  // Takes hearts off `victim`, for a shot by `by.shooter` (or their ground pound) or, with no `by`,
+  // a fall, and kills them at zero. A death is one structured message; clients word the announcement.
+  private damage(
+    victim: PlayerState,
+    damage: number,
+    by: { shooter: Seat; headshot: boolean; pound?: boolean } | null,
+  ): void {
     const killed = applyDamage(victim, damage);
     const shooter = by?.shooter.state ?? null;
     const headshot = by?.headshot ?? false;
@@ -426,13 +431,26 @@ export class Room {
     if (seat) seat.diedTick = this.tick;
     if (!shooter) return this.broadcast({ t: 'fell', victim: victim.id });
     shooter.kills++;
-    this.broadcast({ t: 'kill', shooter: shooter.id, victim: victim.id, item: shooter.item!.id, headshot });
+    const item = by?.pound ? 'pound' : shooter.item!.id;
+    this.broadcast({ t: 'kill', shooter: shooter.id, victim: victim.id, item, headshot });
   }
 
-  // A step that ended in a landing at `speed` m/s.
+  // What the end of a step does: a landing at `speed` m/s hurts by its speed, and a ground pound
+  // landing this tick (avatars.ts `Pound`) hurts everyone else on foot within its reach across the
+  // floor, about level with it and in its sight, so not through a wall or a floor.
   private land(seat: Seat, speed: number): void {
+    const me = seat.state;
     const damage = fallDamage(speed);
-    if (damage > 0 && !seat.state.dead) this.damage(seat.state, damage, null);
+    if (damage > 0 && !me.dead) this.damage(me, damage, null);
+    const pound = poundOf(me.avatar);
+    if (!pound || me.dead || me.pound?.stage !== 'land' || me.pound.t !== 0) return;
+    for (const other of this.seats.values()) {
+      const p = other.state;
+      if (p === me || p.dead || classOf(p.avatar).id !== 'walker') continue;
+      if (Math.hypot(p.pos.x - me.pos.x, p.pos.z - me.pos.z) > pound.reach) continue;
+      if (Math.abs(p.pos.y - me.pos.y) > POUND_HEIGHT || !this.structures.clear(me.pos, p.pos)) continue;
+      this.damage(p, pound.damage, { shooter: seat, headshot: false, pound: true });
+    }
   }
 
   step(): void {

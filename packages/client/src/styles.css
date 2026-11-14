@@ -1978,8 +1978,9 @@ body {
   bottom: 178px;
   width: 84px;
 }
-/* SWAP, on a ladder: a square beside JUMP, to its left. */
-#swap-button {
+/* SWAP, on a ladder, and POUND, in the air: a square beside JUMP, to its left. */
+#swap-button,
+#pound-button {
   bottom: 26px;
   right: 118px;
   width: 84px;
@@ -2140,7 +2141,8 @@ body {
   #scope-button {
     right: 96px;
   }
-  #swap-button {
+  #swap-button,
+  #pound-button {
     right: 96px;
     bottom: 16px;
     width: 72px;

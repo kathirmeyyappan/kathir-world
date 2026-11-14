@@ -6,7 +6,7 @@
 // moves as whoever animated the clips moved it, and a new character is a model and its clips. The
 // walker still places the body, counts its stride, aims what it holds and lays it down dead.
 import { Quaternion, TransformNode, Vector3 } from '@babylonjs/core';
-import { GRAVITY, WORLD_STRUCTURES, walkSpeedOf, type AvatarId } from '@world/shared';
+import { GRAVITY, WORLD_STRUCTURES, poundOf, walkSpeedOf, type AvatarId } from '@world/shared';
 import type { RemotePlayer } from '../../net/Interpolation';
 import type { Engine } from '../Engine';
 import { CLIP_BONES, LEGS, blend, clip, motion, sample, turnAt, type Clip, type Motion, type RawClip } from './clips';
@@ -93,6 +93,9 @@ export interface JointedModel extends SkinnedModel<JointedBone> {
   readonly sole: readonly number[]; // metres a shoe's toe reaches ahead of its ankle, and its heel behind it
 }
 
+// The clips only a look with the move has.
+type Moves = 'leap' | 'pound' | 'pounded';
+
 // How a character moves: its clips, and the few numbers round them.
 export interface Style {
   clips: {
@@ -102,6 +105,11 @@ export interface Style {
     jump: RawClip; // leaving the ground, held at its end while it's going up
     fall: RawClip; // coming down, looped
     land: RawClip; // from the bottom of a landing's crouch back up to standing
+    leap?: RawClip; // a long jump (sim/avatars.ts `Leap`), takeoff to landing: held at its end
+    // A ground pound (sim/avatars.ts `Pound`): turning over in the air into the seat it drops in,
+    // held at its end; and landing sat, then getting up.
+    pound?: RawClip;
+    pounded?: RawClip;
   };
   flutter?: number; // strides a second its legs run on at in the air: a scuttle
   landSpeed: number; // m/s of fall that lands all the way into the landing's crouch
@@ -168,12 +176,18 @@ const CLIMB = pose({
 const FINGER_CURL = 1.7;
 const THUMB_FOLD = 0.6;
 const THUMB_CURL = 1.3;
+const FIST = 0.05; // metres a fist's middle is from the palm's, on the palm's side
+// Where a held item's own origin (the top of its handle) goes from the fist's middle, in the grip's
+// frame: the handle's middle in the fist, so the barrel runs over the top of the hand.
+const HOLD = new Vector3(0, 0.02, 0.06);
+const POUND_IN = 0.07; // seconds a ground pound takes to pull the body into its turn
+const GETS_UP = 0.5; // the share of a ground pound's landing after which it's on its feet, and eases into what it does next
 const CLIMB_REACH = 0.35; // radians a hand goes up and down the rail with each rung
 
 export class JointedAvatar extends WalkerAvatar {
   private readonly rig: Rig;
   private readonly style: Style;
-  private readonly clips: Record<keyof Style['clips'], Clip>;
+  private readonly clips: Record<Exclude<keyof Style['clips'], Moves>, Clip> & Record<Moves, Clip | null>;
   private readonly out = motion();
   private readonly other = motion();
   private readonly third = motion();
@@ -194,6 +208,10 @@ export class JointedAvatar extends WalkerAvatar {
   private airborne = 0; // how far into its pose in the air it is: 0 on the ground, 1 well off it
   private aloft = 0; // seconds since it left the ground
   private kicking = 1; // how much of its flutter its legs have in the air: none under a jet's thrust
+  private leaping = 0; // how far into its long jump's pose it is, of its poses in the air
+  private pound: RemotePlayer['pound'] = null; // the stage of its ground pound when it was last drawn
+  private turned = 0; // seconds since its ground pound began
+  private sat = Infinity; // seconds since its ground pound landed
   private impact = 0; // how hard it last landed, 0 to 1
   private landing = Infinity; // seconds since it last landed
   private stood = 0; // seconds it has been drawn, for its idle
@@ -220,6 +238,9 @@ export class JointedAvatar extends WalkerAvatar {
       jump: clip(raw.jump),
       fall: clip(raw.fall),
       land: clip(raw.land),
+      leap: raw.leap ? clip(raw.leap) : null,
+      pound: raw.pound ? clip(raw.pound) : null,
+      pounded: raw.pounded ? clip(raw.pounded) : null,
     };
   }
 
@@ -305,16 +326,45 @@ export class JointedAvatar extends WalkerAvatar {
         sample(third, clips.run, this.aloft * style.flutter, true);
         blend(other, other, third, this.kicking, LEGS);
       }
+      // A long jump is its own way through the air, takeoff to landing.
+      this.leaping = Math.min(1, Math.max(0, this.leaping + (p.leap ? dt : -dt) / TAKEOFF_SECONDS));
+      if (clips.leap && this.leaping > 0) {
+        sample(third, clips.leap, this.aloft / clips.leap.seconds, false);
+        blend(other, other, third, smooth(this.leaping));
+      }
       const air = smooth(this.airborne);
       blend(out, out, other, air);
       grip += (GRIP_RUN + (GRIP_FALL - GRIP_RUN) * down - grip) * air;
     }
 
+    // A ground pound takes the whole body: turning over for as long as the sim hangs it there, sat
+    // for the drop, then landing sat and getting up, easing into whatever it does next.
+    const spec = poundOf(this.kind);
+    if (p.pound !== this.pound) {
+      if (p.pound && !this.pound) this.turned = 0;
+      if (p.pound === 'land') this.sat = 0;
+      this.pound = p.pound;
+    }
+    this.turned += dt;
+    this.sat += dt;
+    const turning = p.pound === 'twirl' || p.pound === 'drop';
+    let own = 0; // how much of the body is the pound's
+    if (clips.pound && spec && turning) {
+      sample(third, clips.pound, p.pound === 'drop' ? 1 : this.turned / spec.twirl, false);
+      own = smooth(this.turned / POUND_IN);
+      grip = GRIP_FALL;
+    } else if (clips.pounded && this.sat < clips.pounded.seconds) {
+      const through = this.sat / clips.pounded.seconds;
+      sample(third, clips.pounded, through, false);
+      own = 1 - smooth((through - GETS_UP) / (1 - GETS_UP));
+    }
+    if (own > 0) blend(out, out, third, own);
+
     const off = wrap(p.yaw - this.facing);
-    const looks = smooth((HEAD_GIVES_UP - Math.abs(off)) / HEAD_FADE);
+    const looks = smooth((HEAD_GIVES_UP - Math.abs(off)) / HEAD_FADE) * (1 - own);
     const head = Math.max(-HEAD_TURN_LIMIT, Math.min(HEAD_TURN_LIMIT, off)) * looks;
     this.rig.play(out, grip, this.bank, armed ? hips * striding : 0, head, p.pitch * style.follow * looks);
-    this.arm(p);
+    if (!turning) this.arm(p);
     return walked;
   }
 
@@ -432,14 +482,19 @@ class Rig {
 
     // A held item goes in the right palm, which the walker points along the look from the shoulder:
     // the arm's own length, straight, is its reach.
+    // A held item is gripped in the right fist, the hand turned thumb up as a hand holds a pistol:
+    // the palm's middle, with the fist's middle a little to the palm's side of it, turned with the
+    // hand about the wrist. The grip hangs on the forearm, which stays as the model holds it while
+    // the arm aims, so the walker turns the item along the look as it does for any arm.
     const armR = skin.node('armR');
-    const hand = skin.node('handR');
+    const palm = skin.offset('handR', model.hand);
     const grip = new TransformNode(`avatar-grip-${id}`, engine.scene);
-    grip.parent = hand;
-    grip.position.copyFrom(skin.offset('handR', model.hand));
+    grip.parent = skin.node('forearmR');
+    grip.position.copyFrom(skin.offset('forearmR', model.bones.handR));
+    grip.position.addInPlaceFromFloats(palm.x, palm.z, palm.y + FIST);
     const chest = skin.node('chest');
     this.figure = {
-      armR: { node: armR, grip, reach: at('handR').subtract(at('armR')).normalize() },
+      armR: { node: armR, grip, hold: HOLD, reach: at('handR').subtract(at('armR')).normalize() },
       back: { node: chest, at: skin.offset('chest', model.back) },
       materials: [skin.material],
       shadow: spec.shadow,
@@ -513,7 +568,7 @@ class Rig {
   // grip: what the walker aims.
   straighten(): void {
     set(this.skin.node('forearmR'), IDENTITY);
-    set(this.skin.node('handR'), IDENTITY);
+    set(this.skin.node('handR'), THUMB_UP);
     this.hand(1, 1, 'fingersR', 'thumbR');
     this.gripped = -1;
   }
@@ -598,6 +653,8 @@ class Rig {
 
 // Scratch for the frame's arithmetic, shared by every jointed body: none of it survives a call.
 const IDENTITY = Quaternion.Identity();
+// The right hand, which the model holds palm down, turned about the arm's length to thumb up.
+const THUMB_UP = Quaternion.RotationAxis(Vector3.RightReadOnly, -Math.PI / 2);
 const HIPS = new Quaternion();
 const SPINE = new Quaternion();
 const CHEST = new Quaternion();

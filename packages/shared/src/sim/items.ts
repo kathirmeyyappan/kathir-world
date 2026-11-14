@@ -17,7 +17,7 @@ export type ItemId = 'gun' | 'sniper' | 'flamethrower' | 'ice-blower' | 'firebre
 // A's), to go round to its other face by its left or its right (walker.ts). The run is a walker's
 // too, held on Shift: its walk at RUN_MULTIPLIER (walker.ts).
 export type ItemAction =
-  'shoot' | 'scope' | 'thrust' | 'roar-1' | 'roar-2' | 'roar-3' | 'swap-left' | 'swap-right' | 'run';
+  'shoot' | 'scope' | 'thrust' | 'roar-1' | 'roar-2' | 'roar-3' | 'swap-left' | 'swap-right' | 'run' | 'pound';
 export type ActionMode = 'tap' | 'hold' | 'toggle';
 
 export interface ActionSpec {
@@ -175,7 +175,8 @@ export function isItemAction(v: unknown): v is ItemAction {
     v === 'roar-3' ||
     v === 'swap-left' ||
     v === 'swap-right' ||
-    v === 'run'
+    v === 'run' ||
+    v === 'pound'
   );
 }
 
@@ -218,6 +219,7 @@ const ACTION_HELP: Record<ItemAction, (spec: ActionSpec) => string> = {
   'roar-2': () => '% to roar',
   'roar-3': () => '% to roar',
   run: () => '% to run',
+  pound: () => '% in the air to ground pound',
 };
 
 // "range: 20m, dmg: 2 (headshot 2.5x)" or "range: 10m, dps: 1, chills 5s": the numbers that

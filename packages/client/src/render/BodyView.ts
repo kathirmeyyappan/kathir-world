@@ -299,6 +299,8 @@ export class BodyView {
       gear: shown.gear,
       thrusting: false,
       walk: 0,
+      leap: false,
+      pound: null,
       climb: null,
       chilled: shown.chilled,
       dead: false,

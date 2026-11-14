@@ -15,16 +15,21 @@ import {
   GRAVITY,
   HEADSHOT_MULTIPLIER,
   ITEMS,
+  JUMP_RISE,
   PICKUPS,
   PICKUP_AREAS,
   REGEN_RATE,
+  RUN_MULTIPLIER,
   SCOPED_SPEED_MULTIPLIER,
   SPEEDY_MULTIPLIER,
   SPEEDY_SECONDS,
   TICK_RATE,
   climbSpeedOf,
   dragonShape,
+  jumpVelocityOf,
+  leapOf,
   lifeOf,
+  poundOf,
   walkSpeedOf,
   type AvatarId,
   type BotFlag,
@@ -75,6 +80,52 @@ export function characterStats(id: AvatarId): Stat[] {
     );
   }
   return rows;
+}
+
+// What a character can do that the rest can't, each with its own numbers.
+export type AbilityId = 'leap' | 'pound';
+
+// A character's special abilities, read off its row: none for most.
+export function abilityStats(id: AvatarId): { id: AbilityId; stats: Stat[] }[] {
+  return [...leapStats(id), ...poundStats(id)];
+}
+
+function poundStats(id: AvatarId): { id: AbilityId; stats: Stat[] }[] {
+  const pound = poundOf(id);
+  if (!pound) return [];
+  return [
+    {
+      id: 'pound',
+      stats: [
+        { label: 'Use', value: 'X, in the air' },
+        { label: 'Ground pound damage', value: `${num(pound.damage)} hearts` },
+        { label: 'Reach', value: `${num(pound.reach)} m` },
+        { label: 'Drop speed', value: `${num(pound.speed)} m/s` },
+      ],
+    },
+  ];
+}
+
+function leapStats(id: AvatarId): { id: AbilityId; stats: Stat[] }[] {
+  const leap = leapOf(id);
+  if (!leap) return [];
+  // The long jump as walker.ts flies it: up at a share of the jump under a share of gravity, across
+  // at a multiple of the run, for as long as that keeps it in the air.
+  const speed = walkSpeedOf(id) * RUN_MULTIPLIER * leap.speed;
+  const up = jumpVelocityOf(id) * Math.sqrt(leap.rise * leap.float);
+  const seconds = (2 * up) / (GRAVITY * leap.float);
+  const jump = AVATARS[id];
+  return [
+    {
+      id: 'leap',
+      stats: [
+        { label: 'Use', value: 'Shift + Space, moving' },
+        { label: 'Distance', value: `${num(speed * seconds)} m` },
+        { label: 'Height', value: `${num(JUMP_RISE * (jump.class === 'walker' ? jump.jump : 1) * leap.rise)} m` },
+        { label: 'Speed', value: `${num(speed)} m/s` },
+      ],
+    },
+  ];
 }
 
 export function itemStats(id: ItemId): Stat[] {

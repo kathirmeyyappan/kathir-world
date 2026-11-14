@@ -48,8 +48,24 @@ export type SoundId =
   | 'suction-4'
   | 'jump'
   | 'mario-jump'
+  | 'mario-leap-1'
+  | 'mario-leap-2'
+  | 'luigi-leap-1'
+  | 'luigi-leap-2'
+  | 'mario-hurt-1'
+  | 'mario-hurt-2'
+  | 'mario-hurt-3'
+  | 'luigi-hurt-1'
+  | 'luigi-hurt-2'
+  | 'luigi-kill-1'
+  | 'luigi-kill-2'
+  | 'mario-kill-1'
+  | 'mario-kill-2'
+  | 'mario-enter'
+  | 'luigi-enter'
   | 'land'
   | 'land-hard'
+  | 'pound-twirl'
   | 'hurt'
   | 'roar-1'
   | 'roar-2'
@@ -111,9 +127,29 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'suction-3': { file: 'suction-3.mp3', half: 6, reach: 30, volume: 0.06 },
   'suction-4': { file: 'suction-4.mp3', half: 6, reach: 30, volume: 0.06 },
   jump: { file: 'jump.mp3', half: 6, reach: 30, volume: 0.05 },
-  'mario-jump': { file: 'mario-jump.mp3', half: 6, reach: 30, volume: 0.04 }, // Mario's and Luigi's (gaits.ts)
+  // A character's own voice (voices.ts). Every line but the jump is recorded at one loudness, so
+  // the volumes here are how they compare: a hit's cry just under the hurt sound, a kill's and a
+  // switch's a little under that, a long jump under those. The jump, heard at every hop, is kept
+  // far quieter than any of them.
+  'mario-jump': { file: 'mario-jump.mp3', half: 6, reach: 30, volume: 0.015 },
+  'mario-leap-1': { file: 'mario-leap-1.mp3', half: 6, reach: 30, volume: 0.12 },
+  'mario-leap-2': { file: 'mario-leap-2.mp3', half: 6, reach: 30, volume: 0.12 },
+  'luigi-leap-1': { file: 'luigi-leap-1.mp3', half: 6, reach: 30, volume: 0.12 },
+  'luigi-leap-2': { file: 'luigi-leap-2.mp3', half: 6, reach: 30, volume: 0.12 },
+  'mario-hurt-1': { file: 'mario-hurt-1.mp3', half: 6, reach: 30, volume: 0.25 },
+  'mario-hurt-2': { file: 'mario-hurt-2.mp3', half: 6, reach: 30, volume: 0.25 },
+  'mario-hurt-3': { file: 'mario-hurt-3.mp3', half: 6, reach: 30, volume: 0.25 },
+  'luigi-hurt-1': { file: 'luigi-hurt-1.mp3', half: 6, reach: 30, volume: 0.25 },
+  'luigi-hurt-2': { file: 'luigi-hurt-2.mp3', half: 6, reach: 30, volume: 0.25 },
+  'mario-kill-1': { file: 'mario-kill-1.mp3', half: 6, reach: 30, volume: 0.2 },
+  'mario-kill-2': { file: 'mario-kill-2.mp3', half: 6, reach: 30, volume: 0.2 },
+  'mario-enter': { file: 'mario-enter.mp3', half: 6, reach: 30, volume: 0.2 },
+  'luigi-kill-1': { file: 'luigi-kill-1.mp3', half: 6, reach: 30, volume: 0.2 },
+  'luigi-kill-2': { file: 'luigi-kill-2.mp3', half: 6, reach: 30, volume: 0.2 },
+  'luigi-enter': { file: 'luigi-enter.mp3', half: 6, reach: 30, volume: 0.2 },
   land: { file: 'land.mp3', half: 8, reach: 35, volume: 0.1 },
   'land-hard': { file: 'land-hard.mp3', half: 10, reach: 40, volume: 0.14 },
+  'pound-twirl': { file: 'pound-twirl.mp3', half: 6, reach: 30, volume: 0.08 }, // a ground pound turning over (sim/avatars.ts `Pound`)
   hurt: { file: 'hurt.mp3', half: 6, reach: 30, volume: 0.3 }, // your own damage, and a corpse poofing
   // A dragon's (the light dragon's own cries): its roars carry across the whole world, faint from
   // the far side, as does the cry it rises out of the ground with; its theme plays from its head,

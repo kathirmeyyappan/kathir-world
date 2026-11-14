@@ -2,7 +2,7 @@
 // slides on ice, and flies on a jetpack, all against the structures; a shot has to land in their
 // avatar's capsule. The sim half of the walker class (classes.ts); the look and the held item are
 // applied before it runs (player.ts).
-import { AVATARS, climbSpeedOf, jumpVelocityOf, walkSpeedOf } from './avatars';
+import { AVATARS, climbSpeedOf, jumpVelocityOf, leapOf, poundOf, walkSpeedOf, type Pound } from './avatars';
 import type { ClassSpec } from './classes';
 import {
   CHILLED_SPEED_MULTIPLIER,
@@ -18,7 +18,7 @@ import {
   STEP_UP,
 } from './constants';
 import type { Structures } from './collision';
-import { CAPSULE_TOP, MAX_HEARTS } from './health';
+import { CAPSULE_TOP, MAX_HEARTS, dropSpeed } from './health';
 import { stepGear, thrust } from './gear';
 import { lookDirection } from './look';
 import { SURFACES } from './surfaces';
@@ -43,6 +43,8 @@ export const WALKER: ClassSpec = {
   enter() {},
   exit(p) {
     p.climb = null;
+    p.leap = false;
+    p.pound = null;
   },
   step: stepWalker,
   aim: (p) => lookDirection(p.yaw, p.pitch),
@@ -68,14 +70,32 @@ export function stepWalker(
   structures: Structures,
 ): number {
   // Scoped (decided by the item step from this frame) slows the walk and pins them to the ground; an
-  // ice hit's chill slows it too. Holding the run speeds it up, whichever way it goes, except scoped.
+  // ice hit's chill slows it too. Holding the run speeds it up, whichever way it goes, except
+  // scoped, and so does a boost: the faster of the two, never both.
+  const fast = Math.max(
+    p.boost > 0 ? SPEEDY_MULTIPLIER : 1,
+    !p.scoped && input?.actions.includes('run') ? RUN_MULTIPLIER : 1,
+  );
   const speed =
     walkSpeedOf(p.avatar) *
-    (p.boost > 0 ? SPEEDY_MULTIPLIER : 1) *
-    (p.scoped ? SCOPED_SPEED_MULTIPLIER : input?.actions.includes('run') ? RUN_MULTIPLIER : 1) *
+    fast *
+    (p.scoped ? SCOPED_SPEED_MULTIPLIER : 1) *
     (p.chilled > 0 ? CHILLED_SPEED_MULTIPLIER : 1);
   const grounded = isGrounded(p, structures);
   if (p.climb) return climb(p, input, dt, structures);
+  // A ground pound, from the press in the air until it's back on its feet, is all the body does;
+  // dying, a throw or a change of look ends it.
+  const pound = poundOf(p.avatar);
+  if (p.pound && (!pound || p.dead || p.thrown !== null)) p.pound = null;
+  if (pound && !p.pound && !grounded && !p.dead && input?.actions.includes('pound')) {
+    p.pound = { stage: 'twirl', t: 0, from: p.pos.y, vy: p.vy };
+    p.vx = p.vz = p.vy = 0;
+    p.thrown = null;
+    p.leap = false;
+    stepGear(p, [], grounded, dt);
+    return 0;
+  }
+  if (pound && p.pound) return stepPound(p, p.pound, pound, grounded, dt, structures);
   // Holding forward at a ladder's face, on the ground or coming down past it, takes hold of it; and
   // backing onto one from beside its top, holding back, takes hold of its far face, to climb down.
   if (input && input.my !== 0 && !p.dead && p.vy <= 0) {
@@ -88,7 +108,20 @@ export function stepWalker(
     const takeoff = structures.footing(p.pos.x, p.pos.z, p.pos.y - EYE_HEIGHT + STEP_UP, PLAYER_RADIUS);
     const grip = SURFACES[takeoff.surface].grip;
     const jump = jumpVelocityOf(p.avatar);
-    if (grip === Infinity) p.vy = jump;
+    const leap = leapOf(p.avatar);
+    const keys = Math.hypot(input.mx, input.my);
+    if (grip === Infinity && leap && keys > 0 && input.actions.includes('run')) {
+      // A jump at a run, for a look with a long jump: off the way the keys go at a multiple of its
+      // run, rising a share of its jump under a share of gravity, the keys left little grip on it.
+      const fly = (walkSpeedOf(p.avatar) * RUN_MULTIPLIER * leap.speed) / keys;
+      const sinY = Math.sin(p.yaw);
+      const cosY = Math.cos(p.yaw);
+      p.vx = (sinY * input.my + cosY * input.mx) * fly;
+      p.vz = (cosY * input.my - sinY * input.mx) * fly;
+      p.vy = jump * Math.sqrt(leap.rise * leap.float);
+      p.thrown = leap.grip;
+      p.leap = true;
+    } else if (grip === Infinity) p.vy = jump;
     else {
       // Ice pushes back only square to itself, so the feet push off it along its normal: straight
       // up on the flat, and on a slope partly downhill, shedding whatever climb the walk had. That
@@ -104,7 +137,8 @@ export function stepWalker(
   // land on the highest top within a step of where the feet were.
   const feet = p.pos.y - EYE_HEIGHT;
   const ceiling = structures.ceilingAt(p.pos.x, p.pos.z, p.pos.y + CAPSULE_TOP);
-  p.vy -= GRAVITY * dt;
+  if (push) p.leap = false;
+  p.vy -= GRAVITY * (p.leap ? (leapOf(p.avatar)?.float ?? 1) : 1) * dt;
   if (push) p.vy = thrust(p.vy, push, dt);
   p.pos.y += p.vy * dt;
   if (p.pos.y + CAPSULE_TOP > ceiling) {
@@ -119,7 +153,10 @@ export function stepWalker(
     p.vy = 0;
   }
   const standing = p.pos.y <= floor;
-  if (standing) p.thrown = null;
+  if (standing) {
+    p.thrown = null;
+    p.leap = false;
+  }
 
   // Across the floor: where the keys send the walk, at its speed. On a sure footing, and in the
   // air on its own feet, that's the walk itself; on a slippery one the feet only bend the momentum
@@ -174,6 +211,45 @@ export function stepWalker(
   return landing;
 }
 
+// One tick of a ground pound: hanging where it began while it turns over, then straight down from
+// the pound's speed, then planted where it landed. Returns the landing's speed on the tick it
+// lands, as a plain fall from where the pound began would have landed, so the pound's own speed
+// neither hurts its player nor spares them a long fall.
+function stepPound(
+  p: PlayerState,
+  state: NonNullable<PlayerState['pound']>,
+  pound: Pound,
+  grounded: boolean,
+  dt: number,
+  structures: Structures,
+): number {
+  stepGear(p, [], grounded, dt);
+  p.vx = p.vz = 0;
+  state.t += dt;
+  if (state.stage === 'twirl') {
+    p.vy = 0;
+    if (state.t >= pound.twirl) {
+      p.pound = { ...state, stage: 'drop', t: 0 };
+      p.vy = -pound.speed;
+    }
+    return 0;
+  }
+  if (state.stage === 'land') {
+    p.vy = 0;
+    if (state.t >= pound.recover) p.pound = null;
+    return 0;
+  }
+  const feet = p.pos.y - EYE_HEIGHT;
+  p.vy -= GRAVITY * dt;
+  p.pos.y += p.vy * dt;
+  const floor = structures.groundAt(p.pos.x, p.pos.z, feet + STEP_UP) + EYE_HEIGHT;
+  if (p.pos.y >= floor) return 0;
+  p.pos.y = floor;
+  p.vy = 0;
+  p.pound = { ...state, stage: 'land', t: 0 };
+  return dropSpeed(Math.max(0, state.from - floor) + (state.vy * state.vy) / (2 * GRAVITY));
+}
+
 // Takes hold of a ladder by the face a walker faces, or by the other face through it where there's
 // no room for a body on that one (a rail at a ladder's top): the body comes to stand off the face,
 // between the rails, still. Backing onto it over its top takes that face alone, a body's height down
@@ -197,6 +273,7 @@ function takeHold(
     p.pos.z = spot.z;
     p.vx = p.vz = p.vy = 0;
     p.thrown = null;
+    p.leap = false;
     return true;
   }
   return false;
