@@ -467,7 +467,13 @@ sounds, or a loop) and the sounds' pitch; the swing of its limbs is the renderer
 when adding one. What it says in its own voice is a row in `VOICES` (`audio/voices.ts`): its sound
 for a jump in the swoosh's place, and the takes it picks from on a long jump, at a hit (heard by
 everyone near, no more often than `CRY_GAP_MS`; its own player hears it in the hurt sound's
-place), a moment after a kill, and when a player switches to it (`Game.say`).
+place), a moment after a kill, and when a player switches to it (`Game.say`); and its `death`,
+which its own player alone hears on the hit that kills them, in the hurt sound's place, and on
+over the death screen (cut to its ten seconds; the reload ends it). A death is `lazy` in `SOUNDS`
+and sent for as the player takes the look (`Sfx.want`), so only someone who can die as it
+downloads it, and one that hasn't arrived falls back to the cry or the hurt sound. Keep to that
+for any sound only some players can hear: everything else in `SOUNDS` is fetched by everyone up
+front, which is right for what anyone near can hear at any moment and wrong for anything long.
 
 Craft a character with love: look at it in every state before the PR, and put the shots in it.
 Standing, walking, holding and aiming each weapon, firing, hit, dead, on a ladder; from the front,

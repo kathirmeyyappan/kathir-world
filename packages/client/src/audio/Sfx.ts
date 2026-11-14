@@ -63,6 +63,8 @@ export type SoundId =
   | 'mario-kill-2'
   | 'mario-enter'
   | 'luigi-enter'
+  | 'mario-death'
+  | 'spongebob-death'
   | 'land'
   | 'land-hard'
   | 'pound-twirl'
@@ -147,6 +149,10 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'luigi-kill-1': { file: 'luigi-kill-1.mp3', half: 6, reach: 30, volume: 0.2 },
   'luigi-kill-2': { file: 'luigi-kill-2.mp3', half: 6, reach: 30, volume: 0.2 },
   'luigi-enter': { file: 'luigi-enter.mp3', half: 6, reach: 30, volume: 0.2 },
+  // A look's death (voices.ts): the sting and jingle, and ten seconds of song, the death screen's
+  // length. Each is heard only by a player who dies as that look, so each is fetched on demand.
+  'mario-death': { file: 'mario-death.mp3', half: 6, reach: 30, volume: 0.25, lazy: true },
+  'spongebob-death': { file: 'spongebob-death.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   land: { file: 'land.mp3', half: 8, reach: 35, volume: 0.1 },
   'land-hard': { file: 'land-hard.mp3', half: 10, reach: 40, volume: 0.14 },
   'pound-twirl': { file: 'pound-twirl.mp3', half: 6, reach: 30, volume: 0.08 }, // a ground pound turning over (sim/avatars.ts `Pound`)
@@ -303,6 +309,7 @@ export class Sfx {
   private heard: Vec3 = { x: 0, y: 0, z: 0 }; // the listener
   private readonly buffers = new Map<string, AudioBuffer>();
   private readonly fetched = new Set<string>();
+  private readonly wanted = new Set<SoundId>(); // sounds asked for ahead of time (want)
   private readonly loops = new Map<string, Voice>();
 
   constructor() {
@@ -505,13 +512,23 @@ export class Sfx {
     return this.buffers.get(spec.file);
   }
 
-  // Every file but the lazy ones, fetched and decoded in the background.
+  // Every file but the lazy ones, fetched and decoded in the background, and any lazy one already
+  // asked for.
   private load(ctx: AudioContext): void {
     for (const spec of Object.values(SOUNDS)) {
       if (spec.lazy) continue;
       this.fetch(ctx, spec.file);
       if (spec.intro) this.fetch(ctx, spec.intro);
     }
+    for (const id of this.wanted) this.buffer(id);
+  }
+
+  // Sends for a sound ahead of its being played, as soon as there's sound to fetch it with. A lazy
+  // one that has to play the moment it's wanted (a death's) is asked for here first: `play` sends
+  // for one too, but has nothing to play until it arrives.
+  want(id: SoundId): void {
+    this.wanted.add(id);
+    this.buffer(id);
   }
 
   private fetch(ctx: AudioContext, file: string): void {
