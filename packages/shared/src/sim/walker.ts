@@ -111,28 +111,31 @@ export function stepWalker(
     const takeoff = structures.footing(p.pos.x, p.pos.z, p.pos.y - EYE_HEIGHT + STEP_UP, PLAYER_RADIUS);
     const grip = SURFACES[takeoff.surface].grip;
     const jump = jumpVelocityOf(p.avatar);
-    const leap = leapOf(p.avatar);
-    const keys = Math.hypot(input.mx, input.my);
-    if (grip === Infinity && leap && keys > 0 && input.actions.includes('run')) {
-      // A jump at a run, for a look with a long jump: off the way the keys go at a multiple of its
-      // run, rising a share of its jump under a share of gravity, the keys left little grip on it.
-      const fly = (walkSpeedOf(p.avatar) * RUN_MULTIPLIER * leap.speed) / keys;
+    // A jump at a run, for a look with a long jump, is one whatever is underfoot: it rises a share
+    // of its jump under a share of gravity.
+    const leap = input.actions.includes('run') && (input.mx !== 0 || input.my !== 0) ? leapOf(p.avatar) : null;
+    const up = leap ? jump * Math.sqrt(leap.rise * leap.float) : jump;
+    if (grip === Infinity && leap) {
+      // Off a sure footing it goes the way the keys go at a multiple of its run, the keys left
+      // little grip on it.
+      const fly = (walkSpeedOf(p.avatar) * RUN_MULTIPLIER * leap.speed) / Math.hypot(input.mx, input.my);
       const sinY = Math.sin(p.yaw);
       const cosY = Math.cos(p.yaw);
       p.vx = (sinY * input.my + cosY * input.mx) * fly;
       p.vz = (cosY * input.my - sinY * input.mx) * fly;
-      p.vy = jump * Math.sqrt(leap.rise * leap.float);
+      p.vy = up;
       p.thrown = leap.grip;
-      p.leap = true;
-    } else if (grip === Infinity) p.vy = jump;
+    } else if (grip === Infinity) p.vy = up;
     else {
       // Ice pushes back only square to itself, so the feet push off it along its normal: straight
       // up on the flat, and on a slope partly downhill, shedding whatever climb the walk had. That
-      // is a throw, with the keys left the grip the ice gave them.
+      // is a throw, with the keys left the grip the ice gave them; a long jump off it has no
+      // launch across the ice either, and flies with whatever the walk had.
       const { x: sx, z: sz } = takeoff.slope;
       const len = Math.hypot(sx, 1, sz);
-      throwWalker(p, { x: (-jump * sx) / len, y: jump / len, z: (-jump * sz) / len }, grip);
+      throwWalker(p, { x: (-up * sx) / len, y: up / len, z: (-up * sz) / len }, grip);
     }
+    p.leap = leap !== null;
   }
   const push = stepGear(p, input ? input.actions : [], grounded, dt);
 
