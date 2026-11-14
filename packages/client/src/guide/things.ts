@@ -87,8 +87,6 @@ export function pickupThing(kind: PickupKind): Thing {
     build(engine, parent) {
       const heart = buildHeart(engine);
       heart.setEnabled(true); // the shape the world draws copies of, drawn itself here
-      // Seen from across the world its glow is a halo; this close it would wash the heart out white.
-      engine.glowLayer.addExcludedMesh(heart);
       heart.parent = parent;
       heart.scaling.setAll(scale);
       return (t) => float(heart, height, t);

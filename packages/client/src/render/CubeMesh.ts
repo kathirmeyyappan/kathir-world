@@ -68,7 +68,6 @@ export class CubeMesh {
     this.mesh.material = this.material;
 
     this.mesh.enableEdgesRendering();
-    engine.glowLayer.addIncludedOnlyMesh(this.mesh);
     this.setFrame(FRAME_IDLE, 4, 1);
 
     this.shadow = createShadowBlob(engine, `cube-shadow-${content.id}`, 2.6);

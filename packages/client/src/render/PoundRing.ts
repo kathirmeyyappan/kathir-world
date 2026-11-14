@@ -27,7 +27,6 @@ export function poundRing(engine: Engine, at: Vector3, reach: number): void {
   ring.material = material(scene);
   ring.isPickable = false;
   ring.position.set(at.x, at.y + LIFT, at.z);
-  engine.glowLayer.addExcludedMesh(ring);
   const born = performance.now();
   const grow = () => {
     const through = Math.min(1, (performance.now() - born) / 1000 / SECONDS);
@@ -36,7 +35,6 @@ export function poundRing(engine: Engine, at: Vector3, reach: number): void {
     ring.visibility = ALPHA * (1 - through);
     if (through < 1) return;
     scene.onBeforeRenderObservable.removeCallback(grow);
-    engine.glowLayer.removeExcludedMesh(ring);
     ring.dispose();
   };
   grow();
