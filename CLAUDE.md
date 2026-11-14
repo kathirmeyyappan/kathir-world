@@ -403,7 +403,14 @@ height, hitbox, and on foot its `walk` in m/s and its `jump` power, 1 rising `JU
 `walkSpeedOf`, `jumpVelocityOf` and `climbSpeedOf` read them for the sim; with a `leap`, a jump
 taken at a run, on the move, is a long jump: off the way the keys go at a multiple of its run,
 rising a share of its jump under a share of gravity with little grip on the flight, until it lands,
-`PlayerState.leap` and `walker.ts`) and a builder in `packages/client/src/render/avatars/` (`MAKERS` in `index.ts`,
+`PlayerState.leap` and `walker.ts`; with a `pound`, the `pound` action in the air (X, or the touch
+POUND button) is a ground pound, `PlayerState.pound`: the body hangs turning over for the `twirl`,
+drops straight down from `speed` under gravity, and lands planted for `recover`, the keys and a
+jetpack doing nothing throughout; the landing is judged as the plain fall it began as, and the Room
+takes `damage` off everyone else on foot within `reach` across the floor, about level with it
+(`POUND_HEIGHT`, so a jump clears it) and in its sight, a kill by it announced with `item:
+'pound'`; the client plays its turn's sound and runs a ring out over the floor it hurt across,
+`render/PoundRing.ts`) and a builder in `packages/client/src/render/avatars/` (`MAKERS` in `index.ts`,
 which the compiler asks for). Everyone on foot is a `Figure` (`render/avatars/Walker.ts`): the
 builder makes the avatar's parts under the base node and says which plays which role (what tips
 with the look, a head, the legs, the free arm, the weapon arm with its grip and the way it reaches
@@ -432,7 +439,9 @@ Mario's are Super Mario 64's own (`marioClips.ts`, baked by `scripts/jointed-cli
 rigged, animated rip of that game's Mario: each source bone's turn from its T-pose carried onto
 the jointed body's, the hips in leg lengths so a longer-legged body bobs as far for its size, and
 each frame stood on the ground). A `Style` is its clips (idle, walk, run, jump, fall, land, and
-a `leap` for a look with a long jump, played takeoff to landing) and a few numbers; the frame's pose is those sampled and blended: the idle into the walk or run at the
+for a look with the move a `leap`, a long jump played takeoff to landing, and `pound` and
+`pounded`, a ground pound turning over into the seat it drops in, then landing sat and getting
+up) and a few numbers; the frame's pose is those sampled and blended: the idle into the walk or run at the
 point in the stride its feet have got to (the footsteps' phase, so feet land with their sounds,
 and the stride is the same at any speed, the legs only quicker), the jump going up into the fall
 coming down, and a landing as hard as the drop. Don't invent a character's motion from numbers:
@@ -574,12 +583,12 @@ with the view frosted, and the hint bar under an ice weapon is frosted white (`H
 
 ## Menu
 
-The menu (X or Esc, or the gear over the room panel) is `packages/client/src/ui/menu/`, and the rest
+The menu (M or Esc, or the gear over the room panel) is `packages/client/src/ui/menu/`, and the rest
 of the client knows it only by its hooks: `Menu.ts` builds its button and card, has the keyboard
 while it's open and syncs with the player once a frame; the game opens it whenever the pointer is
 let go with nothing else to use the mouse on (Esc, which the browser answers without a key event, a
 click outside the page), so a free mouse always means the menu, the chat, a card or the death
-screen is up, and X, Esc or a click beside the card goes back into the world; `tabs.ts` is what's in it, rows that read and change what
+screen is up, and M, Esc or a click beside the card goes back into the world; `tabs.ts` is what's in it, rows that read and change what
 other parts keep (the connection, `Sfx`'s channels, `View`, the browser's fullscreen, the `Picture`),
 handed in as `MenuHooks`; `rows.ts` is the kinds of row (a toggle, a stepper with < and > and maybe
 an AUTO button, a field, buttons, a link to share) and how each draws; and `menu.css` is its look. A

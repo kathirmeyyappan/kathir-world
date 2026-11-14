@@ -19,6 +19,7 @@ import {
   createRng,
   hashSeed,
   isGrounded,
+  poundOf,
   itemHelp,
   itemStats,
   lookDirection,
@@ -58,6 +59,7 @@ import { Models } from '../render/models/Models';
 import { buildStructures } from '../render/Structures';
 import { Pickups } from '../render/Pickups';
 import { poof } from '../render/Poof';
+import { poundRing } from '../render/PoundRing';
 import { WallFrames, type HungFrame } from '../render/WallFrames';
 import { Viewmodel } from '../render/Weapons';
 import { placeSkyObjects, type SkyObject } from '../render/SkyObject';
@@ -122,6 +124,7 @@ const OWN_WEAPON_SCALE = 2.2; // your own guns, seen from the boom: at true size
 const ECHO_DELAY = 0.5;
 const ECHO_LEVEL = 0.3;
 const GLOAT_DELAY = 0.4; // seconds after a kill that the killer's own line for one starts, clear of the shot
+const OWN_MOVE = 0.6; // the share of its volume the player's own ground pound turns over at, as their own steps do (Footsteps.ts)
 const CRY_GAP_MS = 600; // a player's cries at being hit come no closer together than this: the longest lasts 0.4 s
 // Metres nearer than the dragon whose theme is playing another has to be to take the theme over,
 // so two at a like distance don't trade it back and forth.
@@ -159,6 +162,8 @@ export class Game {
   private heldFace: { piece: number; side: 1 | -1; way: 1 | -1 } | null = null; // the ladder face the player was last seen holding
   private swing = 0; // radians the camera has still to turn after a swap round a ladder
   private swapRequested = false; // the touch SWAP button was pressed since the last frame
+  private poundRequested = false; // and the touch POUND button
+  private readonly pounds = new Map<string, RemotePlayer['pound']>(); // the stage each player's ground pound was last seen at
   private readonly cried = new Set<string>(); // the dragons heard crying on their way out of the ground
   private readonly criedOut = new Map<string, number>(); // when each player last cried out at a hit (performance.now)
   private themeOf: string | null = null; // the dragon whose theme is playing
@@ -250,6 +255,7 @@ export class Game {
       onActionUp: () => (this.input.fireHeld = false),
       onScope: () => this.setScoped(!this.scoped),
       onSwap: () => (this.swapRequested = true),
+      onPound: () => (this.poundRequested = true),
       onChat: () => this.hud.openChat(),
       onCommands: () => this.commandsMenu.toggle(),
     });
@@ -307,7 +313,7 @@ export class Game {
       if (this.isBlocked() || e.repeat) return;
       if (e.code === 'KeyP') this.minimap.toggle();
       else if (e.code === 'KeyC') this.commandsMenu.set(true);
-      else if (e.code === 'KeyX') this.menu.show();
+      else if (e.code === 'KeyM') this.menu.show();
       else if (e.code === 'KeyO') toggleFullscreen();
       else if (e.code === 'KeyZ') this.view.toggle();
       else if (this.held && actionForKey(this.held.id, e.code) === 'scope') this.setScoped(!this.scoped);
@@ -399,6 +405,9 @@ export class Game {
     }
     this.swapRequested = false;
     if (this.input.isDown('ShiftLeft') || this.input.isDown('ShiftRight')) actions.push('run');
+    // A look with a ground pound starts one in the air on X, or the touch POUND button.
+    if (self && poundOf(self.avatar) && (this.input.wasPressed('KeyX') || this.poundRequested)) actions.push('pound');
+    this.poundRequested = false;
     return actions;
   }
 
@@ -562,6 +571,7 @@ export class Game {
         avatar?.dispose();
         this.avatars.delete(m.id);
         this.criedOut.delete(m.id);
+        this.pounds.delete(m.id);
         this.hud.removePlayer(m.id, m.name);
         return;
       }
@@ -662,6 +672,19 @@ export class Game {
       this.hud.hitMarker();
       this.hitNotice.show(this.hud.playerName(m.victim), m.damage, m.headshot);
     }
+  }
+
+  // A player's ground pound (sim/avatars.ts `Pound`) as it's seen to change stage, `at` being
+  // their eye point: its turn in the air is heard as it starts, and where it lands a ring runs out
+  // over the floor as far as it hurts. The landing's thud is the footsteps'.
+  private pounding(id: string, avatar: AvatarId, stage: RemotePlayer['pound'], at: Vec3): void {
+    const was = this.pounds.get(id) ?? null;
+    if (stage === was) return;
+    this.pounds.set(id, stage);
+    const mine = id === this.myId;
+    if (stage === 'twirl') this.sfx.play('pound-twirl', mine ? null : at, { level: mine ? OWN_MOVE : 1 });
+    const reach = poundOf(avatar)?.reach;
+    if (stage === 'land' && reach) poundRing(this.engine, new Vector3(at.x, at.y - EYE_HEIGHT, at.z), reach);
   }
 
   // One of a player's lines in their own voice (voices.ts), `delay` seconds from now, from where
@@ -883,6 +906,7 @@ export class Game {
           avatar: self.avatar,
           grounded: !this.dead && isGrounded(self),
           leap: self.leap,
+          pound: self.pound !== null,
           falling: -self.vy,
           self: true,
         },
@@ -893,11 +917,14 @@ export class Game {
           avatar: rp.avatar,
           grounded: rp.grounded && !rp.dead,
           leap: rp.leap,
+          pound: rp.pound !== null,
           self: false,
         })),
       ],
       dt,
     );
+    this.pounding(this.myId, self.avatar, self.pound?.stage ?? null, self.pos);
+    for (const rp of sampled.players) this.pounding(rp.id, rp.avatar, rp.pound, { x: rp.x, y: rp.y, z: rp.z });
     const readers = new Map<string, number>();
     const seen = new Set<string>();
     for (const rp of sampled.players) {
@@ -946,6 +973,7 @@ export class Game {
       scoped: this.scoped,
       canFire: this.canFire(),
       climbing: !!self.climb,
+      canPound: !this.dead && !self.pound && !self.climb && poundOf(self.avatar) !== null && !isGrounded(self),
     });
     if (hit !== this.canHit) {
       this.canHit = hit;
@@ -1049,6 +1077,7 @@ export class Game {
         thrusting: self.thrusting,
         walk: self.walk,
         leap: self.leap,
+        pound: self.pound?.stage ?? null,
         climb: self.climb,
         chilled: self.chilled > 0,
         dead: this.dead,

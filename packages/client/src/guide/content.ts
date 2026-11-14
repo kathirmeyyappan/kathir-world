@@ -18,7 +18,7 @@ const SHARED: [string, string][] = [
   ['Z', 'first or third person'],
   ['C', 'every command as a button'],
   ['Enter', 'chat, or a /command'],
-  ['X / Esc', 'menu'],
+  ['M / Esc', 'menu'],
   ['P', 'map: near or the whole world'],
 ];
 export const CONTROLS: { title: string; keys: [string, string][] }[] = [
@@ -28,6 +28,7 @@ export const CONTROLS: { title: string; keys: [string, string][] }[] = [
       ['WASD', 'move'],
       ['Shift', 'hold to run'],
       ['Space', 'jump'],
+      ['X', 'ground pound, in the air, as a character with one'],
       ['Mouse', 'look; click to shoot, open a door or read a cube'],
       ...SHARED,
     ],
@@ -43,22 +44,26 @@ const plain = (title: string, summary: string): Entry => ({ title, summary, fact
 // A character's special abilities (stats.ts `abilityStats`): what each is.
 export const ABILITIES: Record<AbilityId, Entry> = {
   leap: plain('Long jump', 'A jump while running goes low and far, with little steering until it lands.'),
+  pound: plain(
+    'Ground pound',
+    'In the air, turns over and drops straight down, hurting everyone on foot near where it lands. A jump clears it.',
+  ),
 };
 
 export const CHARACTERS: Record<AvatarId, Entry> = {
   standard: plain('Standard', 'The default skin.'),
-  elizabeth: plain('Elizabeth', 'Elizabeth from Gintama.'),
-  sahur: plain('Tung Tung Tung Sahur', 'Tung Tung Tung Sahur.'),
-  mario: plain('Mario', 'Italian plumber.'),
-  luigi: plain('Luigi', 'The green goat.'),
   spongebob: plain('SpongeBob SquarePants', 'The one and only SpongeBob SquarePants.'),
   patrick: plain('Patrick Star', 'SpongeBob’s best friend. Is mayonnaise an instrument?'),
   krabs: plain('Eugene Krabs', 'Standing at the concession. Plotting our oppression.'),
   squidward: plain('Squidward Tentacles', 'SpongeBob’s grumpy ahh neighbor.'),
   gary: plain('Gary', 'SpongeBob’s pet snail.'),
   plankton: plain('Plankton', 'Mr. Krabs’ arch nemesis and the smallest character in this game.'),
+  mario: plain('Mario', 'Italian plumber.'),
+  luigi: plain('Luigi', 'The green goat.'),
   mike: plain('Mike Wazowski', 'Mike Wazowski from Monsters, Inc.'),
   sulley: plain('Sulley', 'Sulley from Monsters, Inc.'),
+  elizabeth: plain('Elizabeth', 'Elizabeth from Gintama.'),
+  sahur: plain('Tung Tung Tung Sahur', 'Tung Tung Tung Sahur.'),
   'light-dragon': plain('Light Dragon', 'The Light Dragon from Tears of the Kingdom.'),
   colgera: plain(
     'Colgera',

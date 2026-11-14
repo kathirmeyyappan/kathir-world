@@ -29,6 +29,7 @@ import {
   jumpVelocityOf,
   leapOf,
   lifeOf,
+  poundOf,
   walkSpeedOf,
   type AvatarId,
   type BotFlag,
@@ -82,10 +83,30 @@ export function characterStats(id: AvatarId): Stat[] {
 }
 
 // What a character can do that the rest can't, each with its own numbers.
-export type AbilityId = 'leap';
+export type AbilityId = 'leap' | 'pound';
 
 // A character's special abilities, read off its row: none for most.
 export function abilityStats(id: AvatarId): { id: AbilityId; stats: Stat[] }[] {
+  return [...leapStats(id), ...poundStats(id)];
+}
+
+function poundStats(id: AvatarId): { id: AbilityId; stats: Stat[] }[] {
+  const pound = poundOf(id);
+  if (!pound) return [];
+  return [
+    {
+      id: 'pound',
+      stats: [
+        { label: 'Use', value: 'X, in the air' },
+        { label: 'Ground pound damage', value: `${num(pound.damage)} hearts` },
+        { label: 'Reach', value: `${num(pound.reach)} m` },
+        { label: 'Drop speed', value: `${num(pound.speed)} m/s` },
+      ],
+    },
+  ];
+}
+
+function leapStats(id: AvatarId): { id: AbilityId; stats: Stat[] }[] {
   const leap = leapOf(id);
   if (!leap) return [];
   // The long jump as walker.ts flies it: up at a share of the jump under a share of gravity, across

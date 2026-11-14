@@ -12,18 +12,18 @@ import type { Vec3 } from './types';
 
 export type AvatarId =
   | 'standard'
-  | 'elizabeth'
-  | 'sahur'
-  | 'mario'
-  | 'luigi'
   | 'spongebob'
   | 'patrick'
   | 'krabs'
   | 'squidward'
   | 'gary'
   | 'plankton'
+  | 'mario'
+  | 'luigi'
   | 'mike'
   | 'sulley'
+  | 'elizabeth'
+  | 'sahur'
   | 'light-dragon'
   | 'colgera';
 
@@ -59,6 +59,7 @@ interface Moves {
   walk: number;
   jump: number;
   leap?: Leap;
+  pound?: Pound;
 }
 
 // A long jump: what a jump taken at a run is, for a look that has one (walker.ts). It goes low and
@@ -68,6 +69,18 @@ export interface Leap {
   speed: number; // the share of its run it flies at
   float: number; // the share of gravity that pulls on it in the air
   grip: number; // m/s² the keys have on its flight
+}
+
+// A ground pound: what the pound action does in the air, for a look that has one (walker.ts). The
+// body stops where it is and turns over, drops straight down, and hurts everyone else on foot near
+// where it lands (the Room), its feet planted a moment after. The keys and a jetpack do nothing
+// from its start until it's back on its feet.
+export interface Pound {
+  damage: number; // hearts it takes off everyone it lands near
+  reach: number; // metres across the floor from where it lands that it hurts
+  twirl: number; // seconds it hangs turning over before it drops
+  speed: number; // m/s it starts down at, gravity adding to it as to any fall
+  recover: number; // seconds its feet stay planted once it's down
 }
 
 // A look is of a class (classes.ts), and brings what its class's sim needs of it: a walker how it
@@ -90,56 +103,6 @@ const LOOKS = {
     hitbox: { top: 2.0, radius: 0.55, head: 0.5 },
     walk: 8,
     jump: 1,
-  },
-  elizabeth: {
-    id: 'elizabeth',
-    class: 'walker',
-    item: null,
-    regen: false,
-    blurb: 'become elizabeth from gintama',
-    command: 'elizabeth',
-    eye: 1.62,
-    hitbox: { top: 2.0, radius: 0.75, head: 0.55 }, // the egg is 1.24 m across, flippers out past that
-    walk: 8,
-    jump: 1,
-  },
-  sahur: {
-    id: 'sahur',
-    class: 'walker',
-    item: null,
-    regen: false,
-    blurb: 'become tung tung tung sahur',
-    command: 'tung',
-    eye: 2.67,
-    hitbox: { top: 3.2, radius: 0.55, head: 0.95 }, // a 0.7 m log; the head is the face, chin up
-    walk: 8,
-    jump: 1,
-  },
-  mario: {
-    id: 'mario',
-    class: 'walker',
-    item: null,
-    regen: false,
-    blurb: 'become mario',
-    command: 'mario',
-    eye: 1.56,
-    hitbox: { top: 2.0, radius: 0.5, head: 0.85 }, // as tall as the standard body; the head, cap and all, is 0.8 m across and everything over the shoulders
-    walk: 8,
-    jump: 1.35,
-    leap: { rise: 0.5, speed: 1.6, float: 0.5, grip: 6 }, // 1.6 times a running jump's distance at half its height
-  },
-  luigi: {
-    id: 'luigi',
-    class: 'walker',
-    item: null,
-    regen: false,
-    blurb: 'become luigi',
-    command: 'luigi',
-    eye: 1.74,
-    hitbox: { top: 2.2, radius: 0.45, head: 0.9 }, // a tenth taller than Mario, as their models stand, and narrower: a head 0.66 m across
-    walk: 8,
-    jump: 1.55,
-    leap: { rise: 0.5, speed: 1.6, float: 0.5, grip: 6 }, // 1.6 times a running jump's distance at half its height
   },
   spongebob: {
     id: 'spongebob',
@@ -213,6 +176,34 @@ const LOOKS = {
     walk: 3.5,
     jump: 1,
   },
+  mario: {
+    id: 'mario',
+    class: 'walker',
+    item: null,
+    regen: false,
+    blurb: 'become mario',
+    command: 'mario',
+    eye: 1.56,
+    hitbox: { top: 2.0, radius: 0.5, head: 0.85 }, // as tall as the standard body; the head, cap and all, is 0.8 m across and everything over the shoulders
+    walk: 8,
+    jump: 1.35,
+    leap: { rise: 0.5, speed: 1.6, float: 0.5, grip: 6 }, // 1.6 times a running jump's distance at half its height
+    pound: { damage: 1.5, reach: 2.5, twirl: 1 / 3, speed: 20, recover: 0.35 }, // the twirl as long as its clip (Jointed.ts)
+  },
+  luigi: {
+    id: 'luigi',
+    class: 'walker',
+    item: null,
+    regen: false,
+    blurb: 'become luigi',
+    command: 'luigi',
+    eye: 1.74,
+    hitbox: { top: 2.2, radius: 0.45, head: 0.9 }, // a tenth taller than Mario, as their models stand, and narrower: a head 0.66 m across
+    walk: 8,
+    jump: 1.55,
+    leap: { rise: 0.5, speed: 1.6, float: 0.5, grip: 6 }, // 1.6 times a running jump's distance at half its height
+    pound: { damage: 1.5, reach: 2.5, twirl: 1 / 3, speed: 20, recover: 0.35 }, // the twirl as long as its clip (Jointed.ts)
+  },
   mike: {
     id: 'mike',
     class: 'walker',
@@ -236,6 +227,30 @@ const LOOKS = {
     hitbox: { top: 2.6, radius: 0.72, head: 0.75 }, // the torso is 1.25 m across; the head sits on the shoulders, chin at 1.6 m
     walk: 8,
     jump: 1.2,
+  },
+  elizabeth: {
+    id: 'elizabeth',
+    class: 'walker',
+    item: null,
+    regen: false,
+    blurb: 'become elizabeth from gintama',
+    command: 'elizabeth',
+    eye: 1.62,
+    hitbox: { top: 2.0, radius: 0.75, head: 0.55 }, // the egg is 1.24 m across, flippers out past that
+    walk: 8,
+    jump: 1,
+  },
+  sahur: {
+    id: 'sahur',
+    class: 'walker',
+    item: null,
+    regen: false,
+    blurb: 'become tung tung tung sahur',
+    command: 'tung',
+    eye: 2.67,
+    hitbox: { top: 3.2, radius: 0.55, head: 0.95 }, // a 0.7 m log; the head is the face, chin up
+    walk: 8,
+    jump: 1,
   },
   'light-dragon': {
     id: 'light-dragon',
@@ -345,6 +360,12 @@ export function jumpVelocityOf(avatar: AvatarId): number {
 export function leapOf(avatar: AvatarId): Leap | null {
   const look: AvatarSpec = AVATARS[avatar];
   return (look.class === 'walker' && look.leap) || null;
+}
+
+// A look's ground pound, if it has one.
+export function poundOf(avatar: AvatarId): Pound | null {
+  const look: AvatarSpec = AVATARS[avatar];
+  return (look.class === 'walker' && look.pound) || null;
 }
 
 // How fast a look climbs a ladder, m/s, along the rails.

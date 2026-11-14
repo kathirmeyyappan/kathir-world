@@ -65,6 +65,7 @@ export type SoundId =
   | 'luigi-enter'
   | 'land'
   | 'land-hard'
+  | 'pound-twirl'
   | 'hurt'
   | 'roar-1'
   | 'roar-2'
@@ -127,9 +128,10 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'suction-4': { file: 'suction-4.mp3', half: 6, reach: 30, volume: 0.06 },
   jump: { file: 'jump.mp3', half: 6, reach: 30, volume: 0.05 },
   // A character's own voice (voices.ts). Every line but the jump is recorded at one loudness, so
-  // the volumes here are how they compare: a long jump as loud as the jump, a hit's cry just
-  // under the hurt sound, a kill's and a switch's between.
-  'mario-jump': { file: 'mario-jump.mp3', half: 6, reach: 30, volume: 0.04 },
+  // the volumes here are how they compare: a hit's cry just under the hurt sound, a kill's and a
+  // switch's a little under that, a long jump under those. The jump, heard at every hop, is kept
+  // far quieter than any of them.
+  'mario-jump': { file: 'mario-jump.mp3', half: 6, reach: 30, volume: 0.015 },
   'mario-leap-1': { file: 'mario-leap-1.mp3', half: 6, reach: 30, volume: 0.12 },
   'mario-leap-2': { file: 'mario-leap-2.mp3', half: 6, reach: 30, volume: 0.12 },
   'luigi-leap-1': { file: 'luigi-leap-1.mp3', half: 6, reach: 30, volume: 0.12 },
@@ -147,6 +149,7 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'luigi-enter': { file: 'luigi-enter.mp3', half: 6, reach: 30, volume: 0.2 },
   land: { file: 'land.mp3', half: 8, reach: 35, volume: 0.1 },
   'land-hard': { file: 'land-hard.mp3', half: 10, reach: 40, volume: 0.14 },
+  'pound-twirl': { file: 'pound-twirl.mp3', half: 6, reach: 30, volume: 0.08 }, // a ground pound turning over (sim/avatars.ts `Pound`)
   hurt: { file: 'hurt.mp3', half: 6, reach: 30, volume: 0.3 }, // your own damage, and a corpse poofing
   // A dragon's (the light dragon's own cries): its roars carry across the whole world, faint from
   // the far side, as does the cry it rises out of the ground with; its theme plays from its head,

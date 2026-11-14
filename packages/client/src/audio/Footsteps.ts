@@ -77,6 +77,7 @@ export class Footsteps {
       avatar: AvatarId;
       grounded: boolean;
       leap: boolean;
+      pound: boolean; // in a ground pound (sim/avatars.ts `Pound`): it lands as hard as a landing gets
       falling?: number;
       self: boolean;
     }[],
@@ -131,7 +132,7 @@ export class Footsteps {
       }
       if (!wasGrounded) {
         const speed = p.falling === undefined ? Math.sqrt(2 * GRAVITY * Math.max(0, w.peak - p.pos.y)) : w.falling;
-        const landing = LANDINGS.filter((l) => speed >= l.from).pop();
+        const landing = p.pound ? LANDINGS[LANDINGS.length - 1] : LANDINGS.filter((l) => speed >= l.from).pop();
         if (landing) this.sfx.play(landing.sound, at, { level, rate });
         w.walked = 0;
         w.footfalls = 0;

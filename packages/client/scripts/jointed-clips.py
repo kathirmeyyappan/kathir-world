@@ -82,6 +82,7 @@ class Clip:
     last: int
     every: int = 1  # every how many of them are kept
     stride: bool = False  # a walk's cycle: turned round to start as the right foot comes down
+    then: tuple[tuple[str, int, int], ...] = ()  # more played after it: each an animation and its frames, first to last
 
 
 CLIPS = {
@@ -94,6 +95,10 @@ CLIPS = {
     "fall": Clip("86/87 - General fall/General land", 4, 4),
     "land": Clip("77/78 - Single jump/Land from single jump", 24, 37),
     "leap": Clip("19 - Fast longjump", 0, 22),
+    # A ground pound: turning over in the air, into the seat it drops in; then landing sat, and (the
+    # game's stop from a slide, from where it starts to rise) getting back up.
+    "pound": Clip("60/61 - Start ground-pound/Ground-pound", 0, 10),
+    "pounded": Clip("58 - Ground pound landing", 0, 5, then=(("142/143 - Slide motionless/Stop slide", 4, 19),)),
 }
 
 
@@ -263,7 +268,8 @@ def main(glb: str) -> None:
     ]
     for name, clip in CLIPS.items():
         sources = (clip.source,) if isinstance(clip.source, str) else clip.source
-        frames = [frame(source, k) for source in sources for k in range(clip.first, clip.last + 1)]
+        stretches = [(source, clip.first, clip.last) for source in sources] + list(clip.then)
+        frames = [frame(source, k) for source, first, last in stretches for k in range(first, last + 1)]
         if clip.stride:
             # The right foot comes down on the first frame it's on the ground after being off it.
             right = np.array([f[2][1] for f in frames])

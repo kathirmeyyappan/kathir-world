@@ -98,7 +98,7 @@ function cardHtml(groups: Group[]): string {
     return `<section><h2>${g.title}</h2><div class="buttons">${buttons.join('')}</div></section>`;
   });
   const how = IS_TOUCH ? 'tap to use' : 'click to use';
-  const guide = IS_TOUCH ? 'MORE IN THE GUIDE, IN THE MENU' : 'MORE IN THE GUIDE: PRESS X FOR THE MENU';
+  const guide = IS_TOUCH ? 'MORE IN THE GUIDE, IN THE MENU' : 'MORE IN THE GUIDE: PRESS M FOR THE MENU';
   const close = IS_TOUCH ? 'TAP TO EXIT' : 'PRESS <kbd>Q</kbd> TO CLOSE';
   return `
     <div class="card">

@@ -52,7 +52,7 @@ export type ServerMessage =
   | { t: 'frost'; on: FrostCell[]; off: FrostCell[] } // a spray froze cells or melted them (sim/frost.ts); clients follow
   // Hearts came off: a shot landed, or with no shooter, a fall.
   | { t: 'hit'; shooter: string | null; victim: string; damage: number; headshot: boolean; hearts: number }
-  | { t: 'kill'; shooter: string; victim: string; item: ItemId; headshot: boolean } // clients announce it
+  | { t: 'kill'; shooter: string; victim: string; item: ItemId | 'pound'; headshot: boolean } // by an item or a ground pound; clients announce it
   | { t: 'fell'; victim: string } // a fall killed them
   | { t: 'pong'; at: number }
   | { t: 'error'; message: string };

@@ -4,7 +4,7 @@
 // keeps its own look (menu.css), so the rest of the page knows it only as the button in the top-left
 // corner. With a mouse it frees the pointer to click around in, and it is what Esc brings up from
 // the world (the game opens it when the pointer is let go, since the browser answers that Esc
-// itself); closing it with X, Esc, its corner button or a click beside the card puts the player
+// itself); closing it with M, Esc, its corner button or a click beside the card puts the player
 // back in the world, and C swaps it for the commands card. On touch a tap on its corner button or
 // beside the card closes it.
 import { IS_TOUCH } from '../../input/touch';
@@ -64,7 +64,7 @@ export class Menu {
     const opener = document.createElement('button');
     opener.id = 'menu-button';
     opener.append(gearIcon('gear'), Object.assign(document.createElement('span'), { textContent: 'MENU' }));
-    if (!IS_TOUCH) opener.append(Object.assign(document.createElement('kbd'), { textContent: 'X', translate: false }));
+    if (!IS_TOUCH) opener.append(Object.assign(document.createElement('kbd'), { textContent: 'M', translate: false }));
     opener.addEventListener('click', () => this.show());
     document.getElementById('corner')!.prepend(opener);
   }
@@ -103,7 +103,7 @@ export class Menu {
     if (this.open) this.refresh();
   }
 
-  // While it's open the menu has the keyboard: X, the key that opened it, Esc, which does too, or
+  // While it's open the menu has the keyboard: M, the key that opened it, Esc, which does too, or
   // Q, which closes the other cards, goes back to the world; C swaps it for the commands card, as it
   // would from the world; P turns the map, as in the world. Keys typed into its fields are theirs
   // (rows.ts).
@@ -111,7 +111,7 @@ export class Menu {
     if (!this.open || (e.target instanceof HTMLInputElement && this.el.contains(e.target))) return;
     e.stopPropagation();
     if (e.repeat) return;
-    if (e.code === 'KeyX' || e.code === 'KeyQ' || e.code === 'Escape') this.hide(true);
+    if (e.code === 'KeyM' || e.code === 'KeyQ' || e.code === 'Escape') this.hide(true);
     else if (e.code === 'KeyC') {
       this.hooks.commands(); // up before the menu goes, so the mouse stays free for its buttons
       this.hide(true);
@@ -187,7 +187,7 @@ export class Menu {
     if (!IS_TOUCH) {
       const footer = document.createElement('div');
       footer.className = 'footer';
-      footer.innerHTML = 'PRESS <kbd translate="no">X</kbd> TO CLOSE<span class="cursor">▮</span>';
+      footer.innerHTML = 'PRESS <kbd translate="no">M</kbd> TO CLOSE<span class="cursor">▮</span>';
       card.append(footer);
     }
     this.select(0);

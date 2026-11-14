@@ -28,17 +28,17 @@ export type { Avatar } from './common';
 // The avatars drawn from a model with an atlas, each fetched once the page has nothing better to
 // do, with the dragons' models, so a change of look goes on without waiting on the network.
 const SKINNED: readonly AvatarId[] = [
-  'mario',
-  'luigi',
-  ...(Object.keys(DRAGONS) as DragonAvatarId[]),
   'spongebob',
   'patrick',
   'krabs',
   'squidward',
   'gary',
   'plankton',
+  'mario',
+  'luigi',
   'mike',
   'sulley',
+  ...(Object.keys(DRAGONS) as DragonAvatarId[]),
 ];
 
 // Everyone on foot is a figure the walker poses (Walker.ts), made from its builder; one that moves
@@ -60,18 +60,18 @@ const dragon =
     new DragonAvatar(engine, id, kind, DRAGONS[look]);
 const MAKERS: Record<AvatarId, Make> = {
   standard: walker(buildStandard),
-  elizabeth: walker(buildElizabeth),
-  sahur: walker(buildSahur),
-  mario: jointed(MARIO),
-  luigi: jointed(LUIGI),
   spongebob: walker(bodyBuilder(SPONGEBOB)),
   patrick: walker(bodyBuilder(PATRICK)),
   krabs: walker(bodyBuilder(KRABS)),
   squidward: walker(buildSquidward),
   gary: walker(buildGary),
   plankton: walker(bodyBuilder(PLANKTON)),
+  mario: jointed(MARIO),
+  luigi: jointed(LUIGI),
   mike: walker(bodyBuilder(MIKE)),
   sulley: walker(buildSulley),
+  elizabeth: walker(buildElizabeth),
+  sahur: walker(buildSahur),
   'light-dragon': dragon('light-dragon'),
   colgera: dragon('colgera'),
 };

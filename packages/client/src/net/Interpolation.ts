@@ -36,6 +36,7 @@ export interface RemotePlayer {
   thrusting: boolean;
   walk: number; // how fast their feet are walking, m/s (sim/types.ts): paces their legs and footsteps
   leap: boolean; // in a long jump (sim/avatars.ts `Leap`)
+  pound: 'twirl' | 'drop' | 'land' | null; // the stage of its ground pound (sim/avatars.ts `Pound`), if it's in one
   climb: { piece: number; side: 1 | -1; way: 1 | -1 } | null; // on a ladder (sim/types.ts): the piece, the face held, and the way round to it
   chilled: boolean; // slowed by an ice hit (sim/constants.ts): frosted over
   dead: boolean;
@@ -44,7 +45,7 @@ export interface RemotePlayer {
   bot: boolean;
   // Standing on something (a floor, a stair, a deck): the sim zeroes vy whenever a walker is on the
   // ground, so this is the server's own answer rather than a guess from the drawn height. A dragon
-  // flies.
+  // flies, and a ground pound hangs still in the air before it drops.
   grounded: boolean;
 }
 
@@ -117,6 +118,7 @@ export class Interpolation {
         thrusting: b.thrusting,
         walk: b.walk,
         leap: b.leap,
+        pound: b.pound?.stage ?? null,
         climb: b.climb,
         chilled: b.chilled > 0,
         dead: b.dead,
@@ -127,7 +129,7 @@ export class Interpolation {
           spine: lerpSpine(a.dragon?.spine, b.dragon.spine, t),
         },
         bot: b.bot,
-        grounded: b.vy === 0 && !b.dragon && !b.climb,
+        grounded: b.vy === 0 && !b.dragon && !b.climb && (!b.pound || b.pound.stage === 'land'),
       });
     }
     const cubes: CubeSnapshot[] = [];

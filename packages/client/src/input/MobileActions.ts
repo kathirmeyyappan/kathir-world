@@ -1,6 +1,7 @@
 // Touch replacements for the keyboard and mouse actions: one context button that reads SELECT
 // when the crosshair is on a cube and FIRE when holding a weapon, a SCOPE button that only
-// exists for items that can scope, a SWAP button on a ladder (A and D's job there), and a CHAT
+// exists for items that can scope, a SWAP button on a ladder (A and D's job there), a POUND button in the air for a look with a
+// ground pound (X's job), and a CHAT
 // button since there is no Enter key. Plain DOM,
 // only mounted on touch devices. The Game tells it what's true each frame; it never reads
 // game state itself.
@@ -13,6 +14,7 @@ export interface MobileActionState {
   scoped: boolean;
   canFire: boolean; // false for a scope-only weapon that isn't scoped
   climbing: boolean; // on a ladder: SWAP goes round to its other face
+  canPound: boolean; // in the air, as a look with a ground pound
 }
 
 export interface MobileActionHandlers {
@@ -20,6 +22,7 @@ export interface MobileActionHandlers {
   onActionUp: () => void;
   onScope: () => void;
   onSwap: () => void;
+  onPound: () => void;
   onChat: () => void;
   onCommands: () => void;
 }
@@ -28,6 +31,7 @@ export class MobileActions {
   private readonly action = document.getElementById('action-button') as HTMLButtonElement | null;
   private readonly scope = document.getElementById('scope-button') as HTMLButtonElement | null;
   private readonly swap = document.getElementById('swap-button') as HTMLButtonElement | null;
+  private readonly pound = document.getElementById('pound-button') as HTMLButtonElement | null;
   private readonly chat = document.getElementById('chat-button') as HTMLButtonElement | null;
   private readonly commands = document.getElementById('commands-button') as HTMLButtonElement | null;
   private label = '';
@@ -37,6 +41,7 @@ export class MobileActions {
     tap(this.action, handlers.onActionDown, handlers.onActionUp);
     tap(this.scope, handlers.onScope);
     tap(this.swap, handlers.onSwap);
+    tap(this.pound, handlers.onPound);
     tap(this.chat, handlers.onChat);
     tap(this.commands, handlers.onCommands);
   }
@@ -55,6 +60,7 @@ export class MobileActions {
     this.scope.classList.toggle('hidden', !canScope);
     this.scope.classList.toggle('on', state.scoped);
     this.swap?.classList.toggle('hidden', !state.climbing);
+    this.pound?.classList.toggle('hidden', !state.canPound);
   }
 }
 
