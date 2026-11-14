@@ -20,6 +20,7 @@ export type Command =
   | { name: 'speedy' }
   | { name: 'equip'; item: ItemId }
   | { name: 'wear'; gear: GearId }
+  | { name: 'unequip' }
   | { name: 'avatar'; avatar: AvatarId }
   | { name: 'color'; color: string } // one of NAMED_COLORS' names
   | { name: 'bot'; bot: BotId; call: BotCallArgs | null } // null: the flags didn't parse
@@ -49,6 +50,7 @@ export function parseCommand(text: string): Command | null {
   if (normalized === 'speedy') return { name: 'speedy' };
   if (isItemId(normalized) && !ITEMS[normalized].own) return { name: 'equip', item: normalized };
   if (isGearId(normalized)) return { name: 'wear', gear: normalized };
+  if (normalized === 'unequip') return { name: 'unequip' };
   const avatar = avatarForCommand(normalized);
   if (avatar) return { name: 'avatar', avatar };
   if (Object.hasOwn(NAMED_COLORS, normalized)) return { name: 'color', color: normalized };

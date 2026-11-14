@@ -330,6 +330,10 @@ test('weapon command shortcuts equip the matching item', () => {
   room.receive(playerId, { t: 'chat', text: '/j' });
   assert.equal(player.gear?.id, 'jetpack', 'gear goes on beside the weapon');
   assert.equal(player.item?.id, 'flamethrower');
+
+  room.receive(playerId, { t: 'chat', text: '/unequip' });
+  assert.equal(player.item, null, '/unequip puts the weapon down');
+  assert.equal(player.gear, null, 'and takes the gear off');
 });
 
 test('hearts: walking into one heals 3 up to full, a full player leaves it, and it comes back 30 s later', () => {
