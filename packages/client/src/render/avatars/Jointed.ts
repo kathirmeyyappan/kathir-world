@@ -183,7 +183,7 @@ const FIST = 0.05; // metres a fist's middle is from the palm's, on the palm's s
 const HOLD = new Vector3(0, 0.02, 0.06);
 const POUND_IN = 0.07; // seconds a ground pound takes to pull the body into its turn
 const GETS_UP = 0.5; // the share of a ground pound's landing after which it's on its feet, and eases into what it does next
-const HEAD = turnAt(CLIP_BONES.indexOf('head')); // where the head's turn is in a clip's moment
+const HEAD_AT = turnAt(CLIP_BONES.indexOf('head')); // where the head's turn is in a clip's moment
 const CLIMB_REACH = 0.35; // radians a hand goes up and down the rail with each rung
 
 export class JointedAvatar extends WalkerAvatar {
@@ -246,7 +246,7 @@ export class JointedAvatar extends WalkerAvatar {
       pounded: raw.pounded ? clip(raw.pounded) : null,
     };
     sample(this.third, this.clips.idle, 0, true);
-    this.ahead = this.third.slice(HEAD, HEAD + 4);
+    this.ahead = this.third.slice(HEAD_AT, HEAD_AT + 4);
   }
 
   // On the ground or in the air: its idle, its walk or run where its stride has got to, its jump,
@@ -287,7 +287,7 @@ export class JointedAvatar extends WalkerAvatar {
       sample(out, clips.idle, through, true);
       // Mostly it only breathes: the head is held where the idle starts, ahead, but for one time
       // through in `glance`, which starts and ends there too.
-      if (Math.floor(through) % style.glance !== style.glance - 1) out.set(this.ahead, HEAD);
+      if (Math.floor(through) % style.glance !== style.glance - 1) out.set(this.ahead, HEAD_AT);
     }
     let grip = GRIP_IDLE;
     if (striding > 0) {
