@@ -93,7 +93,7 @@ interface SoundSpec {
   intro?: string; // played once first, ending on the sample the loop starts on
   swell?: number; // seconds it takes to rise from silence to its volume (a loop FADE, a one-shot ATTACK)
   fade?: number; // seconds a loop takes to go out once it's no longer wanted (FADE): music crosses over slowly
-  lazy?: boolean; // fetched the first time it's wanted, not up front: a big one few will hear
+  lazy?: boolean; // fetched the first time it's wanted, not up front: one few will hear, or that can wait a moment for itself
   music?: boolean; // on the music channel, not the effects'
 }
 
@@ -145,10 +145,10 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'luigi-hurt-2': { file: 'luigi-hurt-2.mp3', half: 6, reach: 30, volume: 0.25 },
   'mario-kill-1': { file: 'mario-kill-1.mp3', half: 6, reach: 30, volume: 0.2 },
   'mario-kill-2': { file: 'mario-kill-2.mp3', half: 6, reach: 30, volume: 0.2 },
-  'mario-enter': { file: 'mario-enter.mp3', half: 6, reach: 30, volume: 0.2 },
+  'mario-enter': { file: 'mario-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'luigi-kill-1': { file: 'luigi-kill-1.mp3', half: 6, reach: 30, volume: 0.2 },
   'luigi-kill-2': { file: 'luigi-kill-2.mp3', half: 6, reach: 30, volume: 0.2 },
-  'luigi-enter': { file: 'luigi-enter.mp3', half: 6, reach: 30, volume: 0.2 },
+  'luigi-enter': { file: 'luigi-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   // A look's death (voices.ts): the sting and jingle, and ten seconds of song, the death screen's
   // length. Each is heard only by a player who dies as that look, so each is fetched on demand.
   'mario-death': { file: 'mario-death.mp3', half: 6, reach: 30, volume: 0.25, lazy: true },
@@ -288,6 +288,7 @@ const ATTACK = 0.005;
 // drop out for a tick whenever their input arrives late, which would otherwise cut the loop and
 // restart it (and the flamethrower's ignition) every time.
 const LINGER = 0.25;
+const LATE_MS = 1500; // how long after it was wanted a sound still on its way is worth playing (soon)
 const SILENT = 0.002; // a one-shot falling off below this share of its volume isn't played
 const SWEEP = 8; // metres either side of its nearest point that a whiz travels while it plays
 const MUTED_KEY = 'world.muted'; // localStorage: the channels muted on this device, as a JSON list
@@ -308,7 +309,7 @@ export class Sfx {
   private readonly muted = loadMuted();
   private heard: Vec3 = { x: 0, y: 0, z: 0 }; // the listener
   private readonly buffers = new Map<string, AudioBuffer>();
-  private readonly fetched = new Set<string>();
+  private readonly arriving = new Map<string, Promise<void>>(); // every file sent for, settled once it's here or has failed
   private readonly wanted = new Set<SoundId>(); // sounds asked for ahead of time (want)
   private readonly loops = new Map<string, Voice>();
 
@@ -393,9 +394,10 @@ export class Sfx {
     at: Vec3 | null = null,
     o: { delay?: number; along?: Vec3; level?: number; rate?: number } = {},
   ): boolean {
-    const buffer = this.buffer(id);
-    if (!this.ctx || !buffer) return false;
+    if (!this.ctx) return false;
     if (at && falloff(distance(at, this.heard), SOUNDS[id]) < SILENT) return true;
+    const buffer = this.buffer(id);
+    if (!buffer) return false;
     const t = this.ctx.currentTime + (o.delay ?? 0);
     const spec = SOUNDS[id];
     const voice = this.voice(id, at, 0);
@@ -412,6 +414,17 @@ export class Sfx {
       glide(voice.panner, to, t + buffer.duration / (o.rate ?? 1));
     }
     return true;
+  }
+
+  // A one-shot that may not be here yet (a lazy one first asked for now): played at once if it is,
+  // else as it arrives, unless that takes longer than LATE, when it's let go as too late to mean
+  // anything. One out of earshot is never sent for.
+  soon(id: SoundId, at: Vec3 | null = null): void {
+    if (this.play(id, at)) return;
+    const asked = performance.now();
+    void this.arriving.get(SOUNDS[id].file)?.then(() => {
+      if (performance.now() - asked < LATE_MS) this.play(id, at);
+    });
   }
 
   // A call from `at`: its far take, when it has one and `at` is past FAR metres off, else its near.
@@ -532,14 +545,29 @@ export class Sfx {
   }
 
   private fetch(ctx: AudioContext, file: string): void {
-    if (this.fetched.has(file)) return;
-    this.fetched.add(file);
-    void fetch(`/assets/sounds/${file}`)
-      .then((r) => r.arrayBuffer())
-      .then((data) => ctx.decodeAudioData(data))
-      .then((buffer) => this.buffers.set(file, buffer))
-      .catch(() => {});
+    if (this.arriving.has(file)) return;
+    this.arriving.set(
+      file,
+      fetch(`/assets/sounds/${file}`)
+        .then((r) => r.arrayBuffer())
+        .then((data) => ctx.decodeAudioData(data))
+        .then((buffer) => void this.buffers.set(file, buffer))
+        .catch(() => {}),
+    );
   }
+}
+
+let auditioned: HTMLAudioElement | null = null; // the sound last played off the game, stopped for the next
+
+// A sound by itself, where there's no game to play it in (the home screen): fetched as it's played,
+// at its own volume, in place of the last one played this way, and not at all with effects muted.
+// It starts on a person's own click, which is what lets a page make sound.
+export function audition(id: SoundId): void {
+  auditioned?.pause();
+  if (loadMuted().has('effects')) return;
+  const spec = SOUNDS[id];
+  auditioned = Object.assign(new Audio(`/assets/sounds/${spec.file}`), { volume: spec.volume });
+  void auditioned.play().catch(() => {});
 }
 
 function loadMuted(): Set<Channel> {

@@ -138,7 +138,7 @@ export class Footsteps {
         w.falling = Math.max(w.falling, p.falling ?? 0);
         if (w.liftedFrom !== null && p.pos.y - w.liftedFrom > RISE) {
           const voice = VOICES[p.avatar];
-          this.sfx.play((p.leap ? take(voice?.leap) : undefined) ?? voice?.jump ?? 'jump', at, { level });
+          this.sfx.play((p.leap ? take(voice.leap) : undefined) ?? voice.jump ?? 'jump', at, { level });
           w.liftedFrom = null;
         } else if (down > 0) w.liftedFrom = null; // going down first: they stepped off something
         continue;
