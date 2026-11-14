@@ -18,6 +18,7 @@ export const MARIO_STYLE: Style = {
   }),
   follow: 0.5,
   bank: 0.06,
+  glance: 3,
 };
 
 export const MARIO: JointedSpec = { kind: 'mario', model: MARIO_MODEL, style: MARIO_STYLE, shadow: 1.2 };
