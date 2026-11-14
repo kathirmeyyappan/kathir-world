@@ -1315,7 +1315,8 @@ body {
   transform-origin: left;
 }
 
-#item-hint {
+#item-hint,
+#move-hint {
   position: fixed;
   bottom: 76px;
   left: 50%;
@@ -1329,6 +1330,13 @@ body {
   background: rgba(11, 13, 20, 0.8);
   border: 2px solid rgba(255, 59, 78, 0.6);
   box-shadow: 4px 4px 0 #000;
+}
+/* The moves a look has of its own (Hud.setMoveHint), a banner of its own stacked clear of the item
+   hint, in the HUD's blue. It lives 10 s from the look being taken: steady for 5, then ticking dim
+   and back every half second, then gone. */
+#move-hint {
+  border-color: rgba(100, 181, 246, 0.6);
+  animation: item-hint-life 10s step-end forwards;
 }
 /* An ice item's hint is frosted over: white, not the red of the rest. */
 #item-hint.ice {
@@ -2038,7 +2046,8 @@ body {
   /* At the top, under the HUD's buttons and clear of the pad and FIRE. From the item being drawn
      (Hud.setItemHint) it lives 10 s: steady for 5, then ticking dim and back every half second, then
      gone. */
-  #item-hint {
+  #item-hint,
+  #move-hint {
     top: 124px;
     bottom: auto;
     max-width: calc(100vw - 32px);
@@ -2160,7 +2169,8 @@ body {
   #commands-button {
     right: 88px;
   }
-  #item-hint {
+  #item-hint,
+  #move-hint {
     top: 96px;
     font-size: 15px;
   }
@@ -2238,7 +2248,8 @@ body {
     line-height: 16px;
     margin: 0 8px;
   }
-  #item-hint {
+  #item-hint,
+  #move-hint {
     top: 214px;
   }
   #command-hint {
