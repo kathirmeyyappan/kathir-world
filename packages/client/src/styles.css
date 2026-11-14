@@ -1335,6 +1335,11 @@ body {
   border-color: rgba(214, 240, 255, 0.75);
   color: rgba(238, 248, 255, 0.95);
 }
+/* A hint that passes (Hud.setItemHint) lives 10 s: steady for 5, then ticking dim and back every
+   half second, then gone. */
+#item-hint.timed {
+  animation: item-hint-life 10s step-end forwards;
+}
 #item-hint .stats {
   margin-top: 4px;
   font-size: 14px;
@@ -2043,9 +2048,6 @@ body {
     bottom: auto;
     max-width: calc(100vw - 32px);
     text-align: center;
-  }
-  #item-hint.timed {
-    animation: item-hint-life 10s step-end forwards;
   }
 }
 @keyframes item-hint-life {

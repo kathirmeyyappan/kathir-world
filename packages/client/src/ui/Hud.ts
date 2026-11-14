@@ -275,8 +275,10 @@ export class Hud {
   private walkerKeys: string | null = null;
 
   // `item` names what the hint is for: its text changes with the scope, but only a new item (or the
-  // same one drawn again) starts the hint's time on touch over. An ice item's hint is frosted.
-  setItemHint(text: string, stats = '', item = '', element: Element | null = null): void {
+  // same one drawn again) starts the hint's time over. The hint stays while the item is held, except
+  // on touch, or when it's `passing` (a look's own moves, with nothing held), where it lives out its
+  // time and is gone. An ice item's hint is frosted.
+  setItemHint(text: string, stats = '', item = '', element: Element | null = null, passing = false): void {
     const key = `${text}\n${stats}`;
     this.itemHint.classList.toggle('ice', element === 'ice');
     if (key === this.itemHintText) return;
@@ -284,13 +286,16 @@ export class Hud {
     this.itemHintMain.textContent = text;
     this.itemHintStats.textContent = stats;
     this.itemHint.classList.toggle('hidden', !text);
-    if (!IS_TOUCH || item === this.itemHintItem) return;
+    const same = item === this.itemHintItem;
     this.itemHintItem = item;
-    // On touch the hint lives out a CSS animation (#item-hint.timed) and is gone; restarting it takes
-    // a reflow between taking the class off and putting it back.
-    this.itemHint.classList.remove('timed');
-    void this.itemHint.offsetWidth;
-    this.itemHint.classList.add('timed');
+    if (!IS_TOUCH && !passing) this.itemHint.classList.remove('timed');
+    else if (!same) {
+      // The hint lives out a CSS animation (#item-hint.timed) and is gone; restarting it takes a
+      // reflow between taking the class off and putting it back.
+      this.itemHint.classList.remove('timed');
+      void this.itemHint.offsetWidth;
+      this.itemHint.classList.add('timed');
+    }
   }
 
   // Brief red crosshair when one of your shots lands.
