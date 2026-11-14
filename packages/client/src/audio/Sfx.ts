@@ -94,7 +94,9 @@ interface SoundSpec {
   loop?: boolean;
   intro?: string; // played once first, ending on the sample the loop starts on
   swell?: number; // seconds it takes to rise from silence to its volume (a loop FADE, a one-shot ATTACK)
-  fade?: number; // seconds a loop takes to go out once it's no longer wanted (FADE): music crosses over slowly
+  // Seconds a loop takes to go out once it's no longer wanted (FADE: music crosses over slowly), and
+  // a one-shot takes to die away into its end (none unless given: for a recording cut off mid-sound).
+  fade?: number;
   lazy?: boolean; // fetched the first time it's wanted, not up front: one few will hear, or that can wait a moment for itself
   music?: boolean; // on the music channel, not the effects'
 }
@@ -153,10 +155,19 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'luigi-enter': { file: 'luigi-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   // A look's death (voices.ts): the sting and jingle, ten seconds of song, the death screen's
   // length, and Roz's line. Each is heard only by a player who dies as that look, so each is fetched
-  // on demand.
-  'mario-death': { file: 'mario-death.mp3', half: 6, reach: 30, volume: 0.25, lazy: true },
-  'spongebob-death': { file: 'spongebob-death.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
-  'mike-death': { file: 'mike-death.mp3', half: 6, reach: 30, volume: 0.5, lazy: true },
+  // on demand. Each is a cut from something longer, so each swells and fades by how its cut begins
+  // and ends: the song comes in and goes out mid-bar, the jingle and the line stop short.
+  'mario-death': { file: 'mario-death.mp3', half: 6, reach: 30, volume: 0.25, fade: 0.4, lazy: true },
+  'spongebob-death': {
+    file: 'spongebob-death.mp3',
+    half: 6,
+    reach: 30,
+    volume: 0.2,
+    swell: 0.8,
+    fade: 1.5,
+    lazy: true,
+  },
+  'mike-death': { file: 'mike-death.mp3', half: 6, reach: 30, volume: 0.5, swell: 0.15, fade: 0.5, lazy: true },
   'boat-horn': { file: 'boat-horn.mp3', half: 10, reach: 40, volume: 0.3, lazy: true }, // the foghorn alarm clock in SpongeBob's bedroom, at a click
   land: { file: 'land.mp3', half: 8, reach: 35, volume: 0.1 },
   'land-hard': { file: 'land-hard.mp3', half: 10, reach: 40, volume: 0.14 },
@@ -411,12 +422,18 @@ export class Sfx {
     const src = new AudioBufferSourceNode(this.ctx, { buffer, playbackRate: o.rate ?? 1 });
     src.connect(voice.gain);
     src.start(t);
+    const end = t + buffer.duration / (o.rate ?? 1);
+    if (spec.fade) {
+      const level = spec.volume * (o.level ?? 1);
+      voice.gain.gain.setValueAtTime(level, Math.max(end - spec.fade, t + (spec.swell ?? ATTACK)));
+      voice.gain.gain.linearRampToValueAtTime(0, end);
+    }
     if (voice.panner && at && o.along) {
       const d = o.along;
       const from = { x: at.x - d.x * SWEEP, y: at.y - d.y * SWEEP, z: at.z - d.z * SWEEP };
       const to = { x: at.x + d.x * SWEEP, y: at.y + d.y * SWEEP, z: at.z + d.z * SWEEP };
       place(voice.panner, from, t);
-      glide(voice.panner, to, t + buffer.duration / (o.rate ?? 1));
+      glide(voice.panner, to, end);
     }
     return true;
   }

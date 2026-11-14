@@ -485,7 +485,10 @@ sent for as the player takes the look (`Sfx.want`), since it has to be there the
 die; one that hasn't arrived falls back to the cry or the hurt sound. Keep to one of those two
 for any sound only some players hear: everything else in `SOUNDS` is fetched by everyone up
 front, which is right for what anyone near can hear at any moment and wrong for anything long
-or rarely heard.
+or rarely heard. A clip cut from something longer gets a `swell` and a `fade` in `SOUNDS` to suit
+how its cut begins and ends (a one-shot's `fade` dies away into its end): listen to both ends of
+every new recording, a death's above all, since one shorter than the death screen ends in silence,
+where a hard stop is plain.
 
 Craft a character with love: look at it in every state before the PR, and put the shots in it.
 Standing, walking, holding and aiming each weapon, firing, hit, dead, on a ladder; from the front,
