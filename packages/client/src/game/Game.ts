@@ -661,7 +661,9 @@ export class Game {
   }): void {
     if (m.victim === this.myId) {
       for (const s of this.pendingShots) if (s.shooter === m.shooter) s.hitMe = true;
-      if (!this.cry(m.victim)) this.sfx.play('hurt');
+      // The hit that kills is the look's death, if it has one and it has arrived; any other is its
+      // cry; and failing either, the hurt sound.
+      if (!(m.hearts <= 0 && this.say(m.victim, 'death')) && !this.cry(m.victim)) this.sfx.play('hurt');
       this.damageFlash.flash();
       this.hearts.set(m.hearts);
     } else {
@@ -689,7 +691,7 @@ export class Game {
 
   // One of a player's lines in their own voice (voices.ts), `delay` seconds from now, from where
   // their head is, or the local player's own, from nowhere. False if their look has no such line.
-  private say(id: string, line: 'hurt' | 'kill' | 'enter', delay = 0): boolean {
+  private say(id: string, line: 'hurt' | 'kill' | 'enter' | 'death', delay = 0): boolean {
     const mine = id === this.myId;
     const avatar = mine ? this.prediction?.state.avatar : this.avatars.get(id)?.kind;
     const sound = avatar && take(VOICES[avatar]?.[line]);
@@ -809,6 +811,7 @@ export class Game {
     if (self.avatar !== this.look) {
       if (this.look) this.say(this.myId, 'enter');
       this.look = self.avatar;
+      for (const id of VOICES[self.avatar]?.death ?? []) this.sfx.want(id);
     }
     // A new look or a new item in hand takes the scope with it, as death does.
     const wearing = `${self.avatar} ${self.item?.id ?? ''}`;
