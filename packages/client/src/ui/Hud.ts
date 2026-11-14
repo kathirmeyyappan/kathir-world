@@ -23,7 +23,7 @@ const CHAT_FADE_MS = 12_000;
 // Kept in sessionStorage, since dying reloads the page.
 const HISTORY_KEY = 'world.chat-history';
 const HISTORY_LINES = 50;
-const MOVE_HINT_MS = 10_000; // how long the move hint is up: its animation's length (#move-hint)
+const MOVE_HINT_MS = 20_000; // how long the move hint is up: its animation's length (#move-hint)
 const HINT_GAP = 8; // CSS pixels between the move hint and what it stacks against
 // The layout where the item hint is at the top of the screen, under the touch buttons (styles.css).
 const COARSE = window.matchMedia('(pointer: coarse)');
