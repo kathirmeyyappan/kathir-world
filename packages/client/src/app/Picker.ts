@@ -18,9 +18,11 @@ export class Picker {
   private picked = 0;
   private lit = 0; // the row Up and Down have reached while the list is open
 
+  // `onPick` hears of a choice the person makes, by its value; not of one set with `choose`.
   constructor(
     root: HTMLElement,
     private readonly choices: Choice[],
+    private readonly onPick?: (value: string) => void,
   ) {
     this.button.type = 'button';
     this.button.className = 'picked';
@@ -105,6 +107,7 @@ export class Picker {
     this.show();
     this.close();
     this.button.focus();
+    this.onPick?.(this.value);
   }
 
   private show(): void {

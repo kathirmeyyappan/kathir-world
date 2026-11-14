@@ -694,9 +694,14 @@ export class Game {
   private say(id: string, line: 'hurt' | 'kill' | 'enter' | 'death', delay = 0): boolean {
     const mine = id === this.myId;
     const avatar = mine ? this.prediction?.state.avatar : this.avatars.get(id)?.kind;
-    const sound = avatar && take(VOICES[avatar]?.[line]);
+    const sound = avatar && take(VOICES[avatar][line]);
     const at = mine ? null : this.headOf(id);
     if (!sound || (!mine && !at)) return false;
+    // An intro is fetched as it's first said, so it's played the moment it's here.
+    if (line === 'enter') {
+      this.sfx.soon(sound, at);
+      return true;
+    }
     return this.sfx.play(sound, at, { delay });
   }
 
@@ -811,7 +816,7 @@ export class Game {
     if (self.avatar !== this.look) {
       if (this.look) this.say(this.myId, 'enter');
       this.look = self.avatar;
-      for (const id of VOICES[self.avatar]?.death ?? []) this.sfx.want(id);
+      for (const id of VOICES[self.avatar].death ?? []) this.sfx.want(id);
     }
     // A new look or a new item in hand takes the scope with it, as death does.
     const wearing = `${self.avatar} ${self.item?.id ?? ''}`;
