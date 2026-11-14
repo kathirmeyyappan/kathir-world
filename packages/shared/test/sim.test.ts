@@ -211,6 +211,13 @@ test('a jump at a run is a long jump for a look that has one: lower and further,
   assert.ok(long.again, 'and the long jump is over on landing, the next one taken with the keys still held');
   assert.ok(long.down >= Math.floor(LEAP_REST * TICK_RATE), `after ${long.down} ticks down`);
   assert.equal(plain.down, 1, 'a plain jump is off again at once');
+
+  // Off ice it is still a long jump, but with nothing to launch from: it rises and floats where it stood.
+  const rink = new Structures([{ kind: 'box', x: 0, z: 0, w: 20, d: 20, h: 0.3, surface: 'ice' }]);
+  const p = createPlayer('b', 'b', '#fff', { x: 0, y: 0.3 + EYE_HEIGHT, z: 0 });
+  becomeAvatar(p, 'mario');
+  stepPlayer(p, frame(1, { my: 1, jump: true, actions: ['run'] }), TICK_DT, WORLD_SHAPE, rink);
+  assert.ok(p.leap && p.vy > 0 && p.vz < 1, `a long jump off ice, going ${p.vz.toFixed(2)} m/s across`);
   assert.ok(long.far > plain.far * 1.25, `further: ${long.far.toFixed(1)} m against ${plain.far.toFixed(1)} m`);
   assert.ok(long.peak < plain.peak * 0.75, `lower: ${long.peak.toFixed(2)} m against ${plain.peak.toFixed(2)} m`);
 });
