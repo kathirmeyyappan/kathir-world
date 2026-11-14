@@ -141,7 +141,6 @@ export function buildFlash(engine: Engine, name: string, parent: TransformNode, 
   flash.isPickable = false;
   flash.applyFog = false;
   flash.setEnabled(false);
-  engine.glowLayer.addIncludedOnlyMesh(flash);
   return flash;
 }
 

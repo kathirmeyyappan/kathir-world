@@ -7,7 +7,6 @@ import {
   DefaultRenderingPipeline,
   DirectionalLight,
   Engine as BabylonEngine,
-  GlowLayer,
   HemisphericLight,
   Scene,
   Vector3,
@@ -28,7 +27,6 @@ export const BASE_FOG_DENSITY = 0.012; // EXP2: players fade out past ~50 m
 export class Engine {
   readonly engine: BabylonEngine;
   readonly scene: Scene;
-  readonly glowLayer: GlowLayer;
   readonly picture: Picture;
   private drawnAt = performance.now(); // when the last frame was drawn
   private due = performance.now(); // when the next frame is due: the frame rate's interval on from the last
@@ -56,9 +54,6 @@ export class Engine {
     fill.intensity = 0.35;
     fill.diffuse = new Color3(0.5, 0.6, 0.9);
     fill.groundColor = new Color3(0.05, 0.2, 0.1);
-
-    this.glowLayer = new GlowLayer('glow', this.scene, { mainTextureRatio: 0.25, blurKernelSize: 24 });
-    this.glowLayer.intensity = 0.8;
 
     const pipeline = new DefaultRenderingPipeline('post', false, this.scene);
     // Anti-alias the low-res frame itself: pixels stay blocky after upscaling but stop shimmering.
