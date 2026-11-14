@@ -12,14 +12,14 @@ import type { Vec3 } from './types';
 
 export type AvatarId =
   | 'standard'
+  | 'mario'
+  | 'luigi'
   | 'spongebob'
   | 'patrick'
   | 'krabs'
   | 'squidward'
   | 'gary'
   | 'plankton'
-  | 'mario'
-  | 'luigi'
   | 'mike'
   | 'sulley'
   | 'elizabeth'
@@ -107,6 +107,36 @@ const LOOKS = {
     walk: 8,
     jump: 1,
   },
+  mario: {
+    id: 'mario',
+    class: 'walker',
+    item: null,
+    regen: false,
+    blurb: 'become mario',
+    command: 'mario',
+    eye: 1.56,
+    hitbox: { top: 2.0, radius: 0.5, head: 0.85 }, // as tall as the standard body; the head, cap and all, is 0.8 m across and everything over the shoulders
+    walk: 8,
+    jump: 1.35,
+    leap: { rise: 0.5, speed: 1.25, float: 0.5, grip: 6 }, // at twice its walk, a quarter over its run, and half its jump's height
+    // The twirl as long as its clip (Jointed.ts); the knock a hop back, a third of a second off the ground.
+    pound: { damage: 1.5, reach: 3, twirl: 1 / 3, speed: 20, recover: 0.35, knock: { speed: 4, lift: 3, grip: 6 } },
+  },
+  luigi: {
+    id: 'luigi',
+    class: 'walker',
+    item: null,
+    regen: false,
+    blurb: 'become luigi',
+    command: 'luigi',
+    eye: 1.74,
+    hitbox: { top: 2.2, radius: 0.45, head: 0.9 }, // a tenth taller than Mario, as their models stand, and narrower: a head 0.66 m across
+    walk: 8,
+    jump: 1.55,
+    leap: { rise: 0.5, speed: 1.25, float: 0.5, grip: 6 }, // at twice its walk, a quarter over its run, and half its jump's height
+    // The twirl as long as its clip (Jointed.ts); the knock a hop back, a third of a second off the ground.
+    pound: { damage: 1.5, reach: 3, twirl: 1 / 3, speed: 20, recover: 0.35, knock: { speed: 4, lift: 3, grip: 6 } },
+  },
   spongebob: {
     id: 'spongebob',
     class: 'walker',
@@ -178,36 +208,6 @@ const LOOKS = {
     hitbox: { top: 0.28, radius: 0.06, head: 0.19 }, // 0.28 m to his antennae's tips, 0.07 m across: the head is everything from the mouth up
     walk: 3.5,
     jump: 1,
-  },
-  mario: {
-    id: 'mario',
-    class: 'walker',
-    item: null,
-    regen: false,
-    blurb: 'become mario',
-    command: 'mario',
-    eye: 1.56,
-    hitbox: { top: 2.0, radius: 0.5, head: 0.85 }, // as tall as the standard body; the head, cap and all, is 0.8 m across and everything over the shoulders
-    walk: 8,
-    jump: 1.35,
-    leap: { rise: 0.5, speed: 1.25, float: 0.5, grip: 6 }, // at twice its walk, a quarter over its run, and half its jump's height
-    // The twirl as long as its clip (Jointed.ts); the knock a hop back, a third of a second off the ground.
-    pound: { damage: 1.5, reach: 3, twirl: 1 / 3, speed: 20, recover: 0.35, knock: { speed: 4, lift: 3, grip: 6 } },
-  },
-  luigi: {
-    id: 'luigi',
-    class: 'walker',
-    item: null,
-    regen: false,
-    blurb: 'become luigi',
-    command: 'luigi',
-    eye: 1.74,
-    hitbox: { top: 2.2, radius: 0.45, head: 0.9 }, // a tenth taller than Mario, as their models stand, and narrower: a head 0.66 m across
-    walk: 8,
-    jump: 1.55,
-    leap: { rise: 0.5, speed: 1.25, float: 0.5, grip: 6 }, // at twice its walk, a quarter over its run, and half its jump's height
-    // The twirl as long as its clip (Jointed.ts); the knock a hop back, a third of a second off the ground.
-    pound: { damage: 1.5, reach: 3, twirl: 1 / 3, speed: 20, recover: 0.35, knock: { speed: 4, lift: 3, grip: 6 } },
   },
   mike: {
     id: 'mike',
