@@ -13,6 +13,8 @@ import {
   sanitizeName,
   type AvatarId,
 } from '@world/shared';
+import { audition } from '../audio/Sfx';
+import { VOICES, take } from '../audio/voices';
 import { CHARACTERS } from '../guide/content';
 import { LocalConnection, type Connection } from '../net/Connection';
 import {
@@ -83,7 +85,11 @@ export function showHome(): Promise<HomeResult> {
   nameInput.value = params.get('name') ?? stored(NAME_KEY) ?? '';
   roomInput.value = params.get('room') ?? params.get('code') ?? '';
   pick(params.get('tab') === 'create' ? 'create' : 'join');
-  const skin = new Picker(document.getElementById('home-skin')!, skinChoices());
+  // Picking a look says its intro, as switching to it in the game does.
+  const skin = new Picker(document.getElementById('home-skin')!, skinChoices(), (value) => {
+    const line = take(VOICES[lookOf(value).avatar ?? 'standard'].enter);
+    if (line) audition(line);
+  });
   const asked = params.has('avatar') || params.has('color');
   skin.choose(asked ? choiceOf(params.get('avatar'), params.get('color')) : (stored(SKIN_KEY) ?? STANDARD));
   const stage = new Stage(document.getElementById('home-view')!, skin, () => sanitizeName(nameInput.value));

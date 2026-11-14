@@ -464,16 +464,24 @@ Mario's, his legs running on in the air), and a new one is a row in the model sc
 Its walk is a row in `GAITS` (`render/avatars/gaits.ts`): the metres between its footfalls, which pace
 its step sounds and its limbs alike, what a footfall sounds like (the thuds, a bar of its own
 sounds, or a loop) and the sounds' pitch; the swing of its limbs is the renderer's. Ask for each
-when adding one. What it says in its own voice is a row in `VOICES` (`audio/voices.ts`): its sound
+when adding one. What it says in its own voice is its row in `VOICES` (`audio/voices.ts`), which
+every look has. Its `enter` is its intro, the line every character is expected to have (empty
+until its recording is added): said as a player switches to the look, to them and everyone near,
+and on the home screen as the look is picked (`Sfx.ts` `audition`). An intro is `lazy` in `SOUNDS`
+and played with `Sfx.soon`: fetched the first time it's said within earshot and played as it
+arrives (let go if that takes over `LATE_MS`), so a client pays for the intros it hears and no
+others. Adding one is its file (mono mp3, levelled to the others' loudness), a `lazy` row in
+`SOUNDS` and its name in the look's `enter`. The rest only some looks have: a sound
 for a jump in the swoosh's place, and the takes it picks from on a long jump, at a hit (heard by
 everyone near, no more often than `CRY_GAP_MS`; its own player hears it in the hurt sound's
-place), a moment after a kill, and when a player switches to it (`Game.say`); and its `death`,
+place) and a moment after a kill (`Game.say`); and its `death`,
 which its own player alone hears on the hit that kills them, in the hurt sound's place, and on
-over the death screen (cut to its ten seconds; the reload ends it). A death is `lazy` in `SOUNDS`
-and sent for as the player takes the look (`Sfx.want`), so only someone who can die as it
-downloads it, and one that hasn't arrived falls back to the cry or the hurt sound. Keep to that
-for any sound only some players can hear: everything else in `SOUNDS` is fetched by everyone up
-front, which is right for what anyone near can hear at any moment and wrong for anything long.
+over the death screen (cut to its ten seconds; the reload ends it). A death is `lazy` too, and
+sent for as the player takes the look (`Sfx.want`), since it has to be there the moment they
+die; one that hasn't arrived falls back to the cry or the hurt sound. Keep to one of those two
+for any sound only some players hear: everything else in `SOUNDS` is fetched by everyone up
+front, which is right for what anyone near can hear at any moment and wrong for anything long
+or rarely heard.
 
 Craft a character with love: look at it in every state before the PR, and put the shots in it.
 Standing, walking, holding and aiming each weapon, firing, hit, dead, on a ladder; from the front,
