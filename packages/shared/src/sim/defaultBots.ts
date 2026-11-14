@@ -21,14 +21,14 @@ const STAY = BOT_MAX_SECONDS;
 
 // The looks a room's circle bots wear, drawn at random, no two alike.
 export const CIRCLE_LOOKS: readonly AvatarId[] = [
+  'mario',
+  'luigi',
   'spongebob',
   'patrick',
   'krabs',
   'squidward',
   'gary',
   'plankton',
-  'mario',
-  'luigi',
   'mike',
   'sulley',
   'elizabeth',

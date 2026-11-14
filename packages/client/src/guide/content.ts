@@ -52,14 +52,14 @@ export const ABILITIES: Record<AbilityId, Entry> = {
 
 export const CHARACTERS: Record<AvatarId, Entry> = {
   standard: plain('Standard', 'The default skin.'),
+  mario: plain('Mario', 'Italian plumber.'),
+  luigi: plain('Luigi', 'The green goat.'),
   spongebob: plain('SpongeBob SquarePants', 'The one and only SpongeBob SquarePants.'),
   patrick: plain('Patrick Star', 'SpongeBob’s best friend. Is mayonnaise an instrument?'),
   krabs: plain('Eugene Krabs', 'Standing at the concession. Plotting our oppression.'),
   squidward: plain('Squidward Tentacles', 'SpongeBob’s grumpy ahh neighbor.'),
   gary: plain('Gary', 'SpongeBob’s pet snail.'),
   plankton: plain('Plankton', 'Mr. Krabs’ arch nemesis and the smallest character in this game.'),
-  mario: plain('Mario', 'Italian plumber.'),
-  luigi: plain('Luigi', 'The green goat.'),
   mike: plain('Mike Wazowski', 'Mike Wazowski from Monsters, Inc.'),
   sulley: plain('Sulley', 'Sulley from Monsters, Inc.'),
   elizabeth: plain('Elizabeth', 'Elizabeth from Gintama.'),
