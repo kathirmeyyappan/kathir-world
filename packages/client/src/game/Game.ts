@@ -888,23 +888,17 @@ export class Game {
     this.viewmodel.show(held && !this.scoped && !this.dead && this.view.atEyes ? held.id : null, self.avatar);
     this.viewmodel.setFiring(self.firing);
     this.viewmodel.update(dt);
-    // The hint says what's held and how it's used, and after it the moves the look has of its own;
-    // a look with moves and empty hands gets a hint for those alone, which passes, so it waits for
-    // the start press (main.ts showStart, which takes #start away) before its time begins.
-    const moves = this.dead ? [] : movesHelp(self.avatar, IS_TOUCH);
     const showHint = held && !this.dead;
-    const hint = showHint
-      ? [itemHint(held.id, !IS_TOUCH, this.scoped, classOf(self.avatar)), ...moves]
-      : moves.length > 0 && !document.getElementById('start')
-        ? [self.avatar.toUpperCase(), ...moves]
-        : [];
     this.hud.setItemHint(
-      hint.join(' · '),
+      showHint ? itemHint(held.id, !IS_TOUCH, this.scoped, classOf(self.avatar)) : '',
       held && !ITEMS[held.id].own ? itemStats(held.id) : '',
-      showHint ? held.id : hint.length > 0 ? `look:${self.avatar}` : '',
+      showHint ? held.id : '',
       held ? ITEMS[held.id].element : null,
-      !showHint,
     );
+    // A look's own moves get their hint as the look is taken, once the start press (main.ts
+    // showStart, which takes #start away) has let the player in to read it.
+    const moves = this.dead || document.getElementById('start') ? [] : movesHelp(self.avatar, IS_TOUCH);
+    this.hud.setMoveHint(moves.length > 0 ? [self.avatar.toUpperCase(), ...moves].join(' · ') : '');
     const fuelMax = held && ITEMS[held.id].fuelSeconds;
     this.fuel.set(
       held && fuelMax && held.fuel !== null && !this.dead ? held.fuel / fuelMax : null,

@@ -23,6 +23,10 @@ const CHAT_FADE_MS = 12_000;
 // Kept in sessionStorage, since dying reloads the page.
 const HISTORY_KEY = 'world.chat-history';
 const HISTORY_LINES = 50;
+const MOVE_HINT_MS = 10_000; // how long the move hint is up: its animation's length (#move-hint)
+const HINT_GAP = 8; // CSS pixels between the move hint and what it stacks against
+// The layout where the item hint is at the top of the screen, under the touch buttons (styles.css).
+const COARSE = window.matchMedia('(pointer: coarse)');
 
 export class Hud {
   private readonly roomCode = document.getElementById('room-code') as HTMLButtonElement;
@@ -34,6 +38,11 @@ export class Hud {
   private readonly itemHint = document.getElementById('item-hint')!;
   private readonly itemHintMain = this.itemHint.querySelector('.main')!;
   private readonly itemHintStats = this.itemHint.querySelector('.stats')!;
+  private readonly moveHint = document.getElementById('move-hint')!;
+  private readonly fuel = document.getElementById('fuel')!;
+  private readonly gear = document.getElementById('gear')!;
+  private moveHintText = '';
+  private moveHintTimer = 0;
   private itemHintText = '';
   private itemHintItem = ''; // the item the hint is for, whose drawing starts its life over on touch
   private readonly chatInput = document.getElementById('chat-input') as HTMLInputElement;
@@ -275,10 +284,8 @@ export class Hud {
   private walkerKeys: string | null = null;
 
   // `item` names what the hint is for: its text changes with the scope, but only a new item (or the
-  // same one drawn again) starts the hint's time over. The hint stays while the item is held, except
-  // on touch, or when it's `passing` (a look's own moves, with nothing held), where it lives out its
-  // time and is gone. An ice item's hint is frosted.
-  setItemHint(text: string, stats = '', item = '', element: Element | null = null, passing = false): void {
+  // same one drawn again) starts the hint's time on touch over. An ice item's hint is frosted.
+  setItemHint(text: string, stats = '', item = '', element: Element | null = null): void {
     const key = `${text}\n${stats}`;
     this.itemHint.classList.toggle('ice', element === 'ice');
     if (key === this.itemHintText) return;
@@ -286,16 +293,45 @@ export class Hud {
     this.itemHintMain.textContent = text;
     this.itemHintStats.textContent = stats;
     this.itemHint.classList.toggle('hidden', !text);
-    const same = item === this.itemHintItem;
+    if (!IS_TOUCH || item === this.itemHintItem) return;
     this.itemHintItem = item;
-    if (!IS_TOUCH && !passing) this.itemHint.classList.remove('timed');
-    else if (!same) {
-      // The hint lives out a CSS animation (#item-hint.timed) and is gone; restarting it takes a
-      // reflow between taking the class off and putting it back.
-      this.itemHint.classList.remove('timed');
-      void this.itemHint.offsetWidth;
-      this.itemHint.classList.add('timed');
+    // On touch the hint lives out a CSS animation (#item-hint.timed) and is gone; restarting it takes
+    // a reflow between taking the class off and putting it back.
+    this.itemHint.classList.remove('timed');
+    void this.itemHint.offsetWidth;
+    this.itemHint.classList.add('timed');
+  }
+
+  // The moves the player's look has of its own and how each is done, or '' for none: a banner of
+  // its own, up for MOVE_HINT_MS from when its text is first given (the look being taken), whatever
+  // is held meanwhile.
+  setMoveHint(text: string): void {
+    if (text !== this.moveHintText) {
+      this.moveHintText = text;
+      this.moveHint.textContent = text;
+      window.clearTimeout(this.moveHintTimer);
+      // Its life is a CSS animation (#move-hint), which starts over as the element is shown again.
+      this.moveHint.classList.add('hidden');
+      void this.moveHint.offsetWidth;
+      this.moveHint.classList.toggle('hidden', !text);
+      if (text) this.moveHintTimer = window.setTimeout(() => this.moveHint.classList.add('hidden'), MOVE_HINT_MS);
     }
+    if (!this.moveHint.classList.contains('hidden')) this.placeMoveHint();
+  }
+
+  // Stands the move hint clear of what it shares its place with: under the item hint where that is
+  // at the top (a touch screen), over the item hint, the fuel bar and the gear panel where they
+  // stack up from the bottom; in the item hint's own place (the stylesheet's) with none of them up.
+  private placeMoveHint(): void {
+    const up = (el: HTMLElement) => el.getBoundingClientRect().height > 0;
+    const style = this.moveHint.style;
+    style.top = style.bottom = '';
+    if (COARSE.matches) {
+      if (up(this.itemHint)) style.top = `${this.itemHint.getBoundingClientRect().bottom + HINT_GAP}px`;
+      return;
+    }
+    const tops = [this.itemHint, this.fuel, this.gear].filter(up).map((el) => el.getBoundingClientRect().top);
+    if (tops.length > 0) style.bottom = `${window.innerHeight - Math.min(...tops) + HINT_GAP}px`;
   }
 
   // Brief red crosshair when one of your shots lands.
