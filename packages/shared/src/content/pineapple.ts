@@ -257,6 +257,19 @@ const bunkLadder = ladder(
   { width: BUNK_LADDER.width, hidden: true },
 );
 
+// The foghorn alarm clock beside SpongeBob's bunk, its stand and the horn on it, as a box measured
+// off the model in the house's frame. No structure: the rooms' boxes already stand it for the sim,
+// and this is only what a look has to land on for a click to sound it (the client's Game).
+export const PINEAPPLE_HORN: Box & { y: number } = {
+  kind: 'box',
+  ...placed(6.05, -9.37),
+  y: DUNE_HEIGHT + 7.73,
+  yaw: YAW,
+  w: 1,
+  d: 1.25,
+  h: 3.1,
+};
+
 // Whether the bunk's ladder clears a cell of the rooms, by the cell's middle in the house's frame.
 function bunkLadderClears(x: number, y: number, z: number): boolean {
   const { yaw, width, base, top } = BUNK_LADDER;

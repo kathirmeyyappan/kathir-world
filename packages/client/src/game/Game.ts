@@ -12,6 +12,8 @@ import {
   DOOR_REACH,
   lookVector,
   WORLD_STRUCTURES,
+  PINEAPPLE_HORN,
+  Structures,
   actionForKey,
   actionHelp,
   classOf,
@@ -95,6 +97,11 @@ const NEAR_SHARE = 0.2;
 const SNAP_DISTANCE = 3;
 const PING_INTERVAL_MS = 2000;
 const HOVER_RANGE = 400; // sky objects can be read from anywhere
+// The foghorn alarm clock in SpongeBob's bedroom sounds at a click on it, for the player who clicked.
+const HORN = new Structures([PINEAPPLE_HORN]);
+const HORN_REACH = 8; // metres along the look from the eye to the clock
+const HORN_SLACK = 0.3; // metres short of it the rooms' boxes cut from the clock may stop the look
+const HORN_AT: Vec3 = { x: PINEAPPLE_HORN.x, y: PINEAPPLE_HORN.y + PINEAPPLE_HORN.h / 2, z: PINEAPPLE_HORN.z };
 const EYE_EASE = 0.25; // seconds the camera takes to settle at a new avatar's eye height and view
 const CEILING_GAP = 0.15; // metres the camera keeps under a lintel or ceiling the body passes beneath
 // A smaller body sees wider and a bigger one narrower, by its stature to this power: Mike's view
@@ -139,6 +146,7 @@ export class Game {
   private readonly models: Models;
   private readonly frost: FrostLayer; // the ice sprayed over the world's surfaces (sim/frost.ts)
   private hoveredDoor: string | null = null; // the door under the crosshair within reach (sim/doors.ts)
+  private hoveredHorn = false; // the bedroom's foghorn is under the crosshair within reach
   private useDoor: string | null = null; // a door clicked since the last input frame
   private readonly camera: UniversalCamera;
   private readonly input: InputManager;
@@ -334,7 +342,9 @@ export class Game {
     // On touch a finger on the world drags the look, so a tap (down and up in place) is the press
     // that uses the door under the crosshair; the FIRE button, when there is one, uses it too.
     onTap(canvas, () => {
-      if (!this.isBlocked() && this.hoveredDoor) this.useDoor = this.hoveredDoor;
+      if (this.isBlocked()) return;
+      if (this.hoveredDoor) this.useDoor = this.hoveredDoor;
+      if (this.hoveredHorn) this.sfx.play('boat-horn', HORN_AT);
     });
 
     conn.onMessage((m) => this.handle(m));
@@ -368,9 +378,11 @@ export class Game {
   private itemActions(): ItemAction[] {
     const mouse = this.input.fireHeld;
     if (mouse && !this.mouseWasHeld) {
-      // A press on a door uses it, and one on a cube selects it; neither is a shot.
+      // A press on a door uses it, one on the foghorn sounds it, and one on a cube selects it; none
+      // is a shot.
       if (this.hoveredDoor) this.useDoor = this.hoveredDoor;
-      this.mouseFiring = !this.hovered && !this.hoveredDoor;
+      if (this.hoveredHorn) this.sfx.play('boat-horn', HORN_AT);
+      this.mouseFiring = !this.hovered && !this.hoveredDoor && !this.hoveredHorn;
     }
     if (!mouse) this.mouseFiring = false;
     this.mouseWasHeld = mouse;
@@ -1100,6 +1112,12 @@ export class Game {
     );
   }
 
+  // Whether the look (o, d) lands on the foghorn within reach with nothing in the way.
+  private hornAt(o: Vec3, d: Vec3): boolean {
+    const t = HORN.raycast(o, d, HORN_REACH);
+    return t !== Infinity && WORLD_STRUCTURES.raycast(o, d, t) >= t - HORN_SLACK;
+  }
+
   private updateHover(): void {
     // A door in reach of the look is used by a click; say so while the crosshair is on one.
     const me = this.prediction?.state;
@@ -1109,6 +1127,9 @@ export class Game {
       door ? `${IS_TOUCH ? 'tap' : 'click'} to ${WORLD_STRUCTURES.isOpen(door) ? 'shut' : 'open'} the door` : null,
     );
     this.hoveredDoor = door;
+    const horn = !!me && !this.dead && !door && this.hornAt(me.pos, lookVector(this.aim.yaw, this.aim.pitch));
+    if (horn && !this.hoveredHorn) this.sfx.want('boat-horn');
+    this.hoveredHorn = horn;
     let nextCube: CubeMesh | null = null;
     let nextSky: SkyObject | null = null;
     let nextFrame: HungFrame | null = null;
@@ -1141,7 +1162,7 @@ export class Game {
     if (nextFrame) this.frameBubble.hover(nextFrame.frame.show.line, nextFrame.above);
     else if (this.hoveredFrame) this.frameBubble.release();
     this.hoveredFrame = nextFrame;
-    this.hud.setCrosshairHot(!!nextCube || !!nextSky || !!nextFrame);
+    this.hud.setCrosshairHot(!!nextCube || !!nextSky || !!nextFrame || horn);
   }
 
   // Exposed for the end-to-end test.

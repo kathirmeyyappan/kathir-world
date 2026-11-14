@@ -219,6 +219,10 @@ bunk to the top bunk. A ladder a model draws, like the bunk's, is a `hidden` one
 model's rails with their lean, and the rooms' boxes cut from its rails and rungs are left out
 where a climber's body goes (up its face and over its top), since they were cut a cell round them.
 
+The foghorn alarm clock by that bunk is an easter egg: a click with the look on it within reach
+(`PINEAPPLE_HORN`, a box measured off the model, in `content/pineapple.ts`; `Game.hornAt`) plays
+the boat horn, for the player who clicked alone. Nothing of it reaches the Room.
+
 ### Surfaces and frost
 
 A structure's `material` is its look; its `surface` (`sim/surfaces.ts`) is what it's like underfoot:
