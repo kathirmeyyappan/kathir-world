@@ -13,12 +13,13 @@ import {
   type GearId,
   type ItemId,
 } from '@world/shared';
+import { skinChoice, skinChoices, skinCommand } from '../../app/skins';
 import type { Channel, Sfx } from '../../audio/Sfx';
 import type { View } from '../../game/View';
 import { GLOBAL_ROOM, SERVED_BY_ROOM_HOST, colorName, leaveRoom, roomLink, switchRoom } from '../../net/lobby';
 import type { Picture } from '../../render/Picture';
 import type { Minimap } from '../Minimap';
-import type { Field, Note, Row, Section, Tab } from './rows';
+import type { Field, Note, Row, Section, Select, Tab } from './rows';
 
 const GUIDE_URL = '/guide/';
 const REPO_URL = 'https://github.com/kathirmeyyappan/world';
@@ -35,6 +36,7 @@ export interface MenuHooks {
   minimap: Minimap; // the HUD's, whose view the PLAY tab's map shares
   rename: (name: string) => void; // asks the room to call this player `name` from now on
   commands: () => void; // opens the commands menu, which C does from the menu as from the world
+  command: (word: string) => void; // sends a chat command, by its word ("mario" for /mario)
 }
 
 // The player as the menu last saw them (Menu.sync, once a frame): their name, and the body the
@@ -63,7 +65,7 @@ export function toggleFullscreen(): void {
 }
 
 function you(hooks: MenuHooks, me: Me): Section {
-  return { title: 'YOU', rows: [nameField(hooks, me)] };
+  return { title: 'YOU', rows: [nameField(hooks, me), skinSelect(hooks, me)] };
 }
 
 // The room's code and the link that brings a friend into it.
@@ -88,6 +90,20 @@ function switching(hooks: MenuHooks, me: Me): Section {
   if (!hooks.online) return { title: 'SWITCH ROOM', rows: [{ kind: 'buttons', buttons: [leave] }] };
   const global = hooks.roomId === GLOBAL_ROOM ? [] : [{ label: 'JOIN GLOBAL', press: () => go(GLOBAL_ROOM, me) }];
   return { title: 'SWITCH ROOM', rows: [roomField(hooks, me), { kind: 'buttons', buttons: [...global, leave] }] };
+}
+
+// The look the player wears, changed as its chat command changes it.
+function skinSelect(hooks: MenuHooks, me: Me): Select {
+  return {
+    kind: 'select',
+    label: 'SKIN',
+    choices: skinChoices(true),
+    value: () => skinChoice(me.avatar, colorName(me.color)),
+    pick: (value) => {
+      const command = skinCommand(value);
+      if (command) hooks.command(command);
+    },
+  };
 }
 
 // The name everyone sees over your head and in the room list. The room refuses a rename within

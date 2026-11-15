@@ -1,6 +1,7 @@
 // The kinds of row the menu is made of, and how each draws itself. A row is plain data: what it says,
 // and functions that read and change what it's about. The menu's content (tabs.ts) never touches the
 // DOM, and a new kind of row is a type here and a case in `draw`.
+import { Picker, type Choice } from '../../app/Picker';
 import { IS_TOUCH } from '../../input/touch';
 
 export interface Tab {
@@ -13,7 +14,7 @@ export interface Section {
   rows: Row[];
 }
 
-export type Row = Toggle | Stepper | Field | Buttons | Share;
+export type Row = Toggle | Stepper | Field | Select | Buttons | Share;
 
 // A setting with a few values: its button reads the one it's on and moves it to the next.
 export interface Toggle {
@@ -48,6 +49,16 @@ export interface Field {
   submit: (text: string) => void;
   note: () => Note | null;
   hint?: string; // said under it, dimmed, while there's no note
+}
+
+// One of a list picked from a dropdown (app/Picker.ts): the box shows the one it's on.
+export interface Select {
+  kind: 'select';
+  label: string;
+  choices: Choice[];
+  value: () => string; // the choice it's on, by its value
+  pick: (value: string) => void;
+  hint?: string; // said under it, dimmed
 }
 
 export interface Note {
@@ -91,6 +102,8 @@ export function draw(row: Row): Drawn {
       return stepper(row);
     case 'field':
       return field(row);
+    case 'select':
+      return select(row);
     case 'buttons':
       return buttons(row);
     case 'share':
@@ -210,6 +223,25 @@ function field(row: Field): Drawn {
     if (e.key === 'Enter') submit();
     else if (e.key === 'Escape') input.blur();
   });
+  return { el, refresh };
+}
+
+function select(row: Select): Drawn {
+  const el = element('div', 'field');
+  const box = element('div', 'picker');
+  const picker = new Picker(box, row.choices, row.pick);
+  el.append(element('div', 'name', row.label), box, element('div', 'note', row.hint));
+  el.querySelector<HTMLElement>('.note')!.dataset.tone = 'hint';
+  // Its list drops under the box, where the menu's body may end: opened, it is brought into view.
+  box.addEventListener('click', () => box.querySelector('.options:not(.hidden)')?.scrollIntoView({ block: 'nearest' }));
+  // The box follows what the row is about, which the pick changes only once the game has heard of it.
+  let shown: string | undefined;
+  const refresh = () => {
+    const now = row.value();
+    if (now === shown) return;
+    shown = now;
+    picker.choose(now);
+  };
   return { el, refresh };
 }
 

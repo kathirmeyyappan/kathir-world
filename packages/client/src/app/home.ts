@@ -4,18 +4,9 @@
 // guide and the menu show bodies). Resolves with a live Connection. Also honours
 // ?room=&name=&avatar=&color= for invite links (a join) and tests, and ?error=&tab=&code= for a join
 // the lobby turned away, which it sends back here.
-import {
-  AVATARS,
-  AVATAR_IDS,
-  NAMED_COLORS,
-  isAvatarId,
-  isValidRoomId,
-  sanitizeName,
-  type AvatarId,
-} from '@world/shared';
+import { NAMED_COLORS, isAvatarId, isValidRoomId, sanitizeName, type AvatarId } from '@world/shared';
 import { audition } from '../audio/Sfx';
 import { VOICES, take } from '../audio/voices';
-import { CHARACTERS } from '../guide/content';
 import { LocalConnection, type Connection } from '../net/Connection';
 import {
   GLOBAL_ROOM,
@@ -31,7 +22,8 @@ import {
 } from '../net/lobby';
 import type { BodyView, Shown } from '../render/BodyView';
 import { BOOK, GITHUB, pixelSvg } from '../ui/pixelIcons';
-import { Picker, type Choice } from './Picker';
+import { Picker } from './Picker';
+import { COLOR, skinChoices } from './skins';
 
 export interface HomeResult {
   connection: Connection;
@@ -46,7 +38,6 @@ const SKIN_KEY = 'world.skin';
 const STANDARD = 'standard';
 const ROLLED = Object.keys(NAMED_COLORS)[Math.floor(Math.random() * Object.keys(NAMED_COLORS).length)];
 const UNPAINTED = '#ffffff'; // what the stage paints a skin of its own, which takes no paint
-const COLOR = 'color:'; // before a NAMED_COLORS name, a choice of the standard body in that color
 const TAG_PX = 16; // the least the name over the stage's body is drawn at: the view is small and close
 
 // What each tab's button says, and the line under its code, if any.
@@ -214,21 +205,6 @@ export function showHome(): Promise<HomeResult> {
       (nameInput.value ? roomInput : nameInput).focus();
     }
   });
-}
-
-// Every look on foot a person can switch to by command, by the guide's name for it with the command
-// beside it, the standard body first (in the color drawn for this load); then, always last, the
-// standard body in each named color.
-function skinChoices(): Choice[] {
-  const choices: Choice[] = [];
-  for (const id of AVATAR_IDS) {
-    const command = AVATARS[id].command;
-    if (command === null || AVATARS[id].class !== 'walker') continue;
-    choices.push({ value: id, label: CHARACTERS[id].title, note: `/${command}` });
-  }
-  for (const name of Object.keys(NAMED_COLORS))
-    choices.push({ value: COLOR + name, label: `${name[0].toUpperCase()}${name.slice(1)}`, note: `/${name}` });
-  return choices;
 }
 
 // What a dropdown choice joins as.

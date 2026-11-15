@@ -302,6 +302,7 @@ export class Game {
       minimap: this.minimap,
       rename: (name) => conn.send({ t: 'rename', name }),
       commands: () => this.commandsMenu.set(true),
+      command: (word) => conn.send({ t: 'chat', text: `/${word}` }),
     });
     // Closing it back into the world is a click or a key press, which lets us take the mouse too.
     this.menu.onOpenChange = (open, back) => {
