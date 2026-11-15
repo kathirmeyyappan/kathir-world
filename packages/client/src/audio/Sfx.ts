@@ -80,6 +80,7 @@ export type SoundId =
   | 'luigi-kill-2'
   | 'wario-kill-1'
   | 'wario-kill-2'
+  | 'wario-kill-3'
   | 'waluigi-kill-1'
   | 'waluigi-kill-2'
   | 'waluigi-kill-3'
@@ -205,6 +206,7 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'luigi-kill-2': { file: 'luigi-kill-2.mp3', half: 6, reach: 30, volume: 0.2 },
   'wario-kill-1': { file: 'wario-kill-1.mp3', half: 6, reach: 30, volume: 0.2 },
   'wario-kill-2': { file: 'wario-kill-2.mp3', half: 6, reach: 30, volume: 0.2 },
+  'wario-kill-3': { file: 'wario-kill-3.mp3', half: 6, reach: 30, volume: 0.2 },
   'waluigi-kill-1': { file: 'waluigi-kill-1.mp3', half: 6, reach: 30, volume: 0.2 },
   'waluigi-kill-2': { file: 'waluigi-kill-2.mp3', half: 6, reach: 30, volume: 0.2 },
   'waluigi-kill-3': { file: 'waluigi-kill-3.mp3', half: 6, reach: 30, volume: 0.2 },
