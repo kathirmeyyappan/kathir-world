@@ -53,6 +53,7 @@ export const VOICES: Record<AvatarId, Voice> = {
     death: ['mario-death'],
     twirl: 'pound-twirl-heavy',
   },
+  peach: { enter: [] },
   waluigi: {
     enter: ['waluigi-enter', 'waluigi-kill-3'],
     jump: ['mario-jump-1', 'waluigi-jump-2', 'waluigi-jump-3'],

@@ -65,6 +65,17 @@ BONES: tuple[tuple[str, str], ...] = (
     ("shinR", "KneeR"),
     ("footR", "FootR"),
 )
+# Bones only some rigs have, after the rest: what hangs off a body and moves by itself (Jointed.ts
+# `SoftBone`). Peach's skirt is three rings down from her hips, and her ponytail three joints back
+# from her head.
+SOFT: tuple[tuple[str, str], ...] = (
+    ("skirt1", "Skirt1"),
+    ("skirt2", "Skirt2"),
+    ("skirt3", "Skirt3"),
+    ("hair1", "Hair1"),
+    ("hair2", "Hair2"),
+    ("hair3", "Hair3"),
+)
 TORSO = ("hips", "spine", "chest")
 PALM = ("HandR", "Finger1R", "Thumb1R")  # a held item goes at their middle
 MESHES = ("Body__m_Body", "Body__m_Eye")  # the body and the face; the rest are the pupils
@@ -88,6 +99,7 @@ CHARACTERS = {
     "luigi": Character("Luigi", "Mario Kart 8", 2.2),
     "wario": Character("Wario", "Mario Kart 8", 2.2),
     "waluigi": Character("Waluigi", "Mario Kart 8", 3.1),
+    "peach": Character("Peach", "Mario Kart 8", 2.5),
 }
 
 
@@ -100,6 +112,51 @@ def surface(triangles: np.ndarray, step: float) -> np.ndarray:
         keep = i + j <= n
         out.append(a + (i[keep] / n)[:, None] * (b - a) + (j[keep] / n)[:, None] * (c - a))
     return np.vstack(out)
+
+
+def lining(part: dict[str, np.ndarray], skirt: list[int]) -> dict[str, np.ndarray]:
+    """A skirt's lining: a disc closing the hem of `part` (a mesh in the rip's frame, z up) from
+    underneath, so nothing shows up the skirt when it tips. Its rim is the outline, seen from above,
+    of the lowest of what hangs on the `skirt` bones, and its middle a little higher, clear of the
+    floor the hem stands on; it hangs on the last of those bones, the hem's, in the colour of the
+    cloth halfway up the skirt, and is lit as if it looked up, since what lights the body is over it."""
+    positions, triangles = part["positions"], part["triangles"]
+    cloth = np.flatnonzero(part["bones"][:, skirt].sum(axis=1) > 0.5)
+    low, high = positions[cloth, 2].min(), positions[cloth, 2].max()
+    hem = cloth[positions[cloth, 2] < low + 0.03 * (high - low)]
+    # The outline: the hem's corners from left to right, along the near side and back along the
+    # far one, keeping only the turns that go one way round.
+    spots = np.unique(np.round(positions[hem, :2], 5), axis=0)
+    outline: list[np.ndarray] = []
+    for side in (spots, spots[::-1]):
+        half: list[np.ndarray] = []
+        for spot in side:
+            while len(half) >= 2:
+                (ux, uy), (vx, vy) = half[-1] - half[-2], spot - half[-1]
+                if ux * vy - uy * vx > 0:
+                    break
+                half.pop()
+            half.append(spot)
+        outline += half[:-1]
+    rim = np.c_[np.array(outline), np.full(len(outline), low)]
+    middle = np.r_[rim[:, :2].mean(axis=0), low + 0.02 * (high - low)]
+    # Wound as the mesh winds a face that looks the way its corners' normals do, looking down.
+    a, b, c = (positions[triangles[:, i]] for i in range(3))
+    faces = np.sign(np.sum(np.cross(b - a, c - a) * part["normals"][triangles[:, 0]]))
+    n, base = len(rim), len(positions)
+    fan = np.array([[base + i, base + (i + 1) % n, base + n] for i in range(n)])
+    if np.cross(rim[1] - rim[0], middle - rim[0])[2] * faces > 0:  # that way round looks up
+        fan = fan[:, [1, 0, 2]]
+    weights = np.zeros((n + 1, part["bones"].shape[1]))
+    weights[:, skirt[-1]] = 1
+    return {
+        **part,
+        "positions": np.vstack([positions, rim, middle]),
+        "normals": np.vstack([part["normals"], np.tile([0.0, 0, 1], (n + 1, 1))]),
+        "uvs": np.vstack([part["uvs"], np.tile(part["uvs"][cloth[np.argsort(positions[cloth, 2])[len(cloth) // 2]]], (n + 1, 1))]),
+        "bones": np.vstack([part["bones"], weights]),
+        "triangles": np.vstack([triangles, fan]),
+    }
 
 
 def bare(joint: str | None) -> str | None:
@@ -118,7 +175,13 @@ def main(name: str, folder: str) -> None:
     texture_out = CLIENT / f"public/assets/textures/avatars/{name}.png"
     doc = ET.parse(rip / f"{name}.dae").getroot()
 
-    images = {image.get("id"): image.findtext(f"{NS}init_from") for image in doc.iter(f"{NS}image")}
+    # An image is named as the ripper's machine had it: the file of that name in the rip's folder,
+    # whatever its path and case.
+    files = {file.name.lower(): file.name for file in rip.iterdir()}
+    images = {
+        image.get("id"): files[Path(image.findtext(f"{NS}init_from") or "").name.lower()]
+        for image in doc.iter(f"{NS}image")
+    }
     # A material's picture: the first image its effect names is its colour (the next its normal map).
     pictures: dict[str, str] = {}
     for effect in doc.iter(f"{NS}effect"):
@@ -129,7 +192,9 @@ def main(name: str, folder: str) -> None:
     # Each mesh in the pose it was bound in, with the joints' own places there: the rig's nodes are
     # left as the game last posed them (sat down, in these), so the bind pose is the one to read.
     geometries = {g.get("id"): g for g in doc.iter(f"{NS}geometry")}
-    bone_names = [bone for bone, _ in BONES]
+    rigged = {bare(node.get("sid")) for node in doc.iter(f"{NS}node")}
+    bones = BONES + tuple(soft for soft in SOFT if soft[1] in rigged)
+    bone_names = [bone for bone, _ in bones]
     parts = []
     pivots: dict[str, np.ndarray] = {}
     joints_at: dict[str, np.ndarray] = {}
@@ -151,7 +216,7 @@ def main(name: str, folder: str) -> None:
         bind_shape = floats(skin.find(f"{NS}bind_shape_matrix")).reshape(4, 4)
         if not joints_at:
             joints_at = {joint: np.linalg.inv(m)[:3, 3] for joint, m in zip(joints, inverse_bind)}
-            pivots = {bone: joints_at[joint] for bone, joint in BONES}
+            pivots = {bone: joints_at[joint] for bone, joint in bones}
 
         # A joint belongs to the bone that names it or the nearest joint above it that a bone names,
         # else to the root: up the rig by the scene's nodes.
@@ -161,7 +226,7 @@ def main(name: str, folder: str) -> None:
             for child in node.findall(f"{NS}node")
             if bare(child.get("sid")) != bare(node.get("sid"))  # the pupils' joint is named as their node is
         }
-        named = {joint: i for i, (_, joint) in enumerate(BONES)}
+        named = {joint: i for i, (_, joint) in enumerate(bones)}
 
         def bone_of(joint: str | None) -> int:
             while joint is not None:
@@ -176,7 +241,11 @@ def main(name: str, folder: str) -> None:
         polylist = geometry.find(f".//{NS}polylist")
         assert polylist is not None
         assert set((polylist.findtext(f"{NS}vcount") or "").split()) == {"3"}
-        corners = np.array((polylist.findtext(f"{NS}p") or "").split(), dtype=np.int64).reshape(-1, 3)
+        # A corner is an index for each of the polylist's inputs: its vertex, its normal and its
+        # texture coordinate, and in some rips a colour after them.
+        inputs = {i.get("semantic"): int(i.get("offset") or 0) for i in polylist.findall(f"{NS}input")}
+        corners = np.array((polylist.findtext(f"{NS}p") or "").split(), dtype=np.int64).reshape(-1, len(inputs))
+        corners = corners[:, [inputs["VERTEX"], inputs["NORMAL"], inputs["TEXCOORD"]]]
         positions = arrays[f"{gid}-positions"].reshape(-1, 3)
         normals = arrays[f"{gid}-normals"].reshape(-1, 3)[corners[:, 1]]
         # Collada's v runs up the image. The body's texture repeats and the face's is skin at every
@@ -190,7 +259,7 @@ def main(name: str, folder: str) -> None:
         _, first, triangles = np.unique(
             np.c_[corners[:, 0], np.round(normals, 3), np.round(uv, 5)], axis=0, return_index=True, return_inverse=True
         )
-        folded = np.zeros((len(positions), len(BONES)))
+        folded = np.zeros((len(positions), len(bones)))
         np.add.at(folded, (np.repeat(np.arange(len(positions)), counts), joint_bone[pairs[:, 0]]), weight[pairs[:, 1]])
         parts.append(
             {
@@ -202,6 +271,10 @@ def main(name: str, folder: str) -> None:
                 "picture": pictures[(polylist.get("material") or "").removesuffix("-material")],
             }
         )
+
+    skirt = [i for i, bone in enumerate(bone_names) if bone.startswith("skirt")]
+    if skirt:
+        parts = [lining(part, skirt) if part["bones"][:, skirt].any() else part for part in parts]
 
     posed = np.vstack([part["positions"] for part in parts])
     posed_normals = np.vstack([part["normals"] for part in parts])
@@ -244,9 +317,9 @@ def main(name: str, folder: str) -> None:
     trunk = np.isin(order[:, 0], [bone_names.index(b) for b in TORSO])
     back_z = posed[trunk & (abs(posed[:, 1] - shoulder_y) < 1.5 * BACK_DROP)][:, 2].min() - BACK_DROP / 4
     back = np.array([0, shoulder_y, back_z])
-    # Fallen on its back, the body lies this far up: as far as anything (the back of the head) is
-    # behind the hips.
-    lie = -posed[:, 2].min()
+    # Fallen on its back, the body lies this far up: as far as anything that holds its shape (the
+    # back of the head) is behind the hips.
+    lie = -posed[order[:, 0] < len(BONES)][:, 2].min()
     # A shoe's sole: how far ahead of the ankle its toe reaches, and how far behind it its heel.
     shoe = posed[order[:, 0] == bone_names.index("footR")]
     sole = np.array([shoe[:, 2].max() - pivots["footR"][2], pivots["footR"][2] - shoe[:, 2].min()])
@@ -271,6 +344,16 @@ def main(name: str, folder: str) -> None:
     mitt = posed[np.isin(order[:, 0], [bone_names.index(b) for b in ("handR", "fingersR", "thumbR")])] - palm
     grip = np.column_stack([mitt[:, 0], mitt[:, 2], -mitt[:, 1]])
     print("temple:", np.round(temple, 3), "head relief:", relief.shape, "hand vertices:", len(grip))
+
+    # A skirt's hem, from the top of the skirt: how far it reaches to a side, ahead and behind, and
+    # how far down it is.
+    hem = None
+    if "skirt1" in bone_names:
+        skirt = posed[np.isin(order[:, 0], [bone_names.index(b) for b in bone_names if b.startswith("skirt")])]
+        hem = np.array(
+            [abs(skirt[:, 0]).max(), skirt[:, 2].max(), -skirt[:, 2].min(), pivots["skirt1"][1] - skirt[:, 1].min()]
+        )
+        print("hem:", np.round(hem, 3))
 
     regions = [
         textured(Image.open(rip / part["picture"]).convert("RGB"), uv, span, character.texture_size)
@@ -297,6 +380,14 @@ def main(name: str, folder: str) -> None:
         "// side, at the points of a grid `cell` metres apart up (rows) and ahead (`across` to a row) from `at`, metres",
         "// up and ahead of the neck (Int16 millimetres, base64); `mitt` the right hand's vertices from its palm's",
         "// middle, palm down, as Int16 millimetre triples: along the fingers, across, and how far under.",
+        *(
+            [
+                "// `hem` is the skirt's: metres it reaches from the skirt's middle to a side, ahead and behind, and",
+                "// how far below the skirt's top bone it is.",
+            ]
+            if hem is not None
+            else []
+        ),
         f"export const {name.upper()}_MODEL = {{",
         f"  height: {character.height},",
         f"  hand: {vec(palm)},",
@@ -306,6 +397,7 @@ def main(name: str, folder: str) -> None:
         f"  temple: {vec(temple)},",
         f"  skull: {{ at: {vec(skull_at)}, cell: {RELIEF_CELL}, across: {relief.shape[1]}, far: '{b64(np.round(relief * 1000).astype('<i2'))}' }},",
         f"  mitt: '{b64(np.round(grip * 1000).astype('<i2'))}',",
+        *([f"  hem: {vec(hem)},"] if hem is not None else []),
         "  bones: {",
         *(f"    {bone}: {vec(pivots[bone])}," for bone in bone_names),
         "  },",

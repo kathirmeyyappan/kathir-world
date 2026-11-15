@@ -47,6 +47,7 @@ export const ABILITIES: Record<AbilityId, string> = {
   pound: 'Ground pound',
   crouch: 'Crouch',
   backflip: 'Backflip',
+  float: 'Float',
   chain: 'Triple jump',
   strike: 'Bat',
 };
@@ -57,6 +58,7 @@ export const CHARACTERS: Record<AvatarId, Entry> = {
   luigi: plain('Luigi', 'The green goat.'),
   wario: plain('Wario', 'Wario from Super Mario.'),
   waluigi: plain('Waluigi', 'Waluigi from Super Mario.'),
+  peach: plain('Peach', 'Princess Peach from Super Mario.'),
   spongebob: plain('SpongeBob SquarePants', 'The one and only SpongeBob SquarePants.'),
   patrick: plain('Patrick Star', 'SpongeBob’s best friend. Is mayonnaise an instrument?'),
   krabs: plain('Eugene Krabs', 'Standing at the concession. Plotting our oppression.'),

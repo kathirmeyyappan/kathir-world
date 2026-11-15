@@ -1,11 +1,11 @@
 // Animation clips for a jointed body (Jointed.ts): frames of where its hips are and how each of its
-// bones is turned, made by scripts/jointed-clips.py, and the little it takes to play them. A clip is
+// bones is turned, made by the clip scripts (scripts/clips.py), and the little it takes to play them. A clip is
 // sampled at a frame (between two, their turns are mixed) into a Motion, and two motions blend into
 // one, so a body eases from standing into its run or from its jump into its fall by blending what
 // each clip says. Nothing here works a pose out: every pose a body strikes was drawn by an animator.
 import { bytes } from './skinned';
 
-// The bones a clip turns, in the order its frames list them (scripts/jointed-clips.py BONES).
+// The bones a clip turns, in the order its frames list them (scripts/clips.py BONES).
 export const CLIP_BONES = [
   'hips',
   'spine',

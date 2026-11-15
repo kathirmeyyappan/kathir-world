@@ -28,6 +28,8 @@ export function createPlayer(id: string, name: string, color: string, spawn: Vec
     crouch: false,
     backflip: false,
     strike: null,
+    floating: false,
+    floated: 0,
     climb: null,
     walk: 0,
     yaw: 0,

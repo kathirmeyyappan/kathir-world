@@ -17,7 +17,7 @@ export type ItemId = 'gun' | 'sniper' | 'flamethrower' | 'ice-blower' | 'firebre
 // A's), to go round to its other face by its left or its right (walker.ts). The run is a walker's
 // too, held on Shift: its walk at RUN_MULTIPLIER (walker.ts). The crouch and the pound are a look's
 // own moves (avatars.ts), on one key: held on the ground and tapped in the air; a strike is
-// another look's, a tap on that key.
+// another look's, a tap on that key; and the float is one more, the jump key held in the air.
 export type ItemAction =
   | 'shoot'
   | 'scope'
@@ -30,7 +30,8 @@ export type ItemAction =
   | 'run'
   | 'pound'
   | 'crouch'
-  | 'strike';
+  | 'strike'
+  | 'float';
 export type ActionMode = 'tap' | 'hold' | 'toggle';
 
 export interface ActionSpec {
@@ -191,7 +192,8 @@ export function isItemAction(v: unknown): v is ItemAction {
     v === 'run' ||
     v === 'pound' ||
     v === 'crouch' ||
-    v === 'strike'
+    v === 'strike' ||
+    v === 'float'
   );
 }
 
@@ -237,6 +239,7 @@ const ACTION_HELP: Record<ItemAction, (spec: ActionSpec) => string> = {
   pound: () => '% in the air to ground pound',
   crouch: () => 'hold % to crouch',
   strike: () => '% to strike',
+  float: () => 'hold % in the air to float',
 };
 
 // "range: 20m, dmg: 2 (headshot 2.5x)" or "range: 10m, dps: 1, chills 5s": the numbers that

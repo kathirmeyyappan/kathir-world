@@ -63,6 +63,7 @@ import {
   type BodyPose,
 } from './motion';
 import { bytes, SkinnedBody, type SkinnedModel } from './skinned';
+import { Skirt, Tail } from './soft';
 import { limbLead, rungHeld, WalkerAvatar, type Figure, type Pose } from './Walker';
 
 export type JointedBone =
@@ -86,7 +87,19 @@ export type JointedBone =
   | 'legR'
   | 'shinR'
   | 'footR';
-const PARENTS: Record<JointedBone, JointedBone | null> = {
+// Bones only some models have, which no clip or pose turns: they move by themselves (soft.ts). A
+// skirt's rings, from the hips down, and a tail of hair's links, from the head.
+export type SoftBone = 'skirt1' | 'skirt2' | 'skirt3' | 'hair1' | 'hair2' | 'hair3';
+type RigBone = JointedBone | SoftBone;
+const SKIRT = ['skirt1', 'skirt2', 'skirt3'] as const;
+const HAIR = ['hair1', 'hair2', 'hair3'] as const;
+const PARENTS: Record<RigBone, RigBone | null> = {
+  skirt1: 'hips',
+  skirt2: 'skirt1',
+  skirt3: 'skirt2',
+  hair1: 'head',
+  hair2: 'hair1',
+  hair3: 'hair2',
   hips: null,
   spine: 'hips',
   chest: 'spine',
@@ -111,6 +124,10 @@ const PARENTS: Record<JointedBone, JointedBone | null> = {
 
 // A model on this rig, standing in a T-pose: its arms straight out to the sides, its legs straight down.
 export interface JointedModel extends SkinnedModel<JointedBone> {
+  readonly bones: Readonly<Record<JointedBone, readonly number[]>> &
+    Readonly<Partial<Record<SoftBone, readonly number[]>>>;
+  // A skirt's hem, with a skirt's bones: metres it reaches to a side, ahead and behind, and below the skirt's top.
+  readonly hem?: readonly number[];
   readonly sole: readonly number[]; // metres a shoe's toe reaches ahead of its ankle, and its heel behind it
   readonly temple: readonly number[]; // the head's widest point on its right, where a hand laid beside it goes
   // For resting that hand on the head (`Rig.resting`): how far out the head reaches at the points
@@ -125,7 +142,8 @@ export interface JointedModel extends SkinnedModel<JointedBone> {
 }
 
 // The clips only a look with the move has.
-type Moves = 'leap' | 'pound' | 'pounded' | 'double' | 'doubleFall' | 'triple' | 'crouch' | 'crawl' | 'backflip';
+type Moves =
+  'leap' | 'pound' | 'pounded' | 'double' | 'doubleFall' | 'triple' | 'crouch' | 'crawl' | 'backflip' | 'float';
 
 // How a character moves: its clips, and the few numbers round them.
 export interface Style {
@@ -151,6 +169,7 @@ export interface Style {
     crouch?: RawClip;
     crawl?: RawClip;
     backflip?: RawClip;
+    float?: RawClip; // a float (sim/avatars.ts `Float`): held up in the air, looped
   };
   flutter?: number; // strides a second its legs run on at in the air: a scuttle
   landSpeed: number; // m/s of fall that lands all the way into the landing's crouch
@@ -167,6 +186,9 @@ export interface JointedSpec {
   model: JointedModel;
   style: Style;
   shadow: number; // metres across
+  // With a tail of hair's bones: the way each of its links runs as the hair is dressed, from the
+  // head to its tip, by the way the head faces: ahead of it (z) and up (soft.ts `Tail`).
+  tail?: readonly (readonly [number, number, number])[];
 }
 
 // The share of its full walk under which a body walks and over which it runs, the stride between
@@ -180,6 +202,7 @@ const TAKEOFF_SECONDS = 0.12;
 const TOUCHDOWN_SECONDS = 0.12;
 const APEX_SECONDS = 0.28;
 const LAND_IN = 0.05; // seconds a landing takes to drop into its crouch
+const FLOAT_SECONDS = 0.2; // seconds it takes to settle into a float, and to drop out of one
 const CROUCH_SECONDS = 0.15; // seconds it takes to sink into a crouch, and to rise out of one
 const EASE_DIRECTION = 0.09; // seconds its stride takes to come round to a new way of going
 const EASE_TURN = 0.12; // seconds its body takes to come round to face the way it's going
@@ -263,6 +286,7 @@ export class JointedAvatar extends WalkerAvatar {
   private aloft = 0; // seconds since it left the ground
   private kicking = 1; // how much of its flutter its legs have in the air: none under a jet's thrust
   private leaping = 0; // how far into its long jump's pose it is, of its poses in the air
+  private floating = 0; // and into its float's
   private pound: RemotePlayer['pound'] = null; // the stage of its ground pound when it was last drawn
   private turned = 0; // seconds since its ground pound began
   private sat = Infinity; // seconds since its ground pound landed
@@ -306,6 +330,7 @@ export class JointedAvatar extends WalkerAvatar {
       crouch: raw.crouch ? clip(raw.crouch) : null,
       crawl: raw.crawl ? clip(raw.crawl) : null,
       backflip: raw.backflip ? clip(raw.backflip) : null,
+      float: raw.float ? clip(raw.float) : null,
     };
     const chain = chainOf(kind);
     const third = jumpVelocityOf(kind) * Math.sqrt((chain?.rise ?? 1) ** 2);
@@ -403,7 +428,7 @@ export class JointedAvatar extends WalkerAvatar {
     }
 
     // In the air: its jump going up and its fall coming down, by which way it last moved.
-    const flipping = p.grounded ? null : p.backflip ? clips.backflip : p.hop === 3 ? clips.triple : null;
+    const flipping = p.grounded || p.floating ? null : p.backflip ? clips.backflip : p.hop === 3 ? clips.triple : null;
     this.aloft = p.grounded ? 0 : this.aloft + dt;
     this.kicking = eased(this.kicking, p.thrusting ? 0 : 1, dt, EASE_KICKING);
     this.airborne = Math.min(
@@ -430,6 +455,12 @@ export class JointedAvatar extends WalkerAvatar {
       }
       // And the third is one somersault, the whole body's, from takeoff to landing, as a backflip is.
       if (flipping) sample(other, flipping, this.aloft / (p.backflip ? this.backflip : this.flip), false);
+      // A float is its own way of hanging there, whatever jump it was.
+      this.floating = Math.min(1, Math.max(0, this.floating + (p.floating ? dt : -dt) / FLOAT_SECONDS));
+      if (clips.float && this.floating > 0) {
+        sample(third, clips.float, this.stood / clips.float.seconds, true);
+        blend(other, other, third, smooth(this.floating));
+      }
       const air = smooth(this.airborne);
       blend(out, out, other, air);
       grip += (GRIP_RUN + (GRIP_FALL - GRIP_RUN) * down - grip) * air;
@@ -558,7 +589,7 @@ function wrap(angle: number): number {
 // The skeleton: the model's skin on its bones, what the walker needs of them, and the pose solver.
 class Rig {
   readonly figure: Figure;
-  private readonly skin: SkinnedBody<JointedBone>;
+  private readonly skin: SkinnedBody<RigBone>;
   private readonly hipsAt: Vector3; // the hips' pivot, standing
   private readonly bones: TransformNode[]; // the bones a clip turns, in a clip's order
   private gripped = -1; // how closed `play` last left the hands, none yet
@@ -592,7 +623,7 @@ class Rig {
 
   constructor(engine: Engine, id: string, spec: JointedSpec, base: TransformNode) {
     const { kind, model } = spec;
-    const skin = new SkinnedBody(engine, `${kind}-${id}`, model, kind, PARENTS, base);
+    const skin = new SkinnedBody<RigBone>(engine, `${kind}-${id}`, model, kind, PARENTS, base);
     this.skin = skin;
     this.bones = CLIP_BONES.map((bone) => skin.node(bone));
     const at = (bone: JointedBone) => Vector3.FromArray(model.bones[bone] as number[]);
@@ -633,6 +664,27 @@ class Rig {
     grip.position.copyFrom(skin.offset('forearmR', model.bones.handR));
     grip.position.addInPlaceFromFloats(palm.x, palm.z, palm.y + FIST);
     const chest = skin.node('chest');
+    const hem = model.hem;
+    const skirt = hem
+      ? new Skirt(
+          base,
+          skin.node('hips'),
+          SKIRT.map((bone) => skin.node(bone)),
+          [
+            [skin.node('legL'), skin.node('shinL'), skin.node('footL')],
+            [skin.node('legR'), skin.node('shinR'), skin.node('footR')],
+          ],
+          { across: hem[0], ahead: hem[1], behind: hem[2], drop: hem[3] },
+        )
+      : null;
+    const tail = spec.tail
+      ? new Tail(
+          skin.node('head'),
+          HAIR.filter((bone) => skin.has(bone)).map((bone) => skin.node(bone)),
+          base.parent as TransformNode,
+          spec.tail.map(([x, y, z]) => new Vector3(x, y, z).normalize()),
+        )
+      : null;
     this.figure = {
       armR: { node: armR, grip, hold: HOLD, reach: at('handR').subtract(at('armR')).normalize() },
       back: { node: chest, at: skin.offset('chest', model.back) },
@@ -644,6 +696,13 @@ class Rig {
       armSwing: 0,
       bob: 0,
       lie: { onto: 'back', height: model.lie },
+      extra:
+        skirt || tail
+          ? () => {
+              skirt?.update();
+              tail?.update();
+            }
+          : undefined,
       dispose: () => skin.dispose(),
     };
   }

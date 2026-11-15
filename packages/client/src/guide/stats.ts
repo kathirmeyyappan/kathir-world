@@ -33,6 +33,7 @@ import {
   poundOf,
   strikeOf,
   crouchOf,
+  floatOf,
   walkSpeedOf,
   type AvatarId,
   type BotFlag,
@@ -86,11 +87,18 @@ export function characterStats(id: AvatarId): Stat[] {
 }
 
 // What a character can do that the rest can't, each with its own numbers.
-export type AbilityId = 'leap' | 'pound' | 'chain' | 'crouch' | 'backflip' | 'strike';
+export type AbilityId = 'leap' | 'pound' | 'chain' | 'crouch' | 'backflip' | 'strike' | 'float';
 
 // A character's special abilities, read off its row: none for most.
 export function abilityStats(id: AvatarId): { id: AbilityId; stats: Stat[] }[] {
-  return [...leapStats(id), ...chainStats(id), ...poundStats(id), ...crouchStats(id), ...strikeStats(id)];
+  return [
+    ...leapStats(id),
+    ...chainStats(id),
+    ...floatStats(id),
+    ...poundStats(id),
+    ...crouchStats(id),
+    ...strikeStats(id),
+  ];
 }
 
 function strikeStats(id: AvatarId): { id: AbilityId; stats: Stat[] }[] {
@@ -122,6 +130,21 @@ function chainStats(id: AvatarId): { id: AbilityId; stats: Stat[] }[] {
         { label: 'Use', value: 'Hit Space again as you land' },
         { label: 'Heights', value: `${heights.map(num).join(', ')} m` },
         { label: 'Time to jump again', value: `${num(chain.gap)} s` },
+      ],
+    },
+  ];
+}
+
+function floatStats(id: AvatarId): { id: AbilityId; stats: Stat[] }[] {
+  const float = floatOf(id);
+  if (!float) return [];
+  return [
+    {
+      id: 'float',
+      stats: [
+        { label: 'Use', value: 'Hold Space in the air' },
+        { label: 'Time', value: `${num(float.seconds)} s` },
+        { label: 'Sink speed', value: `${num(float.sink)} m/s` },
       ],
     },
   ];

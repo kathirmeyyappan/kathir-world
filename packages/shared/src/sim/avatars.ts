@@ -16,6 +16,7 @@ export type AvatarId =
   | 'luigi'
   | 'wario'
   | 'waluigi'
+  | 'peach'
   | 'spongebob'
   | 'patrick'
   | 'krabs'
@@ -65,6 +66,7 @@ interface Moves {
   chain?: Chain;
   crouch?: Crouch;
   strike?: Strike;
+  float?: Float;
 }
 
 // A strike: what the strike action is, for a look that carries something to hit with in its free
@@ -79,6 +81,14 @@ export interface Strike {
   // The throw it gives a walker it lands on (walker.ts `throwWalker`): away from the body at
   // `speed` m/s and up at `lift`, with `grip` m/s² of the keys left to them until they land.
   knock: { speed: number; lift: number; grip: number };
+}
+
+// A float: what holding the float action coming down is, for a look that has one (walker.ts). It
+// stops falling and sinks slowly, for as long as the action is held and it has float left: it has
+// `seconds` of it between one landing and the next. A long jump and a ground pound don't float.
+export interface Float {
+  seconds: number;
+  sink: number; // m/s it comes down at
 }
 
 // A crouch: what holding the crouch action on the ground is, for a look that has one (walker.ts).
@@ -129,6 +139,16 @@ export type AvatarSpec = (Look & { class: 'walker' } & Moves) | (Look & { class:
 const LIGHT_DRAGON_SIZE = 1.15;
 const COLGERA_SIZE = 1.15;
 
+// The moves Super Mario 64's Mario has, which every look of his family starts from: a row spreads
+// these, sets its own over them (Wario's heavier pound) and adds what is its alone (Peach's float).
+const SM64_MOVES = {
+  leap: { rise: 0.5, speed: 1.25, float: 0.5, grip: 6 }, // at twice its walk, a quarter over its run, and half its jump's height
+  // The twirl as long as its clip (Jointed.ts); the knock a hop back, a third of a second off the ground.
+  pound: { damage: 1.5, reach: 3, twirl: 1 / 3, speed: 20, recover: 0.35, knock: { speed: 4, lift: 3, grip: 6 } },
+  chain: { jumps: 3, gap: 0.3, rise: 1.2 }, // a jump, a double and a triple
+  crouch: { crawl: 0.3, flip: 1.5 },
+} satisfies Partial<Moves>;
+
 const LOOKS = {
   standard: {
     id: 'standard',
@@ -153,11 +173,7 @@ const LOOKS = {
     hitbox: { top: 2.0, radius: 0.5, head: 0.85 }, // as tall as the standard body; the head, cap and all, is 0.8 m across and everything over the shoulders
     walk: 8,
     jump: 1.45,
-    leap: { rise: 0.5, speed: 1.25, float: 0.5, grip: 6 }, // at twice its walk, a quarter over its run, and half its jump's height
-    // The twirl as long as its clip (Jointed.ts); the knock a hop back, a third of a second off the ground.
-    pound: { damage: 1.5, reach: 3, twirl: 1 / 3, speed: 20, recover: 0.35, knock: { speed: 4, lift: 3, grip: 6 } },
-    chain: { jumps: 3, gap: 0.3, rise: 1.2 }, // a jump, a double and a triple
-    crouch: { crawl: 0.3, flip: 1.5 },
+    ...SM64_MOVES,
   },
   luigi: {
     id: 'luigi',
@@ -170,11 +186,7 @@ const LOOKS = {
     hitbox: { top: 2.2, radius: 0.45, head: 0.9 }, // a tenth taller than Mario, as their models stand, and narrower: a head 0.66 m across
     walk: 8,
     jump: 1.6,
-    leap: { rise: 0.5, speed: 1.25, float: 0.5, grip: 6 }, // at twice its walk, a quarter over its run, and half its jump's height
-    // The twirl as long as its clip (Jointed.ts); the knock a hop back, a third of a second off the ground.
-    pound: { damage: 1.5, reach: 3, twirl: 1 / 3, speed: 20, recover: 0.35, knock: { speed: 4, lift: 3, grip: 6 } },
-    chain: { jumps: 3, gap: 0.3, rise: 1.2 }, // a jump, a double and a triple
-    crouch: { crawl: 0.3, flip: 1.5 },
+    ...SM64_MOVES,
   },
   wario: {
     id: 'wario',
@@ -187,11 +199,8 @@ const LOOKS = {
     hitbox: { top: 2.2, radius: 0.7, head: 0.85 }, // as tall as Luigi and 1.26 m across the belly; the head everything over the shoulders
     walk: 6.5,
     jump: 1.3,
-    leap: { rise: 0.5, speed: 1.25, float: 0.5, grip: 6 }, // at twice its walk, a quarter over its run, and half its jump's height
-    // The twirl as long as its clip (Jointed.ts); heavier than the brothers', it lands harder and wider.
-    pound: { damage: 2.5, reach: 4, twirl: 1 / 3, speed: 20, recover: 0.35, knock: { speed: 4, lift: 3, grip: 6 } },
-    chain: { jumps: 3, gap: 0.3, rise: 1.2 }, // a jump, a double and a triple
-    crouch: { crawl: 0.3, flip: 1.5 },
+    ...SM64_MOVES,
+    pound: { ...SM64_MOVES.pound, damage: 2.5, reach: 4 }, // heavier than the brothers', it lands harder and wider
   },
   waluigi: {
     id: 'waluigi',
@@ -204,11 +213,21 @@ const LOOKS = {
     hitbox: { top: 3.1, radius: 0.45, head: 0.8 }, // half again as tall as Mario, as their models stand, on legs 1.4 m long; a body 0.46 m across under a head 0.82 m across
     walk: 8,
     jump: 1.5,
-    leap: { rise: 0.5, speed: 1.25, float: 0.5, grip: 6 }, // at twice its walk, a quarter over its run, and half its jump's height
-    // The twirl as long as its clip (Jointed.ts); the knock a hop back, a third of a second off the ground.
-    pound: { damage: 1.5, reach: 3, twirl: 1 / 3, speed: 20, recover: 0.35, knock: { speed: 4, lift: 3, grip: 6 } },
-    chain: { jumps: 3, gap: 0.3, rise: 1.2 }, // a jump, a double and a triple
-    crouch: { crawl: 0.3, flip: 1.5 },
+    ...SM64_MOVES,
+  },
+  peach: {
+    id: 'peach',
+    class: 'walker',
+    item: null,
+    regen: false,
+    blurb: 'become peach',
+    command: 'peach',
+    eye: 2.1,
+    hitbox: { top: 2.5, radius: 0.5, head: 0.65 },
+    walk: 6.5,
+    jump: 1.3,
+    ...SM64_MOVES,
+    float: { seconds: 3, sink: 0.4 },
   },
   spongebob: {
     id: 'spongebob',
@@ -466,6 +485,12 @@ export function strikeOf(avatar: AvatarId): Strike | null {
   return (look.class === 'walker' && look.strike) || null;
 }
 
+// A look's float, if it has one.
+export function floatOf(avatar: AvatarId): Float | null {
+  const look: AvatarSpec = AVATARS[avatar];
+  return (look.class === 'walker' && look.float) || null;
+}
+
 // A look's ground pound, if it has one.
 export function poundOf(avatar: AvatarId): Pound | null {
   const look: AvatarSpec = AVATARS[avatar];
@@ -513,6 +538,7 @@ const MOVE_HELP: Record<Exclude<keyof Moves, 'walk' | 'jump'>, MoveHelp | null> 
     touch: '[BAT] to swing the bat',
     key: { key: 'X', does: 'swing the bat' },
   },
+  float: { keys: 'hold [Space] in the air to float', touch: 'hold [JUMP] in the air to float' },
 };
 
 // The help of each move a look has, in the order they're listed.

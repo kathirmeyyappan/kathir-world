@@ -40,11 +40,11 @@ export class SkinnedBody<B extends string> {
   private readonly parts = new Map<B, { node: TransformNode; pivot: readonly number[] }>();
 
   // `parents` names each bone's parent (the root's is null); a bone comes after its parent in the
-  // model. The nodes hang off `root`, the bones' frame.
+  // model, which may leave some of `parents`' bones out. The nodes hang off `root`, the bones' frame.
   constructor(
     engine: Engine,
     name: string,
-    model: SkinnedModel<B>,
+    model: Omit<SkinnedModel<B>, 'bones'> & { readonly bones: Readonly<Partial<Record<B, readonly number[]>>> },
     avatar: AvatarId,
     parents: Readonly<Record<B, B | null>>,
     root: TransformNode,
@@ -53,10 +53,9 @@ export class SkinnedBody<B extends string> {
     this.skeleton = new Skeleton(name, name, scene);
     this.skeleton.useTextureToStoreBoneMatrices = false; // a handful of bones fit in uniforms
     const bones = new Map<B, Bone>();
-    (Object.keys(model.bones) as B[]).forEach((name, index) => {
+    (Object.entries(model.bones) as [B, readonly number[]][]).forEach(([name, pivot], index) => {
       const parent = parents[name];
       const base = parent ? this.part(parent) : null;
-      const pivot = model.bones[name];
       const from = base?.pivot ?? [0, 0, 0];
       const node = new TransformNode(`${this.skeleton.name}-${name}`, scene);
       node.parent = base?.node ?? root;
@@ -79,6 +78,10 @@ export class SkinnedBody<B extends string> {
 
   node(bone: B): TransformNode {
     return this.part(bone).node;
+  }
+
+  has(bone: B): boolean {
+    return this.parts.has(bone);
   }
 
   // A point in the avatar's frame as an offset from a bone's pivot: where to hang something on its node.
@@ -127,7 +130,7 @@ const decoded = new Map<string, VertexData>();
 
 // A model's mesh, decoded once per page (keyed by its vertices): the same arrays go into every
 // wearer's own buffers.
-function vertexData(m: SkinnedModel<string>): VertexData {
+function vertexData(m: Omit<SkinnedModel<string>, 'bones'>): VertexData {
   let data = decoded.get(m.positions);
   if (data) return data;
   data = new VertexData();

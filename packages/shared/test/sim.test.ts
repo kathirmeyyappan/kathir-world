@@ -66,6 +66,7 @@ import {
   isGrounded,
   type AvatarId,
   crouchOf,
+  floatOf,
   walkSpeedOf,
   type ItemAction,
 } from '@world/shared';
@@ -269,6 +270,32 @@ test('a crouch: held on the ground it crawls, a jump out of it is a backflip hig
   for (let i = 0; i < TICK_RATE; i++) stepPlayer(p, frame(++seq, {}), TICK_DT, WORLD_SHAPE);
   stepPlayer(p, frame(++seq, { my: 1, jump: true, actions: ['crouch'] }), TICK_DT, WORLD_SHAPE);
   assert.ok(p.leap && !p.backflip, 'a jump out of a crawl is a long jump');
+});
+
+test('a float: held coming down it sinks slowly for its seconds, then falls, and landing gives it back', () => {
+  const p = createPlayer('a', 'a', '#fff', { x: 0, y: EYE_HEIGHT, z: 0 });
+  becomeAvatar(p, 'peach');
+  const float = floatOf('peach')!;
+  let seq = 0;
+  // A jump with the float held throughout: the seconds it floats, and how fast it sinks while it does.
+  const flight = (): { floated: number; sink: number } => {
+    let floated = 0;
+    let sink = 0;
+    stepPlayer(p, frame(++seq, { jump: true, actions: ['float'] }), TICK_DT, WORLD_SHAPE);
+    while (!isGrounded(p)) {
+      const y = p.pos.y;
+      stepPlayer(p, frame(++seq, { actions: ['float'] }), TICK_DT, WORLD_SHAPE);
+      if (!p.floating) continue;
+      floated += TICK_DT;
+      sink = Math.max(sink, (y - p.pos.y) / TICK_DT);
+    }
+    return { floated, sink };
+  };
+  // Out of the jump its float runs out well above the floor, and it falls the rest of the way.
+  const first = flight();
+  assert.ok(Math.abs(first.floated - float.seconds) < 2 * TICK_DT, 'it floats its seconds');
+  assert.ok(first.sink <= float.sink + 1e-9, 'sinking no faster than a float does');
+  assert.ok(Math.abs(flight().floated - float.seconds) < 2 * TICK_DT, 'and has them all again after landing');
 });
 
 test('/speedy boost multiplies movement and wears off; holding the run does too; a scope slows it and stops jumps; a chill halves it and wears off', () => {

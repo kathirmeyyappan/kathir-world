@@ -27,6 +27,7 @@ import {
   poundPower,
   strikeOf,
   crouchOf,
+  floatOf,
   keyLabel,
   itemStats,
   lookDirection,
@@ -454,6 +455,8 @@ export class Game {
     if (!self || !crouchOf(self.avatar) || !isGrounded(self)) this.crouchOn = false;
     else if (this.poundRequested) this.crouchOn = !this.crouchOn;
     if (self && crouchOf(self.avatar) && (this.input.isDown('KeyX') || this.crouchOn)) actions.push('crouch');
+    // A float is the jump key held, which the touch jump button holds down too.
+    if (self && floatOf(self.avatar) && this.input.isDown('Space')) actions.push('float');
     if (self && poundOf(self.avatar) && pressed) actions.push('pound');
     if (self && strikeOf(self.avatar) && pressed) actions.push('strike');
     this.poundRequested = false;
@@ -1247,6 +1250,7 @@ export class Game {
         crouch: self.crouch,
         backflip: self.backflip,
         strike: self.strike,
+        floating: self.floating,
         climb: self.climb,
         chilled: self.chilled > 0,
         dead: this.dead,
