@@ -142,7 +142,10 @@ interface SoundSpec {
   music?: boolean; // on the music channel, not the effects'
 }
 
-// Loops are WAV, cut on exact samples: MP3 pads both ends with silence, which would gap every repeat.
+// Loops are MP3s cut on exact samples and encoded with LAME, whose header tells the browser's decoder
+// how much padding to trim, so every repeat (and an intro's join into its loop) is gapless; each has to
+// decode to its source's exact sample count, which LAME misses for some lengths (flame-start's, made
+// whole by moving the loop's first 33 samples onto the end of the intro and rotating the loop to match).
 // Loudest to quietest up close: sniper, gun, the whizzes, flamethrower, ice blower, jetpack, then the body's own
 // sounds (landings, footsteps, the jump swoosh), and quietest of all Gary's slime. The jet recording is denser
 // than the flame's, so it needs the lower volume to come out quieter.
@@ -152,9 +155,9 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'whiz-1': { file: 'whiz-1.mp3', half: 4, reach: 20, volume: 0.3 },
   'whiz-2': { file: 'whiz-2.mp3', half: 4, reach: 20, volume: 0.3 },
   'whiz-3': { file: 'whiz-3.mp3', half: 4, reach: 20, volume: 0.3 },
-  flame: { file: 'flame.wav', intro: 'flame-start.wav', half: 4, reach: 25, volume: 0.12, loop: true },
-  ice: { file: 'ice.wav', half: 4, reach: 25, volume: 0.1, loop: true },
-  jet: { file: 'jet.wav', half: 4, reach: 25, volume: 0.06, loop: true, swell: 0.8 },
+  flame: { file: 'flame.mp3', intro: 'flame-start.mp3', half: 4, reach: 25, volume: 0.12, loop: true },
+  ice: { file: 'ice.mp3', half: 4, reach: 25, volume: 0.1, loop: true },
+  jet: { file: 'jet.mp3', half: 4, reach: 25, volume: 0.06, loop: true, swell: 0.8 },
   'step-1': { file: 'step-1.mp3', half: 6, reach: 30, volume: 0.08 },
   'step-2': { file: 'step-2.mp3', half: 6, reach: 30, volume: 0.08 },
   'step-3': { file: 'step-3.mp3', half: 6, reach: 30, volume: 0.08 },
@@ -167,8 +170,8 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'squeak-2': { file: 'squeak-2.mp3', half: 6, reach: 30, volume: 0.08 },
   'squeak-3': { file: 'squeak-3.mp3', half: 6, reach: 30, volume: 0.08 },
   'squeak-4': { file: 'squeak-4.mp3', half: 6, reach: 30, volume: 0.08 },
-  scuttle: { file: 'scuttle.wav', half: 6, reach: 30, volume: 0.07, loop: true },
-  slime: { file: 'slime.wav', half: 3, reach: 15, volume: 0.02, loop: true }, // Gary sliding: barely there
+  scuttle: { file: 'scuttle.mp3', half: 6, reach: 30, volume: 0.07, loop: true },
+  slime: { file: 'slime.mp3', half: 3, reach: 15, volume: 0.02, loop: true }, // Gary sliding: barely there
   'suction-1': { file: 'suction-1.mp3', half: 6, reach: 30, volume: 0.06 },
   'suction-2': { file: 'suction-2.mp3', half: 6, reach: 30, volume: 0.06 },
   'suction-3': { file: 'suction-3.mp3', half: 6, reach: 30, volume: 0.06 },
