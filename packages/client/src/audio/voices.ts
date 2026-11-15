@@ -35,7 +35,7 @@ export const VOICES: Record<AvatarId, Voice> = {
     death: ['mario-death'],
   },
   luigi: {
-    enter: ['luigi-enter'],
+    enter: ['luigi-enter', 'luigi-enter-2'],
     jump: ['mario-jump-1', 'luigi-jump-2', 'luigi-jump-3'],
     leap: ['luigi-leap-1', 'luigi-leap-2'],
     hurt: ['luigi-hurt-1', 'luigi-hurt-2'],
