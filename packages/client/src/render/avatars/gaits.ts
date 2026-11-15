@@ -30,10 +30,10 @@ export const GAITS: Record<AvatarId, GaitSpec | null> = {
   squidward: { stride: 3.5, steps: { bar: ['suction-1', 'suction-2', 'suction-3', 'suction-4'] }, pitch: 1 },
   gary: { stride: 1.5, steps: { loop: 'slime' }, pitch: 1 }, // a snail: no footsteps, a faint slide
   plankton: { stride: 0.8, steps: 'thuds', pitch: 1.6 }, // a tiny, quick patter
+  sahur: { stride: 4.1, steps: 'thuds', pitch: 0.8 }, // plods
   mike: { stride: 1.5, steps: 'thuds', pitch: 1.25 }, // patters
   sulley: { stride: 4.4, steps: 'thuds', pitch: 0.85 }, // long, slow strides
   elizabeth: { stride: 2.6, steps: 'thuds', pitch: 1 },
-  sahur: { stride: 4.1, steps: 'thuds', pitch: 0.8 }, // plods
   'light-dragon': null,
   colgera: null,
 };

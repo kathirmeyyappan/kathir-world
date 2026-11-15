@@ -770,11 +770,13 @@ export class Game {
   // One of a player's lines in their own voice (voices.ts), `delay` seconds from now, from where
   // their head is, or the local player's own, from nowhere. False if their look has no such line.
   private say(id: string, line: Line, delay = 0): boolean {
+    // An intro runs until its player takes another look, whose own takes its place if it has one.
+    if (line === 'enter') this.sfx.hush(id);
     const said = this.line(id, line);
     if (!said) return false;
     // An intro is fetched as it's first said, so it's played the moment it's here.
     if (line === 'enter') {
-      this.sfx.soon(said.sound, said.at);
+      this.sfx.soon(said.sound, said.at, undefined, id);
       return true;
     }
     return this.sfx.play(said.sound, said.at, { delay });
@@ -922,7 +924,7 @@ export class Game {
     if (!this.introduced && !document.getElementById('start')) {
       this.introduced = true;
       const intro = take(VOICES[self.avatar].enter);
-      if (intro) this.sfx.soon(intro, null, START_INTRO_LATE_MS);
+      if (intro) this.sfx.soon(intro, null, START_INTRO_LATE_MS, this.myId);
     }
     // A new look or a new item in hand takes the scope with it, as death does.
     const wearing = `${self.avatar} ${self.item?.id ?? ''}`;

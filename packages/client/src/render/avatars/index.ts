@@ -74,10 +74,10 @@ const MAKERS: Record<AvatarId, Make> = {
   squidward: walker(buildSquidward),
   gary: walker(buildGary),
   plankton: walker(bodyBuilder(PLANKTON)),
+  sahur: walker(buildSahur),
   mike: walker(bodyBuilder(MIKE)),
   sulley: walker(buildSulley),
   elizabeth: walker(buildElizabeth),
-  sahur: walker(buildSahur),
   'light-dragon': dragon('light-dragon'),
   colgera: dragon('colgera'),
 };

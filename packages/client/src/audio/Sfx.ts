@@ -433,6 +433,10 @@ export class Sfx {
   private readonly muted = loadMuted();
   private heard: Vec3 = { x: 0, y: 0, z: 0 }; // the listener
   private readonly buffers = new Map<string, AudioBuffer>();
+  // The one-shot each speaker is saying (play's `by`), and how many times each has been hushed:
+  // a line still on its way when its speaker is hushed is never said.
+  private readonly lines = new Map<string, { gain: AudioParam; src: AudioBufferSourceNode }>();
+  private readonly hushes = new Map<string, number>();
   private readonly arriving = new Map<string, Promise<void>>(); // every file sent for, settled once it's here or has failed
   private readonly wanted = new Set<SoundId>(); // sounds asked for ahead of time (want)
   private readonly loops = new Map<string, Voice>();
@@ -510,15 +514,17 @@ export class Sfx {
 
   // A one-shot, at a spot in the world, or with no spot, the local player's own. `delay` holds it
   // back (seconds); `along`, a direction, sweeps it past `at` that way while it plays; `level`
-  // scales its volume; `rate` its speed and pitch together (2 is an octave up and half as long).
+  // scales its volume; `rate` its speed and pitch together (2 is an octave up and half as long);
+  // `by` names who says it, whose last line said this way stops for it (`hush`).
   // False if it couldn't play yet: no sound until the page is clicked, or the recording still on
   // its way.
   play(
     id: SoundId,
     at: Vec3 | null = null,
-    o: { delay?: number; along?: Vec3; level?: number; rate?: number } = {},
+    o: { delay?: number; along?: Vec3; level?: number; rate?: number; by?: string } = {},
   ): boolean {
     if (!this.ctx) return false;
+    if (o.by !== undefined) this.hush(o.by);
     if (at && falloff(distance(at, this.heard), SOUNDS[id]) < SILENT) return true;
     const buffer = this.buffer(id);
     if (!buffer) return false;
@@ -543,7 +549,28 @@ export class Sfx {
       place(voice.panner, from, t);
       glide(voice.panner, to, end);
     }
+    const by = o.by;
+    if (by !== undefined) {
+      this.lines.set(by, { gain: voice.gain.gain, src });
+      src.addEventListener('ended', () => {
+        if (this.lines.get(by)?.src === src) this.lines.delete(by);
+      });
+    }
     return true;
+  }
+
+  // Stops what `by` is saying (a one-shot played with `by`), quickly enough not to click, and
+  // lets go of any line of theirs still on its way (`soon`).
+  hush(by: string): void {
+    this.hushes.set(by, (this.hushes.get(by) ?? 0) + 1);
+    const line = this.lines.get(by);
+    if (!line || !this.ctx) return;
+    this.lines.delete(by);
+    const t = this.ctx.currentTime;
+    line.gain.cancelScheduledValues(t);
+    line.gain.setValueAtTime(line.gain.value, t);
+    line.gain.linearRampToValueAtTime(0, t + FADE);
+    line.src.stop(t + FADE);
   }
 
   // How long a sound's recording runs, in seconds; 0 until it has arrived.
@@ -553,12 +580,14 @@ export class Sfx {
 
   // A one-shot that may not be here yet (a lazy one first asked for now): played at once if it is,
   // else as it arrives, unless that takes longer than `late` ms, when it's let go as too late to
-  // mean anything. One out of earshot is never sent for.
-  soon(id: SoundId, at: Vec3 | null = null, late = LATE_MS): void {
-    if (this.play(id, at)) return;
+  // mean anything, or its speaker `by` is hushed first. One out of earshot is never sent for.
+  soon(id: SoundId, at: Vec3 | null = null, late = LATE_MS, by?: string): void {
+    if (this.play(id, at, { by })) return;
     const asked = performance.now();
+    const hushed = by === undefined ? 0 : this.hushes.get(by);
     void this.arriving.get(SOUNDS[id].file)?.then(() => {
-      if (performance.now() - asked < late) this.play(id, at);
+      if (performance.now() - asked >= late) return;
+      if (by === undefined || this.hushes.get(by) === hushed) this.play(id, at, { by });
     });
   }
 
@@ -698,11 +727,12 @@ export class Sfx {
 let auditioned: HTMLAudioElement | null = null; // the sound last played off the game, stopped for the next
 
 // A sound by itself, where there's no game to play it in (the home screen): fetched as it's played,
-// at its own volume, in place of the last one played this way, and not at all with effects muted.
-// It starts on a person's own click, which is what lets a page make sound.
-export function audition(id: SoundId): void {
+// at its own volume, in place of the last one played this way (null only stops that one), and not
+// at all with effects muted. It starts on a person's own click, which is what lets a page make sound.
+export function audition(id: SoundId | null): void {
   auditioned?.pause();
-  if (loadMuted().has('effects')) return;
+  auditioned = null;
+  if (!id || loadMuted().has('effects')) return;
   const spec = SOUNDS[id];
   auditioned = Object.assign(new Audio(`/assets/sounds/${spec.file}`), { volume: spec.volume });
   void auditioned.play().catch(() => {});

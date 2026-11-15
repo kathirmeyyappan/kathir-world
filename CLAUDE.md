@@ -529,6 +529,7 @@ sounds, or a loop) and the sounds' pitch; the swing of its limbs is the renderer
 when adding one. What it says in its own voice is its row in `VOICES` (`audio/voices.ts`), which
 every look has. Its `enter` is its intro, the line every character is expected to have (empty
 until its recording is added): said as a player switches to the look, to them and everyone near,
+until they switch again (`Sfx.hush`; the home screen's stops at the next pick too),
 on the home screen as the look is picked (`Sfx.ts` `audition`), and to the player alone as they
 come into the world wearing it, after the start press (with longer to arrive, `START_INTRO_LATE_MS`). An intro is `lazy` in `SOUNDS`
 and played with `Sfx.soon`: fetched the first time it's said within earshot and played as it
