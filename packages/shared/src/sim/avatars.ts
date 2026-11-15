@@ -67,9 +67,9 @@ interface Moves {
 }
 
 // A crouch: what holding the crouch action on the ground is, for a look that has one (walker.ts).
-// It crawls, and a jump out of it is a backflip, higher than its jump.
+// It goes slowly, at a duck walk, and a jump out of it is a backflip, higher than its jump.
 export interface Crouch {
-  crawl: number; // the share of its walk it crawls at
+  pace: number; // the share of its walk it goes at
   flip: number; // how many times its jump's height the backflip rises
 }
 
@@ -142,7 +142,7 @@ const LOOKS = {
     // The twirl as long as its clip (Jointed.ts); the knock a hop back, a third of a second off the ground.
     pound: { damage: 1.5, reach: 3, twirl: 1 / 3, speed: 20, recover: 0.35, knock: { speed: 4, lift: 3, grip: 6 } },
     chain: { jumps: 3, gap: 0.3, rise: 1.2 }, // a jump, a double and a triple
-    crouch: { crawl: 0.3, flip: 1.5 },
+    crouch: { pace: 0.3, flip: 1.5 },
   },
   luigi: {
     id: 'luigi',
@@ -159,7 +159,7 @@ const LOOKS = {
     // The twirl as long as its clip (Jointed.ts); the knock a hop back, a third of a second off the ground.
     pound: { damage: 1.5, reach: 3, twirl: 1 / 3, speed: 20, recover: 0.35, knock: { speed: 4, lift: 3, grip: 6 } },
     chain: { jumps: 3, gap: 0.3, rise: 1.2 }, // a jump, a double and a triple
-    crouch: { crawl: 0.3, flip: 1.5 },
+    crouch: { pace: 0.3, flip: 1.5 },
   },
   wario: {
     id: 'wario',
@@ -176,7 +176,7 @@ const LOOKS = {
     // The twirl as long as its clip (Jointed.ts); heavier than the brothers', it lands harder and wider.
     pound: { damage: 2.5, reach: 4, twirl: 1 / 3, speed: 20, recover: 0.35, knock: { speed: 4, lift: 3, grip: 6 } },
     chain: { jumps: 3, gap: 0.3, rise: 1.2 }, // a jump, a double and a triple
-    crouch: { crawl: 0.3, flip: 1.5 },
+    crouch: { pace: 0.3, flip: 1.5 },
   },
   waluigi: {
     id: 'waluigi',
@@ -193,7 +193,7 @@ const LOOKS = {
     // The twirl as long as its clip (Jointed.ts); the knock a hop back, a third of a second off the ground.
     pound: { damage: 1.5, reach: 3, twirl: 1 / 3, speed: 20, recover: 0.35, knock: { speed: 4, lift: 3, grip: 6 } },
     chain: { jumps: 3, gap: 0.3, rise: 1.2 }, // a jump, a double and a triple
-    crouch: { crawl: 0.3, flip: 1.5 },
+    crouch: { pace: 0.3, flip: 1.5 },
   },
   spongebob: {
     id: 'spongebob',

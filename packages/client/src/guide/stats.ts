@@ -118,7 +118,7 @@ function crouchStats(id: AvatarId): { id: AbilityId; stats: Stat[] }[] {
       id: 'crouch',
       stats: [
         { label: 'Keys', value: 'Hold X' },
-        { label: 'Crawl speed', value: `${num(look.walk * crouch.crawl)} m/s` },
+        { label: 'Duck walk speed', value: `${num(look.walk * crouch.pace)} m/s` },
       ],
     },
     {
