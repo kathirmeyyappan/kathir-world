@@ -62,6 +62,7 @@ export type SoundId =
   | 'luigi-hurt-1'
   | 'luigi-hurt-2'
   | 'spongebob-hurt'
+  | 'patrick-hurt'
   | 'luigi-kill-1'
   | 'luigi-kill-2'
   | 'mario-kill-1'
@@ -159,6 +160,7 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'luigi-hurt-1': { file: 'luigi-hurt-1.mp3', half: 6, reach: 30, volume: 0.25 },
   'luigi-hurt-2': { file: 'luigi-hurt-2.mp3', half: 6, reach: 30, volume: 0.25 },
   'spongebob-hurt': { file: 'spongebob-hurt.mp3', half: 6, reach: 30, volume: 0.25 },
+  'patrick-hurt': { file: 'patrick-hurt.mp3', half: 6, reach: 30, volume: 0.25 },
   'mario-kill-1': { file: 'mario-kill-1.mp3', half: 6, reach: 30, volume: 0.2 },
   'mario-kill-2': { file: 'mario-kill-2.mp3', half: 6, reach: 30, volume: 0.2 },
   'mario-enter': { file: 'mario-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
@@ -443,6 +445,11 @@ export class Sfx {
       glide(voice.panner, to, end);
     }
     return true;
+  }
+
+  // How long a sound's recording runs, in seconds; 0 until it has arrived.
+  seconds(id: SoundId): number {
+    return this.buffers.get(SOUNDS[id].file)?.duration ?? 0;
   }
 
   // A one-shot that may not be here yet (a lazy one first asked for now): played at once if it is,
