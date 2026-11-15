@@ -1,0 +1,26 @@
+name: Node dependencies
+description: Sets up Node and the workspace's dependencies, from the cache while the lockfile is the same.
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: 22
+
+    # node_modules as npm ci leaves it (the root's and any a workspace keeps of its own), kept under
+    # the lockfile's hash: a run with the same lockfile restores it and skips the install.
+    - name: Restore node_modules
+      id: modules
+      uses: actions/cache@v4
+      with:
+        path: |
+          node_modules
+          packages/*/node_modules
+        key: node-modules-${{ runner.os }}-${{ runner.arch }}-node22-${{ hashFiles('package-lock.json') }}
+
+    - name: Install dependencies
+      if: steps.modules.outputs.cache-hit != 'true'
+      shell: bash
+      run: npm ci
