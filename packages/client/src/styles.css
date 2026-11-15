@@ -862,11 +862,22 @@ body {
   color: rgba(255, 255, 255, 0.45);
 }
 #chat-hint kbd,
-#instructions kbd {
+#instructions kbd,
+#item-hint kbd,
+#move-hint kbd {
   background: rgba(100, 181, 246, 0.2);
   border: 1px solid rgba(100, 181, 246, 0.5);
   padding: 0 5px;
   font-family: inherit;
+}
+/* A key or a touch button named in a hint: a cap of its own, never broken across lines. */
+#item-hint kbd,
+#move-hint kbd {
+  display: inline-block;
+  margin: 0 1px;
+  line-height: 1.15;
+  color: #cfe8ff;
+  white-space: nowrap;
 }
 
 #crosshair {
@@ -1350,7 +1361,7 @@ body {
   letter-spacing: 3px;
 }
 #move-hint .moves div + div {
-  margin-top: 3px;
+  margin-top: 5px;
 }
 @keyframes move-hint-life {
   0%,

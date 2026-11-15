@@ -25,7 +25,7 @@ import {
   isGrounded,
   poundOf,
   crouchOf,
-  itemHelp,
+  keyLabel,
   itemStats,
   lookDirection,
   resolveFire,
@@ -1262,15 +1262,19 @@ export class Game {
   }
 }
 
+// A key as the hint bar draws one: its name in square brackets (ui/Hud.ts).
+const keyed = (code: string): string => `[${keyLabel(code)}]`;
+
 // The hint bar's text. A look's own weapon (a dragon's breath) is its name alone: a click fires it
 // as anywhere, and the look's keys are in the legend. A scope-only weapon leads with the step
 // that's missing; a class with actions of its own has them after the item's.
 function itemHint(id: ItemId, withKeys: boolean, scoped: boolean, cls: ClassSpec): string {
   const parts = [ITEMS[id].name.toUpperCase()];
   if (ITEMS[id].own) return parts[0];
-  if (ITEMS[id].fireNeedsScope && !scoped) parts.push(withKeys ? 'F to scope, then click to shoot' : 'scope to shoot');
-  else if (withKeys) parts.push(itemHelp(id, ' · '));
-  const own = withKeys ? actionHelp(cls.actions) : '';
+  if (ITEMS[id].fireNeedsScope && !scoped)
+    parts.push(withKeys ? '[F] to scope, then click to shoot' : '[SCOPE] to shoot');
+  else if (withKeys) parts.push(actionHelp(ITEMS[id].actions, ' · ', keyed));
+  const own = withKeys ? actionHelp(cls.actions, ', ', keyed) : '';
   if (own) parts.push(own);
   return parts.join(' · ');
 }
