@@ -224,7 +224,7 @@ const LOOKS = {
     command: 'peach',
     eye: 2.1,
     hitbox: { top: 2.5, radius: 0.5, head: 0.65 },
-    walk: 6.5,
+    walk: 7,
     jump: 1.3,
     ...SM64_MOVES,
     float: { seconds: 3, sink: 0.4 },
