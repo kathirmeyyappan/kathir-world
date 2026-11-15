@@ -627,8 +627,9 @@ nearest living dragon's (`Game.ts`), kept until another is `THEME_HYSTERESIS` ne
 into the next over the sounds' `swell` and `fade`; a theme runs from the first dragon of its kind
 rising for as long as any is alive, so one taken up again is heard from where it has got to
 (`setLoops`' `elapsed`), not from the top. A building can have a quiet theme of its own
-(`PLACE_THEMES` in `audio/Sfx.ts`: the Krusty Krab's hornpipe, SpongeBob's house's rag): one more
-contender for the nearest, measured from its walls (`toKrustyKrab`, `toPineapple`) and heard flat
+(`PLACE_THEMES` in `audio/Sfx.ts`: the Krusty Krab's hornpipe, SpongeBob's house's rag, Tung Tung
+Tower's tower music on every floor up to the roof): one more contender for the nearest, measured
+from its walls (`toKrustyKrab`, `toPineapple`, `toTower`) and heard flat
 across its grounds, running on from when it was first heard; from inside the walls it's the only
 theme, no dragon's playing over it. A looping track is cut on exact samples and encoded
 with LAME (ffmpeg's `libmp3lame`), whose header the browsers' decoders read to trim the padding,

@@ -11,6 +11,7 @@ import {
   isDragonAvatar,
   toKrustyKrab,
   toPineapple,
+  toTower,
   type AvatarId,
   type AvatarsOf,
   type GearId,
@@ -124,7 +125,8 @@ export type SoundId =
   | 'colgera-cry-far'
   | 'colgera-theme'
   | 'krusty-krab-theme'
-  | 'spongebob-house-theme';
+  | 'spongebob-house-theme'
+  | 'tower-theme';
 
 interface SoundSpec {
   file: string; // in public/assets/sounds
@@ -286,8 +288,9 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
     music: true,
   },
   // A building's own theme (PLACE_THEMES), quieter than a dragon's: heard flat, at the share of its
-  // volume left the metres from its walls, over its grounds and gone a little past them. Each is a
-  // whole cue, its ending and a breath of silence before it comes round again.
+  // volume left the metres from its walls, over its grounds and gone a little past them. The Krusty
+  // Krab's and the house's are whole cues, each ending with a breath of silence before it comes round
+  // again; the tower's is one pass of the game's own loop.
   'krusty-krab-theme': {
     file: 'krusty-krab-theme.mp3',
     half: 15,
@@ -304,6 +307,17 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
     half: 15,
     reach: 45,
     volume: 0.05,
+    loop: true,
+    swell: 2.5,
+    fade: 2.5,
+    lazy: true,
+    music: true,
+  },
+  'tower-theme': {
+    file: 'tower-theme.mp3',
+    half: 15,
+    reach: 45,
+    volume: 0.065,
     loop: true,
     swell: 2.5,
     fade: 2.5,
@@ -381,6 +395,7 @@ export interface PlaceTheme {
 export const PLACE_THEMES: PlaceTheme[] = [
   { theme: 'krusty-krab-theme', walls: toKrustyKrab },
   { theme: 'spongebob-house-theme', walls: toPineapple },
+  { theme: 'tower-theme', walls: toTower },
 ];
 
 // The voice of whoever wears `avatar`, if it has one.
