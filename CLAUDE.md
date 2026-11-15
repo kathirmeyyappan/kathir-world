@@ -48,6 +48,32 @@ space` is the kind to keep). Don't narrate the change or answer the request that
 - Comment what the code can't say itself: units, invariants, constraints, and the reason behind a
   non-obvious choice. Skip comments that restate the line below them.
 
+## Client loading
+
+What a client fetches without the player asking for it, every player pays for, on a phone's
+connection and memory as much as a desktop's. Joining the world today fetches about 1.8 MB of code
+(gzipped), 8 MB of assets and 1.5 MB of sounds. Know which of these a change adds to, and keep
+anything that can wait off the path everyone pays:
+
+- Code is one chunk (1.7 MB gzipped) with the engine and every look on foot's mesh and clips in
+  it. A dynamic `import()` takes something out of it, as the dragons' models are (560 KB, fetched
+  when the page is idle).
+- Anything heavy that stands somewhere (a model's parts, a region's meshes) registers with
+  `render/Loader.ts` and arrives nearest first.
+- Avatar atlases (`SKINNED`, 1.5 MB for all of them) are fetched when the page is idle.
+- A sound is fetched by everyone up front unless it's `lazy` in `SOUNDS` (`Sfx.soon`, `Sfx.want`).
+
+Fetch on demand whatever only some players will see or hear, so long as it can arrive a moment
+late, and say what stands in until it arrives and if it never does (a `lazy` sound late is left
+out; nothing may wait on a fetch to work). In the PR, give what a change adds up front, in files
+and KB, and why it can't wait.
+
+Flag it to Kathir, before building on it, when a change adds more than about 100 KB up front, or
+when something paid by everyone grows with each thing added: every look on the Mario rig is about
+80 KB of atlas, 50 KB of mesh in the chunk and 80 KB of voice up front, whoever wears it. That
+pattern is the one that gets out of hand, and the fix is to fetch a look's atlas, mesh and voice
+the first time someone wears it.
+
 ## World geometry
 
 Buildings, walls, platforms, ramps and terrain are structures: plain data listed in
