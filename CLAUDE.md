@@ -626,7 +626,10 @@ how far back it's watched from in `DRAGON_BOOMS` (`game/View.ts`). The theme a p
 nearest living dragon's (`Game.ts`), kept until another is `THEME_HYSTERESIS` nearer, one crossing
 into the next over the sounds' `swell` and `fade`; a theme runs from the first dragon of its kind
 rising for as long as any is alive, so one taken up again is heard from where it has got to
-(`setLoops`' `elapsed`), not from the top. A looping track is cut on exact samples and encoded
+(`setLoops`' `elapsed`), not from the top. A building can have a quiet theme of its own
+(`PLACE_THEMES` in `audio/Sfx.ts`, the Krusty Krab's hornpipe): one more contender for the nearest,
+measured from its walls and heard flat across its grounds, running on from when it was first heard;
+from inside the walls (its `hall`) it's the only theme, no dragon's playing over it. A looping track is cut on exact samples and encoded
 with LAME (ffmpeg's `libmp3lame`), whose header the browsers' decoders read to trim the padding,
 so the loop and the join from its intro are gapless; check a new one decodes to its exact sample
 count before trusting it. A new class is a spec

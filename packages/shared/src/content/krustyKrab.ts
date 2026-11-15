@@ -67,3 +67,9 @@ export const KRUSTY_KRAB_FLOOR: Region = { kind: 'disc', ...placed(0, 4.5), r: 2
 // The building on the floor, for the maps (content/landmarks.ts): its plinth, `w` along the
 // building and `d` through it, turned with it.
 export const KRUSTY_KRAB_FOOTPRINT = { x: X, z: Z, w: SHAPE.size.w, d: SHAPE.size.d, yaw: YAW };
+
+// The dining room and kitchen inside the walls, for the music (the client's PLACE_THEMES): from
+// the arches' inner faces along the building and the front wall's outer face to the back wall's
+// through it, the floor up to the arches' tops; `w` along the building and `d` through it, turned
+// with it.
+export const KRUSTY_KRAB_HALL = { x: X, z: Z, w: 28.8, d: 19.4, h: SHAPE.size.h, yaw: YAW };
