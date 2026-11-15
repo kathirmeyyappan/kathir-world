@@ -61,6 +61,7 @@ export class Hud {
   private readonly condition = document.getElementById('condition')!;
   private moveHintText = '';
   private moveHintTimer = 0;
+  private moveHintBottom = 0; // CSS pixels down the view the move hint reaches, with its gap; 0 with none up
   private itemHintText = '';
   private itemHintItem = ''; // the item the hint is for, whose drawing starts its life over on touch
   private readonly chatInput = document.getElementById('chat-input') as HTMLInputElement;
@@ -346,7 +347,7 @@ export class Hud {
   }
 
   // The moves the player's look has of its own: the look's name, then how each is done, a cell
-  // each in a row at the top; none hides it. A banner of its own, up for MOVE_HINT_MS from when
+  // each, stacked at the top; none hides it. A banner of its own, up for MOVE_HINT_MS from when
   // its words are first given (the look being taken), whatever is held meanwhile.
   setMoveHint(title: string, moves: string[]): void {
     const text = moves.length > 0 ? [title, ...moves].join('\n') : '';
@@ -367,7 +368,14 @@ export class Hud {
       this.moveHint.classList.toggle('hidden', !text);
       if (text) this.moveHintTimer = window.setTimeout(() => this.moveHint.classList.add('hidden'), MOVE_HINT_MS);
     }
-    if (!this.moveHint.classList.contains('hidden')) this.placeMoveHint();
+    const up = !this.moveHint.classList.contains('hidden');
+    if (up) this.placeMoveHint();
+    // The commands' banner stands under it (styles.css #command-hint).
+    const bottom = up ? this.moveHint.getBoundingClientRect().bottom + HINT_GAP : 0;
+    if (bottom !== this.moveHintBottom) {
+      this.moveHintBottom = bottom;
+      document.documentElement.style.setProperty('--move-hint-bottom', `${bottom}px`);
+    }
   }
 
   // Stands the move hint clear of what it shares the top of the view with: under the hearts and

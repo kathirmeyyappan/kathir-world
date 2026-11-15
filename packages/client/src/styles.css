@@ -1217,7 +1217,8 @@ body {
 
 #command-hint {
   position: fixed;
-  top: 22%;
+  /* Under the move hint while that is up and reaches this far down (--move-hint-bottom, Hud.ts). */
+  top: max(22%, var(--move-hint-bottom, 0px));
   left: 0;
   right: 0;
   z-index: 60;
@@ -1342,20 +1343,15 @@ body {
   border: 2px solid rgba(255, 59, 78, 0.6);
   box-shadow: 4px 4px 0 #000;
 }
-/* The moves a look has of its own (Hud.setMoveHint): a row of cells at the top, under the hearts
+/* The moves a look has of its own (Hud.setMoveHint): a stack of cells at the top, under the hearts
    and whatever else stands there (Hud.ts), out of the way of the body in the middle of the view.
-   The look's name is the first cell and each move has one, ruled apart as the key legend's are
-   (#instructions), wrapping onto more rows when they don't fit between the panels in the corners.
-   In the HUD's blue. It lives 20 s from the look being taken: steady for 15, then ticking dim and
-   back every half second, then gone. */
+   The look's name is the first cell and each move has a row of its own under it, ruled apart as
+   the key legend's cells are (#instructions). In the HUD's blue. It lives 20 s from the look being
+   taken: steady for 15, then ticking dim and back every half second, then gone. */
 #move-hint {
   top: 84px;
   bottom: auto;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
   padding: 0;
-  overflow: hidden;
   width: max-content;
   max-width: calc(100vw - 440px);
   font-size: 16px;
@@ -1363,15 +1359,14 @@ body {
   animation: move-hint-life 20s step-end forwards;
   text-align: center;
 }
-#move-hint .moves {
-  display: contents;
-}
 #move-hint .title,
 #move-hint .moves div {
-  flex: 1 1 auto;
-  padding: 6px 12px;
+  padding: 6px 14px;
   white-space: nowrap;
-  box-shadow: -1px -1px 0 0 rgba(100, 181, 246, 0.4);
+}
+#move-hint .moves div,
+#move-hint .clear {
+  border-top: 1px solid rgba(100, 181, 246, 0.4);
 }
 #move-hint .title {
   color: #9fd4ff;
@@ -1380,11 +1375,9 @@ body {
 /* What a touch screen says of putting the hint away (Hud.ts). */
 #move-hint .clear {
   display: none;
-  flex: 1 0 100%;
   padding: 3px 12px 4px;
   font-size: 12px;
   color: rgba(255, 255, 255, 0.4);
-  box-shadow: 0 -1px 0 0 rgba(100, 181, 246, 0.4);
 }
 @keyframes move-hint-life {
   0%,
