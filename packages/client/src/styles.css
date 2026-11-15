@@ -1217,7 +1217,8 @@ body {
 
 #command-hint {
   position: fixed;
-  top: 22%;
+  /* Under the move hint while that is up and reaches this far down (--move-hint-bottom, Hud.ts). */
+  top: max(22%, var(--move-hint-bottom, 0px));
   left: 0;
   right: 0;
   z-index: 60;
@@ -1342,31 +1343,39 @@ body {
   border: 2px solid rgba(255, 59, 78, 0.6);
   box-shadow: 4px 4px 0 #000;
 }
-/* The moves a look has of its own (Hud.setMoveHint), a banner of its own stacked clear of the item
-   hint, in the HUD's blue. It lives 20 s from the look being taken: steady for 15, then ticking dim
-   and back every half second, then gone. */
+/* The moves a look has of its own (Hud.setMoveHint): a stack of cells at the top, under the hearts
+   and whatever else stands there (Hud.ts), out of the way of the body in the middle of the view.
+   The look's name is the first cell and each move has a row of its own under it, ruled apart as
+   the key legend's cells are (#instructions). In the HUD's blue. It lives 20 s from the look being
+   taken: steady for 15, then ticking dim and back every half second, then gone. */
 #move-hint {
+  top: 84px;
+  bottom: auto;
+  padding: 0;
+  width: max-content;
+  max-width: calc(100vw - 440px);
+  font-size: 16px;
   border-color: rgba(100, 181, 246, 0.6);
   animation: move-hint-life 20s step-end forwards;
   text-align: center;
-  width: max-content;
-  max-width: calc(100vw - 32px);
 }
-/* The look's name heads it, over a rule, and each move has a line of its own under that. */
+#move-hint .title,
+#move-hint .moves div {
+  padding: 6px 14px;
+  white-space: nowrap;
+}
+#move-hint .moves div,
+#move-hint .clear {
+  border-top: 1px solid rgba(100, 181, 246, 0.4);
+}
 #move-hint .title {
-  margin-bottom: 5px;
-  padding-bottom: 4px;
-  border-bottom: 1px solid rgba(100, 181, 246, 0.35);
   color: #9fd4ff;
   letter-spacing: 3px;
-}
-#move-hint .moves div + div {
-  margin-top: 5px;
 }
 /* What a touch screen says of putting the hint away (Hud.ts). */
 #move-hint .clear {
   display: none;
-  margin-top: 4px;
+  padding: 3px 12px 4px;
   font-size: 12px;
   color: rgba(255, 255, 255, 0.4);
 }
@@ -1677,9 +1686,6 @@ body {
 #fuel,
 #gear {
   margin-bottom: var(--legend-rise, 0px);
-}
-#move-hint {
-  bottom: calc(76px + var(--legend-rise, 0px));
 }
 
 /* Info card overlay: a game dialog, not a web modal. Hard edges, hard shadow, scanlines. */
@@ -2148,6 +2154,10 @@ body {
   }
   #move-hint .clear {
     display: block;
+  }
+  /* A move's words break across lines where the screen is narrower than they are. */
+  #move-hint .moves div {
+    white-space: normal;
   }
 }
 @keyframes item-hint-life {
