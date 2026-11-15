@@ -63,10 +63,10 @@ export const CHARACTERS: Record<AvatarId, Entry> = {
   squidward: plain('Squidward Tentacles', 'SpongeBob’s grumpy ahh neighbor.'),
   gary: plain('Gary', 'SpongeBob’s pet snail.'),
   plankton: plain('Plankton', 'Mr. Krabs’ arch nemesis and the smallest character in this game.'),
+  sahur: plain('Tung Tung Tung Sahur', 'Tung Tung Tung Sahur.'),
   mike: plain('Mike Wazowski', 'Mike Wazowski from Monsters, Inc.'),
   sulley: plain('Sulley', 'Sulley from Monsters, Inc.'),
   elizabeth: plain('Elizabeth', 'Elizabeth from Gintama.'),
-  sahur: plain('Tung Tung Tung Sahur', 'Tung Tung Tung Sahur.'),
   'light-dragon': plain('Light Dragon', 'The Light Dragon from Tears of the Kingdom.'),
   colgera: plain(
     'Colgera',

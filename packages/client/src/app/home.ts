@@ -76,10 +76,9 @@ export function showHome(): Promise<HomeResult> {
   nameInput.value = params.get('name') ?? stored(NAME_KEY) ?? '';
   roomInput.value = params.get('room') ?? params.get('code') ?? '';
   pick(params.get('tab') === 'create' ? 'create' : 'join');
-  // Picking a look says its intro, as switching to it in the game does.
+  // Picking a look says its intro, as switching to it in the game does, and stops the last one's.
   const skin = new Picker(document.getElementById('home-skin')!, skinChoices(), (value) => {
-    const line = take(VOICES[lookOf(value).avatar ?? 'standard'].enter);
-    if (line) audition(line);
+    audition(take(VOICES[lookOf(value).avatar ?? 'standard'].enter) ?? null);
   });
   const asked = params.has('avatar') || params.has('color');
   skin.choose(asked ? choiceOf(params.get('avatar'), params.get('color')) : (stored(SKIN_KEY) ?? STANDARD));

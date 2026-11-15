@@ -22,10 +22,10 @@ export type AvatarId =
   | 'squidward'
   | 'gary'
   | 'plankton'
+  | 'sahur'
   | 'mike'
   | 'sulley'
   | 'elizabeth'
-  | 'sahur'
   | 'light-dragon'
   | 'colgera';
 
@@ -282,6 +282,26 @@ const LOOKS = {
     walk: 3.5,
     jump: 1,
   },
+  sahur: {
+    id: 'sahur',
+    class: 'walker',
+    item: null,
+    regen: false,
+    blurb: 'become tung tung tung sahur',
+    command: 'tung',
+    eye: 2.67,
+    hitbox: { top: 3.2, radius: 0.55, head: 0.95 }, // a 0.7 m log; the head is the face, chin up
+    walk: 8,
+    jump: 1,
+    strike: {
+      damage: 2,
+      reach: 2.5,
+      arc: Math.PI / 3,
+      windup: 0.2,
+      recover: 0.35,
+      knock: { speed: 5, lift: 3, grip: 6 },
+    }, // its bat
+  },
   mike: {
     id: 'mike',
     class: 'walker',
@@ -317,26 +337,6 @@ const LOOKS = {
     hitbox: { top: 2.0, radius: 0.75, head: 0.55 }, // the egg is 1.24 m across, flippers out past that
     walk: 8,
     jump: 1,
-  },
-  sahur: {
-    id: 'sahur',
-    class: 'walker',
-    item: null,
-    regen: false,
-    blurb: 'become tung tung tung sahur',
-    command: 'tung',
-    eye: 2.67,
-    hitbox: { top: 3.2, radius: 0.55, head: 0.95 }, // a 0.7 m log; the head is the face, chin up
-    walk: 8,
-    jump: 1,
-    strike: {
-      damage: 2,
-      reach: 2.5,
-      arc: Math.PI / 3,
-      windup: 0.2,
-      recover: 0.35,
-      knock: { speed: 5, lift: 3, grip: 6 },
-    }, // its bat
   },
   'light-dragon': {
     id: 'light-dragon',
