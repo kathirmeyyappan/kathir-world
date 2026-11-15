@@ -105,9 +105,10 @@ CLIPS = {
     "pound": Clip("60/61 - Start ground-pound/Ground-pound", 0, 10),
     "pounded": Clip("58 - Ground pound landing", 0, 5, then=(("142/143 - Slide motionless/Stop slide", 4, 19),)),
     # A crouch: sat low on its heels, hardly moving; crawling from it on hands and knees, a cycle of
-    # its limbs; and the jump out of it, a backward somersault, the whole flight.
+    # its limbs from its right hand coming down, its left coming down halfway through; and the jump
+    # out of it, a backward somersault, the whole flight.
     "crouch": Clip("152 - Crouching", 0, 89, 6),
-    "crawl": Clip("153 - Crawling", 0, 91, 2),
+    "crawl": Clip("153 - Crawling", 86, 91, 2, then=(("153 - Crawling", 0, 85),)),
     "backflip": Clip("4 - Backflip", 0, 32),
 }
 

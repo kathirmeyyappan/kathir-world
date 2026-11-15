@@ -172,7 +172,6 @@ const TOUCHDOWN_SECONDS = 0.12;
 const APEX_SECONDS = 0.28;
 const LAND_IN = 0.05; // seconds a landing takes to drop into its crouch
 const CROUCH_SECONDS = 0.15; // seconds it takes to sink into a crouch, and to rise out of one
-const CRAWL_CYCLE = 3; // leg lengths it crawls in one cycle of its limbs
 const EASE_DIRECTION = 0.09; // seconds its stride takes to come round to a new way of going
 const EASE_TURN = 0.12; // seconds its body takes to come round to face the way it's going
 const EASE_AIM = 0.06; // and to face its look, with something in its hand to aim
@@ -261,7 +260,6 @@ export class JointedAvatar extends WalkerAvatar {
   private readonly flip: number; // seconds its triple jump's somersault takes: done just before it's down again on the flat
   private readonly backflip: number; // and its backflip's
   private crouching = 0; // how far down into its crouch it is: 0 standing, 1 sat in it
-  private crawled = 0; // cycles of its crawl it has gone
   private impact = 0; // how hard it last landed, 0 to 1
   private landing = Infinity; // seconds since it last landed
   private stood = 0; // seconds it has been drawn, for its idle
@@ -362,15 +360,14 @@ export class JointedAvatar extends WalkerAvatar {
       grip += (GRIP_RUN - GRIP_IDLE) * striding * running;
     }
 
-    // A crouch, sunk into and risen out of: sat on its heels, or crawling as far through the cycle
-    // of its limbs as it has gone.
+    // A crouch, sunk into and risen out of: sat on its heels, or crawling.
     this.crouching = Math.min(1, Math.max(0, this.crouching + (p.crouch ? dt : -dt) / CROUCH_SECONDS));
     const sat = clips.crouch && p.grounded && !p.pound ? smooth(this.crouching) * (1 - striding) : 0;
     if (clips.crouch && this.crouching > 0) {
       sample(other, clips.crouch, this.stood / clips.crouch.seconds, true);
+      // The crawl's limbs go by the footsteps' count, a hand down at each (gaits.ts `crawl`).
       if (clips.crawl && striding > 0) {
-        this.crawled += (p.walk * dt) / (CRAWL_CYCLE * this.rig.legLength);
-        sample(third, clips.crawl, this.crawled, true);
+        sample(third, clips.crawl, step / 2, true);
         blend(other, other, third, striding);
       }
       blend(out, out, other, smooth(this.crouching));
@@ -556,7 +553,6 @@ class Rig {
   private readonly hipsAt: Vector3; // the hips' pivot, standing
   private readonly bones: TransformNode[]; // the bones a clip turns, in a clip's order
   private gripped = -1; // how closed `play` last left the hands, none yet
-  readonly legLength: number; // metres, hip to ankle, the leg straight
   private readonly thigh: number; // metres, hip to knee
   private readonly shin: number; // knee to ankle
   private readonly ankle: number; // metres the ankle stands off the ground
@@ -587,7 +583,6 @@ class Rig {
     this.hipsAt = at('hips');
     this.thigh = Vector3.Distance(at('legR'), at('shinR'));
     this.shin = Vector3.Distance(at('shinR'), at('footR'));
-    this.legLength = this.thigh + this.shin;
     this.ankle = model.bones.footR[1];
     [this.toe, this.heel] = model.sole;
     this.hipL = at('legL').subtract(this.hipsAt);
