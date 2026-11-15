@@ -451,7 +451,9 @@ takes `damage` off everyone else on foot within `reach` across the floor, about 
 on the ground it's the crouch, and only a press in the air is a pound; the touch CROUCH button
 turns it on and off, since a thumb can't hold it and press JUMP) is a crouch,
 `PlayerState.crouch`: its walk at the `crawl` share, the run adding nothing, and a jump out of it
-a backflip, `PlayerState.backflip`, rising `flip` times its jump's height in the chain's place) and a builder in `packages/client/src/render/avatars/` (`MAKERS` in `index.ts`,
+held still a backflip, `PlayerState.backflip`, rising `flip` times its jump's height in the
+chain's place, and out of a crawl its long jump, the run or no; that last is for players to find,
+so the hint, the legend and the guide don't say it) and a builder in `packages/client/src/render/avatars/` (`MAKERS` in `index.ts`,
 which the compiler asks for). Everyone on foot is a `Figure` (`render/avatars/Walker.ts`): the
 builder makes the avatar's parts under the base node and says which plays which role (what tips
 with the look, a head, the legs, the free arm, the weapon arm with its grip and the way it reaches

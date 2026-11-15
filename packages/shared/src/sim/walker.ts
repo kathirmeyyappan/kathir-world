@@ -134,13 +134,13 @@ export function stepWalker(
     const takeoff = structures.footing(p.pos.x, p.pos.z, p.pos.y - EYE_HEIGHT + STEP_UP, PLAYER_RADIUS);
     const grip = SURFACES[takeoff.surface].grip;
     const jump = jumpVelocityOf(p.avatar);
-    // A jump at a run, for a look with a long jump, is one whatever is underfoot: it rises a share
-    // of its jump under a share of gravity.
-    const leap =
-      !p.crouch && input.actions.includes('run') && (input.mx !== 0 || input.my !== 0) ? leapOf(p.avatar) : null;
-    // A jump out of a crouch is a backflip, higher than the jump; any other plain jump is the next
-    // of its look's chain, each rising that much higher than the last.
-    const flip = p.crouch && crouch ? crouch.flip : null;
+    // A jump at a run, or out of a crawl, for a look with a long jump, is one whatever is underfoot:
+    // it rises a share of its jump under a share of gravity.
+    const moving = input.mx !== 0 || input.my !== 0;
+    const leap = moving && (p.crouch || input.actions.includes('run')) ? leapOf(p.avatar) : null;
+    // A jump out of a crouch held still is a backflip, higher than the jump; any other plain jump
+    // is the next of its look's chain, each rising that much higher than the last.
+    const flip = p.crouch && crouch && !leap ? crouch.flip : null;
     p.hop = chain && !leap && flip === null ? (p.hop % chain.jumps) + 1 : 0;
     const up = leap
       ? jump * Math.sqrt(leap.rise * leap.float)

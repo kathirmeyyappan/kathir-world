@@ -124,7 +124,7 @@ function crouchStats(id: AvatarId): { id: AbilityId; stats: Stat[] }[] {
     {
       id: 'backflip',
       stats: [
-        { label: 'Keys', value: 'Space, crouched' },
+        { label: 'Keys', value: 'Space, crouched and still' },
         { label: 'Height', value: `${num(JUMP_RISE * look.jump * crouch.flip)} m` },
       ],
     },

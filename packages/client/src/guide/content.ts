@@ -49,7 +49,10 @@ export const ABILITIES: Record<AbilityId, Entry> = {
     'In the air, turns over and drops straight down, hurting everyone on foot near where it lands and knocking them back. A jump clears it.',
   ),
   crouch: plain('Crouch', 'Held on the ground, keeps low and crawls.'),
-  backflip: plain('Backflip', 'A jump out of a crouch turns over backward and goes higher than a jump.'),
+  backflip: plain(
+    'Backflip',
+    'A jump out of a crouch, standing still, turns over backward and goes higher than a jump.',
+  ),
   chain: plain(
     'Triple jump',
     'A jump taken as the last one lands goes higher: a double, then a triple with a somersault. Waiting on the ground starts over.',

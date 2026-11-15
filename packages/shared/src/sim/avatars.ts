@@ -67,10 +67,10 @@ interface Moves {
 }
 
 // A crouch: what holding the crouch action on the ground is, for a look that has one (walker.ts).
-// It crawls, and a jump out of it is a backflip, higher than its jump.
+// It crawls, and a jump out of it is a backflip, higher than its jump, or crawling, its long jump.
 export interface Crouch {
   crawl: number; // the share of its walk it crawls at
-  flip: number; // how many times its jump's height the backflip rises
+  flip: number; // how many times its jump's height the backflip, a jump out of it held still, rises
 }
 
 // A long jump: what a jump taken at a run is, for a look that has one (walker.ts). It goes low and

@@ -246,7 +246,7 @@ test('a chain of jumps: each taken as the last lands rises higher, the third the
   assert.ok(about(hop(0), second) && about(hop(10), first), 'and so is one taken after a wait on the ground');
 });
 
-test('a crouch: held on the ground it crawls, a jump out of it is a backflip higher than the jump, and held on into the air it is no ground pound', () => {
+test('a crouch: held on the ground it crawls, a jump out of it is a backflip higher than the jump or, crawling, a long jump, and held on into the air it is no ground pound', () => {
   const p = createPlayer('a', 'a', '#fff', { x: 0, y: EYE_HEIGHT, z: 0 });
   becomeAvatar(p, 'mario');
   const crouch = crouchOf('mario')!;
@@ -266,6 +266,9 @@ test('a crouch: held on the ground it crawls, a jump out of it is a backflip hig
   assert.equal(p.pound, null, 'the key held from the ground starts no pound');
   for (let i = 0; i < TICK_RATE; i++) stepPlayer(p, frame(++seq, {}), TICK_DT, WORLD_SHAPE);
   assert.ok(Math.abs(flip / hop([]) / crouch.flip - 1) < 0.03, 'the backflip rises that much higher');
+  for (let i = 0; i < TICK_RATE; i++) stepPlayer(p, frame(++seq, {}), TICK_DT, WORLD_SHAPE);
+  stepPlayer(p, frame(++seq, { my: 1, jump: true, actions: ['crouch'] }), TICK_DT, WORLD_SHAPE);
+  assert.ok(p.leap && !p.backflip, 'a jump out of a crawl is a long jump');
 });
 
 test('/speedy boost multiplies movement and wears off; holding the run does too; a scope slows it and stops jumps; a chill halves it and wears off', () => {
