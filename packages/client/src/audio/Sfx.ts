@@ -52,24 +52,31 @@ export type SoundId =
   | 'mario-jump-3'
   | 'luigi-jump-2'
   | 'luigi-jump-3'
+  | 'wario-jump-2'
+  | 'wario-jump-3'
   | 'mario-leap-1'
   | 'mario-leap-2'
   | 'mario-leap-3'
   | 'luigi-leap-1'
   | 'luigi-leap-2'
+  | 'wario-leap-1'
+  | 'wario-leap-2'
   | 'mario-hurt-1'
   | 'mario-hurt-2'
   | 'mario-hurt-3'
   | 'luigi-hurt-1'
   | 'luigi-hurt-2'
+  | 'wario-hurt-1'
   | 'spongebob-hurt'
   | 'patrick-hurt'
   | 'luigi-kill-1'
   | 'luigi-kill-2'
+  | 'wario-kill-1'
   | 'mario-kill-1'
   | 'mario-kill-2'
   | 'mario-enter'
   | 'luigi-enter'
+  | 'wario-enter'
   | 'patrick-enter'
   | 'spongebob-enter'
   | 'mario-death'
@@ -151,16 +158,21 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'mario-jump-3': { file: 'mario-jump-3.mp3', half: 6, reach: 30, volume: 0.08 },
   'luigi-jump-2': { file: 'luigi-jump-2.mp3', half: 6, reach: 30, volume: 0.08 },
   'luigi-jump-3': { file: 'luigi-jump-3.mp3', half: 6, reach: 30, volume: 0.08 },
+  'wario-jump-2': { file: 'wario-jump-2.mp3', half: 6, reach: 30, volume: 0.08 },
+  'wario-jump-3': { file: 'wario-jump-3.mp3', half: 6, reach: 30, volume: 0.08 },
   'mario-leap-1': { file: 'mario-leap-1.mp3', half: 6, reach: 30, volume: 0.12 },
   'mario-leap-2': { file: 'mario-leap-2.mp3', half: 6, reach: 30, volume: 0.12 },
   'mario-leap-3': { file: 'mario-leap-3.mp3', half: 6, reach: 30, volume: 0.12 },
   'luigi-leap-1': { file: 'luigi-leap-1.mp3', half: 6, reach: 30, volume: 0.12 },
   'luigi-leap-2': { file: 'luigi-leap-2.mp3', half: 6, reach: 30, volume: 0.12 },
+  'wario-leap-1': { file: 'wario-leap-1.mp3', half: 6, reach: 30, volume: 0.12 },
+  'wario-leap-2': { file: 'wario-leap-2.mp3', half: 6, reach: 30, volume: 0.12 },
   'mario-hurt-1': { file: 'mario-hurt-1.mp3', half: 6, reach: 30, volume: 0.25 },
   'mario-hurt-2': { file: 'mario-hurt-2.mp3', half: 6, reach: 30, volume: 0.25 },
   'mario-hurt-3': { file: 'mario-hurt-3.mp3', half: 6, reach: 30, volume: 0.25 },
   'luigi-hurt-1': { file: 'luigi-hurt-1.mp3', half: 6, reach: 30, volume: 0.25 },
   'luigi-hurt-2': { file: 'luigi-hurt-2.mp3', half: 6, reach: 30, volume: 0.25 },
+  'wario-hurt-1': { file: 'wario-hurt-1.mp3', half: 6, reach: 30, volume: 0.25 },
   'spongebob-hurt': { file: 'spongebob-hurt.mp3', half: 6, reach: 30, volume: 0.25 },
   'patrick-hurt': { file: 'patrick-hurt.mp3', half: 6, reach: 30, volume: 0.25 },
   'mario-kill-1': { file: 'mario-kill-1.mp3', half: 6, reach: 30, volume: 0.2 },
@@ -168,7 +180,9 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'mario-enter': { file: 'mario-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'luigi-kill-1': { file: 'luigi-kill-1.mp3', half: 6, reach: 30, volume: 0.2 },
   'luigi-kill-2': { file: 'luigi-kill-2.mp3', half: 6, reach: 30, volume: 0.2 },
+  'wario-kill-1': { file: 'wario-kill-1.mp3', half: 6, reach: 30, volume: 0.2 },
   'luigi-enter': { file: 'luigi-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
+  'wario-enter': { file: 'wario-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'patrick-enter': { file: 'patrick-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'spongebob-enter': { file: 'spongebob-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   // A look's death (voices.ts): the sting and jingle, ten seconds of song, the death screen's

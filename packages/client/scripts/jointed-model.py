@@ -4,13 +4,15 @@ Jointed.ts) from a rip of the character's model, unpacked into a folder:
     pip install numpy pillow fast_simplification
     python packages/client/scripts/jointed-model.py mario path/to/Mario
     python packages/client/scripts/jointed-model.py luigi path/to/Luigi
+    python packages/client/scripts/jointed-model.py wario path/to/Wario
 
 A rip is the character's own model in Collada (<name>.dae): a body and a face skinned over a rig of
 34 joints (a hip the legs hang from by a knee and a foot, two joints of spine, a head with its cap,
 hair, mouth and mustache, and from a clavicle each side an arm with an elbow, a hand, two finger
 joints and two of thumb), standing in a T-pose with its feet on the ground, z up, facing -y, in a
-unit of its own. Mario's and Luigi's are on that one rig, joint for joint, and any other rip on it
-goes through as it is; the ones here are Mystie's rips at the Models Resource (CHARACTERS says
+unit of its own. Mario's, Luigi's and Wario's are on that one rig, joint for joint (a joint's name
+ends in a number that differs from rip to rip, which is dropped), and any other rip on it goes
+through as it is; the ones here are Mystie's rips at the Models Resource (CHARACTERS says
 which game each is from). The pupils are meshes of their own floating over the face, for the game
 to move; the face's texture has the eyes painted in already, so they are left out.
 
@@ -25,6 +27,7 @@ the reach of a shoe's sole, for standing the feet on the ground.
 from __future__ import annotations
 
 import base64
+import re
 import sys
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
@@ -40,29 +43,29 @@ NS = "{http://www.collada.org/2005/11/COLLADASchema}"
 # The avatar's bones, a parent before its children, and the rig joints each takes: itself and every
 # joint under it that no other bone does. The first is the root, which takes whatever is left.
 BONES: tuple[tuple[str, str], ...] = (
-    ("hips", "Hip_1"),
-    ("spine", "Spine1_1"),
-    ("chest", "Spine2_1"),  # the clavicles with it: the shoulders don't shrug
-    ("head", "Head_1"),
-    ("armL", "ArmL_1"),
-    ("forearmL", "ElbowL_1"),
-    ("handL", "HandL_1"),
-    ("fingersL", "Finger1L_1"),
-    ("thumbL", "Thumb1L_1"),
-    ("armR", "ArmR_1"),
-    ("forearmR", "ElbowR_1"),
-    ("handR", "HandR_1"),
-    ("fingersR", "Finger1R_1"),
-    ("thumbR", "Thumb1R_1"),
-    ("legL", "LegL_1"),
-    ("shinL", "KneeL_1"),
-    ("footL", "FootL_1"),
-    ("legR", "LegR_1"),
-    ("shinR", "KneeR_1"),
-    ("footR", "FootR_1"),
+    ("hips", "Hip"),
+    ("spine", "Spine1"),
+    ("chest", "Spine2"),  # the clavicles with it: the shoulders don't shrug
+    ("head", "Head"),
+    ("armL", "ArmL"),
+    ("forearmL", "ElbowL"),
+    ("handL", "HandL"),
+    ("fingersL", "Finger1L"),
+    ("thumbL", "Thumb1L"),
+    ("armR", "ArmR"),
+    ("forearmR", "ElbowR"),
+    ("handR", "HandR"),
+    ("fingersR", "Finger1R"),
+    ("thumbR", "Thumb1R"),
+    ("legL", "LegL"),
+    ("shinL", "KneeL"),
+    ("footL", "FootL"),
+    ("legR", "LegR"),
+    ("shinR", "KneeR"),
+    ("footR", "FootR"),
 )
 TORSO = ("hips", "spine", "chest")
-PALM = ("HandR_1", "Finger1R_1", "Thumb1R_1")  # a held item goes at their middle
+PALM = ("HandR", "Finger1R", "Thumb1R")  # a held item goes at their middle
 MESHES = ("Body__m_Body", "Body__m_Eye")  # the body and the face; the rest are the pupils
 BACK_DROP = 0.2  # metres below the shoulders the tank hangs
 
@@ -76,11 +79,18 @@ class Character:
 
 
 # Mario stands as tall as the standard body, and the rest as tall beside him as their models are
-# beside his, to a tenth of a metre.
+# beside his, to a tenth of a metre. Wario's is a hair the taller of his and Luigi's (2.26 m
+# against 2.22), and he stands as tall as Luigi: he is nowhere drawn the taller of the two.
 CHARACTERS = {
     "mario": Character("Mario", "Mario Kart 8", 2.0),
     "luigi": Character("Luigi", "Mario Kart 8", 2.2),
+    "wario": Character("Wario", "Mario Kart 8", 2.2),
 }
+
+
+def bare(joint: str | None) -> str | None:
+    """A joint's name without the number its rip ends it with."""
+    return None if joint is None else re.sub(r"_\d+$", "", joint)
 
 
 def floats(node: ET.Element) -> np.ndarray:
@@ -117,7 +127,7 @@ def main(name: str, folder: str) -> None:
             continue
         sources = {s.get("id"): s for s in skin.findall(f"{NS}source")}
         cid = controller.get("id") or ""
-        joints = (sources[f"{cid}-joints"].findtext(f"{NS}Name_array") or "").split()
+        joints = [bare(j) for j in (sources[f"{cid}-joints"].findtext(f"{NS}Name_array") or "").split()]
         inverse_bind = floats(sources[f"{cid}-bind_poses"].find(f"{NS}float_array")).reshape(-1, 4, 4)
         weight = floats(sources[f"{cid}-weights"].find(f"{NS}float_array"))
         influences = skin.find(f"{NS}vertex_weights")
@@ -131,7 +141,12 @@ def main(name: str, folder: str) -> None:
 
         # A joint belongs to the bone that names it or the nearest joint above it that a bone names,
         # else to the root: up the rig by the scene's nodes.
-        parent = {child.get("sid"): node.get("sid") for node in doc.iter(f"{NS}node") for child in node.findall(f"{NS}node")}
+        parent = {
+            bare(child.get("sid")): bare(node.get("sid"))
+            for node in doc.iter(f"{NS}node")
+            for child in node.findall(f"{NS}node")
+            if bare(child.get("sid")) != bare(node.get("sid"))  # the pupils' joint is named as their node is
+        }
         named = {joint: i for i, (_, joint) in enumerate(BONES)}
 
         def bone_of(joint: str | None) -> int:
