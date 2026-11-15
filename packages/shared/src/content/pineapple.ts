@@ -43,6 +43,7 @@ import { doorPieces, type DoorSpec } from '../sim/doors';
 import { BUILDING_GROUNDS } from '../sim/outline';
 import type { Region } from '../sim/regions';
 import type { Disc } from '../sim/world';
+import type { Vec3 } from '../sim/types';
 import { PINEAPPLE_BOXES } from './pineappleInterior';
 import { PINEAPPLE_PROFILE as SHAPE } from './pineappleProfile';
 
@@ -78,6 +79,15 @@ const skin = (y: number): number => {
   }
   return rings[rings.length - 1][1];
 };
+
+// Metres from a point to the shell, 0 inside it, for the music (the client's PLACE_THEMES): out
+// from the skin at the point's height, or above the crown or below the house's floor.
+export function toPineapple(p: Vec3): number {
+  const h = p.y - DUNE_HEIGHT;
+  const top = SHAPE.rings[SHAPE.rings.length - 1][0];
+  const out = Math.max(0, Math.hypot(p.x - X, p.z - Z) - skin(Math.min(Math.max(h, 0), top)));
+  return Math.hypot(out, Math.max(0, -h, h - top));
+}
 
 export const PINEAPPLE_DOORS: DoorSpec[] = SHAPE.doors.map((d) => ({
   id: d.id,

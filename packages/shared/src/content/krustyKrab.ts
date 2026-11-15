@@ -15,6 +15,7 @@ import { doorPieces, type DoorSpec } from '../sim/doors';
 import { KRUSTY_KRAB_GROUNDS } from '../sim/outline';
 import type { Region } from '../sim/regions';
 import { ramp, type Structure } from '../sim/structures';
+import type { Vec3 } from '../sim/types';
 import { KRUSTY_KRAB_PROFILE as SHAPE } from './krustyKrabProfile';
 
 const { x: X, z: Z } = KRUSTY_KRAB_GROUNDS;
@@ -68,8 +69,15 @@ export const KRUSTY_KRAB_FLOOR: Region = { kind: 'disc', ...placed(0, 4.5), r: 2
 // building and `d` through it, turned with it.
 export const KRUSTY_KRAB_FOOTPRINT = { x: X, z: Z, w: SHAPE.size.w, d: SHAPE.size.d, yaw: YAW };
 
-// The dining room and kitchen inside the walls, for the music (the client's PLACE_THEMES): from
-// the arches' inner faces along the building and the front wall's outer face to the back wall's
-// through it, the floor up to the arches' tops; `w` along the building and `d` through it, turned
-// with it.
-export const KRUSTY_KRAB_HALL = { x: X, z: Z, w: 28.8, d: 19.4, h: SHAPE.size.h, yaw: YAW };
+// Metres from a point to the walls, 0 inside them, for the music (the client's PLACE_THEMES): the
+// dining room and kitchen, from the arches' inner faces along the building and the front wall's
+// outer face to the back wall's through it, the floor up to the arches' tops.
+const HALL = { w: 28.8, d: 19.4, h: SHAPE.size.h };
+export function toKrustyKrab(p: Vec3): number {
+  const dx = p.x - X;
+  const dz = p.z - Z;
+  const lx = dx * Math.cos(YAW) - dz * Math.sin(YAW);
+  const lz = dx * Math.sin(YAW) + dz * Math.cos(YAW);
+  const out = (v: number, half: number) => Math.max(0, Math.abs(v) - half);
+  return Math.hypot(out(lx, HALL.w / 2), out(lz, HALL.d / 2), Math.max(0, -p.y, p.y - HALL.h));
+}

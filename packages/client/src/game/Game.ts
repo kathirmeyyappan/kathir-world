@@ -46,7 +46,7 @@ import {
   walkSpeedOf,
 } from '@world/shared';
 import { Footsteps } from '../audio/Footsteps';
-import { ITEM_SOUNDS, heard, loopsOf, PLACE_THEMES, Sfx, toHall, voiceOf, type SoundId } from '../audio/Sfx';
+import { ITEM_SOUNDS, heard, loopsOf, PLACE_THEMES, Sfx, voiceOf, type SoundId } from '../audio/Sfx';
 import { take, VOICES } from '../audio/voices';
 import { InputManager } from '../input/InputManager';
 import { MobileActions, type MobileActionState } from '../input/MobileActions';
@@ -1134,7 +1134,7 @@ export class Game {
         holder: d.id,
       })),
       ...PLACE_THEMES.flatMap((p) => {
-        const metres = toHall(ear, p.hall);
+        const metres = p.walls(ear);
         const level = heard(p.theme, metres);
         if (level <= 0) return [];
         if (!this.placeClocks.has(p.theme)) this.placeClocks.set(p.theme, now);
@@ -1146,7 +1146,7 @@ export class Game {
             at: null,
             elapsed: (now - this.placeClocks.get(p.theme)!) / 1000,
             level,
-            inside: !this.dead && toHall(self.pos, p.hall) === 0,
+            inside: !this.dead && p.walls(self.pos) === 0,
             holder: `place:${p.theme}`,
           },
         ];

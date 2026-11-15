@@ -9,7 +9,8 @@
 // keeps the choice.
 import {
   isDragonAvatar,
-  KRUSTY_KRAB_HALL,
+  toKrustyKrab,
+  toPineapple,
   type AvatarId,
   type AvatarsOf,
   type GearId,
@@ -122,7 +123,8 @@ export type SoundId =
   | 'colgera-cry'
   | 'colgera-cry-far'
   | 'colgera-theme'
-  | 'krusty-krab-theme';
+  | 'krusty-krab-theme'
+  | 'spongebob-house-theme';
 
 interface SoundSpec {
   file: string; // in public/assets/sounds
@@ -284,9 +286,21 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
     music: true,
   },
   // A building's own theme (PLACE_THEMES), quieter than a dragon's: heard flat, at the share of its
-  // volume left the metres from its walls, over its grounds and gone a little past them.
+  // volume left the metres from its walls, over its grounds and gone a little past them. Each is a
+  // whole cue, its ending and a breath of silence before it comes round again.
   'krusty-krab-theme': {
     file: 'krusty-krab-theme.mp3',
+    half: 15,
+    reach: 45,
+    volume: 0.08,
+    loop: true,
+    swell: 2.5,
+    fade: 2.5,
+    lazy: true,
+    music: true,
+  },
+  'spongebob-house-theme': {
+    file: 'spongebob-house-theme.mp3',
     half: 15,
     reach: 45,
     volume: 0.08,
@@ -358,23 +372,16 @@ export const DRAGON_VOICES: Record<AvatarsOf<'asian-dragon'>, DragonVoice | null
 };
 
 // A building with a theme of its own: one more theme round it for the nearest to win (Game.ts), at
-// its distance from the walls, and the only one heard from inside them. `hall` is the room inside
-// the walls, a box standing on the floor: its middle, `w` along its yaw's x, `d` along its z, `h` up.
+// its distance from the walls (`walls`, metres from a point to them, 0 inside), and the only one
+// heard from inside them.
 export interface PlaceTheme {
   theme: SoundId;
-  hall: { x: number; z: number; w: number; d: number; h: number; yaw: number };
+  walls: (p: Vec3) => number;
 }
-export const PLACE_THEMES: PlaceTheme[] = [{ theme: 'krusty-krab-theme', hall: KRUSTY_KRAB_HALL }];
-
-// Metres from `p` to the nearest point of a hall, 0 inside it.
-export function toHall(p: Vec3, hall: PlaceTheme['hall']): number {
-  const dx = p.x - hall.x;
-  const dz = p.z - hall.z;
-  const lx = dx * Math.cos(hall.yaw) - dz * Math.sin(hall.yaw);
-  const lz = dx * Math.sin(hall.yaw) + dz * Math.cos(hall.yaw);
-  const out = (v: number, half: number) => Math.max(0, Math.abs(v) - half);
-  return Math.hypot(out(lx, hall.w / 2), out(lz, hall.d / 2), Math.max(0, -p.y, p.y - hall.h));
-}
+export const PLACE_THEMES: PlaceTheme[] = [
+  { theme: 'krusty-krab-theme', walls: toKrustyKrab },
+  { theme: 'spongebob-house-theme', walls: toPineapple },
+];
 
 // The voice of whoever wears `avatar`, if it has one.
 export function voiceOf(avatar: AvatarId): DragonVoice | null {
