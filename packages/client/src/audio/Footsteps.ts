@@ -40,6 +40,8 @@ const LANDINGS: { from: number; sound: SoundId }[] = [
   { from: 20, sound: 'land-hard' },
 ];
 
+const TWINKLE_SECONDS = 1; // how long a float's twinkle is (float-sparkle), and so how often it's said
+
 interface Walker {
   at: Vec3;
   grounded: boolean;
@@ -51,6 +53,7 @@ interface Walker {
   climbing: boolean; // on a ladder when last seen
   peak: number; // highest they've been this time in the air
   falling: number; // fastest downward speed this time in the air, m/s, when it's known
+  twinkled: number; // seconds since a float's twinkle last began; Infinity out of one
 }
 
 export class Footsteps {
@@ -87,6 +90,7 @@ export class Footsteps {
       crouch: boolean; // crouched: its walk is a crawl, paced by its hands and sounding as a shuffle
       climbing: boolean; // on a ladder (sim/types.ts `climb`): off the ground, and neither jumping nor falling
       pound: boolean; // in a ground pound (sim/avatars.ts `Pound`): it lands as hard as a landing gets
+      floating: boolean; // holding a fall (sim/avatars.ts `Float`): it twinkles
       falling?: number;
       self: boolean;
     }[],
@@ -111,6 +115,7 @@ export class Footsteps {
           climbing: p.climbing,
           peak: p.pos.y,
           falling: 0,
+          twinkled: Infinity,
         });
         continue;
       }
@@ -130,6 +135,12 @@ export class Footsteps {
       w.at = { ...p.pos };
       w.grounded = p.grounded;
       if (across > JUMPED || Math.abs(down) > JUMPED) continue;
+      // A float twinkles as it starts and again each time the twinkle has run out.
+      w.twinkled = p.floating ? w.twinkled + dt : Infinity;
+      if (p.floating && w.twinkled >= TWINKLE_SECONDS) {
+        this.sfx.soon('float-sparkle', at);
+        w.twinkled = 0;
+      }
 
       if (!p.grounded) {
         if (wasGrounded) {
