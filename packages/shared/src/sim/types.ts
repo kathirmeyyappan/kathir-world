@@ -28,9 +28,9 @@ export interface PlayerState {
   hop: number;
   down: number;
   // In a ground pound (avatars.ts `Pound`, walker.ts): the stage it's at and the seconds into it,
-  // 0 on the tick the stage began, with the eye height and vertical speed (m/s) it began at, which
-  // its landing is judged as a plain fall from; null otherwise.
-  pound: { stage: 'twirl' | 'drop' | 'land'; t: number; from: number; vy: number } | null;
+  // 0 on the tick the stage began, with the eye height it began at, which its landing and its
+  // power are judged from; null otherwise.
+  pound: { stage: 'twirl' | 'drop' | 'land'; t: number; from: number } | null;
   crouch: boolean; // crouched on the ground (avatars.ts `Crouch`): the crouch action held there
   backflip: boolean; // in the jump taken out of a crouch, until it lands or something else moves it
   strike: number | null; // seconds into a strike (avatars.ts `Strike`), 0 on the tick of the press; null out of one

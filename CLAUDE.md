@@ -443,7 +443,8 @@ jump of the chain the last was, and `down`, the seconds since landing; holding t
 the chain, since a held key repeats); with a `pound`, the `pound` action in the air (X, or the touch
 POUND button) is a ground pound, `PlayerState.pound`: the body hangs turning over for the `twirl`,
 drops straight down from `speed` under gravity, and lands planted for `recover`, the keys and a
-jetpack doing nothing throughout; the landing is judged as the plain fall it began as, and the Room
+jetpack doing nothing throughout; the landing is judged as a fall from rest where the pound began, whatever fall the body
+was in before it (so one begun low breaks a long fall, and one begun high hurts as its height does), and the Room
 takes `damage` off everyone else on foot within `reach` across the floor, about level with it
 (`POUND_HEIGHT`, so a jump clears it) and in its sight, and throws them back off their feet (its
 `knock`, a `throwWalker` like the storm's), a kill by it announced with `item: 'pound'`; the client plays its turn's sound and runs a ring out over the floor it hurt across,
