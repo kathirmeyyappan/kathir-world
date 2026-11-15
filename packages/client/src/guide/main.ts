@@ -76,7 +76,7 @@ interface Pick {
   id: string;
   entry: Entry;
   stats: () => Stat[];
-  abilities?: () => { entry: Entry; stats: Stat[] }[]; // what it can do that the rest can't, each under its own heading
+  abilities?: () => { title: string; stats: Stat[] }[]; // what it can do that the rest can't, each under its own heading
   view: { body: Shown } | { thing: Thing } | null;
 }
 
@@ -96,7 +96,7 @@ function characters(): Section[] {
     id,
     entry: CHARACTERS[id],
     stats: () => characterStats(id),
-    abilities: () => abilityStats(id).map((a) => ({ entry: ABILITIES[a.id], stats: a.stats })),
+    abilities: () => abilityStats(id).map((a) => ({ title: ABILITIES[a.id], stats: a.stats })),
     view: { body: shown(id) },
   });
   return [
@@ -267,11 +267,7 @@ class Catalog {
       ...(entry.summary ? [el('p', 'summary', entry.summary)] : []),
       statTable(pick.stats()),
       ...(abilities.length ? [el('hr', 'rule')] : []),
-      ...abilities.flatMap((a) => [
-        el('h3', '', `Special ability: ${a.entry.title}`),
-        el('p', 'summary', a.entry.summary),
-        statTable(a.stats),
-      ]),
+      ...abilities.flatMap((a) => [el('h3', '', `Special ability: ${a.title}`), statTable(a.stats)]),
       ...facts(entry.facts),
     );
     this.view.resize();

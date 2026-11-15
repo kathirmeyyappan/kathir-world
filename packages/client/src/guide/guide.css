@@ -64,7 +64,7 @@ h3 {
 
 /* Between what every entry has and what only some do: a character's own moves. */
 .rule {
-  margin: 22px 0 0;
+  margin: 36px 0 30px;
   border: 0;
   border-top: 2px solid var(--line);
 }

@@ -101,7 +101,7 @@ function chainStats(id: AvatarId): { id: AbilityId; stats: Stat[] }[] {
     {
       id: 'chain',
       stats: [
-        { label: 'Use', value: 'Space again as you land' },
+        { label: 'Use', value: 'Hit Space again as you land' },
         { label: 'Heights', value: `${heights.map(num).join(', ')} m` },
         { label: 'Time to jump again', value: `${num(chain.gap)} s` },
       ],
@@ -117,14 +117,14 @@ function crouchStats(id: AvatarId): { id: AbilityId; stats: Stat[] }[] {
     {
       id: 'crouch',
       stats: [
-        { label: 'Keys', value: 'Hold X' },
+        { label: 'Use', value: 'Hold X on the ground' },
         { label: 'Crawl speed', value: `${num(look.walk * crouch.crawl)} m/s` },
       ],
     },
     {
       id: 'backflip',
       stats: [
-        { label: 'Keys', value: 'Space, crouched and still' },
+        { label: 'Use', value: 'Hit Space while crouched and still' },
         { label: 'Height', value: `${num(JUMP_RISE * look.jump * crouch.flip)} m` },
       ],
     },
@@ -138,7 +138,7 @@ function poundStats(id: AvatarId): { id: AbilityId; stats: Stat[] }[] {
     {
       id: 'pound',
       stats: [
-        { label: 'Keys', value: 'X, in the air' },
+        { label: 'Use', value: 'Hit X in the air' },
         { label: 'Ground pound damage', value: `${num(pound.damage)} hearts` },
         { label: 'Reach', value: `${num(pound.reach)} m` },
         { label: 'Knockback', value: `${num(pound.knock.speed)} m/s` },
@@ -161,7 +161,7 @@ function leapStats(id: AvatarId): { id: AbilityId; stats: Stat[] }[] {
     {
       id: 'leap',
       stats: [
-        { label: 'Keys', value: 'Shift + Space, moving' },
+        { label: 'Use', value: 'Hit Space while running with Shift' },
         { label: 'Distance', value: `${num(speed * seconds)} m` },
         { label: 'Height', value: `${num(JUMP_RISE * (jump.class === 'walker' ? jump.jump : 1) * leap.rise)} m` },
         { label: 'Speed', value: `${num(speed)} m/s` },

@@ -41,22 +41,13 @@ export const CONTROLS: { title: string; keys: [string, string][] }[] = [
 
 const plain = (title: string, summary: string): Entry => ({ title, summary, facts: [] });
 
-// A character's special abilities (stats.ts `abilityStats`): what each is.
-export const ABILITIES: Record<AbilityId, Entry> = {
-  leap: plain('Long jump', 'A jump while running goes low and far, with little steering until it lands.'),
-  pound: plain(
-    'Ground pound',
-    'In the air, turns over and drops straight down, hurting everyone on foot near where it lands and knocking them back. A jump clears it.',
-  ),
-  crouch: plain('Crouch', 'Held on the ground, keeps low and crawls.'),
-  backflip: plain(
-    'Backflip',
-    'A jump out of a crouch, standing still, turns over backward and goes higher than a jump.',
-  ),
-  chain: plain(
-    'Triple jump',
-    'A jump taken as the last one lands goes higher: a double, then a triple with a somersault. Waiting on the ground starts over.',
-  ),
+// A character's special abilities (stats.ts `abilityStats`): what each is called.
+export const ABILITIES: Record<AbilityId, string> = {
+  leap: 'Long jump',
+  pound: 'Ground pound',
+  crouch: 'Crouch',
+  backflip: 'Backflip',
+  chain: 'Triple jump',
 };
 
 export const CHARACTERS: Record<AvatarId, Entry> = {
