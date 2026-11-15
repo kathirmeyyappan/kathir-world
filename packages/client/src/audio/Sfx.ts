@@ -64,6 +64,7 @@ export type SoundId =
   | 'mario-kill-2'
   | 'mario-enter'
   | 'luigi-enter'
+  | 'patrick-enter'
   | 'mario-death'
   | 'spongebob-death'
   | 'mike-death'
@@ -155,6 +156,7 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'luigi-kill-1': { file: 'luigi-kill-1.mp3', half: 6, reach: 30, volume: 0.2 },
   'luigi-kill-2': { file: 'luigi-kill-2.mp3', half: 6, reach: 30, volume: 0.2 },
   'luigi-enter': { file: 'luigi-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
+  'patrick-enter': { file: 'patrick-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   // A look's death (voices.ts): the sting and jingle, ten seconds of song, the death screen's
   // length, and Roz's line. Each is heard only by a player who dies as that look, so each is fetched
   // on demand. Each is a cut from something longer, so each swells and fades by how its cut begins
