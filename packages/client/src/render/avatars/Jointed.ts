@@ -115,7 +115,7 @@ export interface JointedModel extends SkinnedModel<JointedBone> {
 }
 
 // The clips only a look with the move has.
-type Moves = 'leap' | 'pound' | 'pounded' | 'double' | 'doubleFall' | 'triple' | 'crouch' | 'backflip';
+type Moves = 'leap' | 'pound' | 'pounded' | 'double' | 'doubleFall' | 'triple' | 'crouch' | 'crawl' | 'backflip';
 
 // How a character moves: its clips, and the few numbers round them.
 export interface Style {
@@ -136,9 +136,10 @@ export interface Style {
     double?: RawClip;
     doubleFall?: RawClip;
     triple?: RawClip;
-    // A crouch (sim/avatars.ts `Crouch`): sat low, looped; and the jump out of it, a backward
-    // somersault through the whole flight, held at its end.
+    // A crouch (sim/avatars.ts `Crouch`): sat low, looped; a cycle of its crawl, looped; and the
+    // jump out of it, a backward somersault through the whole flight, held at its end.
     crouch?: RawClip;
+    crawl?: RawClip;
     backflip?: RawClip;
   };
   flutter?: number; // strides a second its legs run on at in the air: a scuttle
@@ -170,16 +171,7 @@ const TOUCHDOWN_SECONDS = 0.12;
 const APEX_SECONDS = 0.28;
 const LAND_IN = 0.05; // seconds a landing takes to drop into its crouch
 const CROUCH_SECONDS = 0.15; // seconds it takes to sink into a crouch, and to rise out of one
-// A duck walk, the crouch on the move, which no clip has: the crouch's own trunk and arms over feet
-// stepped under it. In leg lengths: what it goes for each step, how far a foot reaches from back to
-// front, how high it lifts, and how far apart the feet are set from where they stand.
-const DUCK_STRIDE = 1;
-const DUCK_REACH = 0.7;
-const DUCK_LIFT = 0.12;
-const DUCK_APART = 0.15;
-const DUCK_SWING = 0.4; // the share of its two steps a foot is off the ground for
-const DUCK_TOES = 0.45; // radians its toes, and the knees over them, are turned out
-const DUCK_ROCK = 0.07; // radians it rocks over the foot that bears it
+const CRAWL_CYCLE = 3; // leg lengths it crawls in one cycle of its limbs
 const EASE_DIRECTION = 0.09; // seconds its stride takes to come round to a new way of going
 const EASE_TURN = 0.12; // seconds its body takes to come round to face the way it's going
 const EASE_AIM = 0.06; // and to face its look, with something in its hand to aim
@@ -268,8 +260,7 @@ export class JointedAvatar extends WalkerAvatar {
   private readonly flip: number; // seconds its triple jump's somersault takes: done just before it's down again on the flat
   private readonly backflip: number; // and its backflip's
   private crouching = 0; // how far down into its crouch it is: 0 standing, 1 sat in it
-  private ducked = 0; // pairs of steps its duck walk has gone
-  private readonly squat = pose(); // where its crouch puts its feet
+  private crawled = 0; // cycles of its crawl it has gone
   private impact = 0; // how hard it last landed, 0 to 1
   private landing = Infinity; // seconds since it last landed
   private stood = 0; // seconds it has been drawn, for its idle
@@ -305,6 +296,7 @@ export class JointedAvatar extends WalkerAvatar {
       doubleFall: raw.doubleFall ? clip(raw.doubleFall) : null,
       triple: raw.triple ? clip(raw.triple) : null,
       crouch: raw.crouch ? clip(raw.crouch) : null,
+      crawl: raw.crawl ? clip(raw.crawl) : null,
       backflip: raw.backflip ? clip(raw.backflip) : null,
     };
     const chain = chainOf(kind);
@@ -369,13 +361,17 @@ export class JointedAvatar extends WalkerAvatar {
       grip += (GRIP_RUN - GRIP_IDLE) * striding * running;
     }
 
-    // A crouch, sunk into and risen out of: sat on its heels, its feet put under it once it's posed.
+    // A crouch, sunk into and risen out of: sat on its heels, or crawling as far through the cycle
+    // of its limbs as it has gone.
     this.crouching = Math.min(1, Math.max(0, this.crouching + (p.crouch ? dt : -dt) / CROUCH_SECONDS));
-    const crouched = clips.crouch && p.grounded && !p.pound ? smooth(this.crouching) : 0;
-    if (clips.crouch && crouched > 0) {
+    if (clips.crouch && this.crouching > 0) {
       sample(other, clips.crouch, this.stood / clips.crouch.seconds, true);
-      blend(out, out, other, crouched);
-      this.ducked += (p.walk * dt) / (2 * DUCK_STRIDE * this.rig.legLength);
+      if (clips.crawl && striding > 0) {
+        this.crawled += (p.walk * dt) / (CRAWL_CYCLE * this.rig.legLength);
+        sample(third, clips.crawl, this.crawled, true);
+        blend(other, other, third, striding);
+      }
+      blend(out, out, other, smooth(this.crouching));
     }
 
     // A landing, as hard as the drop from its highest point: into the crouch and back up out of it.
@@ -458,33 +454,10 @@ export class JointedAvatar extends WalkerAvatar {
     const looks = flipping ? 0 : smooth((HEAD_GIVES_UP - Math.abs(off)) / HEAD_FADE) * (1 - own);
     const head = Math.max(-HEAD_TURN_LIMIT, Math.min(HEAD_TURN_LIMIT, off)) * looks;
     // A waddle: over the right foot as it comes down, the stride's start, and over the left at its middle.
-    const rock =
-      (style.waddle ?? 0) * striding * Math.cos(Math.PI * step) +
-      DUCK_ROCK * crouched * striding * Math.cos(2 * Math.PI * (this.ducked - (1 - DUCK_SWING) / 2));
+    const rock = (style.waddle ?? 0) * striding * Math.cos(Math.PI * step);
     this.rig.play(out, grip, this.bank + rock, armed ? hips * striding : 0, head, p.pitch * style.follow * looks);
-    if (crouched > 0) this.duck(crouched, striding);
     if (!turning && !flipping) this.arm(p);
     return walked;
-  }
-
-  // A crouch's legs, `crouched` of the way down into it: the feet set apart with their toes out,
-  // under the hips where the crouch has sat them, and `moving`, stepping in turn, short and quick.
-  private duck(crouched: number, moving: number): void {
-    const feet = this.squat;
-    const leg = this.rig.legLength;
-    const down = 1 - DUCK_SWING;
-    for (const side of [-1, 1] as const) {
-      const at = side < 0 ? FOOT_L : FOOT_R;
-      // The right foot comes down as a pair of steps begins, and the left halfway through it.
-      const through = (((this.ducked + (side < 0 ? 0.5 : 0)) % 1) + 1) % 1;
-      const swing = (through - down) / DUCK_SWING; // past 0 with the foot off the ground
-      const ahead = swing > 0 ? smooth(swing) - 0.5 : 0.5 - through / down;
-      feet[at + FOOT_X] = side * DUCK_APART * leg * crouched;
-      feet[at + FOOT_Y] = swing > 0 ? moving * DUCK_LIFT * leg * Math.sin(Math.PI * swing) : 0;
-      feet[at + FOOT_Z] = moving * DUCK_REACH * leg * ahead;
-      feet[at + FOOT_YAW] = side * DUCK_TOES * crouched;
-    }
-    this.rig.step(feet);
   }
 
   // On a ladder, where the walker has put the body: each fist and foot on a rung of it, going up
@@ -697,15 +670,6 @@ class Rig {
     this.leg(pose, FOOT_L, hips, this.hipL, this.standL, 'legL', 'shinL', 'footL');
     this.leg(pose, FOOT_R, hips, this.hipR, this.standR, 'legR', 'shinR', 'footR');
     this.gripped = -1;
-  }
-
-  // Puts the feet where `pose` has them, under the hips as a clip's moment has left them (`play`):
-  // the legs alone, for a step no clip has under a trunk one does.
-  step(pose: BodyPose): void {
-    const hips = this.bones[0];
-    HIPS.copyFrom(hips.rotationQuaternion!);
-    this.leg(pose, FOOT_L, hips, this.hipL, this.standL, 'legL', 'shinL', 'footL');
-    this.leg(pose, FOOT_R, hips, this.hipR, this.standR, 'legR', 'shinR', 'footR');
   }
 
   // Turns an arm of `pose` to put its fist's middle at a point in the body's frame (metres: to its

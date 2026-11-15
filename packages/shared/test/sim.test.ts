@@ -246,13 +246,13 @@ test('a chain of jumps: each taken as the last lands rises higher, the third the
   assert.ok(about(hop(0), second) && about(hop(10), first), 'and so is one taken after a wait on the ground');
 });
 
-test('a crouch: held on the ground it slows the walk, a jump out of it is a backflip higher than the jump, and held on into the air it is no ground pound', () => {
+test('a crouch: held on the ground it crawls, a jump out of it is a backflip higher than the jump, and held on into the air it is no ground pound', () => {
   const p = createPlayer('a', 'a', '#fff', { x: 0, y: EYE_HEIGHT, z: 0 });
   becomeAvatar(p, 'mario');
   const crouch = crouchOf('mario')!;
   let seq = 0;
   stepPlayer(p, frame(++seq, { my: 1, actions: ['crouch', 'run'] }), 1, WORLD_SHAPE);
-  assert.ok(p.crouch && Math.abs(p.pos.z - walkSpeedOf('mario') * crouch.pace) < 1e-9, 'slowed, whatever the run');
+  assert.ok(p.crouch && Math.abs(p.pos.z - walkSpeedOf('mario') * crouch.crawl) < 1e-9, 'a crawl, whatever the run');
   // One jump with `actions` held throughout: how high it gets.
   const hop = (actions: ItemAction[]): number => {
     let peak = 0;

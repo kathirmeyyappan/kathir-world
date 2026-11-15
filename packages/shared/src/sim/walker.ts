@@ -90,7 +90,7 @@ export function stepWalker(
   const held = input ? input.actions.includes('crouch') : p.crouch;
   p.crouch = crouch !== null && held && grounded && !p.dead && !p.climb && !p.pound;
   // Scoped (decided by the item step from this frame) slows the walk and pins them to the ground; an
-  // ice hit's chill slows it too, and a crouch to its own pace. Holding the run speeds it up, whichever
+  // ice hit's chill slows it too, and a crouch to a crawl. Holding the run speeds it up, whichever
   // way it goes, except scoped or crouched, and so does a boost: the faster of the two, never both.
   const fast = Math.max(
     p.boost > 0 ? SPEEDY_MULTIPLIER : 1,
@@ -101,7 +101,7 @@ export function stepWalker(
     fast *
     (p.scoped ? SCOPED_SPEED_MULTIPLIER : 1) *
     (p.chilled > 0 ? CHILLED_SPEED_MULTIPLIER : 1) *
-    (p.crouch && crouch ? crouch.pace : 1);
+    (p.crouch && crouch ? crouch.crawl : 1);
   if (p.climb) return climb(p, input, dt, structures);
   // A ground pound, from the press in the air until it's back on its feet, is all the body does;
   // dying, a throw or a change of look ends it.
