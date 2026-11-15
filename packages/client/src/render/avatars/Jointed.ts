@@ -711,7 +711,7 @@ class Rig {
     for (const side of [-1, 1] as const) {
       const shoulder = side < 0 ? this.shoulderL : this.shoulderR;
       // The palm's place and the middle of the head beside it, as the head is turned.
-      PALM.set(side * (this.temple.x + PALM_OFF), this.temple.y, this.temple.z);
+      PALM.set(side * (this.temple.x + PALM_OFF * fore), this.temple.y, this.temple.z);
       PALM.rotateByQuaternionToRef(head, PALM).addInPlace(this.neck);
       AWAY.set(0, this.temple.y, this.temple.z).rotateByQuaternionToRef(head, AWAY).addInPlace(this.neck);
       PALM.subtractToRef(AWAY, AWAY);
@@ -844,7 +844,7 @@ const ELBOW = new Vector3();
 const WRIST = new Vector3();
 const LEFT_ARM = ['armL', 'forearmL', 'handL'] as const;
 const RIGHT_ARM = ['armR', 'forearmR', 'handR'] as const;
-const PALM_OFF = 0.03; // metres a palm's middle is off the head it lies on
+const PALM_OFF = 0.1; // the share of a forearm's length a palm's middle is off what it lies on: half the hand's thickness
 // The right hand, which the model holds palm down, turned about the arm's length to thumb up.
 const THUMB_UP = Quaternion.RotationAxis(Vector3.RightReadOnly, -Math.PI / 2);
 const HIPS = new Quaternion();

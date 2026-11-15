@@ -70,6 +70,7 @@ PALM = ("HandR", "Finger1R", "Thumb1R")  # a held item goes at their middle
 MESHES = ("Body__m_Body", "Body__m_Eye")  # the body and the face; the rest are the pupils
 BACK_DROP = 0.2  # metres below the shoulders the tank hangs
 TEMPLE_UP = 0.45  # the share of the way from the neck to the crown a hand on the head rests at
+TEMPLE_SPAN = 0.1  # the share of the head's height that far round there, up, down, ahead and behind, the hand covers
 
 
 @dataclass(frozen=True)
@@ -240,16 +241,18 @@ def main(name: str, folder: str) -> None:
     shoe = posed[order[:, 0] == bone_names.index("footR")]
     sole = np.array([shoe[:, 2].max() - pivots["footR"][2], pivots["footR"][2] - shoe[:, 2].min()])
 
-    # Where a hand laid on the side of the head rests: as far to its right as the head goes there,
-    # leaving out an ear's tip, part of the way up from the neck to the crown, at its middle front to back.
+    # Where a hand laid on the side of the head rests: part of the way up from the neck to the crown,
+    # over the neck front to back, as far to its right as anything of the head is there, so a palm
+    # put there is on the head and never in it.
     skull = posed[order[:, 0] == bone_names.index("head")]
-    neck_y = pivots["head"][1]
-    tall = skull[:, 1].max() - neck_y
-    band = skull[abs(skull[:, 1] - neck_y - TEMPLE_UP * tall) < 0.08 * tall]
-    temple = np.array(
-        [np.percentile(band[:, 0], 95), neck_y + TEMPLE_UP * tall, (band[:, 2].max() + band[:, 2].min()) / 2]
-    )
-    print("temple:", np.round(temple, 3), "head:", np.round([neck_y, tall], 3))
+    neck = pivots["head"]
+    tall = skull[:, 1].max() - neck[1]
+    beside = skull[
+        (abs(skull[:, 1] - neck[1] - TEMPLE_UP * tall) < TEMPLE_SPAN * tall)
+        & (abs(skull[:, 2] - neck[2]) < TEMPLE_SPAN * tall)
+    ]
+    temple = np.array([beside[:, 0].max(), neck[1] + TEMPLE_UP * tall, neck[2]])
+    print("temple:", np.round(temple, 3), "head:", np.round([neck[1], tall], 3))
 
     regions = [
         textured(Image.open(rip / part["picture"]).convert("RGB"), uv, span, character.texture_size)
