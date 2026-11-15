@@ -440,13 +440,13 @@ export class Sfx {
   }
 
   // A one-shot that may not be here yet (a lazy one first asked for now): played at once if it is,
-  // else as it arrives, unless that takes longer than LATE, when it's let go as too late to mean
-  // anything. One out of earshot is never sent for.
-  soon(id: SoundId, at: Vec3 | null = null): void {
+  // else as it arrives, unless that takes longer than `late` ms, when it's let go as too late to
+  // mean anything. One out of earshot is never sent for.
+  soon(id: SoundId, at: Vec3 | null = null, late = LATE_MS): void {
     if (this.play(id, at)) return;
     const asked = performance.now();
     void this.arriving.get(SOUNDS[id].file)?.then(() => {
-      if (performance.now() - asked < LATE_MS) this.play(id, at);
+      if (performance.now() - asked < late) this.play(id, at);
     });
   }
 
