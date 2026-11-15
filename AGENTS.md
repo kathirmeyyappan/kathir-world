@@ -611,7 +611,7 @@ staircases. List a landmark's there when it's worth navigating by.
 
 Every sound in `packages/client/src/audio/Sfx.ts` is level with the rest of its set, so no clip stands out from its neighbours: a set
 is the sounds a player hears as one kind of thing and compares (one character's hit cry beside
-another's, one footstep beside the next, one roar beside another), and every sound in a set plays
+another's, one footstep beside the next), and every sound in a set plays
 within 1.5 dB of the set's middle. `python packages/client/scripts/sound-levels.py` is the measure:
 it lists every sound in `SOUNDS` by set with the loudness of its file (over its sounding part
 alone, weighted as hearing is, so the silence round a clip, a gap in it and a long tail don't count
@@ -621,7 +621,8 @@ put its lines for the new clips in the PR. Level the file itself to its set's lo
 the `volume` its set has (the comment in `SOUNDS` ranks the kinds of line against each other),
 never a `volume` of its own to make up for a quiet file. A new kind of sound that should be level
 with others goes in a set in the script; one meant to differ from its neighbours (a soft landing
-and a hard one, the two guns, a tentacle's light plop and its heavy one) stays out of them.
+and a hard one, the two guns, a tentacle's light plop and its heavy one), and a dragon's roars,
+cries and theme, each set to carry across the world, stay out of them.
 
 ## Pull requests
 

@@ -14,7 +14,8 @@ beside another's, one footstep beside the next. Within a set every sound should 
 TOLERANCE of the set's middle; the script exits 1 if one doesn't. Level a new clip's file to its
 set's loudness and give it the set's `volume`: a `volume` of its own to make up for a quiet file is
 what this catches. Sounds that are meant to differ from their neighbours (a soft landing and a hard
-one, the two guns, the light and heavy plop of a tentacle) are in no set and only listed.
+one, the two guns, the light and heavy plop of a tentacle), and a dragon's roars, cries and theme,
+which are each recorded and set to carry across the world, are in no set and only listed.
 """
 
 from __future__ import annotations
@@ -39,8 +40,6 @@ SETS = {  # a set's name, and the sounds in it
     "footstep": re.compile(r"step-\d$"),
     "sand step": re.compile(r"crunch-\d$"),
     "near miss": re.compile(r"whiz-\d$"),
-    "roar": re.compile(r"(colgera-)?roar-\d$"),
-    "roar from afar": re.compile(r"colgera-roar-far-\d$"),
 }
 
 
