@@ -68,13 +68,15 @@ export type SoundId =
   | 'luigi-hurt-2'
   | 'wario-hurt-1'
   | 'spongebob-hurt'
-  | 'patrick-hurt'
+  | 'patrick-hurt-1'
+  | 'patrick-hurt-2'
   | 'luigi-kill-1'
   | 'luigi-kill-2'
   | 'wario-kill-1'
   | 'wario-kill-2'
   | 'spongebob-kill-1'
   | 'spongebob-kill-2'
+  | 'patrick-kill-1'
   | 'mario-kill-1'
   | 'mario-kill-2'
   | 'mario-enter'
@@ -177,7 +179,8 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'luigi-hurt-2': { file: 'luigi-hurt-2.mp3', half: 6, reach: 30, volume: 0.25 },
   'wario-hurt-1': { file: 'wario-hurt-1.mp3', half: 6, reach: 30, volume: 0.25 },
   'spongebob-hurt': { file: 'spongebob-hurt.mp3', half: 6, reach: 30, volume: 0.25 },
-  'patrick-hurt': { file: 'patrick-hurt.mp3', half: 6, reach: 30, volume: 0.25 },
+  'patrick-hurt-1': { file: 'patrick-hurt-1.mp3', half: 6, reach: 30, volume: 0.25 },
+  'patrick-hurt-2': { file: 'patrick-hurt-2.mp3', half: 6, reach: 30, volume: 0.25 },
   'mario-kill-1': { file: 'mario-kill-1.mp3', half: 6, reach: 30, volume: 0.2 },
   'mario-kill-2': { file: 'mario-kill-2.mp3', half: 6, reach: 30, volume: 0.2 },
   'mario-enter': { file: 'mario-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
@@ -187,6 +190,7 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'wario-kill-2': { file: 'wario-kill-2.mp3', half: 6, reach: 30, volume: 0.2 },
   'spongebob-kill-1': { file: 'spongebob-kill-1.mp3', half: 6, reach: 30, volume: 0.2 },
   'spongebob-kill-2': { file: 'spongebob-kill-2.mp3', half: 6, reach: 30, volume: 0.2 },
+  'patrick-kill-1': { file: 'patrick-kill-1.mp3', half: 6, reach: 30, volume: 0.2 },
   'luigi-enter': { file: 'luigi-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'wario-enter': { file: 'wario-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'patrick-enter': { file: 'patrick-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
