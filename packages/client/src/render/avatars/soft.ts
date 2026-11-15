@@ -17,9 +17,10 @@ const FOOT_SHOWS = 0.12; // radians past the hem a joint down at the hem may be:
 const HEM_NEAR = 0.9; // the share of the skirt's length down from which that begins
 const MAX_SHIFT = 0.5; // radians from straight down a skirt's hem is carried ahead or behind to stay over the legs
 const TOP_LEANS = 0.6; // the share of that the top of the skirt leans, the hem carried the rest and kept level
-const MAX_TIP = 0.9; // radians the whole skirt tips after that, over legs held out further still: sat, or tucked
+const MAX_TIP = 1.4; // radians the whole skirt tips after that, over legs held out further still: sat with them up in front, or tucked
 const MAX_LEAN = 0.35; // and to a side
 const MAX_SPREAD = 1.3; // times its own width a hem is pushed out by legs wider apart than it
+const LIES_FLAT = 0.15; // the share of its length a skirt tipped level still reaches down
 const SHORTEST = 0.4; // the share of its length a skirt is gathered to at the least, over hips nearly on the floor
 // Radians the hips are from upright where a skirt starts to go with them, and where it has gone all the way.
 const GOES_OVER = 0.9;
@@ -93,7 +94,8 @@ export class Skirt {
         // A joint down at the hem may show under it; one higher up is kept well inside the cloth.
         const low = Math.max(0, Math.min(1, (down / (this.hem.drop * this.length) - HEM_NEAR) / (1 - HEM_NEAR)));
         const room = KNEE_ROOM - (KNEE_ROOM + FOOT_SHOWS) * low;
-        const fore = Math.atan2(STEP.z, down);
+        // Ahead or behind, a joint may be held above the top of the skirt: past level.
+        const fore = Math.atan2(STEP.z, -STEP.y);
         const side = Math.atan2(STEP.x, down);
         front = Math.max(front, fore + room);
         back = Math.min(back, fore - room);
@@ -108,7 +110,8 @@ export class Skirt {
     this.aside += (side.turn - this.aside) * k;
     this.deep += (fore.spread - this.deep) * k;
     this.wide += (side.spread - this.wide) * k;
-    const reach = this.hem.drop * Math.cos(Math.max(0, Math.abs(this.fore) - MAX_SHIFT));
+    // How far down it reaches as it lies: tipped right over, it lies along the legs and needs no gathering.
+    const reach = this.hem.drop * Math.max(LIES_FLAT, Math.cos(Math.abs(this.fore)));
     const length = Math.max(SHORTEST, Math.min(1, (TOP.y + this.base.position.y) / reach)) * (1 - turned) + turned;
     this.length += (length - this.length) * k;
     // Hung in its frame, whatever the hips are doing. The top ring, which most of the bell is on,

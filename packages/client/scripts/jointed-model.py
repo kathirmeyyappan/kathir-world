@@ -114,6 +114,51 @@ def surface(triangles: np.ndarray, step: float) -> np.ndarray:
     return np.vstack(out)
 
 
+def lining(part: dict[str, np.ndarray], skirt: list[int]) -> dict[str, np.ndarray]:
+    """A skirt's lining: a disc closing the hem of `part` (a mesh in the rip's frame, z up) from
+    underneath, so nothing shows up the skirt when it tips. Its rim is the outline, seen from above,
+    of the lowest of what hangs on the `skirt` bones, and its middle a little higher, clear of the
+    floor the hem stands on; it hangs on the last of those bones, the hem's, in the colour of the
+    cloth halfway up the skirt, and is lit as if it looked up, since what lights the body is over it."""
+    positions, triangles = part["positions"], part["triangles"]
+    cloth = np.flatnonzero(part["bones"][:, skirt].sum(axis=1) > 0.5)
+    low, high = positions[cloth, 2].min(), positions[cloth, 2].max()
+    hem = cloth[positions[cloth, 2] < low + 0.03 * (high - low)]
+    # The outline: the hem's corners from left to right, along the near side and back along the
+    # far one, keeping only the turns that go one way round.
+    spots = np.unique(np.round(positions[hem, :2], 5), axis=0)
+    outline: list[np.ndarray] = []
+    for side in (spots, spots[::-1]):
+        half: list[np.ndarray] = []
+        for spot in side:
+            while len(half) >= 2:
+                (ux, uy), (vx, vy) = half[-1] - half[-2], spot - half[-1]
+                if ux * vy - uy * vx > 0:
+                    break
+                half.pop()
+            half.append(spot)
+        outline += half[:-1]
+    rim = np.c_[np.array(outline), np.full(len(outline), low)]
+    middle = np.r_[rim[:, :2].mean(axis=0), low + 0.02 * (high - low)]
+    # Wound as the mesh winds a face that looks the way its corners' normals do, looking down.
+    a, b, c = (positions[triangles[:, i]] for i in range(3))
+    faces = np.sign(np.sum(np.cross(b - a, c - a) * part["normals"][triangles[:, 0]]))
+    n, base = len(rim), len(positions)
+    fan = np.array([[base + i, base + (i + 1) % n, base + n] for i in range(n)])
+    if np.cross(rim[1] - rim[0], middle - rim[0])[2] * faces > 0:  # that way round looks up
+        fan = fan[:, [1, 0, 2]]
+    weights = np.zeros((n + 1, part["bones"].shape[1]))
+    weights[:, skirt[-1]] = 1
+    return {
+        **part,
+        "positions": np.vstack([positions, rim, middle]),
+        "normals": np.vstack([part["normals"], np.tile([0.0, 0, 1], (n + 1, 1))]),
+        "uvs": np.vstack([part["uvs"], np.tile(part["uvs"][cloth[np.argsort(positions[cloth, 2])[len(cloth) // 2]]], (n + 1, 1))]),
+        "bones": np.vstack([part["bones"], weights]),
+        "triangles": np.vstack([triangles, fan]),
+    }
+
+
 def bare(joint: str | None) -> str | None:
     """A joint's name without the number its rip ends it with."""
     return None if joint is None else re.sub(r"_\d+$", "", joint)
@@ -226,6 +271,10 @@ def main(name: str, folder: str) -> None:
                 "picture": pictures[(polylist.get("material") or "").removesuffix("-material")],
             }
         )
+
+    skirt = [i for i, bone in enumerate(bone_names) if bone.startswith("skirt")]
+    if skirt:
+        parts = [lining(part, skirt) if part["bones"][:, skirt].any() else part for part in parts]
 
     posed = np.vstack([part["positions"] for part in parts])
     posed_normals = np.vstack([part["normals"] for part in parts])

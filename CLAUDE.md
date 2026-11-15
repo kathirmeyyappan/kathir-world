@@ -536,9 +536,11 @@ by themselves after the frame's pose (`render/avatars/soft.ts`, run as the figur
 Peach's skirt (`Skirt`: three rings down from the hips, with the model's `hem`) is a stiff bell
 that hangs straight down the body's frame however the hips lean, its hem carried level only as far
 as keeps her knees and ankles under it (a foot may show under the hem at the end of a step), pushed
-wider where they are further apart than it is, tipped whole over legs held out further still,
-gathered up short of the floor when the hips come down, and taken round with the hips in a
-somersault; so her legs move under it and stay out of sight. Her ponytail (`Tail`, with the look's
+wider where they are further apart than it is, tipped whole over legs held out further still
+(right over them, sat with them up in front of her in a ground pound), gathered up short of the
+floor when the hips come down, and taken round with the hips in a somersault; the model script
+closes its hem with a lining (`lining`), so nothing shows up it when it tips. Her legs move under
+it and stay out of sight. Her ponytail (`Tail`, with the look's
 `tail`, the way each link runs as the hair is dressed) is a chain of points that fall, are pulled
 toward that dressing and drag, kept off the head and the floor, worked out from where the body
 stands so the body's stepped travel never yanks it: it hangs down her back, swings behind a turn
