@@ -477,7 +477,8 @@ sounds, or a loop) and the sounds' pitch; the swing of its limbs is the renderer
 when adding one. What it says in its own voice is its row in `VOICES` (`audio/voices.ts`), which
 every look has. Its `enter` is its intro, the line every character is expected to have (empty
 until its recording is added): said as a player switches to the look, to them and everyone near,
-and on the home screen as the look is picked (`Sfx.ts` `audition`). An intro is `lazy` in `SOUNDS`
+on the home screen as the look is picked (`Sfx.ts` `audition`), and to the player alone as they
+come into the world wearing it, after the start press (with longer to arrive, `START_INTRO_LATE_MS`). An intro is `lazy` in `SOUNDS`
 and played with `Sfx.soon`: fetched the first time it's said within earshot and played as it
 arrives (let go if that takes over `LATE_MS`), so a client pays for the intros it hears and no
 others. Adding one is its file (mono mp3, levelled to the others' loudness), a `lazy` row in
@@ -496,6 +497,13 @@ or rarely heard. A clip cut from something longer gets a `swell` and a `fade` in
 how its cut begins and ends (a one-shot's `fade` dies away into its end): listen to both ends of
 every new recording, a death's above all, since one shorter than the death screen ends in silence,
 where a hard stop is plain. A death as long as the death screen takes no `fade`: the reload ends it.
+
+Every sound is balanced against the rest of its kind, so no clip stands out from its neighbours:
+level the file itself (a voice clip to a mean of about -17 dB with its peak under 0, by ffmpeg's
+`volumedetect`, measured over the sound and not the silence round it) and give it the `volume` its
+kind has in `SOUNDS` (the comment there ranks the kinds), never a `volume` of its own to make up
+for a quiet file. Measure a new clip beside the ones it will be heard among, and put the numbers in
+the PR.
 
 Craft a character with love: look at it in every state before the PR, and put the shots in it.
 Standing, walking, holding and aiming each weapon, firing, hit, dead, on a ladder; from the front,

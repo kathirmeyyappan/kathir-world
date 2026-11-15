@@ -58,12 +58,15 @@ export type SoundId =
   | 'mario-hurt-3'
   | 'luigi-hurt-1'
   | 'luigi-hurt-2'
+  | 'spongebob-hurt'
   | 'luigi-kill-1'
   | 'luigi-kill-2'
   | 'mario-kill-1'
   | 'mario-kill-2'
   | 'mario-enter'
   | 'luigi-enter'
+  | 'patrick-enter'
+  | 'spongebob-enter'
   | 'mario-death'
   | 'spongebob-death'
   | 'mike-death'
@@ -149,12 +152,15 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'mario-hurt-3': { file: 'mario-hurt-3.mp3', half: 6, reach: 30, volume: 0.25 },
   'luigi-hurt-1': { file: 'luigi-hurt-1.mp3', half: 6, reach: 30, volume: 0.25 },
   'luigi-hurt-2': { file: 'luigi-hurt-2.mp3', half: 6, reach: 30, volume: 0.25 },
+  'spongebob-hurt': { file: 'spongebob-hurt.mp3', half: 6, reach: 30, volume: 0.25 },
   'mario-kill-1': { file: 'mario-kill-1.mp3', half: 6, reach: 30, volume: 0.2 },
   'mario-kill-2': { file: 'mario-kill-2.mp3', half: 6, reach: 30, volume: 0.2 },
   'mario-enter': { file: 'mario-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'luigi-kill-1': { file: 'luigi-kill-1.mp3', half: 6, reach: 30, volume: 0.2 },
   'luigi-kill-2': { file: 'luigi-kill-2.mp3', half: 6, reach: 30, volume: 0.2 },
   'luigi-enter': { file: 'luigi-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
+  'patrick-enter': { file: 'patrick-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
+  'spongebob-enter': { file: 'spongebob-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   // A look's death (voices.ts): the sting and jingle, ten seconds of song, the death screen's
   // length, and Roz's line. Each is heard only by a player who dies as that look, so each is fetched
   // on demand. Each is a cut from something longer, so each swells and fades by how its cut begins
@@ -162,7 +168,7 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   // fade: it lasts the death screen out, whose reload ends it.
   'mario-death': { file: 'mario-death.mp3', half: 6, reach: 30, volume: 0.25, fade: 0.4, lazy: true },
   'spongebob-death': { file: 'spongebob-death.mp3', half: 6, reach: 30, volume: 0.2, swell: 0.8, lazy: true },
-  'mike-death': { file: 'mike-death.mp3', half: 6, reach: 30, volume: 0.5, swell: 0.15, fade: 0.5, lazy: true },
+  'mike-death': { file: 'mike-death.mp3', half: 6, reach: 30, volume: 0.3, swell: 0.15, fade: 0.5, lazy: true },
   'boat-horn': { file: 'boat-horn.mp3', half: 10, reach: 40, volume: 0.3, lazy: true }, // the foghorn alarm clock in SpongeBob's bedroom, at a click
   land: { file: 'land.mp3', half: 8, reach: 35, volume: 0.1 },
   'land-hard': { file: 'land-hard.mp3', half: 10, reach: 40, volume: 0.14 },
@@ -434,13 +440,13 @@ export class Sfx {
   }
 
   // A one-shot that may not be here yet (a lazy one first asked for now): played at once if it is,
-  // else as it arrives, unless that takes longer than LATE, when it's let go as too late to mean
-  // anything. One out of earshot is never sent for.
-  soon(id: SoundId, at: Vec3 | null = null): void {
+  // else as it arrives, unless that takes longer than `late` ms, when it's let go as too late to
+  // mean anything. One out of earshot is never sent for.
+  soon(id: SoundId, at: Vec3 | null = null, late = LATE_MS): void {
     if (this.play(id, at)) return;
     const asked = performance.now();
     void this.arriving.get(SOUNDS[id].file)?.then(() => {
-      if (performance.now() - asked < LATE_MS) this.play(id, at);
+      if (performance.now() - asked < late) this.play(id, at);
     });
   }
 

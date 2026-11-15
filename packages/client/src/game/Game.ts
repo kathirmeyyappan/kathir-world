@@ -97,6 +97,7 @@ const NEAR = 0.1;
 const NEAR_SHARE = 0.2;
 const SNAP_DISTANCE = 3;
 const PING_INTERVAL_MS = 2000;
+const START_INTRO_LATE_MS = 6000; // how long the intro of the look a player comes in as may take to arrive and still be said
 const HOVER_RANGE = 400; // sky objects can be read from anywhere
 // The foghorn alarm clock in SpongeBob's bedroom sounds at a click on it, for the player who clicked.
 const HORN = new Structures([PINEAPPLE_HORN]);
@@ -147,6 +148,7 @@ export class Game {
   private readonly models: Models;
   private readonly frost: FrostLayer; // the ice sprayed over the world's surfaces (sim/frost.ts)
   private hoveredDoor: string | null = null; // the door under the crosshair within reach (sim/doors.ts)
+  private introduced = false; // the look the player came in as has said its intro
   private hoveredHorn = false; // the bedroom's foghorn is under the crosshair within reach
   private useDoor: string | null = null; // a door clicked since the last input frame
   private readonly camera: UniversalCamera;
@@ -830,6 +832,14 @@ export class Game {
       if (this.look) this.say(this.myId, 'enter');
       this.look = self.avatar;
       for (const id of VOICES[self.avatar].death ?? []) this.sfx.want(id);
+    }
+    // The look the player comes in as says its intro too, once the start press (main.ts showStart,
+    // which takes #start away) has let sound play, with longer to arrive than a switch's: it is
+    // fetched among everything else the world's first seconds send for.
+    if (!this.introduced && !document.getElementById('start')) {
+      this.introduced = true;
+      const intro = take(VOICES[self.avatar].enter);
+      if (intro) this.sfx.soon(intro, null, START_INTRO_LATE_MS);
     }
     // A new look or a new item in hand takes the scope with it, as death does.
     const wearing = `${self.avatar} ${self.item?.id ?? ''}`;
