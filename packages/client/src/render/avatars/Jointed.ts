@@ -54,7 +54,7 @@ import {
   type BodyPose,
 } from './motion';
 import { SkinnedBody, type SkinnedModel } from './skinned';
-import { WalkerAvatar, type Figure, type Pose } from './Walker';
+import { limbLead, rungHeld, WalkerAvatar, type Figure, type Pose } from './Walker';
 
 export type JointedBone =
   | 'hips'
@@ -183,15 +183,23 @@ const GRIP_RUN = 1;
 const GRIP_FALL = 0.2;
 // On a ladder: the hips in toward it and the feet on its rungs, a rung apart, each stepping up as
 // the other holds; the hands on the rails overhead, each reaching as its own foot steps.
-const RUNG = 0.3; // metres between a ladder's rungs (render/Structures.ts)
+// On a ladder: looking up it, fists closed, toes up on the rungs.
 const CLIMB = pose({
-  hips: { z: 0.1, lean: 0.1 },
-  chest: { lean: 0.15 },
-  armL: { swing: 2.3, out: 0.25, elbow: 0.7, grip: 1 },
-  armR: { swing: 2.3, out: 0.25, elbow: 0.7, grip: 1 },
-  footL: { z: 0.3, y: RUNG / 2 + 0.05 },
-  footR: { z: 0.3, y: RUNG / 2 + 0.05 },
+  head: { lean: -0.2 },
+  armL: { grip: 1 },
+  armR: { grip: 1 },
+  footL: { pitch: -0.25 },
+  footR: { pitch: -0.25 },
 });
+const CLIMB_NEAR = 0.85; // the share of its arm's length a climber's shoulders are held from the rungs
+const CLIMB_BACK = 0.25; // metres its hips may hang back from where it stands to hold them there
+const HANDS_APART = 0.22; // metres each fist is from the ladder's middle, inside the rails
+const FEET_APART = 0.17;
+const HANDS_UP = 0.1; // the share of its arm's length its hands hold above its shoulders
+const STEP_UP = 0.2; // metres up from where it stands the middle of a foot's step is
+const RUNG_EDGE = 0.1; // metres this side of a rung's middle a fist closes on it
+const CLIMB_SWAY = 0.03; // metres its hips go over the foot that bears it
+const CLIMB_TILT = 0.05; // radians its hips tip with that
 // A fist: radians the fingers fold under the palm, and the thumb turns in and down after them.
 const FINGER_CURL = 1.7;
 const THUMB_FOLD = 0.6;
@@ -204,7 +212,6 @@ const FLIP_SHARE = 0.9; // the share of a triple jump's flight on the flat its s
 const POUND_IN = 0.07; // seconds a ground pound takes to pull the body into its turn
 const GETS_UP = 0.5; // the share of a ground pound's landing after which it's on its feet, and eases into what it does next
 const HEAD_AT = turnAt(CLIP_BONES.indexOf('head')); // where the head's turn is in a clip's moment
-const CLIMB_REACH = 0.35; // radians a hand goes up and down the rail with each rung
 
 export class JointedAvatar extends WalkerAvatar {
   private readonly rig: Rig;
@@ -213,7 +220,7 @@ export class JointedAvatar extends WalkerAvatar {
   private readonly out = motion();
   private readonly other = motion();
   private readonly third = motion();
-  private readonly rungs = pose(); // a pose worked out, not played: on a ladder
+  private readonly onLadder = pose(); // a pose worked out, not played: on a ladder
   private drawn: number | null = null; // when it was last drawn, seconds
   private last: { x: number; y: number; z: number; at: number } | null = null; // where it last moved to, and when
   private velX = 0; // m/s across the floor, in the world, as it last moved
@@ -417,26 +424,32 @@ export class JointedAvatar extends WalkerAvatar {
     return walked;
   }
 
-  // On a ladder, where the walker has put the body: feet stepping the rungs, hands going up the rails.
+  // On a ladder, where the walker has put the body: each fist and foot on a rung of it, going up
+  // in turn as the body climbs past, the hips in close and over the foot that bears them.
   protected override climb(p: RemotePlayer, feetY: number, dt: number): Pose {
-    const climbed = super.climb(p, feetY, dt);
+    const posed = super.climb(p, feetY, dt);
     this.watch(p, feetY);
     this.moving = this.airborne = this.impact = 0;
-    const held = this.rungs;
-    const s = Math.sin(this.climbPhase);
+    const { rig, climbed, rungsAhead: ahead } = this;
+    const held = this.onLadder;
     held.set(CLIMB);
-    held[FOOT_L + FOOT_Y] += (RUNG / 2) * s;
-    held[FOOT_R + FOOT_Y] -= (RUNG / 2) * s;
-    held[ARM_L + ARM_SWING] += CLIMB_REACH * s;
-    held[ARM_R + ARM_SWING] -= CLIMB_REACH * s;
+    held[HIP_Z] = Math.max(-CLIMB_BACK, ahead - RUNG_EDGE - rig.shoulder.z - CLIMB_NEAR * rig.armLength);
+    const over = Math.sin((climbed - limbLead(1, true)) * (Math.PI / 2));
+    held[HIP_X] = CLIMB_SWAY * over;
+    held[HIP_TILT] = CLIMB_TILT * over;
+    for (const side of [-1, 1] as const) {
+      const hand = rungHeld(climbed, limbLead(side, false), rig.shoulder.y + HANDS_UP * rig.armLength);
+      rig.reach(held, side, side * HANDS_APART, hand, ahead - RUNG_EDGE);
+      rig.tread(held, side, side * FEET_APART, rungHeld(climbed, limbLead(side, true), STEP_UP), ahead);
+    }
     this.facing = WORLD_STRUCTURES.ladderFacing(p.climb!.piece, p.climb!.side);
     this.bank = 0;
     const off = wrap(p.yaw - this.facing);
     held[HEAD_TURN] = Math.max(-HEAD_TURN_LIMIT, Math.min(HEAD_TURN_LIMIT, off));
     held[HEAD_LEAN] += p.pitch * this.style.follow;
-    this.rig.apply(held);
+    rig.apply(held);
     this.arm(p);
-    return climbed;
+    return posed;
   }
 
   protected override lie(): void {
@@ -507,6 +520,10 @@ class Rig {
   private readonly ankle: number; // metres the ankle stands off the ground
   private readonly toe: number;
   private readonly heel: number;
+  readonly shoulder: Vector3; // the right shoulder, standing
+  readonly armLength: number; // metres from a shoulder to its fist's middle, the arm straight
+  private readonly upper: number; // metres, shoulder to elbow
+  private readonly fore: number; // elbow to the fist's middle
   // Each leg's hip joint from the hips' pivot, and where its ankle stands.
   private readonly hipL: Vector3;
   private readonly hipR: Vector3;
@@ -528,6 +545,10 @@ class Rig {
     this.hipR = at('legR').subtract(this.hipsAt);
     this.standL = at('footL');
     this.standR = at('footR');
+    this.shoulder = at('armR');
+    this.upper = Vector3.Distance(at('armR'), at('forearmR'));
+    this.fore = Vector3.Distance(at('forearmR'), Vector3.FromArray(model.hand as number[]));
+    this.armLength = this.upper + this.fore;
 
     // A held item goes in the right palm, which the walker points along the look from the shoulder:
     // the arm's own length, straight, is its reach.
@@ -611,6 +632,35 @@ class Rig {
     this.leg(pose, FOOT_L, hips, this.hipL, this.standL, 'legL', 'shinL', 'footL');
     this.leg(pose, FOOT_R, hips, this.hipR, this.standR, 'legR', 'shinR', 'footR');
     this.gripped = -1;
+  }
+
+  // Turns an arm of `pose` to put its fist's middle at a point in the body's frame (metres: to its
+  // right, above where it stands, ahead), as near as the arm reaches, the elbow under it. The
+  // shoulder is taken where the hips carry it: the trunk's own leans move it little.
+  reach(pose: BodyPose, side: 1 | -1, x: number, y: number, z: number): void {
+    const at = side < 0 ? ARM_L : ARM_R;
+    const { upper, fore, shoulder } = this;
+    const tx = x - side * shoulder.x - pose[HIP_X];
+    const ty = y - shoulder.y - pose[HIP_Y];
+    const tz = z - shoulder.z - pose[HIP_Z];
+    const span = Math.min(upper + fore - 1e-4, Math.max(Math.abs(upper - fore) + 1e-4, Math.hypot(tx, ty, tz)));
+    // The arm's triangle: the upper arm is off the line to the fist by its angle at the shoulder,
+    // in the plane the elbow bends in, which the arm held `out` tips over to take in the fist.
+    const along = (upper * upper + span * span - fore * fore) / (2 * upper);
+    const ahead = Math.sqrt(Math.max(0, along * along - tx * tx));
+    pose[at + ARM_SWING] = Math.atan2(tz, -ty) - Math.acos(Math.min(1, ahead / Math.hypot(ty, tz)));
+    pose[at + ARM_OUT] = Math.atan2(side * tx, ahead);
+    pose[at + ARM_ELBOW] = Math.PI - Math.acos((upper * upper + fore * fore - span * span) / (2 * upper * fore));
+  }
+
+  // Puts a foot of `pose` with the ball of its sole at a point in the body's frame, as `reach` does
+  // a fist.
+  tread(pose: BodyPose, side: 1 | -1, x: number, y: number, z: number): void {
+    const at = side < 0 ? FOOT_L : FOOT_R;
+    const stand = side < 0 ? this.standL : this.standR;
+    pose[at + FOOT_X] = x - stand.x;
+    pose[at + FOOT_Y] = y;
+    pose[at + FOOT_Z] = z - stand.z - this.toe / 2;
   }
 
   // The weapon arm from the shoulder down as the model holds it, straight, its hand closed on the

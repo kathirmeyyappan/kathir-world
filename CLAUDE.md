@@ -237,7 +237,10 @@ Weapons work as on the ground. The look is client-authoritative, so the client h
 quarter turn of facing the ladder while climbing and turns it round with a swap (`Game.holdLook`),
 the camera swinging after it; every avatar on foot squares up to the rungs, steps them with
 whatever legs it has and reaches up with its free hand, points its weapon arm where the look goes,
-and swings half a turn round the ladder on a swap (`render/avatars/Walker.ts`). Bots' map treats a
+and swings half a turn round the ladder on a swap (`render/avatars/Walker.ts`). Its limbs are placed
+by how far up the ladder its feet are, never by time (`holding`): each stays on its rung while the
+body climbs past it, then goes up to the rung two above, a hand and then the foot across from it,
+so they run backward on the way down and hold still when it stops. Bots' map treats a
 ladder as a wall.
 Two ladders stand in the house (`content/pineapple.ts`): the library's, upright from the floor to
 the hatch's platform, since the slide is no way up, and the bedroom's, up the end of SpongeBob's
@@ -493,7 +496,8 @@ body last moved by more than that drift, in the air only which way it last moved
 down, and a landing's weight is the drop from its highest point. Every change of pose runs from
 rest to rest over a few frames, never snapped. The poses no clip covers (on a ladder, lying dead)
 are written as a `BodyPose` (`render/avatars/motion.ts`), which the rig solves, bending each leg
-to put its foot where the pose says. Characters on one rig can share clips (Luigi plays
+to put its foot where the pose says; on a ladder each fist and foot is put on a rung of it
+(`rungHeld`, `Rig.reach` and `Rig.tread`), the hips an arm's length back. Characters on one rig can share clips (Luigi plays
 Mario's, his legs running on in the air, and Wario plays them on his own short, wide-set legs with most of the arms' swing taken out and
 his body rocking over each foot, the style's `arms` and `waddle`; Waluigi plays them as they are), and a new one is a row in the model script's
 `CHARACTERS`, its files, and clips of its own if it moves its own way.
