@@ -65,6 +65,17 @@ BONES: tuple[tuple[str, str], ...] = (
     ("shinR", "KneeR"),
     ("footR", "FootR"),
 )
+# Bones only some rigs have, after the rest: what hangs off a body and moves by itself (Jointed.ts
+# `SoftBone`). Peach's skirt is three rings down from her hips, and her ponytail three joints back
+# from her head.
+SOFT: tuple[tuple[str, str], ...] = (
+    ("skirt1", "Skirt1"),
+    ("skirt2", "Skirt2"),
+    ("skirt3", "Skirt3"),
+    ("hair1", "Hair1"),
+    ("hair2", "Hair2"),
+    ("hair3", "Hair3"),
+)
 TORSO = ("hips", "spine", "chest")
 PALM = ("HandR", "Finger1R", "Thumb1R")  # a held item goes at their middle
 MESHES = ("Body__m_Body", "Body__m_Eye")  # the body and the face; the rest are the pupils
@@ -136,7 +147,9 @@ def main(name: str, folder: str) -> None:
     # Each mesh in the pose it was bound in, with the joints' own places there: the rig's nodes are
     # left as the game last posed them (sat down, in these), so the bind pose is the one to read.
     geometries = {g.get("id"): g for g in doc.iter(f"{NS}geometry")}
-    bone_names = [bone for bone, _ in BONES]
+    rigged = {bare(node.get("sid")) for node in doc.iter(f"{NS}node")}
+    bones = BONES + tuple(soft for soft in SOFT if soft[1] in rigged)
+    bone_names = [bone for bone, _ in bones]
     parts = []
     pivots: dict[str, np.ndarray] = {}
     joints_at: dict[str, np.ndarray] = {}
@@ -158,7 +171,7 @@ def main(name: str, folder: str) -> None:
         bind_shape = floats(skin.find(f"{NS}bind_shape_matrix")).reshape(4, 4)
         if not joints_at:
             joints_at = {joint: np.linalg.inv(m)[:3, 3] for joint, m in zip(joints, inverse_bind)}
-            pivots = {bone: joints_at[joint] for bone, joint in BONES}
+            pivots = {bone: joints_at[joint] for bone, joint in bones}
 
         # A joint belongs to the bone that names it or the nearest joint above it that a bone names,
         # else to the root: up the rig by the scene's nodes.
@@ -168,7 +181,7 @@ def main(name: str, folder: str) -> None:
             for child in node.findall(f"{NS}node")
             if bare(child.get("sid")) != bare(node.get("sid"))  # the pupils' joint is named as their node is
         }
-        named = {joint: i for i, (_, joint) in enumerate(BONES)}
+        named = {joint: i for i, (_, joint) in enumerate(bones)}
 
         def bone_of(joint: str | None) -> int:
             while joint is not None:
@@ -201,7 +214,7 @@ def main(name: str, folder: str) -> None:
         _, first, triangles = np.unique(
             np.c_[corners[:, 0], np.round(normals, 3), np.round(uv, 5)], axis=0, return_index=True, return_inverse=True
         )
-        folded = np.zeros((len(positions), len(BONES)))
+        folded = np.zeros((len(positions), len(bones)))
         np.add.at(folded, (np.repeat(np.arange(len(positions)), counts), joint_bone[pairs[:, 0]]), weight[pairs[:, 1]])
         parts.append(
             {
@@ -255,9 +268,9 @@ def main(name: str, folder: str) -> None:
     trunk = np.isin(order[:, 0], [bone_names.index(b) for b in TORSO])
     back_z = posed[trunk & (abs(posed[:, 1] - shoulder_y) < 1.5 * BACK_DROP)][:, 2].min() - BACK_DROP / 4
     back = np.array([0, shoulder_y, back_z])
-    # Fallen on its back, the body lies this far up: as far as anything (the back of the head) is
-    # behind the hips.
-    lie = -posed[:, 2].min()
+    # Fallen on its back, the body lies this far up: as far as anything that holds its shape (the
+    # back of the head) is behind the hips.
+    lie = -posed[order[:, 0] < len(BONES)][:, 2].min()
     # A shoe's sole: how far ahead of the ankle its toe reaches, and how far behind it its heel.
     shoe = posed[order[:, 0] == bone_names.index("footR")]
     sole = np.array([shoe[:, 2].max() - pivots["footR"][2], pivots["footR"][2] - shoe[:, 2].min()])
@@ -282,6 +295,16 @@ def main(name: str, folder: str) -> None:
     mitt = posed[np.isin(order[:, 0], [bone_names.index(b) for b in ("handR", "fingersR", "thumbR")])] - palm
     grip = np.column_stack([mitt[:, 0], mitt[:, 2], -mitt[:, 1]])
     print("temple:", np.round(temple, 3), "head relief:", relief.shape, "hand vertices:", len(grip))
+
+    # A skirt's hem, from the top of the skirt: how far it reaches to a side, ahead and behind, and
+    # how far down it is.
+    hem = None
+    if "skirt1" in bone_names:
+        skirt = posed[np.isin(order[:, 0], [bone_names.index(b) for b in bone_names if b.startswith("skirt")])]
+        hem = np.array(
+            [abs(skirt[:, 0]).max(), skirt[:, 2].max(), -skirt[:, 2].min(), pivots["skirt1"][1] - skirt[:, 1].min()]
+        )
+        print("hem:", np.round(hem, 3))
 
     regions = [
         textured(Image.open(rip / part["picture"]).convert("RGB"), uv, span, character.texture_size)
@@ -308,6 +331,14 @@ def main(name: str, folder: str) -> None:
         "// side, at the points of a grid `cell` metres apart up (rows) and ahead (`across` to a row) from `at`, metres",
         "// up and ahead of the neck (Int16 millimetres, base64); `mitt` the right hand's vertices from its palm's",
         "// middle, palm down, as Int16 millimetre triples: along the fingers, across, and how far under.",
+        *(
+            [
+                "// `hem` is the skirt's: metres it reaches from the skirt's middle to a side, ahead and behind, and",
+                "// how far below the skirt's top bone it is.",
+            ]
+            if hem is not None
+            else []
+        ),
         f"export const {name.upper()}_MODEL = {{",
         f"  height: {character.height},",
         f"  hand: {vec(palm)},",
@@ -317,6 +348,7 @@ def main(name: str, folder: str) -> None:
         f"  temple: {vec(temple)},",
         f"  skull: {{ at: {vec(skull_at)}, cell: {RELIEF_CELL}, across: {relief.shape[1]}, far: '{b64(np.round(relief * 1000).astype('<i2'))}' }},",
         f"  mitt: '{b64(np.round(grip * 1000).astype('<i2'))}',",
+        *([f"  hem: {vec(hem)},"] if hem is not None else []),
         "  bones: {",
         *(f"    {bone}: {vec(pivots[bone])}," for bone in bone_names),
         "  },",

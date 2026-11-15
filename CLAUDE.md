@@ -453,7 +453,10 @@ turns it on and off, since a thumb can't hold it and press JUMP) is a crouch,
 `PlayerState.crouch`: its walk at the `crawl` share, the run adding nothing, and a jump out of it
 held still a backflip, `PlayerState.backflip`, rising `flip` times its jump's height in the
 chain's place, and out of a crawl its long jump, the run or no; that last is for players to find,
-so the hint, the legend and the guide don't say it) and a builder in `packages/client/src/render/avatars/` (`MAKERS` in `index.ts`,
+so the hint, the legend and the guide don't say it; with a `float`, the `float` action (the jump
+key held, which the touch JUMP button holds too) coming down holds the fall, `PlayerState.floating`:
+it sinks at `sink` for as long as it's held, up to `seconds` between one landing and the next
+(`floated`), and a long jump and a ground pound don't float) and a builder in `packages/client/src/render/avatars/` (`MAKERS` in `index.ts`,
 which the compiler asks for). Everyone on foot is a `Figure` (`render/avatars/Walker.ts`): the
 builder makes the avatar's parts under the base node and says which plays which role (what tips
 with the look, a head, the legs, the free arm, the weapon arm with its grip and the way it reaches
@@ -476,7 +479,7 @@ A character that should move like itself is a jointed body (`render/avatars/Join
 `JointedAvatar`, a `WalkerAvatar` that poses every phase itself): a whole skeleton (hips, spine,
 chest, head, arms with elbows, hands with fingers and a thumb, legs with knees and feet) under a
 model from `scripts/jointed-model.py`, which reads a rip of the character's own model (Mario's,
-Luigi's, Wario's and Waluigi's are on one rig, in a T-pose), moved by animation clips (`render/avatars/clips.ts`):
+Luigi's, Wario's, Waluigi's and Peach's are on one rig, in a T-pose), moved by animation clips (`render/avatars/clips.ts`):
 frames of where the hips are and how each bone is turned, drawn by an animator, never worked out.
 Mario's are Super Mario 64's own (`marioClips.ts`, baked by `scripts/jointed-clips.py` from a
 rigged, animated rip of that game's Mario: each source bone's turn from its T-pose carried onto
@@ -487,7 +490,8 @@ for a look with the move a `leap`, a long jump played takeoff to landing, `doubl
 somersault fitted to the flight so it's over just before the landing, and `pound` and
 `pounded`, a ground pound turning over into the seat it drops in, then landing sat and getting
 up, and `crouch`, `crawl` and `backflip`, sat low, a cycle of the crawl's limbs, and the backward
-somersault of the jump out of it, fitted to its flight as the triple's is) and a few numbers; the frame's pose is those sampled and blended: the idle into the walk or run at the
+somersault of the jump out of it, fitted to its flight as the triple's is, and `float`, hanging
+in the air through a float) and a few numbers; the frame's pose is those sampled and blended: the idle into the walk or run at the
 point in the stride its feet have got to (the footsteps' phase, so feet land with their sounds,
 and the stride is the same at any speed, the legs only quicker), the jump going up into the fall
 coming down, and a landing as hard as the drop. Don't invent a character's motion from numbers:
@@ -511,7 +515,25 @@ out as rests it on whatever of the head is under it (`Rig.resting`, from the hea
 hand's vertices, the model script's `skull` and `mitt`), so it touches the head and is never in it. Characters on one rig can share clips (Luigi plays
 Mario's, his legs running on in the air, and Wario plays them on his own short, wide-set legs with most of the arms' swing taken out and
 his body rocking over each foot, the style's `arms` and `waddle`; Waluigi plays them as they are), and a new one is a row in the model script's
-`CHARACTERS`, its files, and clips of its own if it moves its own way.
+`CHARACTERS`, its files, and clips of its own if it moves its own way. Peach moves her own way
+wherever Mario's won't do for her: her idle, her walk, the quick walk she has in a run's place, her
+jump, fall, landing and float are Super Smash Bros. Brawl's (`peachClips.ts`, baked by
+`scripts/peach-clips.py` from her files in that game, which `scripts/brawl.py` reads: the model's
+bones and the animations' keys), and the rest Mario's; what the two bake scripts share, carrying a
+source skeleton's poses onto the jointed body's and writing a clips file, is `scripts/clips.py`.
+
+A model may carry bones no clip or pose turns (`SoftBone`, the model script's `SOFT`), which move
+by themselves after the frame's pose (`render/avatars/soft.ts`, run as the figure's `extra`).
+Peach's skirt (`Skirt`: three rings down from the hips, with the model's `hem`) is a stiff bell
+that hangs straight down the body's frame however the hips lean, its hem carried level only as far
+as keeps her knees and ankles under it (a foot may show under the hem at the end of a step), pushed
+wider where they are further apart than it is, tipped whole over legs held out further still,
+gathered up short of the floor when the hips come down, and taken round with the hips in a
+somersault; so her legs move under it and stay out of sight. Her ponytail (`Tail`, with the look's
+`tail`, the way each link runs as the hair is dressed) is a chain of points that fall, are pulled
+toward that dressing and drag, kept off the head and the floor, worked out from where the body
+stands so the body's stepped travel never yanks it: it hangs down her back, swings behind a turn
+and a start, and trails a run a little.
 
 Its walk is a row in `GAITS` (`render/avatars/gaits.ts`): the metres between its footfalls, which pace
 its step sounds and its limbs alike (and, for a look that crouches, its `crawl`, the metres between

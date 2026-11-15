@@ -7,6 +7,7 @@ import {
   chainOf,
   climbSpeedOf,
   crouchOf,
+  floatOf,
   jumpVelocityOf,
   leapOf,
   poundOf,
@@ -58,7 +59,8 @@ export const WALKER: ClassSpec = {
     p.rest = 0;
     p.hop = 0;
     p.pound = null;
-    p.crouch = p.backflip = false;
+    p.crouch = p.backflip = p.floating = false;
+    p.floated = 0;
   },
   step: stepWalker,
   aim: (p) => lookDirection(p.yaw, p.pitch),
@@ -112,7 +114,7 @@ export function stepWalker(
     p.hop = 0;
     p.vx = p.vz = p.vy = 0;
     p.thrown = null;
-    p.leap = p.backflip = false;
+    p.leap = p.backflip = p.floating = false;
     stepGear(p, [], grounded, dt);
     return 0;
   }
@@ -177,7 +179,17 @@ export function stepWalker(
   const ceiling = structures.ceilingAt(p.pos.x, p.pos.z, p.pos.y + CAPSULE_TOP);
   if (push) p.leap = p.backflip = false;
   if (push) p.hop = 0;
+  // A float holds a fall: with its action held coming down, and float left, it only sinks.
+  const float = floatOf(p.avatar);
+  const floats = input ? input.actions.includes('float') : p.floating;
+  p.floating =
+    float !== null && floats && !grounded && !push && !p.dead && !p.leap && p.vy <= 0 && p.floated < float.seconds;
+  if (p.floating) {
+    p.floated += dt;
+    p.backflip = false;
+  }
   p.vy -= GRAVITY * (p.leap ? (leapOf(p.avatar)?.float ?? 1) : 1) * dt;
+  if (p.floating && float) p.vy = Math.max(p.vy, -float.sink);
   if (push) p.vy = thrust(p.vy, push, dt);
   p.pos.y += p.vy * dt;
   if (p.pos.y + CAPSULE_TOP > ceiling) {
@@ -196,7 +208,8 @@ export function stepWalker(
     if (!grounded) p.down = 0;
     if (p.leap) p.rest = LEAP_REST;
     p.thrown = null;
-    p.leap = p.backflip = false;
+    p.leap = p.backflip = p.floating = false;
+    p.floated = 0;
   }
 
   // Across the floor: where the keys send the walk, at its speed. On a sure footing, and in the
@@ -314,7 +327,8 @@ function takeHold(
     p.pos.z = spot.z;
     p.vx = p.vz = p.vy = 0;
     p.thrown = null;
-    p.leap = p.backflip = false;
+    p.leap = p.backflip = p.floating = false;
+    p.floated = 0;
     p.hop = 0;
     return true;
   }

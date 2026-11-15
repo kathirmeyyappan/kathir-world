@@ -47,6 +47,7 @@ export const ABILITIES: Record<AbilityId, string> = {
   pound: 'Ground pound',
   crouch: 'Crouch',
   backflip: 'Backflip',
+  float: 'Float',
   chain: 'Triple jump',
 };
 

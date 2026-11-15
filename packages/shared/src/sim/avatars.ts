@@ -65,6 +65,15 @@ interface Moves {
   pound?: Pound;
   chain?: Chain;
   crouch?: Crouch;
+  float?: Float;
+}
+
+// A float: what holding the float action coming down is, for a look that has one (walker.ts). It
+// stops falling and sinks slowly, for as long as the action is held and it has float left: it has
+// `seconds` of it between one landing and the next. A long jump and a ground pound don't float.
+export interface Float {
+  seconds: number;
+  sink: number; // m/s it comes down at
 }
 
 // A crouch: what holding the crouch action on the ground is, for a look that has one (walker.ts).
@@ -211,6 +220,7 @@ const LOOKS = {
     pound: { damage: 1.5, reach: 3, twirl: 1 / 3, speed: 20, recover: 0.35, knock: { speed: 4, lift: 3, grip: 6 } },
     chain: { jumps: 3, gap: 0.3, rise: 1.2 },
     crouch: { crawl: 0.3, flip: 1.5 },
+    float: { seconds: 3, sink: 0.4 },
   },
   spongebob: {
     id: 'spongebob',
@@ -454,6 +464,12 @@ export function crouchOf(avatar: AvatarId): Crouch | null {
   return (look.class === 'walker' && look.crouch) || null;
 }
 
+// A look's float, if it has one.
+export function floatOf(avatar: AvatarId): Float | null {
+  const look: AvatarSpec = AVATARS[avatar];
+  return (look.class === 'walker' && look.float) || null;
+}
+
 // A look's ground pound, if it has one.
 export function poundOf(avatar: AvatarId): Pound | null {
   const look: AvatarSpec = AVATARS[avatar];
@@ -483,6 +499,7 @@ const MOVE_HELP: Record<Exclude<keyof Moves, 'walk' | 'jump'>, MoveHelp | null> 
     touch: '[CROUCH] to crouch, and [JUMP] from it to backflip',
     key: { key: 'X', does: 'crouch' },
   },
+  float: { keys: 'hold [Space] in the air to float', touch: 'hold [JUMP] in the air to float' },
 };
 
 // The help of each move a look has, in the order they're listed.
