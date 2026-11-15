@@ -465,7 +465,7 @@ function pointOf(head: Vec3, spine: readonly number[], i: number): Vec3 | null {
 // A dragon with weak points is hurt through them alone, a whole heart a crystal: a bullet that
 // reaches one shatters it, while a spray only washes over it. Anywhere else, or one already
 // shattered, costs nothing. One without them takes the damage as it comes.
-function hurt(p: PlayerState, part: HitPart, damage: number, item: ItemSpec): number {
+function hurt(p: PlayerState, part: HitPart, damage: number, item: Pick<ItemSpec, 'shatters'>): number {
   const shape = dragonShape(p.avatar);
   if (shape.weak.length === 0) return damage;
   if (typeof part !== 'number' || !item.shatters || !p.dragon || p.dragon.shattered.includes(part)) return 0;

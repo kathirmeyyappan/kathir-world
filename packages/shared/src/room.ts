@@ -30,9 +30,9 @@ import {
   TICK_RATE,
 } from './sim/constants';
 import { parseCommand, type BotCallArgs, type Command } from './commands';
-import { AVATARS, eyeOf, poundOf, poundPower, type AvatarId } from './sim/avatars';
+import { AVATARS, eyeOf, poundOf, poundPower, strikeOf, type AvatarId } from './sim/avatars';
 import { classOf, heartsOf } from './sim/classes';
-import { resolveFire } from './sim/combat';
+import { findStrikeHits, resolveFire } from './sim/combat';
 import { frostDisc, sprayFrost } from './sim/frost';
 import { PositionHistory, rewindTick } from './sim/rewind';
 import { REGEN_RATE, applyDamage, damageFor, fallDamage } from './sim/health';
@@ -408,12 +408,13 @@ export class Room {
     this.broadcast({ t: 'door', id, open, by: me.id });
   }
 
-  // Takes hearts off `victim`, for a shot by `by.shooter` (or their ground pound) or, with no `by`,
-  // a fall, and kills them at zero. A death is one structured message; clients word the announcement.
+  // Takes hearts off `victim`, for a shot by `by.shooter` (or their `move`: a ground pound, a
+  // strike) or, with no `by`, a fall, and kills them at zero. A death is one structured message;
+  // clients word the announcement.
   private damage(
     victim: PlayerState,
     damage: number,
-    by: { shooter: Seat; headshot: boolean; pound?: boolean } | null,
+    by: { shooter: Seat; headshot: boolean; move?: 'pound' | 'strike' } | null,
   ): void {
     const killed = applyDamage(victim, damage);
     const shooter = by?.shooter.state ?? null;
@@ -431,7 +432,7 @@ export class Room {
     if (seat) seat.diedTick = this.tick;
     if (!shooter) return this.broadcast({ t: 'fell', victim: victim.id });
     shooter.kills++;
-    const item = by?.pound ? 'pound' : shooter.item!.id;
+    const item = by?.move ?? shooter.item!.id;
     this.broadcast({ t: 'kill', shooter: shooter.id, victim: victim.id, item, headshot });
   }
 
@@ -457,8 +458,41 @@ export class Room {
       const out = flat > 1e-6 ? { x: dx / flat, z: dz / flat } : { x: 1, z: 0 };
       const { speed, lift, grip } = pound.knock;
       throwWalker(p, { x: out.x * speed, y: lift, z: out.z * speed }, grip);
-      this.damage(p, hurt, { shooter: seat, headshot: false, pound: true });
+      this.damage(p, hurt, { shooter: seat, headshot: false, move: 'pound' });
     }
+  }
+
+  // A strike's blow (avatars.ts `Strike`), on the step its windup runs out in (`was` being how far
+  // into it the step began): everyone it lands on is hurt, and a walker thrown back from the
+  // striker. It breaks a dragon's crystal as a bullet does.
+  private strike(seat: Seat, was: number | null): void {
+    const me = seat.state;
+    const strike = strikeOf(me.avatar);
+    if (!strike || me.dead || was === null || me.strike === null) return;
+    const due = strike.windup - 1e-9; // six ticks of a thirtieth come a hair short of a fifth
+    if (was >= due || me.strike < due) return;
+    for (const hit of findStrikeHits(me, this.players, strike, this.structures)) {
+      const victim = hit.target;
+      const cls = classOf(victim.avatar);
+      const hearts = cls.hurt?.(victim, hit.part, strike.damage, { shatters: true }) ?? strike.damage;
+      if (hearts === 0) continue;
+      if (cls.id === 'walker') {
+        const dx = victim.pos.x - me.pos.x;
+        const dz = victim.pos.z - me.pos.z;
+        const flat = Math.hypot(dx, dz);
+        const out = flat > 1e-6 ? { x: dx / flat, z: dz / flat } : { x: Math.sin(me.yaw), z: Math.cos(me.yaw) };
+        const { speed, lift, grip } = strike.knock;
+        throwWalker(victim, { x: out.x * speed, y: lift, z: out.z * speed }, grip);
+      }
+      this.damage(victim, hearts, { shooter: seat, headshot: false, move: 'strike' });
+    }
+  }
+
+  // One step of a seat's player, on `frame` or with none, and what comes of it.
+  private advance(seat: Seat, frame: InputFrame | null): void {
+    const struck = seat.state.strike;
+    this.land(seat, stepPlayer(seat.state, frame, TICK_DT, this.worldShape, this.structures));
+    this.strike(seat, struck);
   }
 
   step(): void {
@@ -475,11 +509,11 @@ export class Room {
         me.hearts = Math.min(heartsOf(me.avatar), me.hearts + REGEN_RATE * TICK_DT);
       const n = Math.min(seat.queue.length, MAX_INPUTS_PER_TICK);
       if (n === 0) {
-        this.land(seat, stepPlayer(seat.state, null, TICK_DT, this.worldShape, this.structures));
+        this.advance(seat, null);
         continue;
       }
       for (let i = 0; i < n; i++) {
-        this.land(seat, stepPlayer(seat.state, seat.queue[i], TICK_DT, this.worldShape, this.structures));
+        this.advance(seat, seat.queue[i]);
         this.applyActions(seat, seat.queue[i]);
         const use = seat.queue[i].use;
         if (use) this.useDoor(seat, use);

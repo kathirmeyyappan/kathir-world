@@ -1,8 +1,18 @@
 // Weapon shapes and the first-person viewmodel. Each item has a blocky shape built from boxes;
 // the same shape sits in the camera's bottom-right for the local player and in the right hand of
-// other players' avatars. Recoil and muzzle flash are viewmodel-only.
-import { Color3, Mesh, MeshBuilder, StandardMaterial, TransformNode, Vector3, type Camera } from '@babylonjs/core';
-import { ITEMS, ITEM_IDS, type AvatarId, type Element, type ItemId } from '@world/shared';
+// other players' avatars. Recoil and muzzle flash are viewmodel-only, as is the bat a strike swings
+// across the view.
+import {
+  Color3,
+  Mesh,
+  MeshBuilder,
+  Quaternion,
+  StandardMaterial,
+  TransformNode,
+  Vector3,
+  type Camera,
+} from '@babylonjs/core';
+import { ITEMS, ITEM_IDS, type AvatarId, type Element, type ItemId, type Strike } from '@world/shared';
 import type { Engine } from './Engine';
 import { coneAngle, createJet, type Jet } from './Jet';
 
@@ -144,7 +154,23 @@ export function buildFlash(engine: Engine, name: string, parent: TransformNode, 
   return flash;
 }
 
+// A strike's bat in the first-person view (sim/avatars.ts `Strike`): where its handle is held, in
+// the camera's frame (x to the right, y up, z ahead), and the way it points when cocked, at the
+// blow, after following through, and lowered out of sight, where it starts from and ends.
+const BAT_HELD = new Vector3(-0.42, -0.34, 0.3);
+const BAT_SWING = [
+  new Vector3(-0.45, 0.8, -0.4),
+  new Vector3(0.5, 0.02, 0.86),
+  new Vector3(0.85, -0.5, 0.2),
+  new Vector3(0.1, -1, 0.1),
+].map((v) => Quaternion.FromUnitVectorsToRef(Vector3.Up(), v.normalize(), new Quaternion()));
+const BAT_COCKED = 0.6; // the share of the windup it takes to cock, and of the recovery to follow through: the avatar's (avatars/Sahur.ts)
+const BAT_FOLLOWED = 0.3;
+
 export class Viewmodel {
+  private readonly bat: TransformNode; // at the bat's handle, turned to swing it
+  private struck: number | null = null; // the strike last seen (seconds into it)
+  private swung = -1; // seconds into the swing being drawn; negative with none
   private readonly root: TransformNode;
   private readonly shapes = new Map<ItemId, { node: TransformNode; flash: Mesh; jet: Jet | null }>();
   private current: ItemId | null = null;
@@ -181,10 +207,54 @@ export class Viewmodel {
       node.setEnabled(false);
       this.shapes.set(id, { node, flash, jet });
     }
+    this.bat = new TransformNode('viewmodel-bat', scene);
+    this.bat.parent = camera;
+    this.bat.position.copyFrom(BAT_HELD);
+    this.bat.rotationQuaternion = BAT_SWING[BAT_SWING.length - 1].clone();
+    const wood = new StandardMaterial('viewmodel-bat', scene);
+    wood.diffuseColor = new Color3(0.62, 0.33, 0.14);
+    wood.emissiveColor = wood.diffuseColor.scale(0.3);
+    wood.specularColor = Color3.Black();
+    const barrel = MeshBuilder.CreateCylinder(
+      'viewmodel-bat-barrel',
+      { height: 0.95, diameterBottom: 0.07, diameterTop: 0.16, tessellation: 10 },
+      scene,
+    );
+    barrel.material = wood;
+    barrel.parent = this.bat;
+    barrel.position.y = 0.475; // the handle's end at the node, the barrel out along its y
+    barrel.isPickable = false;
+    this.bat.setEnabled(false);
     // Drawn over the world, with the depth cleared first: the item reaches past the eyes further
     // than a ladder's rungs or a wall stand off them, and would otherwise vanish into whatever the
     // player is up against.
-    for (const mesh of this.root.getChildMeshes()) mesh.renderingGroupId = 1;
+    for (const mesh of [...this.root.getChildMeshes(), barrel]) mesh.renderingGroupId = 1;
+  }
+
+  // A strike's swing across the view: `strike` is how far into one the player is (null out of one,
+  // or with the view off their eyes) and `spec` their look's. Seen to begin, it runs on its own
+  // clock for `dt` a frame, up from out of sight to cocked, down through the blow, across, and
+  // away again.
+  swing(strike: number | null, spec: Strike | null, dt: number): void {
+    if (strike !== null && (this.struck === null || strike < this.struck)) this.swung = strike;
+    else if (this.swung >= 0) this.swung += dt;
+    this.struck = strike;
+    if (!spec || strike === null || this.swung >= spec.windup + spec.recover) this.swung = -1;
+    this.bat.setEnabled(spec !== null && this.swung >= 0);
+    if (!spec || this.swung < 0) return;
+    const ends = [
+      spec.windup * BAT_COCKED,
+      spec.windup,
+      spec.windup + spec.recover * BAT_FOLLOWED,
+      spec.windup + spec.recover,
+    ];
+    const k = ends.findIndex((end) => this.swung < end);
+    const began = k === 0 ? 0 : ends[k - 1];
+    const through = (this.swung - began) / (ends[k] - began);
+    const from = BAT_SWING[(k + BAT_SWING.length - 1) % BAT_SWING.length];
+    // The blow gathers speed all the way; the rest ease in and out.
+    const eased = k === 1 ? through * through : through * through * (3 - 2 * through);
+    Quaternion.SlerpToRef(from, BAT_SWING[k], eased, this.bat.rotationQuaternion!);
   }
 
   // Show this item (or nothing), held as `avatar` holds it. Hidden while scoped: the scope overlay is

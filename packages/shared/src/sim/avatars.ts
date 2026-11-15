@@ -64,6 +64,21 @@ interface Moves {
   pound?: Pound;
   chain?: Chain;
   crouch?: Crouch;
+  strike?: Strike;
+}
+
+// A strike: what the strike action is, for a look that carries something to hit with in its free
+// hand (walker.ts, the Room). It's swung whatever else the body is doing, a weapon in its other
+// hand or none, and lands once, `windup` after the press, on everyone in front of the body.
+export interface Strike {
+  damage: number; // hearts it takes off everyone it lands on
+  reach: number; // metres from the middle of the body it lands within
+  arc: number; // radians either side of the way the body faces it sweeps
+  windup: number; // seconds from the press to the blow
+  recover: number; // seconds from the blow until it can be swung again
+  // The throw it gives a walker it lands on (walker.ts `throwWalker`): away from the body at
+  // `speed` m/s and up at `lift`, with `grip` m/s² of the keys left to them until they land.
+  knock: { speed: number; lift: number; grip: number };
 }
 
 // A crouch: what holding the crouch action on the ground is, for a look that has one (walker.ts).
@@ -314,6 +329,14 @@ const LOOKS = {
     hitbox: { top: 3.2, radius: 0.55, head: 0.95 }, // a 0.7 m log; the head is the face, chin up
     walk: 8,
     jump: 1,
+    strike: {
+      damage: 2,
+      reach: 2.5,
+      arc: Math.PI / 3,
+      windup: 0.2,
+      recover: 0.35,
+      knock: { speed: 5, lift: 3, grip: 6 },
+    }, // its bat
   },
   'light-dragon': {
     id: 'light-dragon',
@@ -437,6 +460,12 @@ export function crouchOf(avatar: AvatarId): Crouch | null {
   return (look.class === 'walker' && look.crouch) || null;
 }
 
+// A look's strike, if it has one.
+export function strikeOf(avatar: AvatarId): Strike | null {
+  const look: AvatarSpec = AVATARS[avatar];
+  return (look.class === 'walker' && look.strike) || null;
+}
+
 // A look's ground pound, if it has one.
 export function poundOf(avatar: AvatarId): Pound | null {
   const look: AvatarSpec = AVATARS[avatar];
@@ -478,6 +507,11 @@ const MOVE_HELP: Record<Exclude<keyof Moves, 'walk' | 'jump'>, MoveHelp | null> 
     keys: 'hold [X] to crouch, and [Space] from it to backflip',
     touch: '[CROUCH] to crouch, and [JUMP] from it to backflip',
     key: { key: 'X', does: 'crouch' },
+  },
+  strike: {
+    keys: '[X] to swing the bat',
+    touch: '[BAT] to swing the bat',
+    key: { key: 'X', does: 'swing the bat' },
   },
 };
 

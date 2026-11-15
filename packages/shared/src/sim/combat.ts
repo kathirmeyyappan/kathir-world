@@ -6,7 +6,7 @@
 // was hit (a headshot, a weak point); a cone takes everyone with any of it inside, through a weak
 // point where the shooter is under one. Structures stop shots: nothing behind a wall is hit.
 // Damage numbers live in health.ts.
-import { eyeOf, type AvatarId, type Hitbox } from './avatars';
+import { AVATARS, eyeOf, type AvatarId, type Hitbox, type Strike } from './avatars';
 import { classOf, type HitPart, type HitShape, type Sphere } from './classes';
 import type { Structures } from './collision';
 import type { DragonState } from './dragon';
@@ -71,6 +71,31 @@ export function findConeHits<T extends Target>(
   for (const p of players) {
     if (p.id === shooter.id || p.dead) continue;
     const part = inCone(o, dir, classOf(p.avatar).hitShape(p), range, halfAngle, structures);
+    if (part !== null) hits.push({ target: p, headshot: false, part });
+  }
+  return hits;
+}
+
+// Everyone a strike lands on (avatars.ts `Strike`): every live player with any of their shape
+// within its reach of the middle of the striker's body and within its arc of the way the body
+// faces, level across the floor wherever the look is tipped, with a clear line from there to them.
+// No headshots.
+export function findStrikeHits<T extends Target>(
+  striker: Pick<Shooter, 'id' | 'pos' | 'yaw' | 'avatar'>,
+  players: Iterable<T>,
+  strike: Pick<Strike, 'reach' | 'arc'>,
+  structures: Structures = WORLD_STRUCTURES,
+): Hit<T>[] {
+  const o = {
+    x: striker.pos.x,
+    y: capsuleFeetY(striker.pos.y) + AVATARS[striker.avatar].hitbox.top / 2,
+    z: striker.pos.z,
+  };
+  const dir = lookDirection(striker.yaw, 0);
+  const hits: Hit<T>[] = [];
+  for (const p of players) {
+    if (p.id === striker.id || p.dead) continue;
+    const part = inCone(o, dir, classOf(p.avatar).hitShape(p), strike.reach, strike.arc, structures);
     if (part !== null) hits.push({ target: p, headshot: false, part });
   }
   return hits;

@@ -31,6 +31,7 @@ import {
   leapOf,
   lifeOf,
   poundOf,
+  strikeOf,
   crouchOf,
   walkSpeedOf,
   type AvatarId,
@@ -85,11 +86,28 @@ export function characterStats(id: AvatarId): Stat[] {
 }
 
 // What a character can do that the rest can't, each with its own numbers.
-export type AbilityId = 'leap' | 'pound' | 'chain' | 'crouch' | 'backflip';
+export type AbilityId = 'leap' | 'pound' | 'chain' | 'crouch' | 'backflip' | 'strike';
 
 // A character's special abilities, read off its row: none for most.
 export function abilityStats(id: AvatarId): { id: AbilityId; stats: Stat[] }[] {
-  return [...leapStats(id), ...chainStats(id), ...poundStats(id), ...crouchStats(id)];
+  return [...leapStats(id), ...chainStats(id), ...poundStats(id), ...crouchStats(id), ...strikeStats(id)];
+}
+
+function strikeStats(id: AvatarId): { id: AbilityId; stats: Stat[] }[] {
+  const strike = strikeOf(id);
+  if (!strike) return [];
+  return [
+    {
+      id: 'strike',
+      stats: [
+        { label: 'Use', value: 'Hit X, with a weapon in hand or none' },
+        { label: 'Damage', value: `${num(strike.damage)} hearts` },
+        { label: 'Reach', value: `${num(strike.reach)} m` },
+        { label: 'Knockback', value: `${num(strike.knock.speed)} m/s` },
+        { label: 'Time between swings', value: `${num(strike.windup + strike.recover)} s` },
+      ],
+    },
+  ];
 }
 
 function chainStats(id: AvatarId): { id: AbilityId; stats: Stat[] }[] {

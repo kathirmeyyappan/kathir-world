@@ -41,6 +41,7 @@ export interface RemotePlayer {
   poundHeight: number; // metres its eyes are under where that ground pound began; 0 out of one
   crouch: boolean; // crouched on the ground (sim/avatars.ts `Crouch`)
   backflip: boolean; // in the jump taken out of a crouch
+  strike: number | null; // seconds into a strike (sim/avatars.ts `Strike`); null out of one
   climb: { piece: number; side: 1 | -1; way: 1 | -1 } | null; // on a ladder (sim/types.ts): the piece, the face held, and the way round to it
   chilled: boolean; // slowed by an ice hit (sim/constants.ts): frosted over
   dead: boolean;
@@ -127,6 +128,7 @@ export class Interpolation {
         poundHeight: b.pound ? b.pound.from - b.pos.y : 0,
         crouch: b.crouch,
         backflip: b.backflip,
+        strike: b.strike,
         climb: b.climb,
         chilled: b.chilled > 0,
         dead: b.dead,

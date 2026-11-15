@@ -100,6 +100,7 @@ export type SoundId =
   | 'waluigi-enter'
   | 'patrick-enter'
   | 'spongebob-enter'
+  | 'sahur-enter'
   | 'mario-death'
   | 'spongebob-death'
   | 'mike-death'
@@ -228,6 +229,7 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'waluigi-enter': { file: 'waluigi-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'patrick-enter': { file: 'patrick-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'spongebob-enter': { file: 'spongebob-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
+  'sahur-enter': { file: 'sahur-enter.mp3', half: 6, reach: 30, volume: 0.2, fade: 0.3, lazy: true }, // the whole chant, 17 s: it's the joke
   // A look's death (voices.ts): the sting and jingle, ten seconds of song, the death screen's
   // length, and Roz's line. Each is heard only by a player who dies as that look, so each is fetched
   // on demand. Each is a cut from something longer, so each swells and fades by how its cut begins
