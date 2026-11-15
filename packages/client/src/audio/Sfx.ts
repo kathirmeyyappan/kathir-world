@@ -9,6 +9,8 @@
 // keeps the choice.
 import {
   isDragonAvatar,
+  toKrustyKrab,
+  toPineapple,
   type AvatarId,
   type AvatarsOf,
   type GearId,
@@ -98,6 +100,7 @@ export type SoundId =
   | 'waluigi-enter'
   | 'patrick-enter'
   | 'spongebob-enter'
+  | 'sahur-enter'
   | 'mario-death'
   | 'spongebob-death'
   | 'mike-death'
@@ -120,7 +123,9 @@ export type SoundId =
   | 'colgera-roar-far-3'
   | 'colgera-cry'
   | 'colgera-cry-far'
-  | 'colgera-theme';
+  | 'colgera-theme'
+  | 'krusty-krab-theme'
+  | 'spongebob-house-theme';
 
 interface SoundSpec {
   file: string; // in public/assets/sounds
@@ -224,6 +229,7 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'waluigi-enter': { file: 'waluigi-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'patrick-enter': { file: 'patrick-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'spongebob-enter': { file: 'spongebob-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
+  'sahur-enter': { file: 'sahur-enter.mp3', half: 6, reach: 30, volume: 0.2, fade: 0.3, lazy: true }, // the whole chant, 17 s: it's the joke
   // A look's death (voices.ts): the sting and jingle, ten seconds of song, the death screen's
   // length, and Roz's line. Each is heard only by a player who dies as that look, so each is fetched
   // on demand. Each is a cut from something longer, so each swells and fades by how its cut begins
@@ -275,6 +281,31 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
     half: 25,
     reach: 300,
     volume: 0.26,
+    loop: true,
+    swell: 2.5,
+    fade: 2.5,
+    lazy: true,
+    music: true,
+  },
+  // A building's own theme (PLACE_THEMES), quieter than a dragon's: heard flat, at the share of its
+  // volume left the metres from its walls, over its grounds and gone a little past them. Each is a
+  // whole cue, its ending and a breath of silence before it comes round again.
+  'krusty-krab-theme': {
+    file: 'krusty-krab-theme.mp3',
+    half: 15,
+    reach: 45,
+    volume: 0.065,
+    loop: true,
+    swell: 2.5,
+    fade: 2.5,
+    lazy: true,
+    music: true,
+  },
+  'spongebob-house-theme': {
+    file: 'spongebob-house-theme.mp3',
+    half: 15,
+    reach: 45,
+    volume: 0.05,
     loop: true,
     swell: 2.5,
     fade: 2.5,
@@ -341,6 +372,18 @@ export const DRAGON_VOICES: Record<AvatarsOf<'asian-dragon'>, DragonVoice | null
     theme: 'colgera-theme',
   },
 };
+
+// A building with a theme of its own: one more theme round it for the nearest to win (Game.ts), at
+// its distance from the walls (`walls`, metres from a point to them, 0 inside), and the only one
+// heard from inside them.
+export interface PlaceTheme {
+  theme: SoundId;
+  walls: (p: Vec3) => number;
+}
+export const PLACE_THEMES: PlaceTheme[] = [
+  { theme: 'krusty-krab-theme', walls: toKrustyKrab },
+  { theme: 'spongebob-house-theme', walls: toPineapple },
+];
 
 // The voice of whoever wears `avatar`, if it has one.
 export function voiceOf(avatar: AvatarId): DragonVoice | null {
@@ -526,7 +569,7 @@ export class Sfx {
   }
 
   // The loops that should be sounding this frame, each keyed by who's making it, and where (null
-  // for the local player's own, played flat at `level` of its volume). A loop that hasn't been
+  // for one played flat, at `level` of its volume, followed from frame to frame). A loop that hasn't been
   // listed for LINGER fades out, over its `fade`. `elapsed` is how far into it a loop already is
   // when it starts: a theme that has been running since its dragon rose, heard again from where it
   // has got to rather than from the top.
@@ -541,6 +584,8 @@ export class Sfx {
         if (voice.panner && w.at) {
           place(voice.panner, w.at, t);
           voice.near.gain.setTargetAtTime(falloff(distance(w.at, this.heard), SOUNDS[w.id]), t, 0.05);
+        } else if (!voice.panner) {
+          voice.near.gain.setTargetAtTime(w.level ?? 1, t, 0.05);
         }
         continue;
       }
@@ -567,7 +612,8 @@ export class Sfx {
     if (!buffer || (spec.intro && !intro)) return null;
     const t = ctx.currentTime;
     const voice = this.voice(id, at, 0);
-    voice.gain.gain.linearRampToValueAtTime(spec.volume * level, t + (spec.swell ?? FADE));
+    if (!at) voice.near.gain.value = level;
+    voice.gain.gain.linearRampToValueAtTime(spec.volume, t + (spec.swell ?? FADE));
     const sources: AudioBufferSourceNode[] = [];
     const loop = new AudioBufferSourceNode(ctx, { buffer, loop: true });
     const lead = intro?.duration ?? 0;

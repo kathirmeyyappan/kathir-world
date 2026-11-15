@@ -65,7 +65,22 @@ interface Moves {
   pound?: Pound;
   chain?: Chain;
   crouch?: Crouch;
+  strike?: Strike;
   float?: Float;
+}
+
+// A strike: what the strike action is, for a look that carries something to hit with in its free
+// hand (walker.ts, the Room). It's swung whatever else the body is doing, a weapon in its other
+// hand or none, and lands once, `windup` after the press, on everyone in front of the body.
+export interface Strike {
+  damage: number; // hearts it takes off everyone it lands on
+  reach: number; // metres from the middle of the body it lands within
+  arc: number; // radians either side of the way the body faces it sweeps
+  windup: number; // seconds from the press to the blow
+  recover: number; // seconds from the blow until it can be swung again
+  // The throw it gives a walker it lands on (walker.ts `throwWalker`): away from the body at
+  // `speed` m/s and up at `lift`, with `grip` m/s² of the keys left to them until they land.
+  knock: { speed: number; lift: number; grip: number };
 }
 
 // A float: what holding the float action coming down is, for a look that has one (walker.ts). It
@@ -106,8 +121,8 @@ export interface Chain {
 // where it lands, knocking them back off their feet (the Room), its own feet planted a moment after. The keys and a jetpack do nothing
 // from its start until it's back on its feet.
 export interface Pound {
-  damage: number; // hearts it takes off everyone it lands near
-  reach: number; // metres across the floor from where it lands that it hurts
+  damage: number; // hearts it takes off everyone it lands near, from a short drop (`poundPower`)
+  reach: number; // metres across the floor from where it lands that it hurts, from a short drop
   twirl: number; // seconds it hangs turning over before it drops
   speed: number; // m/s it starts down at, gravity adding to it as to any fall
   recover: number; // seconds its feet stay planted once it's down
@@ -341,6 +356,14 @@ const LOOKS = {
     hitbox: { top: 3.2, radius: 0.55, head: 0.95 }, // a 0.7 m log; the head is the face, chin up
     walk: 8,
     jump: 1,
+    strike: {
+      damage: 2,
+      reach: 2.5,
+      arc: Math.PI / 3,
+      windup: 0.2,
+      recover: 0.35,
+      knock: { speed: 5, lift: 3, grip: 6 },
+    }, // its bat
   },
   'light-dragon': {
     id: 'light-dragon',
@@ -464,6 +487,12 @@ export function crouchOf(avatar: AvatarId): Crouch | null {
   return (look.class === 'walker' && look.crouch) || null;
 }
 
+// A look's strike, if it has one.
+export function strikeOf(avatar: AvatarId): Strike | null {
+  const look: AvatarSpec = AVATARS[avatar];
+  return (look.class === 'walker' && look.strike) || null;
+}
+
 // A look's float, if it has one.
 export function floatOf(avatar: AvatarId): Float | null {
   const look: AvatarSpec = AVATARS[avatar];
@@ -474,6 +503,19 @@ export function floatOf(avatar: AvatarId): Float | null {
 export function poundOf(avatar: AvatarId): Pound | null {
   const look: AvatarSpec = AVATARS[avatar];
   return (look.class === 'walker' && look.pound) || null;
+}
+
+// A ground pound's damage and reach landing `height` metres under where it began: its own up to
+// the first POUND_DAMAGE_STEP, then half a heart more for every POUND_DAMAGE_STEP metres it fell
+// and a metre further for every POUND_REACH_STEP.
+const POUND_DAMAGE_STEP = 5;
+const POUND_REACH_STEP = 10;
+export function poundPower(pound: Pound, height: number): { damage: number; reach: number } {
+  const h = Math.max(0, height);
+  return {
+    damage: pound.damage + 0.5 * Math.floor(h / POUND_DAMAGE_STEP),
+    reach: pound.reach + Math.floor(h / POUND_REACH_STEP),
+  };
 }
 
 // How each move only some looks have is done, for the hint bar: with the keys, and on touch, a key
@@ -498,6 +540,11 @@ const MOVE_HELP: Record<Exclude<keyof Moves, 'walk' | 'jump'>, MoveHelp | null> 
     keys: 'hold [X] to crouch, and [Space] from it to backflip',
     touch: '[CROUCH] to crouch, and [JUMP] from it to backflip',
     key: { key: 'X', does: 'crouch' },
+  },
+  strike: {
+    keys: '[X] to swing the bat',
+    touch: '[BAT] to swing the bat',
+    key: { key: 'X', does: 'swing the bat' },
   },
   float: { keys: 'hold [Space] in the air to float', touch: 'hold [JUMP] in the air to float' },
 };

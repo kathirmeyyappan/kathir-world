@@ -69,7 +69,7 @@ export interface ClassSpec {
   hitShape(p: Target): HitShape;
   // The hearts a hit of `damage` from `item` landing on `part` costs `p`, the class keeping whatever
   // else it means (a crystal shattered); without one, a hit costs its damage wherever it lands.
-  hurt?(p: PlayerState, part: HitPart, damage: number, item: ItemSpec): number;
+  hurt?(p: PlayerState, part: HitPart, damage: number, item: Pick<ItemSpec, 'shatters'>): number;
   // The floor points a dead one's body lies over, one per heart it leaves behind (CORPSE_DROP).
   lies(p: PlayerState, structures: Structures): Vec3[];
 }

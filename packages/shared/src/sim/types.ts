@@ -33,6 +33,7 @@ export interface PlayerState {
   pound: { stage: 'twirl' | 'drop' | 'land'; t: number; from: number; vy: number } | null;
   crouch: boolean; // crouched on the ground (avatars.ts `Crouch`): the crouch action held there
   backflip: boolean; // in the jump taken out of a crouch, until it lands or something else moves it
+  strike: number | null; // seconds into a strike (avatars.ts `Strike`), 0 on the tick of the press; null out of one
   // A float (avatars.ts `Float`): whether it is floating, and the seconds it has floated since it last stood.
   floating: boolean;
   floated: number;

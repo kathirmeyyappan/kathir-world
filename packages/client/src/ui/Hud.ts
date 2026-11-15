@@ -24,6 +24,9 @@ const CHAT_FADE_MS = 12_000;
 // Kept in sessionStorage, since dying reloads the page.
 const HISTORY_KEY = 'world.chat-history';
 const HISTORY_LINES = 50;
+// What a kill by a look's own move is said to be with (the kill's `item` on the wire): a strike is
+// Tung Tung Tung Sahur's bat, the one strike there is.
+const MOVE_KILLS = { pound: 'ground pound', strike: 'bat' };
 const MOVE_HINT_MS = 20_000; // how long the move hint is up: its animation's length (#move-hint)
 const HINT_GAP = 8; // CSS pixels between the move hint and what it stacks against
 // The layout where the item hint is at the top of the screen, under the touch buttons (styles.css).
@@ -426,10 +429,11 @@ export class Hud {
   }
 
   // A kill, worded and coloured like an announcement: "ann killed bob with a sniper headshot".
-  announceKill(shooter: string, victim: string, item: ItemId | 'pound', headshot: boolean): void {
+  announceKill(shooter: string, victim: string, item: ItemId | keyof typeof MOVE_KILLS, headshot: boolean): void {
     const li = document.createElement('li');
     li.className = 'kill';
-    li.textContent = `${this.playerName(shooter)} killed ${this.playerName(victim)} with a ${item === 'pound' ? 'ground pound' : item}${headshot ? ' headshot' : ''}`;
+    const how = item === 'pound' || item === 'strike' ? MOVE_KILLS[item] : item;
+    li.textContent = `${this.playerName(shooter)} killed ${this.playerName(victim)} with a ${how}${headshot ? ' headshot' : ''}`;
     this.pushLine(li);
   }
 

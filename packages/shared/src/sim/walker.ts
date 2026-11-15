@@ -11,6 +11,7 @@ import {
   jumpVelocityOf,
   leapOf,
   poundOf,
+  strikeOf,
   walkSpeedOf,
   type Pound,
 } from './avatars';
@@ -61,6 +62,7 @@ export const WALKER: ClassSpec = {
     p.pound = null;
     p.crouch = p.backflip = p.floating = false;
     p.floated = 0;
+    p.strike = null;
   },
   step: stepWalker,
   aim: (p) => lookDirection(p.yaw, p.pitch),
@@ -86,6 +88,14 @@ export function stepWalker(
   structures: Structures,
 ): number {
   const grounded = isGrounded(p, structures);
+  // A strike runs from its press through its windup and its recovery whatever else the body does,
+  // on the ground, in the air or on a ladder; dying or a change of look ends it.
+  const strike = strikeOf(p.avatar);
+  if (p.strike !== null) {
+    p.strike += dt;
+    if (!strike || p.dead || p.strike >= strike.windup + strike.recover) p.strike = null;
+  }
+  if (strike && p.strike === null && !p.dead && input?.actions.includes('strike')) p.strike = 0;
   // A look with a crouch is in it for as long as the action is held with its feet down (a tick
   // with no frame keeps what the last one held).
   const crouch = crouchOf(p.avatar);

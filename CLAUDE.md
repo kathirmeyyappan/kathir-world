@@ -453,7 +453,13 @@ turns it on and off, since a thumb can't hold it and press JUMP) is a crouch,
 `PlayerState.crouch`: its walk at the `crawl` share, the run adding nothing, and a jump out of it
 held still a backflip, `PlayerState.backflip`, rising `flip` times its jump's height in the
 chain's place, and out of a crawl its long jump, the run or no; that last is for players to find,
-so the hint, the legend and the guide don't say it; with a `float`, the `float` action (the jump
+so the hint, the legend and the guide don't say it; with a `strike`, the `strike` action (X once
+more, or the touch BAT button) swings what its free hand carries, whatever the other holds and
+wherever it stands, `PlayerState.strike`, the seconds into it: `windup` after the press the Room
+takes `damage` off everyone with any of their hit shape within `reach` of the middle of its body
+and within `arc` of the way it faces, level whatever its pitch (`combat.ts` `findStrikeHits`),
+and throws a walker back (its `knock`), a kill by it announced with `item: 'strike'`, and
+`recover` later it can be swung again; Tung Tung Tung Sahur's bat is the one there is; with a `float`, the `float` action (the jump
 key held, which the touch JUMP button holds too) coming down holds the fall, `PlayerState.floating`:
 it sinks at `sink` for as long as it's held, up to `seconds` between one landing and the next
 (`floated`), and a long jump and a ground pound don't float) and a builder in `packages/client/src/render/avatars/` (`MAKERS` in `index.ts`,
@@ -471,7 +477,10 @@ and the walker never asks which avatar it is posing. A Sketchfab
 model goes through `packages/client/scripts/avatar-model.py` into a `<name>Model.ts` and a texture
 atlas (`public/assets/textures/avatars/<id>.png`, listed in `SKINNED` in `render/avatars/index.ts` so
 it's fetched at startup); a trunk on two arms and two legs is a `BodySpec` (`Body.ts`), and one with
-a whole skeleton a jointed body (below). Rebuild the bot map after
+a whole skeleton a jointed body (below). Tung Tung Tung Sahur (`Sahur.ts`) is rigid parts from
+`scripts/sahur-model.py`: a sculpt's log and legs with arms and a bat drawn by the script, every
+part closed and turning on a joint sunk in the log, the bat in its left fist and an item in its
+right; the builder's `extra` poses the bat arm (carried, swung on a strike, held clear on a ladder). Rebuild the bot map after
 adding one, and keep it as cheap as the ones there (triangles, one mesh, a small atlas), with the
 numbers in the PR.
 
@@ -648,7 +657,11 @@ how far back it's watched from in `DRAGON_BOOMS` (`game/View.ts`). The theme a p
 nearest living dragon's (`Game.ts`), kept until another is `THEME_HYSTERESIS` nearer, one crossing
 into the next over the sounds' `swell` and `fade`; a theme runs from the first dragon of its kind
 rising for as long as any is alive, so one taken up again is heard from where it has got to
-(`setLoops`' `elapsed`), not from the top. A looping track is cut on exact samples and encoded
+(`setLoops`' `elapsed`), not from the top. A building can have a quiet theme of its own
+(`PLACE_THEMES` in `audio/Sfx.ts`: the Krusty Krab's hornpipe, SpongeBob's house's rag): one more
+contender for the nearest, measured from its walls (`toKrustyKrab`, `toPineapple`) and heard flat
+across its grounds, running on from when it was first heard; from inside the walls it's the only
+theme, no dragon's playing over it. A looping track is cut on exact samples and encoded
 with LAME (ffmpeg's `libmp3lame`), whose header the browsers' decoders read to trim the padding,
 so the loop and the join from its intro are gapless; check a new one decodes to its exact sample
 count before trusting it. A new class is a spec

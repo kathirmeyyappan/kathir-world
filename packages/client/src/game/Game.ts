@@ -24,6 +24,8 @@ import {
   hashSeed,
   isGrounded,
   poundOf,
+  poundPower,
+  strikeOf,
   crouchOf,
   floatOf,
   keyLabel,
@@ -46,7 +48,7 @@ import {
   walkSpeedOf,
 } from '@world/shared';
 import { Footsteps } from '../audio/Footsteps';
-import { ITEM_SOUNDS, heard, loopsOf, Sfx, voiceOf, type SoundId } from '../audio/Sfx';
+import { ITEM_SOUNDS, heard, loopsOf, PLACE_THEMES, Sfx, voiceOf, type SoundId } from '../audio/Sfx';
 import { take, VOICES } from '../audio/voices';
 import { InputManager } from '../input/InputManager';
 import { MobileActions, type MobileActionState } from '../input/MobileActions';
@@ -136,6 +138,7 @@ const OWN_WEAPON_SCALE = 2.2; // your own guns, seen from the boom: at true size
 const ECHO_DELAY = 0.5;
 const ECHO_LEVEL = 0.3;
 const GLOAT_DELAY = 0.4; // seconds after a kill that the killer's own line for one starts, clear of the shot
+const STRIKE_RATE = 0.7; // how fast the jump's swoosh is played for a strike's swing: slower and lower, a heavy bat's
 const OWN_MOVE = 0.6; // the share of its volume the player's own ground pound turns over at, as their own steps do (Footsteps.ts)
 const DEATH_SOUND_DELAY = 0.5; // seconds from dying to the look's death sound: the hurt sound or cry of the last hit, played out
 const CRY_GAP_MS = 600; // a player's cries at being hit come no closer together than this, however short the cry
@@ -143,6 +146,20 @@ type Line = 'hurt' | 'kill' | 'enter' | 'death'; // the lines of a look's voice 
 // Metres nearer than the dragon whose theme is playing another has to be to take the theme over,
 // so two at a like distance don't trade it back and forth.
 const THEME_HYSTERESIS = 15;
+
+// A theme that could be playing: a dragon's, or a building's. `metres` is how far the ear is from
+// it, `holder` the dragon or building it comes from, and `inside` whether the player is within the
+// building's walls, where nothing else may play over it.
+interface Theme {
+  key: string;
+  id: SoundId;
+  metres: number;
+  at: Vec3 | null;
+  elapsed: number;
+  level: number;
+  inside: boolean;
+  holder: string;
+}
 const LOOK_HOLD = Math.PI / 2 - 0.01; // radians either side of facing a ladder the look may turn while on it
 const SWING_HALF_LIFE = 0.08; // seconds: the camera's swing round a ladder is mostly over in a third of a second
 
@@ -181,11 +198,14 @@ export class Game {
   private poundRequested = false; // and the touch CROUCH button, which is POUND in the air
   private crouchOn = false; // crouched by that button: a press on the ground turns it on and off
   private readonly pounds = new Map<string, RemotePlayer['pound']>(); // the stage each player's ground pound was last seen at
+  private readonly strikes = new Map<string, number>(); // how far into a strike each player striking was last seen
   private readonly cried = new Set<string>(); // the dragons heard crying on their way out of the ground
   private readonly criedOut = new Map<string, number>(); // when each player may next cry out at a hit (performance.now)
-  private themeOf: string | null = null; // the dragon whose theme is playing
+  private themeOf: string | null = null; // the dragon or building whose theme is playing (Theme.holder)
   // When the first dragon of each theme rose (ms): its theme has been running since, heard or not.
   private readonly themeClocks = new Map<SoundId, number>();
+  // When each building's theme was first heard (ms): it runs on from then for the rest of the visit.
+  private readonly placeClocks = new Map<SoundId, number>();
   private bobbing = 0; // share of the full head bob in play: eased up with the walk and down when it stops
   private readonly skyByMesh = new Map<string, SkyObject>();
   private readonly bubble = new Bubble();
@@ -428,8 +448,9 @@ export class Game {
     this.swapRequested = false;
     if (this.input.isDown('ShiftLeft') || this.input.isDown('ShiftRight')) actions.push('run');
     // X is a look's own moves: held on the ground it crouches, and a press in the air starts a
-    // ground pound. The touch button is both: a press on the ground turns the crouch on or off (a
-    // thumb can't hold it and press JUMP), until the feet leave the ground.
+    // ground pound; for a look with a strike, a press is the strike. The touch button is whichever
+    // the look has: a press on the ground turns the crouch on or off (a thumb can't hold it and
+    // press JUMP), until the feet leave the ground.
     const pressed = this.input.wasPressed('KeyX') || this.poundRequested;
     if (!self || !crouchOf(self.avatar) || !isGrounded(self)) this.crouchOn = false;
     else if (this.poundRequested) this.crouchOn = !this.crouchOn;
@@ -437,6 +458,7 @@ export class Game {
     // A float is the jump key held, which the touch jump button holds down too.
     if (self && floatOf(self.avatar) && this.input.isDown('Space')) actions.push('float');
     if (self && poundOf(self.avatar) && pressed) actions.push('pound');
+    if (self && strikeOf(self.avatar) && pressed) actions.push('strike');
     this.poundRequested = false;
     return actions;
   }
@@ -602,6 +624,7 @@ export class Game {
         this.avatars.delete(m.id);
         this.criedOut.delete(m.id);
         this.pounds.delete(m.id);
+        this.strikes.delete(m.id);
         this.hud.removePlayer(m.id, m.name);
         return;
       }
@@ -710,25 +733,41 @@ export class Game {
     }
   }
 
-  // What the touch button for a look's own moves does where the player is: CROUCH on the ground,
-  // lit while crouched, and POUND in the air; null for a look with neither there.
+  // What the touch button for a look's own moves does where the player is: BAT for a look with a
+  // strike, anywhere; else CROUCH on the ground, lit while crouched, and POUND in the air, off a
+  // ladder and out of a pound; null for a look with none there.
   private ownMove(self: PlayerState): MobileActionState['move'] {
+    if (strikeOf(self.avatar)) return { label: 'BAT', on: false };
+    if (self.pound || self.climb) return null;
     if (isGrounded(self)) return crouchOf(self.avatar) ? { label: 'CROUCH', on: self.crouch } : null;
     return poundOf(self.avatar) ? { label: 'POUND', on: false } : null;
   }
 
   // A player's ground pound (sim/avatars.ts `Pound`) as it's seen to change stage, `at` being
-  // their eye point: its turn in the air is heard as it starts, and where it lands a ring runs out
-  // over the floor as far as it hurts. The landing's thud is the footsteps'.
-  private pounding(id: string, avatar: AvatarId, stage: RemotePlayer['pound'], at: Vec3): void {
+  // their eye point and `height` how far under where it began: its turn in the air is heard as it
+  // starts, and where it lands a ring runs out over the floor as far as it hurts. The landing's thud
+  // is the footsteps'.
+  private pounding(id: string, avatar: AvatarId, stage: RemotePlayer['pound'], at: Vec3, height: number): void {
     const was = this.pounds.get(id) ?? null;
     if (stage === was) return;
     this.pounds.set(id, stage);
     const mine = id === this.myId;
     if (stage === 'twirl')
       this.sfx.play(VOICES[avatar].twirl ?? 'pound-twirl', mine ? null : at, { level: mine ? OWN_MOVE : 1 });
-    const reach = poundOf(avatar)?.reach;
+    const pound = poundOf(avatar);
+    const reach = pound && poundPower(pound, height).reach;
     if (stage === 'land' && reach) poundRing(this.engine, new Vector3(at.x, at.y - EYE_HEIGHT, at.z), reach);
+  }
+
+  // A player's strike (sim/avatars.ts `Strike`), `strike` being how far into one they are and `at`
+  // their eye point: its swing is heard as it starts.
+  private striking(id: string, strike: number | null, at: Vec3): void {
+    const was = this.strikes.get(id);
+    if (strike === null) this.strikes.delete(id);
+    else this.strikes.set(id, strike);
+    if (strike === null || (was !== undefined && strike >= was)) return;
+    const mine = id === this.myId;
+    this.sfx.play('jump', mine ? null : at, { level: mine ? OWN_MOVE : 1, rate: STRIKE_RATE });
   }
 
   // One of a player's lines in their own voice (voices.ts), `delay` seconds from now, from where
@@ -944,6 +983,7 @@ export class Game {
     if (!held) this.setScoped(false);
     this.viewmodel.show(held && !this.scoped && !this.dead && this.view.atEyes ? held.id : null, self.avatar);
     this.viewmodel.setFiring(self.firing);
+    this.viewmodel.swing(this.view.atEyes && !this.dead ? self.strike : null, strikeOf(self.avatar), dt);
     this.viewmodel.update(dt);
     const showHint = held && !this.dead;
     this.hud.setItemHint(
@@ -1013,8 +1053,18 @@ export class Game {
       ],
       dt,
     );
-    this.pounding(this.myId, self.avatar, self.pound?.stage ?? null, self.pos);
-    for (const rp of sampled.players) this.pounding(rp.id, rp.avatar, rp.pound, { x: rp.x, y: rp.y, z: rp.z });
+    this.pounding(
+      this.myId,
+      self.avatar,
+      self.pound?.stage ?? null,
+      self.pos,
+      self.pound ? self.pound.from - self.pos.y : 0,
+    );
+    this.striking(this.myId, self.strike, self.pos);
+    for (const rp of sampled.players) {
+      this.pounding(rp.id, rp.avatar, rp.pound, { x: rp.x, y: rp.y, z: rp.z }, rp.poundHeight);
+      this.striking(rp.id, rp.strike, { x: rp.x, y: rp.y, z: rp.z });
+    }
     const readers = new Map<string, number>();
     const seen = new Set<string>();
     for (const rp of sampled.players) {
@@ -1063,7 +1113,7 @@ export class Game {
       scoped: this.scoped,
       canFire: this.canFire(),
       climbing: !!self.climb,
-      move: this.dead || self.pound || self.climb ? null : this.ownMove(self),
+      move: this.dead ? null : this.ownMove(self),
     });
     if (hit !== this.canHit) {
       this.canHit = hit;
@@ -1071,12 +1121,14 @@ export class Game {
     }
     this.sfx.listen(this.camera.position, this.input.yaw);
     // Every dragon with a voice rises out of the ground with its cry (kept trying until the
-    // recording has arrived, and heard again from the same player's next one); the nearest living
-    // one's theme plays from its head, until another is THEME_HYSTERESIS nearer, one theme crossing
-    // into the next. A theme runs from the first of its dragons rising for as long as any is alive,
-    // so one taken up again is heard from where it has got to, not from the top. The rider's own
-    // plays flat, as loud as from the boom's length off, so the camera closing in on the head (at a
-    // wall) doesn't swell it.
+    // recording has arrived, and heard again from the same player's next one). One theme plays at a
+    // time: the nearest living dragon's from its head, or a building's (PLACE_THEMES) from its walls
+    // across its grounds, until another is THEME_HYSTERESIS nearer, one theme crossing into the
+    // next; inside a building's walls its theme is the only one. A dragon's theme runs from the
+    // first of its dragons rising for as long as any is alive, and a building's from when it was
+    // first heard, so one taken up again is heard from where it has got to, not from the top. The
+    // rider's own plays flat, as loud as from the boom's length off, so the camera closing in on the
+    // head (at a wall) doesn't swell it.
     const dragons = [
       ...(self.dragon && !this.dead
         ? [{ id: this.myId, at: self.pos, risen: self.dragon.risen, voice: voiceOf(self.avatar) }]
@@ -1091,15 +1143,48 @@ export class Game {
       if (d.risen) this.cried.delete(d.id);
       else if (!this.cried.has(d.id) && this.sfx.call(d.voice!.cry, d.at)) this.cried.add(d.id);
     }
-    const ear = this.camera.position;
-    const away = (d: { at: Vec3 }) => Vector3.Distance(ear, new Vector3(d.at.x, d.at.y, d.at.z));
-    const nearest = dragons.sort((a, b) => away(a) - away(b))[0];
-    const kept = dragons.find((d) => d.id === this.themeOf);
-    const playing = kept && nearest && away(kept) < away(nearest) + THEME_HYSTERESIS ? kept : nearest;
-    this.themeOf = playing?.id ?? null;
     const themes = new Set(dragons.map((d) => d.voice!.theme));
     for (const theme of this.themeClocks.keys()) if (!themes.has(theme)) this.themeClocks.delete(theme);
     for (const theme of themes) if (!this.themeClocks.has(theme)) this.themeClocks.set(theme, performance.now());
+    const ear = this.camera.position;
+    const now = performance.now();
+    const own = (d: { id: string }) => d.id === this.myId;
+    const candidates: Theme[] = [
+      ...dragons.map((d) => ({
+        key: own(d) ? 'own-dragon' : 'dragon',
+        id: d.voice!.theme,
+        metres: Vector3.Distance(ear, new Vector3(d.at.x, d.at.y, d.at.z)),
+        at: own(d) ? null : d.at,
+        elapsed: (now - this.themeClocks.get(d.voice!.theme)!) / 1000,
+        level: own(d) ? heard(d.voice!.theme, boomLength(self.avatar)) : 1,
+        inside: false,
+        holder: d.id,
+      })),
+      ...PLACE_THEMES.flatMap((p) => {
+        const metres = p.walls(ear);
+        const level = heard(p.theme, metres);
+        if (level <= 0) return [];
+        if (!this.placeClocks.has(p.theme)) this.placeClocks.set(p.theme, now);
+        return [
+          {
+            key: `place:${p.theme}`,
+            id: p.theme,
+            metres,
+            at: null,
+            elapsed: (now - this.placeClocks.get(p.theme)!) / 1000,
+            level,
+            inside: !this.dead && p.walls(self.pos) === 0,
+            holder: `place:${p.theme}`,
+          },
+        ];
+      }),
+    ];
+    const nearest = candidates.sort((a, b) => a.metres - b.metres)[0];
+    const kept = candidates.find((c) => c.holder === this.themeOf);
+    const playing =
+      candidates.find((c) => c.inside) ??
+      (kept && nearest && kept.metres < nearest.metres + THEME_HYSTERESIS ? kept : nearest);
+    this.themeOf = playing?.holder ?? null;
     this.sfx.setLoops([
       ...loopsOf({ ...self, item: self.item?.id ?? null, gear: self.gear?.id ?? null, dead: this.dead }).map((id) => ({
         key: this.myId,
@@ -1108,17 +1193,7 @@ export class Game {
       })),
       ...sampled.players.flatMap((rp) => loopsOf(rp).map((id) => ({ key: rp.id, id, at: rp }))),
       ...stepLoops,
-      ...(playing
-        ? [
-            {
-              key: playing.id === this.myId ? 'own-dragon' : 'dragon',
-              id: playing.voice!.theme,
-              at: playing.id === this.myId ? null : playing.at,
-              elapsed: (performance.now() - this.themeClocks.get(playing.voice!.theme)!) / 1000,
-              level: playing.id === this.myId ? heard(playing.voice!.theme, boomLength(self.avatar)) : 1,
-            },
-          ]
-        : []),
+      ...(playing ? [playing] : []),
     ]);
     this.pickups.update(sampled.pickups);
     for (const cs of sampled.cubes) {
@@ -1169,8 +1244,10 @@ export class Game {
         leap: self.leap,
         hop: self.hop,
         pound: self.pound?.stage ?? null,
+        poundHeight: self.pound ? self.pound.from - self.pos.y : 0,
         crouch: self.crouch,
         backflip: self.backflip,
+        strike: self.strike,
         floating: self.floating,
         climb: self.climb,
         chilled: self.chilled > 0,

@@ -16,8 +16,8 @@ export type ItemId = 'gun' | 'sniper' | 'flamethrower' | 'ice-blower' | 'firebre
 // The swaps are a climber's, not an item's: a tap on A or D on a ladder (the touch SWAP button is
 // A's), to go round to its other face by its left or its right (walker.ts). The run is a walker's
 // too, held on Shift: its walk at RUN_MULTIPLIER (walker.ts). The crouch and the pound are a look's
-// own moves (avatars.ts), on one key: held on the ground and tapped in the air; the float is one
-// too, the jump key held in the air.
+// own moves (avatars.ts), on one key: held on the ground and tapped in the air; a strike is
+// another look's, a tap on that key; and the float is one more, the jump key held in the air.
 export type ItemAction =
   | 'shoot'
   | 'scope'
@@ -30,6 +30,7 @@ export type ItemAction =
   | 'run'
   | 'pound'
   | 'crouch'
+  | 'strike'
   | 'float';
 export type ActionMode = 'tap' | 'hold' | 'toggle';
 
@@ -191,6 +192,7 @@ export function isItemAction(v: unknown): v is ItemAction {
     v === 'run' ||
     v === 'pound' ||
     v === 'crouch' ||
+    v === 'strike' ||
     v === 'float'
   );
 }
@@ -236,6 +238,7 @@ const ACTION_HELP: Record<ItemAction, (spec: ActionSpec) => string> = {
   run: () => '% to run',
   pound: () => '% in the air to ground pound',
   crouch: () => 'hold % to crouch',
+  strike: () => '% to strike',
   float: () => 'hold % in the air to float',
 };
 

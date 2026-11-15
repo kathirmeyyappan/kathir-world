@@ -49,6 +49,7 @@ export const ABILITIES: Record<AbilityId, string> = {
   backflip: 'Backflip',
   float: 'Float',
   chain: 'Triple jump',
+  strike: 'Bat',
 };
 
 export const CHARACTERS: Record<AvatarId, Entry> = {
