@@ -16,6 +16,7 @@ export type AvatarId =
   | 'luigi'
   | 'wario'
   | 'waluigi'
+  | 'peach'
   | 'spongebob'
   | 'patrick'
   | 'krabs'
@@ -193,6 +194,22 @@ const LOOKS = {
     // The twirl as long as its clip (Jointed.ts); the knock a hop back, a third of a second off the ground.
     pound: { damage: 1.5, reach: 3, twirl: 1 / 3, speed: 20, recover: 0.35, knock: { speed: 4, lift: 3, grip: 6 } },
     chain: { jumps: 3, gap: 0.3, rise: 1.2 }, // a jump, a double and a triple
+    crouch: { crawl: 0.3, flip: 1.5 },
+  },
+  peach: {
+    id: 'peach',
+    class: 'walker',
+    item: null,
+    regen: false,
+    blurb: 'become peach',
+    command: 'peach',
+    eye: 2.1,
+    hitbox: { top: 2.5, radius: 0.5, head: 0.65 },
+    walk: 6.5,
+    jump: 1.3,
+    leap: { rise: 0.5, speed: 1.25, float: 0.5, grip: 6 },
+    pound: { damage: 1.5, reach: 3, twirl: 1 / 3, speed: 20, recover: 0.35, knock: { speed: 4, lift: 3, grip: 6 } },
+    chain: { jumps: 3, gap: 0.3, rise: 1.2 },
     crouch: { crawl: 0.3, flip: 1.5 },
   },
   spongebob: {

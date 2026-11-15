@@ -88,6 +88,7 @@ CHARACTERS = {
     "luigi": Character("Luigi", "Mario Kart 8", 2.2),
     "wario": Character("Wario", "Mario Kart 8", 2.2),
     "waluigi": Character("Waluigi", "Mario Kart 8", 3.1),
+    "peach": Character("Peach", "Mario Kart 8", 2.5),
 }
 
 
@@ -118,7 +119,13 @@ def main(name: str, folder: str) -> None:
     texture_out = CLIENT / f"public/assets/textures/avatars/{name}.png"
     doc = ET.parse(rip / f"{name}.dae").getroot()
 
-    images = {image.get("id"): image.findtext(f"{NS}init_from") for image in doc.iter(f"{NS}image")}
+    # An image is named as the ripper's machine had it: the file of that name in the rip's folder,
+    # whatever its path and case.
+    files = {file.name.lower(): file.name for file in rip.iterdir()}
+    images = {
+        image.get("id"): files[Path(image.findtext(f"{NS}init_from") or "").name.lower()]
+        for image in doc.iter(f"{NS}image")
+    }
     # A material's picture: the first image its effect names is its colour (the next its normal map).
     pictures: dict[str, str] = {}
     for effect in doc.iter(f"{NS}effect"):
@@ -176,7 +183,11 @@ def main(name: str, folder: str) -> None:
         polylist = geometry.find(f".//{NS}polylist")
         assert polylist is not None
         assert set((polylist.findtext(f"{NS}vcount") or "").split()) == {"3"}
-        corners = np.array((polylist.findtext(f"{NS}p") or "").split(), dtype=np.int64).reshape(-1, 3)
+        # A corner is an index for each of the polylist's inputs: its vertex, its normal and its
+        # texture coordinate, and in some rips a colour after them.
+        inputs = {i.get("semantic"): int(i.get("offset") or 0) for i in polylist.findall(f"{NS}input")}
+        corners = np.array((polylist.findtext(f"{NS}p") or "").split(), dtype=np.int64).reshape(-1, len(inputs))
+        corners = corners[:, [inputs["VERTEX"], inputs["NORMAL"], inputs["TEXCOORD"]]]
         positions = arrays[f"{gid}-positions"].reshape(-1, 3)
         normals = arrays[f"{gid}-normals"].reshape(-1, 3)[corners[:, 1]]
         # Collada's v runs up the image. The body's texture repeats and the face's is skin at every
