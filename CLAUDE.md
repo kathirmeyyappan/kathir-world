@@ -2,6 +2,7 @@
 
 Babylon.js multiplayer 3D playground. `packages/shared` is the pure sim + protocol + Room,
 `packages/client` the Vite renderer, `packages/server` the Node host, `infra/` the Modal deploy.
+`AGENTS.md` is a symlink to this file, so every agent reads the same rules: edit this one.
 
 ## Pull requests
 
@@ -840,9 +841,9 @@ in `docs/` keep their own.
 
 ## Adding a Modal bot
 
-Keep this section synchronized with `AGENTS.md`. A bot is a headless Python client in
-`modal-bots/bots/`; it joins the same authoritative Room as browser players and receives the
-same WebSocket protocol. It has no renderer, browser interpolation, or visual picking.
+A bot is a headless Python client in `modal-bots/bots/`; it joins the same authoritative Room as
+browser players and receives the same WebSocket protocol. It has no renderer, browser
+interpolation, or visual picking.
 
 ### Required contract
 
