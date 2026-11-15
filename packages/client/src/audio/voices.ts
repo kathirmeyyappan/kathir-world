@@ -53,7 +53,15 @@ export const VOICES: Record<AvatarId, Voice> = {
     death: ['mario-death'],
     twirl: 'pound-twirl-heavy',
   },
-  peach: { enter: [] },
+  // Her first jump is the swoosh every look makes: she has a voice for the second and third.
+  peach: {
+    enter: ['peach-enter', 'peach-enter-2'],
+    jump: ['jump', 'peach-jump-2', 'peach-jump-3'],
+    leap: ['peach-leap-1', 'peach-leap-2'],
+    hurt: ['peach-hurt-1'],
+    kill: ['peach-kill-1', 'peach-kill-2'],
+    death: ['mario-death'],
+  },
   waluigi: {
     enter: ['waluigi-enter', 'waluigi-kill-3'],
     jump: ['mario-jump-1', 'waluigi-jump-2', 'waluigi-jump-3'],

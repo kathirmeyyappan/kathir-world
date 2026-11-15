@@ -59,6 +59,8 @@ export type SoundId =
   | 'wario-jump-3'
   | 'waluigi-jump-2'
   | 'waluigi-jump-3'
+  | 'peach-jump-2'
+  | 'peach-jump-3'
   | 'mario-leap-1'
   | 'mario-leap-2'
   | 'mario-leap-3'
@@ -68,6 +70,8 @@ export type SoundId =
   | 'wario-leap-2'
   | 'waluigi-leap-1'
   | 'waluigi-leap-2'
+  | 'peach-leap-1'
+  | 'peach-leap-2'
   | 'mario-hurt-1'
   | 'mario-hurt-2'
   | 'mario-hurt-3'
@@ -76,6 +80,7 @@ export type SoundId =
   | 'wario-hurt-1'
   | 'waluigi-hurt-1'
   | 'waluigi-hurt-2'
+  | 'peach-hurt-1'
   | 'spongebob-hurt'
   | 'patrick-hurt-1'
   | 'patrick-hurt-2'
@@ -86,6 +91,8 @@ export type SoundId =
   | 'waluigi-kill-1'
   | 'waluigi-kill-2'
   | 'waluigi-kill-3'
+  | 'peach-kill-1'
+  | 'peach-kill-2'
   | 'spongebob-kill-1'
   | 'spongebob-kill-2'
   | 'patrick-kill-1'
@@ -99,6 +106,8 @@ export type SoundId =
   | 'wario-enter-2'
   | 'wario-enter-3'
   | 'waluigi-enter'
+  | 'peach-enter'
+  | 'peach-enter-2'
   | 'patrick-enter'
   | 'spongebob-enter'
   | 'sahur-enter'
@@ -193,6 +202,8 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'wario-jump-3': { file: 'wario-jump-3.mp3', half: 6, reach: 30, volume: 0.08 },
   'waluigi-jump-2': { file: 'waluigi-jump-2.mp3', half: 6, reach: 30, volume: 0.08 },
   'waluigi-jump-3': { file: 'waluigi-jump-3.mp3', half: 6, reach: 30, volume: 0.08 },
+  'peach-jump-2': { file: 'peach-jump-2.mp3', half: 6, reach: 30, volume: 0.08 },
+  'peach-jump-3': { file: 'peach-jump-3.mp3', half: 6, reach: 30, volume: 0.08 },
   'mario-leap-1': { file: 'mario-leap-1.mp3', half: 6, reach: 30, volume: 0.12 },
   'mario-leap-2': { file: 'mario-leap-2.mp3', half: 6, reach: 30, volume: 0.12 },
   'mario-leap-3': { file: 'mario-leap-3.mp3', half: 6, reach: 30, volume: 0.12 },
@@ -202,6 +213,8 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'wario-leap-2': { file: 'wario-leap-2.mp3', half: 6, reach: 30, volume: 0.12 },
   'waluigi-leap-1': { file: 'waluigi-leap-1.mp3', half: 6, reach: 30, volume: 0.12 },
   'waluigi-leap-2': { file: 'waluigi-leap-2.mp3', half: 6, reach: 30, volume: 0.12 },
+  'peach-leap-1': { file: 'peach-leap-1.mp3', half: 6, reach: 30, volume: 0.12 },
+  'peach-leap-2': { file: 'peach-leap-2.mp3', half: 6, reach: 30, volume: 0.12 },
   'mario-hurt-1': { file: 'mario-hurt-1.mp3', half: 6, reach: 30, volume: 0.25 },
   'mario-hurt-2': { file: 'mario-hurt-2.mp3', half: 6, reach: 30, volume: 0.25 },
   'mario-hurt-3': { file: 'mario-hurt-3.mp3', half: 6, reach: 30, volume: 0.25 },
@@ -210,6 +223,7 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'wario-hurt-1': { file: 'wario-hurt-1.mp3', half: 6, reach: 30, volume: 0.25 },
   'waluigi-hurt-1': { file: 'waluigi-hurt-1.mp3', half: 6, reach: 30, volume: 0.25 },
   'waluigi-hurt-2': { file: 'waluigi-hurt-2.mp3', half: 6, reach: 30, volume: 0.25 },
+  'peach-hurt-1': { file: 'peach-hurt-1.mp3', half: 6, reach: 30, volume: 0.25 },
   'spongebob-hurt': { file: 'spongebob-hurt.mp3', half: 6, reach: 30, volume: 0.25 },
   'patrick-hurt-1': { file: 'patrick-hurt-1.mp3', half: 6, reach: 30, volume: 0.25 },
   'patrick-hurt-2': { file: 'patrick-hurt-2.mp3', half: 6, reach: 30, volume: 0.25 },
@@ -224,6 +238,8 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'waluigi-kill-1': { file: 'waluigi-kill-1.mp3', half: 6, reach: 30, volume: 0.2 },
   'waluigi-kill-2': { file: 'waluigi-kill-2.mp3', half: 6, reach: 30, volume: 0.2 },
   'waluigi-kill-3': { file: 'waluigi-kill-3.mp3', half: 6, reach: 30, volume: 0.2 },
+  'peach-kill-1': { file: 'peach-kill-1.mp3', half: 6, reach: 30, volume: 0.2 },
+  'peach-kill-2': { file: 'peach-kill-2.mp3', half: 6, reach: 30, volume: 0.2 },
   'spongebob-kill-1': { file: 'spongebob-kill-1.mp3', half: 6, reach: 30, volume: 0.2 },
   'spongebob-kill-2': { file: 'spongebob-kill-2.mp3', half: 6, reach: 30, volume: 0.2 },
   'patrick-kill-1': { file: 'patrick-kill-1.mp3', half: 6, reach: 30, volume: 0.2 },
@@ -233,6 +249,8 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'wario-enter-2': { file: 'wario-enter-2.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'wario-enter-3': { file: 'wario-enter-3.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'waluigi-enter': { file: 'waluigi-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
+  'peach-enter': { file: 'peach-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
+  'peach-enter-2': { file: 'peach-enter-2.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'patrick-enter': { file: 'patrick-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'spongebob-enter': { file: 'spongebob-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'sahur-enter': { file: 'sahur-enter.mp3', half: 6, reach: 30, volume: 0.2, fade: 0.3, lazy: true }, // the whole chant, 17 s: it's the joke
