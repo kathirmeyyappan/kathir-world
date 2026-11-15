@@ -256,7 +256,7 @@ export function actionForKey(id: ItemId, code: string): ItemAction | null {
   return null;
 }
 
-function keyLabel(code: string): string {
+export function keyLabel(code: string): string {
   return code.replace(/^Key/, '').toUpperCase();
 }
 

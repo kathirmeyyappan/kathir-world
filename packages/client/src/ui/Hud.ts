@@ -29,6 +29,17 @@ const HINT_GAP = 8; // CSS pixels between the move hint and what it stacks again
 // The layout where the item hint is at the top of the screen, under the touch buttons (styles.css).
 const COARSE = window.matchMedia('(pointer: coarse)');
 
+// A hint's words, with each key or touch button it names in square brackets drawn as one.
+function keyed(text: string): (string | HTMLElement)[] {
+  return text.split(/\[([^\]]+)\]/).map((part, i) => {
+    if (i % 2 === 0) return part;
+    const key = document.createElement('kbd');
+    key.translate = false;
+    key.textContent = part;
+    return key;
+  });
+}
+
 export class Hud {
   private readonly roomCode = document.getElementById('room-code') as HTMLButtonElement;
   private readonly panel = document.getElementById('room-panel')!;
@@ -310,7 +321,7 @@ export class Hud {
     this.itemHint.classList.toggle('ice', element === 'ice');
     if (key === this.itemHintText) return;
     this.itemHintText = key;
-    this.itemHintMain.textContent = text;
+    this.itemHintMain.replaceChildren(...keyed(text));
     this.itemHintStats.textContent = stats;
     this.itemHint.classList.toggle('hidden', !text);
     if (!IS_TOUCH || item === this.itemHintItem) return;
@@ -331,7 +342,11 @@ export class Hud {
       this.moveHintText = text;
       this.moveHintTitle.textContent = title;
       this.moveHintMoves.replaceChildren(
-        ...moves.map((move) => Object.assign(document.createElement('div'), { textContent: move })),
+        ...moves.map((move) => {
+          const line = document.createElement('div');
+          line.append(...keyed(move));
+          return line;
+        }),
       );
       window.clearTimeout(this.moveHintTimer);
       // Its life is a CSS animation (#move-hint), which starts over as the element is shown again.

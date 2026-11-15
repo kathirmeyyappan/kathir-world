@@ -443,7 +443,8 @@ export function poundOf(avatar: AvatarId): Pound | null {
   return (look.class === 'walker' && look.pound) || null;
 }
 
-// How each move only some looks have is done, for the hint bar: with the keys, and on touch; and
+// How each move only some looks have is done, for the hint bar: with the keys, and on touch, a key
+// or a touch button named in square brackets, which the hint draws as one; and
 // for one with a key of its own, that key and what it does, for the key legend. A new move on
 // `Moves` needs its row here before it compiles, so no look gets one nobody is told of; null is a
 // move left for players to find (a chain of jumps comes of jumping again as it lands).
@@ -457,12 +458,12 @@ export interface MoveKey {
   does: string;
 }
 const MOVE_HELP: Record<Exclude<keyof Moves, 'walk' | 'jump'>, MoveHelp | null> = {
-  leap: { keys: 'run + jump to long jump', touch: 'run + JUMP to long jump' },
-  pound: { keys: 'X in the air to ground pound', touch: 'POUND in the air to ground pound' },
+  leap: { keys: '[Shift] + [Space] to long jump', touch: 'run + [JUMP] to long jump' },
+  pound: { keys: '[X] in the air to ground pound', touch: '[POUND] in the air to ground pound' },
   chain: null,
   crouch: {
-    keys: 'hold X to crouch, and jump from it to backflip',
-    touch: 'CROUCH to crouch, and JUMP from it to backflip',
+    keys: 'hold [X] to crouch, and [Space] from it to backflip',
+    touch: '[CROUCH] to crouch, and [JUMP] from it to backflip',
     key: { key: 'X', does: 'crouch' },
   },
 };
