@@ -46,6 +46,7 @@ export function buildStandard(engine: Engine, id: string, base: TransformNode, c
   skull.position.y = 0;
   const visor = box(scene, `avatar-visorMesh-${id}`, 0.4, 0.1, 0.06, visorMat, head);
   visor.position.set(0, 0.04, 0.23);
+  engine.glow(visor);
 
   // Items go in the right hand; the flamethrower's tank sits on the back of the torso.
   const grip = new TransformNode(`avatar-grip-${id}`, scene);
