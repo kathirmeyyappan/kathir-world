@@ -267,7 +267,7 @@ class Catalog {
       ...(entry.summary ? [el('p', 'summary', entry.summary)] : []),
       statTable(pick.stats()),
       ...(abilities.length ? [el('hr', 'rule')] : []),
-      ...abilities.flatMap((a) => [el('h3', '', `Special ability: ${a.title}`), statTable(a.stats)]),
+      ...abilities.flatMap((a) => [el('h3', 'ability', `Special ability: ${a.title}`), statTable(a.stats)]),
       ...facts(entry.facts),
     );
     this.view.resize();
