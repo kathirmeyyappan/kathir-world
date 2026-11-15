@@ -24,6 +24,7 @@ import {
   hashSeed,
   isGrounded,
   poundOf,
+  poundPower,
   crouchOf,
   keyLabel,
   itemStats,
@@ -715,16 +716,18 @@ export class Game {
   }
 
   // A player's ground pound (sim/avatars.ts `Pound`) as it's seen to change stage, `at` being
-  // their eye point: its turn in the air is heard as it starts, and where it lands a ring runs out
-  // over the floor as far as it hurts. The landing's thud is the footsteps'.
-  private pounding(id: string, avatar: AvatarId, stage: RemotePlayer['pound'], at: Vec3): void {
+  // their eye point and `height` how far under where it began: its turn in the air is heard as it
+  // starts, and where it lands a ring runs out over the floor as far as it hurts. The landing's thud
+  // is the footsteps'.
+  private pounding(id: string, avatar: AvatarId, stage: RemotePlayer['pound'], at: Vec3, height: number): void {
     const was = this.pounds.get(id) ?? null;
     if (stage === was) return;
     this.pounds.set(id, stage);
     const mine = id === this.myId;
     if (stage === 'twirl')
       this.sfx.play(VOICES[avatar].twirl ?? 'pound-twirl', mine ? null : at, { level: mine ? OWN_MOVE : 1 });
-    const reach = poundOf(avatar)?.reach;
+    const pound = poundOf(avatar);
+    const reach = pound && poundPower(pound, height).reach;
     if (stage === 'land' && reach) poundRing(this.engine, new Vector3(at.x, at.y - EYE_HEIGHT, at.z), reach);
   }
 
@@ -1010,8 +1013,15 @@ export class Game {
       ],
       dt,
     );
-    this.pounding(this.myId, self.avatar, self.pound?.stage ?? null, self.pos);
-    for (const rp of sampled.players) this.pounding(rp.id, rp.avatar, rp.pound, { x: rp.x, y: rp.y, z: rp.z });
+    this.pounding(
+      this.myId,
+      self.avatar,
+      self.pound?.stage ?? null,
+      self.pos,
+      self.pound ? self.pound.from - self.pos.y : 0,
+    );
+    for (const rp of sampled.players)
+      this.pounding(rp.id, rp.avatar, rp.pound, { x: rp.x, y: rp.y, z: rp.z }, rp.poundHeight);
     const readers = new Map<string, number>();
     const seen = new Set<string>();
     for (const rp of sampled.players) {
@@ -1166,6 +1176,7 @@ export class Game {
         leap: self.leap,
         hop: self.hop,
         pound: self.pound?.stage ?? null,
+        poundHeight: self.pound ? self.pound.from - self.pos.y : 0,
         crouch: self.crouch,
         backflip: self.backflip,
         climb: self.climb,

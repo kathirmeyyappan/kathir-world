@@ -38,6 +38,7 @@ export interface RemotePlayer {
   leap: boolean; // in a long jump (sim/avatars.ts `Leap`)
   hop: number; // which jump of a chain of them the last was (sim/avatars.ts `Chain`), from 1; 0 with none
   pound: 'twirl' | 'drop' | 'land' | null; // the stage of its ground pound (sim/avatars.ts `Pound`), if it's in one
+  poundHeight: number; // metres its eyes are under where that ground pound began; 0 out of one
   crouch: boolean; // crouched on the ground (sim/avatars.ts `Crouch`)
   backflip: boolean; // in the jump taken out of a crouch
   climb: { piece: number; side: 1 | -1; way: 1 | -1 } | null; // on a ladder (sim/types.ts): the piece, the face held, and the way round to it
@@ -123,6 +124,7 @@ export class Interpolation {
         leap: b.leap,
         hop: b.hop,
         pound: b.pound?.stage ?? null,
+        poundHeight: b.pound ? b.pound.from - b.pos.y : 0,
         crouch: b.crouch,
         backflip: b.backflip,
         climb: b.climb,

@@ -30,7 +30,7 @@ import {
   TICK_RATE,
 } from './sim/constants';
 import { parseCommand, type BotCallArgs, type Command } from './commands';
-import { AVATARS, eyeOf, poundOf, type AvatarId } from './sim/avatars';
+import { AVATARS, eyeOf, poundOf, poundPower, type AvatarId } from './sim/avatars';
 import { classOf, heartsOf } from './sim/classes';
 import { resolveFire } from './sim/combat';
 import { frostDisc, sprayFrost } from './sim/frost';
@@ -438,17 +438,18 @@ export class Room {
   // What the end of a step does: a landing at `speed` m/s hurts by its speed, and a ground pound
   // landing this tick (avatars.ts `Pound`) hurts everyone else on foot within its reach across the
   // floor, about level with it and in its sight, so not through a wall or a floor, and throws them
-  // back from it.
+  // back from it, harder and further the higher it began (`poundPower`).
   private land(seat: Seat, speed: number): void {
     const me = seat.state;
     const damage = fallDamage(speed);
     if (damage > 0 && !me.dead) this.damage(me, damage, null);
     const pound = poundOf(me.avatar);
     if (!pound || me.dead || me.pound?.stage !== 'land' || me.pound.t !== 0) return;
+    const { damage: hurt, reach } = poundPower(pound, me.pound.from - me.pos.y);
     for (const other of this.seats.values()) {
       const p = other.state;
       if (p === me || p.dead || classOf(p.avatar).id !== 'walker') continue;
-      if (Math.hypot(p.pos.x - me.pos.x, p.pos.z - me.pos.z) > pound.reach) continue;
+      if (Math.hypot(p.pos.x - me.pos.x, p.pos.z - me.pos.z) > reach) continue;
       if (Math.abs(p.pos.y - me.pos.y) > POUND_HEIGHT || !this.structures.clear(me.pos, p.pos)) continue;
       const dx = p.pos.x - me.pos.x;
       const dz = p.pos.z - me.pos.z;
@@ -456,7 +457,7 @@ export class Room {
       const out = flat > 1e-6 ? { x: dx / flat, z: dz / flat } : { x: 1, z: 0 };
       const { speed, lift, grip } = pound.knock;
       throwWalker(p, { x: out.x * speed, y: lift, z: out.z * speed }, grip);
-      this.damage(p, pound.damage, { shooter: seat, headshot: false, pound: true });
+      this.damage(p, hurt, { shooter: seat, headshot: false, pound: true });
     }
   }
 

@@ -1099,15 +1099,15 @@ test('/light-dragon: 40 hearts, full, breath for good and no kit, 1.5 hearts bac
   assert.equal(snap.pickups.filter((p) => p.kind === 'big-heart').length, 5);
 });
 
-test('a ground pound: pressed in the air it hangs, drops faster than a fall, plants its feet, and hurts whoever is on foot near where it lands, at no cost to itself', () => {
+test('a ground pound: pressed in the air it hangs, drops faster than a fall, plants its feet, and hurts whoever is on foot near where it lands, harder and further from higher up, at no cost to itself', () => {
   const room = new Room('pound', { seed: 3, structures: new Structures([]) });
   const [a, b, c] = [link(), link(), link()];
   const [ida, idb, idc] = [room.join('alice', a)!, room.join('bob', b)!, room.join('carol', c)!];
   const [alice, bob, carol] = [ida, idb, idc].map((id) => room.players.find((p) => p.id === id)!);
   room.receive(ida, { t: 'chat', text: '/mario' });
-  // Alice 6 m up, bob 2 m from under her, carol 5 m.
-  alice.pos = { x: 0, y: EYE_HEIGHT + 6, z: 0 };
-  bob.pos = { x: 2, y: EYE_HEIGHT, z: 0 };
+  // Alice 11 m up, bob 3.5 m from under her (a metre past her reach from a short drop), carol 5 m.
+  alice.pos = { x: 0, y: EYE_HEIGHT + 11, z: 0 };
+  bob.pos = { x: 3.5, y: EYE_HEIGHT, z: 0 };
   carol.pos = { x: 5, y: EYE_HEIGHT, z: 0 };
   room.step();
   const pound = poundOf('mario')!;
@@ -1120,12 +1120,13 @@ test('a ground pound: pressed in the air it hangs, drops faster than a fall, pla
   assert.ok(stage() === 'twirl' && alice.pos.y === from, 'hanging where it began, turning over');
   let ticks = 0;
   while (stage() !== 'land' && ticks++ < 60) room.step();
-  // A plain fall of that height takes sqrt(2h/g): about 23 ticks.
-  assert.ok(ticks < 12, `down in ${ticks} ticks`);
+  // A plain fall of that height takes sqrt(2h/g): about 45 ticks.
+  assert.ok(ticks < 20, `down in ${ticks} ticks`);
   assert.equal(alice.pos.y, EYE_HEIGHT);
-  assert.equal(bob.hearts, MAX_HEARTS - pound.damage, 'bob, within reach, is hurt');
+  // Two 5 m steps of the drop are a heart more, one 10 m step a metre further.
+  assert.equal(bob.hearts, MAX_HEARTS - pound.damage - 1, 'bob, within reach, is hurt');
   room.step();
-  assert.ok(bob.pos.x > 2 && bob.pos.y > EYE_HEIGHT, 'and knocked back off his feet');
+  assert.ok(bob.pos.x > 3.5 && bob.pos.y > EYE_HEIGHT, 'and knocked back off his feet');
   assert.equal(carol.hearts, MAX_HEARTS, 'carol, past it, is not');
   assert.equal(alice.hearts, MAX_HEARTS, 'and it lands as the plain fall it began as, unhurt');
   room.receive(ida, { t: 'input', f: { ...frame(0, []), my: 1 } });
@@ -1133,5 +1134,5 @@ test('a ground pound: pressed in the air it hangs, drops faster than a fall, pla
   assert.equal(alice.pos.z, 0, 'feet planted');
   for (let i = 0; i < Math.round(pound.recover * TICK_RATE); i++) room.step();
   assert.equal(alice.pound, null);
-  assert.equal(bob.hearts, MAX_HEARTS - pound.damage, 'hurt once');
+  assert.equal(bob.hearts, MAX_HEARTS - pound.damage - 1, 'hurt once');
 });
