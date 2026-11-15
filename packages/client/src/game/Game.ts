@@ -134,6 +134,7 @@ const ECHO_DELAY = 0.5;
 const ECHO_LEVEL = 0.3;
 const GLOAT_DELAY = 0.4; // seconds after a kill that the killer's own line for one starts, clear of the shot
 const OWN_MOVE = 0.6; // the share of its volume the player's own ground pound turns over at, as their own steps do (Footsteps.ts)
+const DEATH_SOUND_DELAY = 0.5; // seconds from dying to the look's death sound: the hurt sound or cry of the last hit, played out
 const CRY_GAP_MS = 600; // a player's cries at being hit come no closer together than this: the longest lasts 0.4 s
 // Metres nearer than the dragon whose theme is playing another has to be to take the theme over,
 // so two at a like distance don't trade it back and forth.
@@ -662,6 +663,8 @@ export class Game {
     this.setScoped(false);
     this.syncBlocked();
     this.death.show(how);
+    // The look's death plays over the death screen, a moment on so the last hit is heard first.
+    this.say(this.myId, 'death', DEATH_SOUND_DELAY);
   }
 
   // A shot landed, or with no shooter, a fall hurt. The victim's client flashes red, plays the
@@ -676,9 +679,8 @@ export class Game {
   }): void {
     if (m.victim === this.myId) {
       for (const s of this.pendingShots) if (s.shooter === m.shooter) s.hitMe = true;
-      // The hit that kills is the look's death, if it has one and it has arrived; any other is its
-      // cry; and failing either, the hurt sound.
-      if (!(m.hearts <= 0 && this.say(m.victim, 'death')) && !this.cry(m.victim)) this.sfx.play('hurt');
+      // The look's cry, or failing one the hurt sound: the hit that kills sounds like any other.
+      if (!this.cry(m.victim)) this.sfx.play('hurt');
       this.damageFlash.flash();
       this.hearts.set(m.hearts);
     } else {

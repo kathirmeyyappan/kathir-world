@@ -15,9 +15,9 @@ export interface Voice {
   leap?: SoundId[]; // leaving it on a long jump (sim/avatars.ts `Leap`): the jump's sound unless given
   hurt?: SoundId[]; // taking damage, heard by everyone near
   kill?: SoundId[]; // a moment after killing someone
-  // Its player's own death, heard by them alone: on the hit that kills them, in the hurt sound's
-  // place, and on over the death screen. Sent for as a player takes the look (Sfx.want), so only
-  // who can die as it fetches it.
+  // Its player's own death, heard by them alone: over the death screen, after the sound of the hit
+  // that killed them. Sent for as a player takes the look (Sfx.want), so only who can die as it
+  // fetches it.
   death?: SoundId[];
 }
 
