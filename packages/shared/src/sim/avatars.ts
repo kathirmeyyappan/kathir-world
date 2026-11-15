@@ -63,6 +63,14 @@ interface Moves {
   leap?: Leap;
   pound?: Pound;
   chain?: Chain;
+  crouch?: Crouch;
+}
+
+// A crouch: what holding the crouch action on the ground is, for a look that has one (walker.ts).
+// It crawls, and a jump out of it is a backflip, higher than its jump.
+export interface Crouch {
+  crawl: number; // the share of its walk it crawls at
+  flip: number; // how many times its jump's height the backflip rises
 }
 
 // A long jump: what a jump taken at a run is, for a look that has one (walker.ts). It goes low and
@@ -134,6 +142,7 @@ const LOOKS = {
     // The twirl as long as its clip (Jointed.ts); the knock a hop back, a third of a second off the ground.
     pound: { damage: 1.5, reach: 3, twirl: 1 / 3, speed: 20, recover: 0.35, knock: { speed: 4, lift: 3, grip: 6 } },
     chain: { jumps: 3, gap: 0.3, rise: 1.2 }, // a jump, a double and a triple
+    crouch: { crawl: 0.3, flip: 1.5 },
   },
   luigi: {
     id: 'luigi',
@@ -150,6 +159,7 @@ const LOOKS = {
     // The twirl as long as its clip (Jointed.ts); the knock a hop back, a third of a second off the ground.
     pound: { damage: 1.5, reach: 3, twirl: 1 / 3, speed: 20, recover: 0.35, knock: { speed: 4, lift: 3, grip: 6 } },
     chain: { jumps: 3, gap: 0.3, rise: 1.2 }, // a jump, a double and a triple
+    crouch: { crawl: 0.3, flip: 1.5 },
   },
   wario: {
     id: 'wario',
@@ -166,6 +176,7 @@ const LOOKS = {
     // The twirl as long as its clip (Jointed.ts); heavier than the brothers', it lands harder and wider.
     pound: { damage: 2.5, reach: 4, twirl: 1 / 3, speed: 20, recover: 0.35, knock: { speed: 4, lift: 3, grip: 6 } },
     chain: { jumps: 3, gap: 0.3, rise: 1.2 }, // a jump, a double and a triple
+    crouch: { crawl: 0.3, flip: 1.5 },
   },
   waluigi: {
     id: 'waluigi',
@@ -182,6 +193,7 @@ const LOOKS = {
     // The twirl as long as its clip (Jointed.ts); the knock a hop back, a third of a second off the ground.
     pound: { damage: 1.5, reach: 3, twirl: 1 / 3, speed: 20, recover: 0.35, knock: { speed: 4, lift: 3, grip: 6 } },
     chain: { jumps: 3, gap: 0.3, rise: 1.2 }, // a jump, a double and a triple
+    crouch: { crawl: 0.3, flip: 1.5 },
   },
   spongebob: {
     id: 'spongebob',
@@ -419,6 +431,12 @@ export function chainOf(avatar: AvatarId): Chain | null {
   return (look.class === 'walker' && look.chain) || null;
 }
 
+// A look's crouch, if it has one.
+export function crouchOf(avatar: AvatarId): Crouch | null {
+  const look: AvatarSpec = AVATARS[avatar];
+  return (look.class === 'walker' && look.crouch) || null;
+}
+
 // A look's ground pound, if it has one.
 export function poundOf(avatar: AvatarId): Pound | null {
   const look: AvatarSpec = AVATARS[avatar];
@@ -440,12 +458,13 @@ export interface MoveKey {
 }
 const MOVE_HELP: Record<Exclude<keyof Moves, 'walk' | 'jump'>, MoveHelp | null> = {
   leap: { keys: 'run + jump to long jump', touch: 'run + JUMP to long jump' },
-  pound: {
-    keys: 'X in the air to ground pound',
-    touch: 'POUND in the air to ground pound',
-    key: { key: 'X', does: 'ground pound' },
-  },
+  pound: { keys: 'X in the air to ground pound', touch: 'POUND in the air to ground pound' },
   chain: null,
+  crouch: {
+    keys: 'hold X to crouch, and jump from it to backflip',
+    touch: 'CROUCH to crouch, and JUMP from it to backflip',
+    key: { key: 'X', does: 'crouch' },
+  },
 };
 
 // The help of each move a look has, in the order they're listed.

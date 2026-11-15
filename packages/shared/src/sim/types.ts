@@ -31,6 +31,8 @@ export interface PlayerState {
   // 0 on the tick the stage began, with the eye height and vertical speed (m/s) it began at, which
   // its landing is judged as a plain fall from; null otherwise.
   pound: { stage: 'twirl' | 'drop' | 'land'; t: number; from: number; vy: number } | null;
+  crouch: boolean; // crouched on the ground (avatars.ts `Crouch`): the crouch action held there
+  backflip: boolean; // in the jump taken out of a crouch, until it lands or something else moves it
   // On a ladder (structures.ts `ladder`, walker.ts): the piece, the face it climbs (±1 along the
   // ladder's local z), and which way round the ladder it last went to it (-1 by its left, 1 by its
   // right), for the swing; null on foot.

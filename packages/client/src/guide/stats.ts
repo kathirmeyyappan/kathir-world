@@ -31,6 +31,7 @@ import {
   leapOf,
   lifeOf,
   poundOf,
+  crouchOf,
   walkSpeedOf,
   type AvatarId,
   type BotFlag,
@@ -84,11 +85,11 @@ export function characterStats(id: AvatarId): Stat[] {
 }
 
 // What a character can do that the rest can't, each with its own numbers.
-export type AbilityId = 'leap' | 'pound' | 'chain';
+export type AbilityId = 'leap' | 'pound' | 'chain' | 'crouch' | 'backflip';
 
 // A character's special abilities, read off its row: none for most.
 export function abilityStats(id: AvatarId): { id: AbilityId; stats: Stat[] }[] {
-  return [...leapStats(id), ...chainStats(id), ...poundStats(id)];
+  return [...leapStats(id), ...chainStats(id), ...poundStats(id), ...crouchStats(id)];
 }
 
 function chainStats(id: AvatarId): { id: AbilityId; stats: Stat[] }[] {
@@ -103,6 +104,28 @@ function chainStats(id: AvatarId): { id: AbilityId; stats: Stat[] }[] {
         { label: 'Use', value: 'Space again as you land' },
         { label: 'Heights', value: `${heights.map(num).join(', ')} m` },
         { label: 'Time to jump again', value: `${num(chain.gap)} s` },
+      ],
+    },
+  ];
+}
+
+function crouchStats(id: AvatarId): { id: AbilityId; stats: Stat[] }[] {
+  const crouch = crouchOf(id);
+  const look = AVATARS[id];
+  if (!crouch || look.class !== 'walker') return [];
+  return [
+    {
+      id: 'crouch',
+      stats: [
+        { label: 'Keys', value: 'Hold X' },
+        { label: 'Crawl speed', value: `${num(look.walk * crouch.crawl)} m/s` },
+      ],
+    },
+    {
+      id: 'backflip',
+      stats: [
+        { label: 'Keys', value: 'Space, crouched' },
+        { label: 'Height', value: `${num(JUMP_RISE * look.jump * crouch.flip)} m` },
       ],
     },
   ];

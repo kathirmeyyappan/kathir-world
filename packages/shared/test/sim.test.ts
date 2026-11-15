@@ -65,6 +65,9 @@ import {
   WORLD_STRUCTURES,
   isGrounded,
   type AvatarId,
+  crouchOf,
+  walkSpeedOf,
+  type ItemAction,
 } from '@world/shared';
 import { TUNG_TUNG_TOWER_ROOMS } from '../src/content/tower';
 
@@ -241,6 +244,28 @@ test('a chain of jumps: each taken as the last lands rises higher, the third the
   assert.ok(about(second, first * 1.2) && about(third, first * 1.44), `${first}, ${second}, ${third}`);
   assert.ok(about(again, first), 'the jump after the third is the first again');
   assert.ok(about(hop(0), second) && about(hop(10), first), 'and so is one taken after a wait on the ground');
+});
+
+test('a crouch: held on the ground it crawls, a jump out of it is a backflip higher than the jump, and held on into the air it is no ground pound', () => {
+  const p = createPlayer('a', 'a', '#fff', { x: 0, y: EYE_HEIGHT, z: 0 });
+  becomeAvatar(p, 'mario');
+  const crouch = crouchOf('mario')!;
+  let seq = 0;
+  stepPlayer(p, frame(++seq, { my: 1, actions: ['crouch', 'run'] }), 1, WORLD_SHAPE);
+  assert.ok(p.crouch && Math.abs(p.pos.z - walkSpeedOf('mario') * crouch.crawl) < 1e-9, 'a crawl, whatever the run');
+  // One jump with `actions` held throughout: how high it gets.
+  const hop = (actions: ItemAction[]): number => {
+    let peak = 0;
+    do {
+      stepPlayer(p, frame(++seq, { jump: peak === 0, actions }), TICK_DT, WORLD_SHAPE);
+      peak = Math.max(peak, p.pos.y - EYE_HEIGHT);
+    } while (!isGrounded(p));
+    return peak;
+  };
+  const flip = hop(['crouch']);
+  assert.equal(p.pound, null, 'the key held from the ground starts no pound');
+  for (let i = 0; i < TICK_RATE; i++) stepPlayer(p, frame(++seq, {}), TICK_DT, WORLD_SHAPE);
+  assert.ok(Math.abs(flip / hop([]) / crouch.flip - 1) < 0.03, 'the backflip rises that much higher');
 });
 
 test('/speedy boost multiplies movement and wears off; holding the run does too; a scope slows it and stops jumps; a chill halves it and wears off', () => {

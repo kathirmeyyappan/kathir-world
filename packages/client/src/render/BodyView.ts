@@ -302,6 +302,8 @@ export class BodyView {
       leap: false,
       hop: 0,
       pound: null,
+      crouch: false,
+      backflip: false,
       climb: null,
       chilled: shown.chilled,
       dead: false,

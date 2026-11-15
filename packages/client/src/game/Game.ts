@@ -24,6 +24,7 @@ import {
   hashSeed,
   isGrounded,
   poundOf,
+  crouchOf,
   itemHelp,
   itemStats,
   lookDirection,
@@ -47,7 +48,7 @@ import { Footsteps } from '../audio/Footsteps';
 import { ITEM_SOUNDS, heard, loopsOf, Sfx, voiceOf, type SoundId } from '../audio/Sfx';
 import { take, VOICES } from '../audio/voices';
 import { InputManager } from '../input/InputManager';
-import { MobileActions } from '../input/MobileActions';
+import { MobileActions, type MobileActionState } from '../input/MobileActions';
 import { MobileControls } from '../input/MobileControls';
 import { IS_TOUCH, onTap } from '../input/touch';
 import type { Connection } from '../net/Connection';
@@ -176,7 +177,8 @@ export class Game {
   private heldFace: { piece: number; side: 1 | -1; way: 1 | -1 } | null = null; // the ladder face the player was last seen holding
   private swing = 0; // radians the camera has still to turn after a swap round a ladder
   private swapRequested = false; // the touch SWAP button was pressed since the last frame
-  private poundRequested = false; // and the touch POUND button
+  private poundRequested = false; // and the touch CROUCH button, which is POUND in the air
+  private crouchOn = false; // crouched by that button: a press on the ground turns it on and off
   private readonly pounds = new Map<string, RemotePlayer['pound']>(); // the stage each player's ground pound was last seen at
   private readonly cried = new Set<string>(); // the dragons heard crying on their way out of the ground
   private readonly criedOut = new Map<string, number>(); // when each player may next cry out at a hit (performance.now)
@@ -424,8 +426,14 @@ export class Game {
     }
     this.swapRequested = false;
     if (this.input.isDown('ShiftLeft') || this.input.isDown('ShiftRight')) actions.push('run');
-    // A look with a ground pound starts one in the air on X, or the touch POUND button.
-    if (self && poundOf(self.avatar) && (this.input.wasPressed('KeyX') || this.poundRequested)) actions.push('pound');
+    // X is a look's own moves: held on the ground it crouches, and a press in the air starts a
+    // ground pound. The touch button is both: a press on the ground turns the crouch on or off (a
+    // thumb can't hold it and press JUMP), until the feet leave the ground.
+    const pressed = this.input.wasPressed('KeyX') || this.poundRequested;
+    if (!self || !crouchOf(self.avatar) || !isGrounded(self)) this.crouchOn = false;
+    else if (this.poundRequested) this.crouchOn = !this.crouchOn;
+    if (self && crouchOf(self.avatar) && (this.input.isDown('KeyX') || this.crouchOn)) actions.push('crouch');
+    if (self && poundOf(self.avatar) && pressed) actions.push('pound');
     this.poundRequested = false;
     return actions;
   }
@@ -697,6 +705,13 @@ export class Game {
       this.hud.hitMarker();
       this.hitNotice.show(this.hud.playerName(m.victim), m.damage, m.headshot);
     }
+  }
+
+  // What the touch button for a look's own moves does where the player is: CROUCH on the ground,
+  // lit while crouched, and POUND in the air; null for a look with neither there.
+  private ownMove(self: PlayerState): MobileActionState['move'] {
+    if (isGrounded(self)) return crouchOf(self.avatar) ? { label: 'CROUCH', on: self.crouch } : null;
+    return poundOf(self.avatar) ? { label: 'POUND', on: false } : null;
   }
 
   // A player's ground pound (sim/avatars.ts `Pound`) as it's seen to change stage, `at` being
@@ -1041,7 +1056,7 @@ export class Game {
       scoped: this.scoped,
       canFire: this.canFire(),
       climbing: !!self.climb,
-      canPound: !this.dead && !self.pound && !self.climb && poundOf(self.avatar) !== null && !isGrounded(self),
+      move: this.dead || self.pound || self.climb ? null : this.ownMove(self),
     });
     if (hit !== this.canHit) {
       this.canHit = hit;
@@ -1147,6 +1162,8 @@ export class Game {
         leap: self.leap,
         hop: self.hop,
         pound: self.pound?.stage ?? null,
+        crouch: self.crouch,
+        backflip: self.backflip,
         climb: self.climb,
         chilled: self.chilled > 0,
         dead: this.dead,

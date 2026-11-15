@@ -447,7 +447,11 @@ jetpack doing nothing throughout; the landing is judged as the plain fall it beg
 takes `damage` off everyone else on foot within `reach` across the floor, about level with it
 (`POUND_HEIGHT`, so a jump clears it) and in its sight, and throws them back off their feet (its
 `knock`, a `throwWalker` like the storm's), a kill by it announced with `item: 'pound'`; the client plays its turn's sound and runs a ring out over the floor it hurt across,
-`render/PoundRing.ts`) and a builder in `packages/client/src/render/avatars/` (`MAKERS` in `index.ts`,
+`render/PoundRing.ts`; with a `crouch`, the `crouch` action held with its feet down (X again: held
+on the ground it's the crouch, and only a press in the air is a pound; the touch CROUCH button
+turns it on and off, since a thumb can't hold it and press JUMP) is a crouch,
+`PlayerState.crouch`: its walk at the `crawl` share, the run adding nothing, and a jump out of it
+a backflip, `PlayerState.backflip`, rising `flip` times its jump's height in the chain's place) and a builder in `packages/client/src/render/avatars/` (`MAKERS` in `index.ts`,
 which the compiler asks for). Everyone on foot is a `Figure` (`render/avatars/Walker.ts`): the
 builder makes the avatar's parts under the base node and says which plays which role (what tips
 with the look, a head, the legs, the free arm, the weapon arm with its grip and the way it reaches
@@ -480,7 +484,8 @@ for a look with the move a `leap`, a long jump played takeoff to landing, `doubl
 `doubleFall`, the second of a chain of jumps going up and coming down, `triple`, its third, a
 somersault fitted to the flight so it's over just before the landing, and `pound` and
 `pounded`, a ground pound turning over into the seat it drops in, then landing sat and getting
-up) and a few numbers; the frame's pose is those sampled and blended: the idle into the walk or run at the
+up, and `crouch`, `crawl` and `backflip`, sat low, a cycle of the crawl's limbs, and the backward
+somersault of the jump out of it, fitted to its flight as the triple's is) and a few numbers; the frame's pose is those sampled and blended: the idle into the walk or run at the
 point in the stride its feet have got to (the footsteps' phase, so feet land with their sounds,
 and the stride is the same at any speed, the legs only quicker), the jump going up into the fall
 coming down, and a landing as hard as the drop. Don't invent a character's motion from numbers:
