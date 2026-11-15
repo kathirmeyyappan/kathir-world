@@ -487,10 +487,10 @@ for a jump in the swoosh's place (`jump`, by where the jump is in a chain of the
 second, the third, the last one given serving the rest), and the takes it picks from on a long jump, at a hit (heard by
 everyone near, no more often than `CRY_GAP_MS`; its own player hears it in the hurt sound's
 place) and a moment after a kill (`Game.say`); and its `death`,
-which its own player alone hears on the hit that kills them, in the hurt sound's place, and on
-over the death screen (cut to its ten seconds; the reload ends it). A death is `lazy` too, and
-sent for as the player takes the look (`Sfx.want`), since it has to be there the moment they
-die; one that hasn't arrived falls back to the cry or the hurt sound. Keep to one of those two
+which its own player alone hears over the death screen (cut to its ten seconds; the reload ends
+it), `DEATH_SOUND_DELAY` after dying so the hit that killed them sounds first, as any hit does. A
+death is `lazy` too, and sent for as the player takes the look (`Sfx.want`), since it has to be
+there the moment they die; one that hasn't arrived is left out. Keep to one of those two
 for any sound only some players hear: everything else in `SOUNDS` is fetched by everyone up
 front, which is right for what anyone near can hear at any moment and wrong for anything long
 or rarely heard. A clip cut from something longer gets a `swell` and a `fade` in `SOUNDS` to suit

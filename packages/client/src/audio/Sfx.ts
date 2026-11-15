@@ -168,7 +168,7 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   // fade: it lasts the death screen out, whose reload ends it.
   'mario-death': { file: 'mario-death.mp3', half: 6, reach: 30, volume: 0.25, fade: 0.4, lazy: true },
   'spongebob-death': { file: 'spongebob-death.mp3', half: 6, reach: 30, volume: 0.2, swell: 0.8, lazy: true },
-  'mike-death': { file: 'mike-death.mp3', half: 6, reach: 30, volume: 0.3, swell: 0.15, fade: 0.5, lazy: true },
+  'mike-death': { file: 'mike-death.mp3', half: 6, reach: 30, volume: 0.3, swell: 0.15, fade: 0.15, lazy: true },
   'boat-horn': { file: 'boat-horn.mp3', half: 10, reach: 40, volume: 0.3, lazy: true }, // the foghorn alarm clock in SpongeBob's bedroom, at a click
   land: { file: 'land.mp3', half: 8, reach: 35, volume: 0.1 },
   'land-hard': { file: 'land-hard.mp3', half: 10, reach: 40, volume: 0.14 },
