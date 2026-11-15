@@ -14,7 +14,7 @@ export interface MobileActionState {
   scoped: boolean;
   canFire: boolean; // false for a scope-only weapon that isn't scoped
   climbing: boolean; // on a ladder: SWAP goes round to its other face
-  move: { label: 'CROUCH' | 'POUND'; on: boolean } | null; // what a look's own move is where it stands, and whether it's on
+  move: { label: 'CROUCH' | 'POUND' | 'BAT'; on: boolean } | null; // what a look's own move is where it stands, and whether it's on
 }
 
 export interface MobileActionHandlers {

@@ -453,7 +453,13 @@ turns it on and off, since a thumb can't hold it and press JUMP) is a crouch,
 `PlayerState.crouch`: its walk at the `crawl` share, the run adding nothing, and a jump out of it
 held still a backflip, `PlayerState.backflip`, rising `flip` times its jump's height in the
 chain's place, and out of a crawl its long jump, the run or no; that last is for players to find,
-so the hint, the legend and the guide don't say it) and a builder in `packages/client/src/render/avatars/` (`MAKERS` in `index.ts`,
+so the hint, the legend and the guide don't say it; with a `strike`, the `strike` action (X once
+more, or the touch BAT button) swings what its free hand carries, whatever the other holds and
+wherever it stands, `PlayerState.strike`, the seconds into it: `windup` after the press the Room
+takes `damage` off everyone with any of their hit shape within `reach` of the middle of its body
+and within `arc` of the way it faces, level whatever its pitch (`combat.ts` `findStrikeHits`),
+and throws a walker back (its `knock`), a kill by it announced with `item: 'strike'`, and
+`recover` later it can be swung again; Tung Tung Tung Sahur's bat is the one there is) and a builder in `packages/client/src/render/avatars/` (`MAKERS` in `index.ts`,
 which the compiler asks for). Everyone on foot is a `Figure` (`render/avatars/Walker.ts`): the
 builder makes the avatar's parts under the base node and says which plays which role (what tips
 with the look, a head, the legs, the free arm, the weapon arm with its grip and the way it reaches
@@ -468,7 +474,10 @@ and the walker never asks which avatar it is posing. A Sketchfab
 model goes through `packages/client/scripts/avatar-model.py` into a `<name>Model.ts` and a texture
 atlas (`public/assets/textures/avatars/<id>.png`, listed in `SKINNED` in `render/avatars/index.ts` so
 it's fetched at startup); a trunk on two arms and two legs is a `BodySpec` (`Body.ts`), and one with
-a whole skeleton a jointed body (below). Rebuild the bot map after
+a whole skeleton a jointed body (below). Tung Tung Tung Sahur (`Sahur.ts`) is rigid parts from
+`scripts/sahur-model.py`: a sculpt's log and legs with arms and a bat drawn by the script, every
+part closed and turning on a joint sunk in the log, the bat in its left fist and an item in its
+right; the builder's `extra` poses the bat arm (carried, swung on a strike, held clear on a ladder). Rebuild the bot map after
 adding one, and keep it as cheap as the ones there (triangles, one mesh, a small atlas), with the
 numbers in the PR.
 

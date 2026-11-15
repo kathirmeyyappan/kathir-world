@@ -25,6 +25,7 @@ import {
   isGrounded,
   poundOf,
   poundPower,
+  strikeOf,
   crouchOf,
   keyLabel,
   itemStats,
@@ -136,6 +137,7 @@ const OWN_WEAPON_SCALE = 2.2; // your own guns, seen from the boom: at true size
 const ECHO_DELAY = 0.5;
 const ECHO_LEVEL = 0.3;
 const GLOAT_DELAY = 0.4; // seconds after a kill that the killer's own line for one starts, clear of the shot
+const STRIKE_RATE = 0.7; // how fast the jump's swoosh is played for a strike's swing: slower and lower, a heavy bat's
 const OWN_MOVE = 0.6; // the share of its volume the player's own ground pound turns over at, as their own steps do (Footsteps.ts)
 const DEATH_SOUND_DELAY = 0.5; // seconds from dying to the look's death sound: the hurt sound or cry of the last hit, played out
 const CRY_GAP_MS = 600; // a player's cries at being hit come no closer together than this, however short the cry
@@ -195,6 +197,7 @@ export class Game {
   private poundRequested = false; // and the touch CROUCH button, which is POUND in the air
   private crouchOn = false; // crouched by that button: a press on the ground turns it on and off
   private readonly pounds = new Map<string, RemotePlayer['pound']>(); // the stage each player's ground pound was last seen at
+  private readonly strikes = new Map<string, number>(); // how far into a strike each player striking was last seen
   private readonly cried = new Set<string>(); // the dragons heard crying on their way out of the ground
   private readonly criedOut = new Map<string, number>(); // when each player may next cry out at a hit (performance.now)
   private themeOf: string | null = null; // the dragon or building whose theme is playing (Theme.holder)
@@ -444,13 +447,15 @@ export class Game {
     this.swapRequested = false;
     if (this.input.isDown('ShiftLeft') || this.input.isDown('ShiftRight')) actions.push('run');
     // X is a look's own moves: held on the ground it crouches, and a press in the air starts a
-    // ground pound. The touch button is both: a press on the ground turns the crouch on or off (a
-    // thumb can't hold it and press JUMP), until the feet leave the ground.
+    // ground pound; for a look with a strike, a press is the strike. The touch button is whichever
+    // the look has: a press on the ground turns the crouch on or off (a thumb can't hold it and
+    // press JUMP), until the feet leave the ground.
     const pressed = this.input.wasPressed('KeyX') || this.poundRequested;
     if (!self || !crouchOf(self.avatar) || !isGrounded(self)) this.crouchOn = false;
     else if (this.poundRequested) this.crouchOn = !this.crouchOn;
     if (self && crouchOf(self.avatar) && (this.input.isDown('KeyX') || this.crouchOn)) actions.push('crouch');
     if (self && poundOf(self.avatar) && pressed) actions.push('pound');
+    if (self && strikeOf(self.avatar) && pressed) actions.push('strike');
     this.poundRequested = false;
     return actions;
   }
@@ -616,6 +621,7 @@ export class Game {
         this.avatars.delete(m.id);
         this.criedOut.delete(m.id);
         this.pounds.delete(m.id);
+        this.strikes.delete(m.id);
         this.hud.removePlayer(m.id, m.name);
         return;
       }
@@ -724,9 +730,12 @@ export class Game {
     }
   }
 
-  // What the touch button for a look's own moves does where the player is: CROUCH on the ground,
-  // lit while crouched, and POUND in the air; null for a look with neither there.
+  // What the touch button for a look's own moves does where the player is: BAT for a look with a
+  // strike, anywhere; else CROUCH on the ground, lit while crouched, and POUND in the air, off a
+  // ladder and out of a pound; null for a look with none there.
   private ownMove(self: PlayerState): MobileActionState['move'] {
+    if (strikeOf(self.avatar)) return { label: 'BAT', on: false };
+    if (self.pound || self.climb) return null;
     if (isGrounded(self)) return crouchOf(self.avatar) ? { label: 'CROUCH', on: self.crouch } : null;
     return poundOf(self.avatar) ? { label: 'POUND', on: false } : null;
   }
@@ -745,6 +754,17 @@ export class Game {
     const pound = poundOf(avatar);
     const reach = pound && poundPower(pound, height).reach;
     if (stage === 'land' && reach) poundRing(this.engine, new Vector3(at.x, at.y - EYE_HEIGHT, at.z), reach);
+  }
+
+  // A player's strike (sim/avatars.ts `Strike`), `strike` being how far into one they are and `at`
+  // their eye point: its swing is heard as it starts.
+  private striking(id: string, strike: number | null, at: Vec3): void {
+    const was = this.strikes.get(id);
+    if (strike === null) this.strikes.delete(id);
+    else this.strikes.set(id, strike);
+    if (strike === null || (was !== undefined && strike >= was)) return;
+    const mine = id === this.myId;
+    this.sfx.play('jump', mine ? null : at, { level: mine ? OWN_MOVE : 1, rate: STRIKE_RATE });
   }
 
   // One of a player's lines in their own voice (voices.ts), `delay` seconds from now, from where
@@ -960,6 +980,7 @@ export class Game {
     if (!held) this.setScoped(false);
     this.viewmodel.show(held && !this.scoped && !this.dead && this.view.atEyes ? held.id : null, self.avatar);
     this.viewmodel.setFiring(self.firing);
+    this.viewmodel.swing(this.view.atEyes && !this.dead ? self.strike : null, strikeOf(self.avatar), dt);
     this.viewmodel.update(dt);
     const showHint = held && !this.dead;
     this.hud.setItemHint(
@@ -1036,8 +1057,11 @@ export class Game {
       self.pos,
       self.pound ? self.pound.from - self.pos.y : 0,
     );
-    for (const rp of sampled.players)
+    this.striking(this.myId, self.strike, self.pos);
+    for (const rp of sampled.players) {
       this.pounding(rp.id, rp.avatar, rp.pound, { x: rp.x, y: rp.y, z: rp.z }, rp.poundHeight);
+      this.striking(rp.id, rp.strike, { x: rp.x, y: rp.y, z: rp.z });
+    }
     const readers = new Map<string, number>();
     const seen = new Set<string>();
     for (const rp of sampled.players) {
@@ -1086,7 +1110,7 @@ export class Game {
       scoped: this.scoped,
       canFire: this.canFire(),
       climbing: !!self.climb,
-      move: this.dead || self.pound || self.climb ? null : this.ownMove(self),
+      move: this.dead ? null : this.ownMove(self),
     });
     if (hit !== this.canHit) {
       this.canHit = hit;
@@ -1220,6 +1244,7 @@ export class Game {
         poundHeight: self.pound ? self.pound.from - self.pos.y : 0,
         crouch: self.crouch,
         backflip: self.backflip,
+        strike: self.strike,
         climb: self.climb,
         chilled: self.chilled > 0,
         dead: this.dead,

@@ -81,7 +81,7 @@ export const VOICES: Record<AvatarId, Voice> = {
   mike: { enter: [], death: ['mike-death'] },
   sulley: { enter: [] },
   elizabeth: { enter: [] },
-  sahur: { enter: [] },
+  sahur: { enter: ['sahur-enter'] },
   'light-dragon': { enter: [] },
   colgera: { enter: [] },
 };
