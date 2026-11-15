@@ -82,6 +82,15 @@ const skyway: Structure[] = [
   rail({ x: railEnd, z: Z + halfW }, { x: bridgeStart, z: Z + halfW }, BRIDGE_TOP),
 ];
 
+// Metres from a point to the walls, 0 inside them, for the music (the client's PLACE_THEMES): every
+// floor from the ground up to the roof, out to the wall's outer face. The roof, the balconies and
+// the sky bridge are outside.
+const ROOF = 4 * STOREY;
+export function toTower(p: Vec3): number {
+  const out = Math.max(0, Math.hypot(p.x - X, p.z - Z) - OUTER);
+  return Math.hypot(out, Math.max(0, -p.y, p.y - ROOF));
+}
+
 export const TUNG_TUNG_TOWER: Structure[] = [...TOWER.structures, ...balconies, ...ladders, ...skyway];
 
 export const TUNG_TUNG_TOWER_FOOTPRINT: Disc = TOWER.footprint;
