@@ -9,7 +9,19 @@ import { Quaternion, TransformNode, Vector3 } from '@babylonjs/core';
 import { GRAVITY, WORLD_STRUCTURES, chainOf, jumpVelocityOf, poundOf, walkSpeedOf, type AvatarId } from '@world/shared';
 import type { RemotePlayer } from '../../net/Interpolation';
 import type { Engine } from '../Engine';
-import { CLIP_BONES, LEGS, blend, clip, motion, sample, turnAt, type Clip, type Motion, type RawClip } from './clips';
+import {
+  ARMS,
+  CLIP_BONES,
+  LEGS,
+  blend,
+  clip,
+  motion,
+  sample,
+  turnAt,
+  type Clip,
+  type Motion,
+  type RawClip,
+} from './clips';
 import {
   ARM_ELBOW,
   ARM_GRIP,
@@ -122,6 +134,8 @@ export interface Style {
   follow: number; // the share of the look's pitch the head takes
   bank: number; // radians it leans into a turn for each radian a second it's turning, at a full walk
   glance: number; // one time through its idle in this many it looks about as the clip has it; the rest its head stays ahead
+  arms?: number; // the share of its stride's arm swing it keeps, the rest held as its idle holds them: all of it unless given
+  waddle?: number; // radians it rocks over each foot as that foot comes down: a heavy body's walk
 }
 
 export interface JointedSpec {
@@ -225,6 +239,7 @@ export class JointedAvatar extends WalkerAvatar {
   private landing = Infinity; // seconds since it last landed
   private stood = 0; // seconds it has been drawn, for its idle
   private readonly ahead: Float32Array; // the head's turn as its idle starts: looking ahead
+  private readonly rest: Motion; // its idle as it starts: how it holds itself standing
 
   constructor(engine: Engine, id: string, kind: AvatarId, spec: JointedSpec, color: string) {
     let rig: Rig | undefined;
@@ -260,6 +275,7 @@ export class JointedAvatar extends WalkerAvatar {
     this.flip = FLIP_SHARE * ((2 * third) / GRAVITY);
     sample(this.third, this.clips.idle, 0, true);
     this.ahead = this.third.slice(HEAD_AT, HEAD_AT + 4);
+    this.rest = this.third.slice();
   }
 
   // On the ground or in the air: its idle, its walk or run where its stride has got to, its jump,
@@ -310,6 +326,7 @@ export class JointedAvatar extends WalkerAvatar {
       if (running < 1) sample(stride, clips.walk, cycle, true);
       if (running > 0) sample(running < 1 ? third : stride, clips.run, cycle, true);
       if (running > 0 && running < 1) blend(stride, stride, third, running);
+      if (style.arms !== undefined) blend(stride, stride, this.rest, 1 - style.arms, ARMS, LEGS);
       if (striding < 1) blend(out, out, other, striding);
       grip += (GRIP_RUN - GRIP_IDLE) * striding * running;
     }
@@ -393,7 +410,9 @@ export class JointedAvatar extends WalkerAvatar {
     const off = wrap(p.yaw - this.facing);
     const looks = flipping ? 0 : smooth((HEAD_GIVES_UP - Math.abs(off)) / HEAD_FADE) * (1 - own);
     const head = Math.max(-HEAD_TURN_LIMIT, Math.min(HEAD_TURN_LIMIT, off)) * looks;
-    this.rig.play(out, grip, this.bank, armed ? hips * striding : 0, head, p.pitch * style.follow * looks);
+    // A waddle: over the right foot as it comes down, the stride's start, and over the left at its middle.
+    const rock = (style.waddle ?? 0) * striding * Math.cos(Math.PI * step);
+    this.rig.play(out, grip, this.bank + rock, armed ? hips * striding : 0, head, p.pitch * style.follow * looks);
     if (!turning && !flipping) this.arm(p);
     return walked;
   }

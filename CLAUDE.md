@@ -468,7 +468,8 @@ down, and a landing's weight is the drop from its highest point. Every change of
 rest to rest over a few frames, never snapped. The poses no clip covers (on a ladder, lying dead)
 are written as a `BodyPose` (`render/avatars/motion.ts`), which the rig solves, bending each leg
 to put its foot where the pose says. Characters on one rig can share clips (Luigi plays
-Mario's, his legs running on in the air, and Wario plays them as they are on his own short, wide-set legs), and a new one is a row in the model script's
+Mario's, his legs running on in the air, and Wario plays them on his own short, wide-set legs with most of the arms' swing taken out and
+his body rocking over each foot, the style's `arms` and `waddle`), and a new one is a row in the model script's
 `CHARACTERS`, its files, and clips of its own if it moves its own way.
 
 Its walk is a row in `GAITS` (`render/avatars/gaits.ts`): the metres between its footfalls, which pace

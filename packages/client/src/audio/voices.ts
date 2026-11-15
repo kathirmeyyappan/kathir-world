@@ -47,7 +47,7 @@ export const VOICES: Record<AvatarId, Voice> = {
     jump: ['mario-jump-1', 'wario-jump-2', 'wario-jump-3'],
     leap: ['wario-leap-1', 'wario-leap-2'],
     hurt: ['wario-hurt-1'],
-    kill: ['wario-kill-1'],
+    kill: ['wario-kill-1', 'wario-kill-2'],
     death: ['mario-death'],
   },
   spongebob: {
