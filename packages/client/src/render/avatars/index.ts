@@ -20,6 +20,7 @@ import { buildSquidward } from './Squidward';
 import { buildStandard } from './Standard';
 import { buildSulley } from './Sulley';
 import { skinTexture } from './skinned';
+import { WALUIGI } from './Waluigi';
 import { WARIO } from './Wario';
 import { WalkerAvatar, type Build } from './Walker';
 import type { Avatar } from './common';
@@ -32,6 +33,7 @@ const SKINNED: readonly AvatarId[] = [
   'mario',
   'luigi',
   'wario',
+  'waluigi',
   'spongebob',
   'patrick',
   'krabs',
@@ -65,6 +67,7 @@ const MAKERS: Record<AvatarId, Make> = {
   mario: jointed(MARIO),
   luigi: jointed(LUIGI),
   wario: jointed(WARIO),
+  waluigi: jointed(WALUIGI),
   spongebob: walker(bodyBuilder(SPONGEBOB)),
   patrick: walker(bodyBuilder(PATRICK)),
   krabs: walker(bodyBuilder(KRABS)),

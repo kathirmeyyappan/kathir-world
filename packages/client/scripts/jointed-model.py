@@ -5,12 +5,13 @@ Jointed.ts) from a rip of the character's model, unpacked into a folder:
     python packages/client/scripts/jointed-model.py mario path/to/Mario
     python packages/client/scripts/jointed-model.py luigi path/to/Luigi
     python packages/client/scripts/jointed-model.py wario path/to/Wario
+    python packages/client/scripts/jointed-model.py waluigi path/to/Waluigi
 
 A rip is the character's own model in Collada (<name>.dae): a body and a face skinned over a rig of
 34 joints (a hip the legs hang from by a knee and a foot, two joints of spine, a head with its cap,
 hair, mouth and mustache, and from a clavicle each side an arm with an elbow, a hand, two finger
 joints and two of thumb), standing in a T-pose with its feet on the ground, z up, facing -y, in a
-unit of its own. Mario's, Luigi's and Wario's are on that one rig, joint for joint (a joint's name
+unit of its own. Mario's, Luigi's, Wario's and Waluigi's are on that one rig, joint for joint (a joint's name
 ends in a number that differs from rip to rip, which is dropped), and any other rip on it goes
 through as it is; the ones here are Mystie's rips at the Models Resource (CHARACTERS says
 which game each is from). The pupils are meshes of their own floating over the face, for the game
@@ -85,6 +86,7 @@ CHARACTERS = {
     "mario": Character("Mario", "Mario Kart 8", 2.0),
     "luigi": Character("Luigi", "Mario Kart 8", 2.2),
     "wario": Character("Wario", "Mario Kart 8", 2.2),
+    "waluigi": Character("Waluigi", "Mario Kart 8", 3.1),
 }
 
 
