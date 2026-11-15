@@ -75,6 +75,15 @@ export class Hud {
   onChatOpenChange: ((open: boolean) => void) | null = null;
 
   constructor(roomId: string) {
+    // On a touch screen the hints stand in the middle of a small view, and take a tap there
+    // (styles.css): one puts the hint away, until the next thing it has to say. On the click, the
+    // last event of a tap: gone any sooner, the hint would leave the tap's click to the world under it.
+    this.itemHint.addEventListener('click', () => this.itemHint.classList.add('hidden'));
+    this.moveHint.addEventListener('click', () => {
+      window.clearTimeout(this.moveHintTimer);
+      this.moveHint.classList.add('hidden');
+    });
+
     // The legend wraps onto more rows when it's too long for one, and what stacks up from the bottom
     // in the middle of the screen (the hints, the fuel bar, the gear panel) stands that much higher
     // to stay clear of it: --legend-rise, the height of its rows past the first (styles.css).
