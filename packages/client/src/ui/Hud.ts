@@ -57,8 +57,8 @@ export class Hud {
   private readonly moveHint = document.getElementById('move-hint')!;
   private readonly moveHintTitle = this.moveHint.querySelector('.title')!;
   private readonly moveHintMoves = this.moveHint.querySelector('.moves')!;
-  private readonly fuel = document.getElementById('fuel')!;
-  private readonly gear = document.getElementById('gear')!;
+  private readonly hearts = document.getElementById('hearts')!;
+  private readonly condition = document.getElementById('condition')!;
   private moveHintText = '';
   private moveHintTimer = 0;
   private itemHintText = '';
@@ -345,9 +345,9 @@ export class Hud {
     this.itemHint.classList.add('timed');
   }
 
-  // The moves the player's look has of its own: the look's name over them, then how each is done
-  // on a line of its own; none hides it. A banner of its own, up for MOVE_HINT_MS from when its
-  // words are first given (the look being taken), whatever is held meanwhile.
+  // The moves the player's look has of its own: the look's name, then how each is done, a cell
+  // each in a row at the top; none hides it. A banner of its own, up for MOVE_HINT_MS from when
+  // its words are first given (the look being taken), whatever is held meanwhile.
   setMoveHint(title: string, moves: string[]): void {
     const text = moves.length > 0 ? [title, ...moves].join('\n') : '';
     if (text !== this.moveHintText) {
@@ -370,19 +370,14 @@ export class Hud {
     if (!this.moveHint.classList.contains('hidden')) this.placeMoveHint();
   }
 
-  // Stands the move hint clear of what it shares its place with: under the item hint where that is
-  // at the top (a touch screen), over the item hint, the fuel bar and the gear panel where they
-  // stack up from the bottom; in the item hint's own place (the stylesheet's) with none of them up.
+  // Stands the move hint clear of what it shares the top of the view with: under the hearts and
+  // the condition's banner; on a touch screen, where the stylesheet has it under the HUD's buttons
+  // and the item hint is at the top too, under that when it's up.
   private placeMoveHint(): void {
-    const up = (el: HTMLElement) => el.getBoundingClientRect().height > 0;
-    const style = this.moveHint.style;
-    style.top = style.bottom = '';
-    if (COARSE.matches) {
-      if (up(this.itemHint)) style.top = `${this.itemHint.getBoundingClientRect().bottom + HINT_GAP}px`;
-      return;
-    }
-    const tops = [this.itemHint, this.fuel, this.gear].filter(up).map((el) => el.getBoundingClientRect().top);
-    if (tops.length > 0) style.bottom = `${window.innerHeight - Math.min(...tops) + HINT_GAP}px`;
+    const over = (COARSE.matches ? [this.itemHint] : [this.hearts, this.condition])
+      .map((el) => el.getBoundingClientRect())
+      .filter((box) => box.height > 0);
+    this.moveHint.style.top = over.length > 0 ? `${Math.max(...over.map((box) => box.bottom)) + HINT_GAP}px` : '';
   }
 
   // Brief red crosshair when one of your shots lands.
