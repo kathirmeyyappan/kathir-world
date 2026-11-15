@@ -98,6 +98,7 @@ export type SoundId =
   | 'land'
   | 'land-hard'
   | 'pound-twirl'
+  | 'wario-pound-twirl'
   | 'hurt'
   | 'roar-1'
   | 'roar-2'
@@ -221,6 +222,7 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   land: { file: 'land.mp3', half: 8, reach: 35, volume: 0.1 },
   'land-hard': { file: 'land-hard.mp3', half: 10, reach: 40, volume: 0.14 },
   'pound-twirl': { file: 'pound-twirl.mp3', half: 6, reach: 30, volume: 0.08 }, // a ground pound turning over (sim/avatars.ts `Pound`)
+  'wario-pound-twirl': { file: 'wario-pound-twirl.mp3', half: 6, reach: 30, volume: 0.08 }, // the same whirl a fifth of its pitch lower, as long as it was: a heavy body's
   hurt: { file: 'hurt.mp3', half: 6, reach: 30, volume: 0.3 }, // your own damage, and a corpse poofing
   // A dragon's (the light dragon's own cries): its roars carry across the whole world, faint from
   // the far side, as does the cry it rises out of the ground with; its theme plays from its head,

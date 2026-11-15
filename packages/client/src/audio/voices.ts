@@ -19,9 +19,7 @@ export interface Voice {
   // that killed them. Sent for as a player takes the look (Sfx.want), so only who can die as it
   // fetches it.
   death?: SoundId[];
-  // The rate its ground pound's turn in the air sounds at (sim/avatars.ts `Pound`): 1, as recorded,
-  // unless given; less is lower and longer, for a heavy body.
-  twirl?: number;
+  twirl?: SoundId; // its ground pound turning over in the air (sim/avatars.ts `Pound`): the whirl every look makes unless given
 }
 
 // Everyone from Bikini Bottom dies to the one song.
@@ -52,7 +50,7 @@ export const VOICES: Record<AvatarId, Voice> = {
     hurt: ['wario-hurt-1'],
     kill: ['wario-kill-1', 'wario-kill-2'],
     death: ['mario-death'],
-    twirl: 0.8,
+    twirl: 'wario-pound-twirl',
   },
   waluigi: {
     enter: ['waluigi-enter'],

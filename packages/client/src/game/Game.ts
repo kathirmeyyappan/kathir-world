@@ -707,7 +707,7 @@ export class Game {
     this.pounds.set(id, stage);
     const mine = id === this.myId;
     if (stage === 'twirl')
-      this.sfx.play('pound-twirl', mine ? null : at, { level: mine ? OWN_MOVE : 1, rate: VOICES[avatar].twirl ?? 1 });
+      this.sfx.play(VOICES[avatar].twirl ?? 'pound-twirl', mine ? null : at, { level: mine ? OWN_MOVE : 1 });
     const reach = poundOf(avatar)?.reach;
     if (stage === 'land' && reach) poundRing(this.engine, new Vector3(at.x, at.y - EYE_HEIGHT, at.z), reach);
   }
