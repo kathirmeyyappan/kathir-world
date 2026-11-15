@@ -441,7 +441,7 @@ A character that should move like itself is a jointed body (`render/avatars/Join
 `JointedAvatar`, a `WalkerAvatar` that poses every phase itself): a whole skeleton (hips, spine,
 chest, head, arms with elbows, hands with fingers and a thumb, legs with knees and feet) under a
 model from `scripts/jointed-model.py`, which reads a rip of the character's own model (Mario's,
-Luigi's and Wario's are on one rig, in a T-pose), moved by animation clips (`render/avatars/clips.ts`):
+Luigi's, Wario's and Waluigi's are on one rig, in a T-pose), moved by animation clips (`render/avatars/clips.ts`):
 frames of where the hips are and how each bone is turned, drawn by an animator, never worked out.
 Mario's are Super Mario 64's own (`marioClips.ts`, baked by `scripts/jointed-clips.py` from a
 rigged, animated rip of that game's Mario: each source bone's turn from its T-pose carried onto
@@ -469,7 +469,7 @@ rest to rest over a few frames, never snapped. The poses no clip covers (on a la
 are written as a `BodyPose` (`render/avatars/motion.ts`), which the rig solves, bending each leg
 to put its foot where the pose says. Characters on one rig can share clips (Luigi plays
 Mario's, his legs running on in the air, and Wario plays them on his own short, wide-set legs with most of the arms' swing taken out and
-his body rocking over each foot, the style's `arms` and `waddle`), and a new one is a row in the model script's
+his body rocking over each foot, the style's `arms` and `waddle`; Waluigi plays them as they are), and a new one is a row in the model script's
 `CHARACTERS`, its files, and clips of its own if it moves its own way.
 
 Its walk is a row in `GAITS` (`render/avatars/gaits.ts`): the metres between its footfalls, which pace

@@ -24,6 +24,7 @@ export const CIRCLE_LOOKS: readonly AvatarId[] = [
   'mario',
   'luigi',
   'wario',
+  'waluigi',
   'spongebob',
   'patrick',
   'krabs',

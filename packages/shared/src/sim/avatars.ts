@@ -15,6 +15,7 @@ export type AvatarId =
   | 'mario'
   | 'luigi'
   | 'wario'
+  | 'waluigi'
   | 'spongebob'
   | 'patrick'
   | 'krabs'
@@ -164,6 +165,22 @@ const LOOKS = {
     leap: { rise: 0.5, speed: 1.25, float: 0.5, grip: 6 }, // at twice its walk, a quarter over its run, and half its jump's height
     // The twirl as long as its clip (Jointed.ts); heavier than the brothers', it lands harder and wider.
     pound: { damage: 2.5, reach: 4, twirl: 1 / 3, speed: 20, recover: 0.35, knock: { speed: 4, lift: 3, grip: 6 } },
+    chain: { jumps: 3, gap: 0.3, rise: 1.2 }, // a jump, a double and a triple
+  },
+  waluigi: {
+    id: 'waluigi',
+    class: 'walker',
+    item: null,
+    regen: false,
+    blurb: 'become waluigi',
+    command: 'waluigi',
+    eye: 2.6,
+    hitbox: { top: 3.1, radius: 0.45, head: 0.8 }, // half again as tall as Mario, as their models stand, on legs 1.4 m long; a body 0.46 m across under a head 0.82 m across
+    walk: 8,
+    jump: 1.5,
+    leap: { rise: 0.5, speed: 1.25, float: 0.5, grip: 6 }, // at twice its walk, a quarter over its run, and half its jump's height
+    // The twirl as long as its clip (Jointed.ts); the knock a hop back, a third of a second off the ground.
+    pound: { damage: 1.5, reach: 3, twirl: 1 / 3, speed: 20, recover: 0.35, knock: { speed: 4, lift: 3, grip: 6 } },
     chain: { jumps: 3, gap: 0.3, rise: 1.2 }, // a jump, a double and a triple
   },
   spongebob: {
