@@ -39,3 +39,4 @@ export * from './content/pineappleProfile';
 export * from './content/krustyKrab';
 export * from './content/krustyKrabProfile';
 export { BUILDING_NAMES } from './content/buildings';
+export { toTower } from './content/tower';

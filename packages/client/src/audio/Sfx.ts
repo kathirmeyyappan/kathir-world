@@ -11,6 +11,7 @@ import {
   isDragonAvatar,
   toKrustyKrab,
   toPineapple,
+  toTower,
   type AvatarId,
   type AvatarsOf,
   type GearId,
@@ -125,7 +126,8 @@ export type SoundId =
   | 'colgera-cry-far'
   | 'colgera-theme'
   | 'krusty-krab-theme'
-  | 'spongebob-house-theme';
+  | 'spongebob-house-theme'
+  | 'tower-theme';
 
 interface SoundSpec {
   file: string; // in public/assets/sounds
@@ -142,7 +144,10 @@ interface SoundSpec {
   music?: boolean; // on the music channel, not the effects'
 }
 
-// Loops are WAV, cut on exact samples: MP3 pads both ends with silence, which would gap every repeat.
+// Loops are MP3s cut on exact samples and encoded with LAME, whose header tells the browser's decoder
+// how much padding to trim, so every repeat (and an intro's join into its loop) is gapless; each has to
+// decode to its source's exact sample count, which LAME misses for some lengths (flame-start's, made
+// whole by moving the loop's first 33 samples onto the end of the intro and rotating the loop to match).
 // Loudest to quietest up close: sniper, gun, the whizzes, flamethrower, ice blower, jetpack, then the body's own
 // sounds (landings, footsteps, the jump swoosh), and quietest of all Gary's slime. The jet recording is denser
 // than the flame's, so it needs the lower volume to come out quieter.
@@ -152,9 +157,9 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'whiz-1': { file: 'whiz-1.mp3', half: 4, reach: 20, volume: 0.3 },
   'whiz-2': { file: 'whiz-2.mp3', half: 4, reach: 20, volume: 0.3 },
   'whiz-3': { file: 'whiz-3.mp3', half: 4, reach: 20, volume: 0.3 },
-  flame: { file: 'flame.wav', intro: 'flame-start.wav', half: 4, reach: 25, volume: 0.12, loop: true },
-  ice: { file: 'ice.wav', half: 4, reach: 25, volume: 0.1, loop: true },
-  jet: { file: 'jet.wav', half: 4, reach: 25, volume: 0.06, loop: true, swell: 0.8 },
+  flame: { file: 'flame.mp3', intro: 'flame-start.mp3', half: 4, reach: 25, volume: 0.12, loop: true },
+  ice: { file: 'ice.mp3', half: 4, reach: 25, volume: 0.1, loop: true },
+  jet: { file: 'jet.mp3', half: 4, reach: 25, volume: 0.06, loop: true, swell: 0.8 },
   'step-1': { file: 'step-1.mp3', half: 6, reach: 30, volume: 0.08 },
   'step-2': { file: 'step-2.mp3', half: 6, reach: 30, volume: 0.08 },
   'step-3': { file: 'step-3.mp3', half: 6, reach: 30, volume: 0.08 },
@@ -167,8 +172,8 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'squeak-2': { file: 'squeak-2.mp3', half: 6, reach: 30, volume: 0.08 },
   'squeak-3': { file: 'squeak-3.mp3', half: 6, reach: 30, volume: 0.08 },
   'squeak-4': { file: 'squeak-4.mp3', half: 6, reach: 30, volume: 0.08 },
-  scuttle: { file: 'scuttle.wav', half: 6, reach: 30, volume: 0.07, loop: true },
-  slime: { file: 'slime.wav', half: 3, reach: 15, volume: 0.02, loop: true }, // Gary sliding: barely there
+  scuttle: { file: 'scuttle.mp3', half: 6, reach: 30, volume: 0.07, loop: true },
+  slime: { file: 'slime.mp3', half: 3, reach: 15, volume: 0.02, loop: true }, // Gary sliding: barely there
   'suction-1': { file: 'suction-1.mp3', half: 6, reach: 30, volume: 0.06 },
   'suction-2': { file: 'suction-2.mp3', half: 6, reach: 30, volume: 0.06 },
   'suction-3': { file: 'suction-3.mp3', half: 6, reach: 30, volume: 0.06 },
@@ -288,8 +293,9 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
     music: true,
   },
   // A building's own theme (PLACE_THEMES), quieter than a dragon's: heard flat, at the share of its
-  // volume left the metres from its walls, over its grounds and gone a little past them. Each is a
-  // whole cue, its ending and a breath of silence before it comes round again.
+  // volume left the metres from its walls, over its grounds and gone a little past them. The Krusty
+  // Krab's and the house's are whole cues, each ending with a breath of silence before it comes round
+  // again; the tower's is one pass of the game's own loop.
   'krusty-krab-theme': {
     file: 'krusty-krab-theme.mp3',
     half: 15,
@@ -306,6 +312,17 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
     half: 15,
     reach: 45,
     volume: 0.05,
+    loop: true,
+    swell: 2.5,
+    fade: 2.5,
+    lazy: true,
+    music: true,
+  },
+  'tower-theme': {
+    file: 'tower-theme.mp3',
+    half: 15,
+    reach: 45,
+    volume: 0.065,
     loop: true,
     swell: 2.5,
     fade: 2.5,
@@ -383,6 +400,7 @@ export interface PlaceTheme {
 export const PLACE_THEMES: PlaceTheme[] = [
   { theme: 'krusty-krab-theme', walls: toKrustyKrab },
   { theme: 'spongebob-house-theme', walls: toPineapple },
+  { theme: 'tower-theme', walls: toTower },
 ];
 
 // The voice of whoever wears `avatar`, if it has one.
@@ -433,6 +451,10 @@ export class Sfx {
   private readonly muted = loadMuted();
   private heard: Vec3 = { x: 0, y: 0, z: 0 }; // the listener
   private readonly buffers = new Map<string, AudioBuffer>();
+  // The one-shot each speaker is saying (play's `by`), and how many times each has been hushed:
+  // a line still on its way when its speaker is hushed is never said.
+  private readonly lines = new Map<string, { gain: AudioParam; src: AudioBufferSourceNode }>();
+  private readonly hushes = new Map<string, number>();
   private readonly arriving = new Map<string, Promise<void>>(); // every file sent for, settled once it's here or has failed
   private readonly wanted = new Set<SoundId>(); // sounds asked for ahead of time (want)
   private readonly loops = new Map<string, Voice>();
@@ -510,15 +532,17 @@ export class Sfx {
 
   // A one-shot, at a spot in the world, or with no spot, the local player's own. `delay` holds it
   // back (seconds); `along`, a direction, sweeps it past `at` that way while it plays; `level`
-  // scales its volume; `rate` its speed and pitch together (2 is an octave up and half as long).
+  // scales its volume; `rate` its speed and pitch together (2 is an octave up and half as long);
+  // `by` names who says it, whose last line said this way stops for it (`hush`).
   // False if it couldn't play yet: no sound until the page is clicked, or the recording still on
   // its way.
   play(
     id: SoundId,
     at: Vec3 | null = null,
-    o: { delay?: number; along?: Vec3; level?: number; rate?: number } = {},
+    o: { delay?: number; along?: Vec3; level?: number; rate?: number; by?: string } = {},
   ): boolean {
     if (!this.ctx) return false;
+    if (o.by !== undefined) this.hush(o.by);
     if (at && falloff(distance(at, this.heard), SOUNDS[id]) < SILENT) return true;
     const buffer = this.buffer(id);
     if (!buffer) return false;
@@ -543,7 +567,28 @@ export class Sfx {
       place(voice.panner, from, t);
       glide(voice.panner, to, end);
     }
+    const by = o.by;
+    if (by !== undefined) {
+      this.lines.set(by, { gain: voice.gain.gain, src });
+      src.addEventListener('ended', () => {
+        if (this.lines.get(by)?.src === src) this.lines.delete(by);
+      });
+    }
     return true;
+  }
+
+  // Stops what `by` is saying (a one-shot played with `by`), quickly enough not to click, and
+  // lets go of any line of theirs still on its way (`soon`).
+  hush(by: string): void {
+    this.hushes.set(by, (this.hushes.get(by) ?? 0) + 1);
+    const line = this.lines.get(by);
+    if (!line || !this.ctx) return;
+    this.lines.delete(by);
+    const t = this.ctx.currentTime;
+    line.gain.cancelScheduledValues(t);
+    line.gain.setValueAtTime(line.gain.value, t);
+    line.gain.linearRampToValueAtTime(0, t + FADE);
+    line.src.stop(t + FADE);
   }
 
   // How long a sound's recording runs, in seconds; 0 until it has arrived.
@@ -553,12 +598,14 @@ export class Sfx {
 
   // A one-shot that may not be here yet (a lazy one first asked for now): played at once if it is,
   // else as it arrives, unless that takes longer than `late` ms, when it's let go as too late to
-  // mean anything. One out of earshot is never sent for.
-  soon(id: SoundId, at: Vec3 | null = null, late = LATE_MS): void {
-    if (this.play(id, at)) return;
+  // mean anything, or its speaker `by` is hushed first. One out of earshot is never sent for.
+  soon(id: SoundId, at: Vec3 | null = null, late = LATE_MS, by?: string): void {
+    if (this.play(id, at, { by })) return;
     const asked = performance.now();
+    const hushed = by === undefined ? 0 : this.hushes.get(by);
     void this.arriving.get(SOUNDS[id].file)?.then(() => {
-      if (performance.now() - asked < late) this.play(id, at);
+      if (performance.now() - asked >= late) return;
+      if (by === undefined || this.hushes.get(by) === hushed) this.play(id, at, { by });
     });
   }
 
@@ -698,11 +745,12 @@ export class Sfx {
 let auditioned: HTMLAudioElement | null = null; // the sound last played off the game, stopped for the next
 
 // A sound by itself, where there's no game to play it in (the home screen): fetched as it's played,
-// at its own volume, in place of the last one played this way, and not at all with effects muted.
-// It starts on a person's own click, which is what lets a page make sound.
-export function audition(id: SoundId): void {
+// at its own volume, in place of the last one played this way (null only stops that one), and not
+// at all with effects muted. It starts on a person's own click, which is what lets a page make sound.
+export function audition(id: SoundId | null): void {
   auditioned?.pause();
-  if (loadMuted().has('effects')) return;
+  auditioned = null;
+  if (!id || loadMuted().has('effects')) return;
   const spec = SOUNDS[id];
   auditioned = Object.assign(new Audio(`/assets/sounds/${spec.file}`), { volume: spec.volume });
   void auditioned.play().catch(() => {});
