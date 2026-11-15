@@ -506,7 +506,9 @@ are written as a `BodyPose` (`render/avatars/motion.ts`), which the rig solves, 
 to put its foot where the pose says; on a ladder each fist and foot is put on a rung of it
 (`rungHeld`, `Rig.reach` and `Rig.tread`), the hips an arm's length back. A clip's arms are as
 long as the body it was drawn on, so where its hands have to be somewhere on another body the rig
-puts them there over the clip: sat in a crouch, on the head (`Rig.clasp`, to the model's `temple`). Characters on one rig can share clips (Luigi plays
+puts them there over the clip: sat in a crouch, flat beside the head (`Rig.clasp`), each as far
+out as rests it on whatever of the head is under it (`Rig.resting`, from the head's relief and the
+hand's vertices, the model script's `skull` and `mitt`), so it touches the head and is never in it. Characters on one rig can share clips (Luigi plays
 Mario's, his legs running on in the air, and Wario plays them on his own short, wide-set legs with most of the arms' swing taken out and
 his body rocking over each foot, the style's `arms` and `waddle`; Waluigi plays them as they are), and a new one is a row in the model script's
 `CHARACTERS`, its files, and clips of its own if it moves its own way.

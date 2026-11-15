@@ -69,8 +69,7 @@ TORSO = ("hips", "spine", "chest")
 PALM = ("HandR", "Finger1R", "Thumb1R")  # a held item goes at their middle
 MESHES = ("Body__m_Body", "Body__m_Eye")  # the body and the face; the rest are the pupils
 BACK_DROP = 0.2  # metres below the shoulders the tank hangs
-TEMPLE_UP = 0.45  # the share of the way from the neck to the crown a hand on the head rests at
-TEMPLE_SPAN = 0.1  # the share of the head's height that far round there, up, down, ahead and behind, the hand covers
+RELIEF_CELL = 0.03  # metres between the points of the head's relief
 
 
 @dataclass(frozen=True)
@@ -90,6 +89,17 @@ CHARACTERS = {
     "wario": Character("Wario", "Mario Kart 8", 2.2),
     "waluigi": Character("Waluigi", "Mario Kart 8", 3.1),
 }
+
+
+def surface(triangles: np.ndarray, step: float) -> np.ndarray:
+    """Points over triangles (n by 3 corners by xyz), no further apart than `step`."""
+    out = []
+    for a, b, c in triangles:
+        n = max(1, int(np.ceil(max(np.linalg.norm(b - a), np.linalg.norm(c - a), np.linalg.norm(c - b)) / step)))
+        i, j = np.meshgrid(np.arange(n + 1), np.arange(n + 1))
+        keep = i + j <= n
+        out.append(a + (i[keep] / n)[:, None] * (b - a) + (j[keep] / n)[:, None] * (c - a))
+    return np.vstack(out)
 
 
 def bare(joint: str | None) -> str | None:
@@ -241,18 +251,26 @@ def main(name: str, folder: str) -> None:
     shoe = posed[order[:, 0] == bone_names.index("footR")]
     sole = np.array([shoe[:, 2].max() - pivots["footR"][2], pivots["footR"][2] - shoe[:, 2].min()])
 
-    # Where a hand laid on the side of the head rests: part of the way up from the neck to the crown,
-    # over the neck front to back, as far to its right as anything of the head is there, so a palm
-    # put there is on the head and never in it.
-    skull = posed[order[:, 0] == bone_names.index("head")]
+    # What a hand laid flat beside the head rests on. `temple` is where its palm's middle goes: level
+    # with the head's widest point, and that far out. The head's relief is how far out the head
+    # reaches, either side, at each point of a grid up and across its side (from `skull_at`, the
+    # grid's low back corner from the neck): the furthest of what is nearest that point. The hand's
+    # is each of its vertices from its palm's middle, palm down as the model holds it: along the
+    # fingers, across, and how far under.
+    heads = np.all(order[triangles, 0] == bone_names.index("head"), axis=1) | np.any(
+        (order[triangles, 0] == bone_names.index("head")) & (bone_weights[triangles, 0] > 0.9), axis=1
+    )
+    skull = surface(posed[triangles[heads]], RELIEF_CELL / 3)
+    skull[:, 0] = abs(skull[:, 0])
+    temple = skull[np.argmax(skull[:, 0])]
     neck = pivots["head"]
-    tall = skull[:, 1].max() - neck[1]
-    beside = skull[
-        (abs(skull[:, 1] - neck[1] - TEMPLE_UP * tall) < TEMPLE_SPAN * tall)
-        & (abs(skull[:, 2] - neck[2]) < TEMPLE_SPAN * tall)
-    ]
-    temple = np.array([beside[:, 0].max(), neck[1] + TEMPLE_UP * tall, neck[2]])
-    print("temple:", np.round(temple, 3), "head:", np.round([neck[1], tall], 3))
+    skull_at = np.floor((skull[:, 1:].min(0) - neck[1:]) / RELIEF_CELL) * RELIEF_CELL
+    nodes = np.round((skull[:, 1:] - neck[1:] - skull_at) / RELIEF_CELL).astype(int)
+    relief = np.zeros(nodes.max(0) + 1)
+    np.maximum.at(relief, (nodes[:, 0], nodes[:, 1]), skull[:, 0])
+    mitt = posed[np.isin(order[:, 0], [bone_names.index(b) for b in ("handR", "fingersR", "thumbR")])] - palm
+    grip = np.column_stack([mitt[:, 0], mitt[:, 2], -mitt[:, 1]])
+    print("temple:", np.round(temple, 3), "head relief:", relief.shape, "hand vertices:", len(grip))
 
     regions = [
         textured(Image.open(rip / part["picture"]).convert("RGB"), uv, span, character.texture_size)
@@ -274,8 +292,11 @@ def main(name: str, folder: str) -> None:
         "// image), triangles (Uint16) and, per vertex, the four bones it follows (Uint8 indices into `bones`) and",
         "// how much (Uint8, summing to 255); all base64. `bones` is each bone's pivot in metres, in index order.",
         "// `hand` is the right palm, `back` where the tank hangs, `lie` how high the hips lie when it is on its back,",
-        "// `sole` how far a shoe's toe reaches ahead of its ankle and its heel behind it, `temple` where a hand laid",
-        "// on the right side of the head rests.",
+        "// `sole` how far a shoe's toe reaches ahead of its ankle and its heel behind it. For a hand laid flat beside",
+        "// the head: `temple` is the head's widest point on its right; `skull` how far out the head reaches, either",
+        "// side, at the points of a grid `cell` metres apart up (rows) and ahead (`across` to a row) from `at`, metres",
+        "// up and ahead of the neck (Int16 millimetres, base64); `mitt` the right hand's vertices from its palm's",
+        "// middle, palm down, as Int16 millimetre triples: along the fingers, across, and how far under.",
         f"export const {name.upper()}_MODEL = {{",
         f"  height: {character.height},",
         f"  hand: {vec(palm)},",
@@ -283,6 +304,8 @@ def main(name: str, folder: str) -> None:
         f"  lie: {lie:.4f},",
         f"  sole: {vec(sole)},",
         f"  temple: {vec(temple)},",
+        f"  skull: {{ at: {vec(skull_at)}, cell: {RELIEF_CELL}, across: {relief.shape[1]}, far: '{b64(np.round(relief * 1000).astype('<i2'))}' }},",
+        f"  mitt: '{b64(np.round(grip * 1000).astype('<i2'))}',",
         "  bones: {",
         *(f"    {bone}: {vec(pivots[bone])}," for bone in bone_names),
         "  },",
