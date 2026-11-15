@@ -19,6 +19,7 @@ export interface Voice {
   // that killed them. Sent for as a player takes the look (Sfx.want), so only who can die as it
   // fetches it.
   death?: SoundId[];
+  twirl?: SoundId; // its ground pound turning over in the air (sim/avatars.ts `Pound`): the whirl every look makes unless given
 }
 
 // Everyone from Bikini Bottom dies to the one song.
@@ -49,6 +50,7 @@ export const VOICES: Record<AvatarId, Voice> = {
     hurt: ['wario-hurt-1'],
     kill: ['wario-kill-1', 'wario-kill-2'],
     death: ['mario-death'],
+    twirl: 'pound-twirl-heavy',
   },
   waluigi: {
     enter: ['waluigi-enter'],
@@ -56,6 +58,7 @@ export const VOICES: Record<AvatarId, Voice> = {
     leap: ['waluigi-leap-1', 'waluigi-leap-2'],
     kill: ['waluigi-kill-1', 'waluigi-kill-2'],
     death: ['mario-death'],
+    twirl: 'pound-twirl-heavy',
   },
   spongebob: {
     enter: ['spongebob-enter'],
