@@ -10,6 +10,7 @@
 import { IS_TOUCH } from '../../input/touch';
 import { rememberName } from '../../net/lobby';
 import { railScroll } from '../scrollRail';
+import { CLOSE, pixelSvg } from '../pixelIcons';
 import { gearIcon } from './gearIcon';
 import { Preview } from './Preview';
 import { draw, type Drawn } from './rows';
@@ -138,11 +139,8 @@ export class Menu {
     card.className = 'card';
     const head = document.createElement('div');
     head.className = 'head';
-    const close = Object.assign(document.createElement('button'), {
-      className: 'close',
-      title: 'close',
-      textContent: 'X',
-    });
+    const close = Object.assign(document.createElement('button'), { className: 'close', title: 'close' });
+    close.append(pixelSvg(CLOSE, 'close-icon'));
     close.addEventListener('click', () => this.hide(true));
     head.append(Object.assign(document.createElement('h1'), { textContent: 'MENU' }), close);
 

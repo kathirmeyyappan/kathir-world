@@ -117,22 +117,28 @@
       <div id="command-hint" translate="yes"><span class="text"></span><span class="count" translate="no"></span></div>
       <div id="scope" class="hidden"></div>
 
-      <div id="minimap" translate="yes">
-        <div id="minimap-hint"><kbd translate="no">P</kbd>TO TOGGLE</div>
-        <div id="minimap-toggle" translate="no">
-          <span data-view="near">NEAR</span><span data-view="world">WORLD</span>
+      <div id="lower-right">
+        <div id="minimap" translate="yes">
+          <div id="minimap-hint"><kbd translate="no">P</kbd>TO TOGGLE</div>
+          <div id="minimap-toggle" translate="no">
+            <span data-view="near">NEAR</span><span data-view="world">WORLD</span>
+          </div>
+          <div class="minimap-view">
+            <canvas id="minimap-canvas"></canvas>
+            <span id="minimap-coords" translate="no"></span>
+          </div>
         </div>
-        <div class="minimap-view">
-          <canvas id="minimap-canvas"></canvas>
-          <span id="minimap-coords" translate="no"></span>
-        </div>
-      </div>
 
-      <div id="instructions" translate="yes">
-        <kbd translate="no">WASD</kbd> move &nbsp;|&nbsp; <kbd translate="no">Shift</kbd> run &nbsp;|&nbsp;
-        <kbd translate="no">Space</kbd> jump &nbsp;|&nbsp; Click select &nbsp;|&nbsp; <kbd translate="no">Z</kbd> toggle
-        perspective &nbsp;|&nbsp; <kbd translate="no">O</kbd> fullscreen &nbsp;|&nbsp;
-        <kbd translate="no">Esc</kbd> mouse
+        <div id="instructions" translate="yes">
+          <span class="key"><kbd translate="no">WASD</kbd> move</span>
+          <span class="key"><kbd translate="no">Shift</kbd> run</span>
+          <span class="key"><kbd translate="no">Space</kbd> jump</span>
+          <span id="move-keys"></span>
+          <span class="key">Click select</span>
+          <span class="key"><kbd translate="no">Z</kbd> toggle perspective</span>
+          <span class="key"><kbd translate="no">O</kbd> fullscreen</span>
+          <span class="key"><kbd translate="no">Esc</kbd> mouse</span>
+        </div>
       </div>
 
       <div id="home" class="hidden">

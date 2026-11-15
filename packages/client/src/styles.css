@@ -1545,11 +1545,6 @@ body {
 }
 
 #minimap {
-  position: fixed;
-  right: 20px;
-  bottom: 76px;
-  z-index: 50;
-  pointer-events: none;
   padding: 6px;
   width: 236px;
   background: rgba(11, 13, 20, 0.8);
@@ -1614,24 +1609,60 @@ body {
   border-color: var(--accent-soft);
 }
 
-#instructions {
+/* The bottom right corner: the minimap over the key legend, each as tall as it needs. */
+#lower-right {
   position: fixed;
-  bottom: 20px;
   right: 20px;
-  padding: 8px 12px;
-  font: 18px var(--mono);
+  bottom: 20px;
   z-index: 50;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 16px;
+  pointer-events: none;
+}
+/* The key legend: a cell to each key, in a row that wraps onto another when it would reach the chat
+   line at the left, the cells of a row sharing its width. Each cell's rule is a shadow up and to
+   its left, which the legend's edge clips off the first of a row and the top row. */
+#instructions {
+  display: flex;
+  flex-wrap: wrap;
+  max-width: calc(100vw - 540px);
+  overflow: hidden;
+  font: 18px var(--mono);
   background: rgba(11, 13, 20, 0.8);
   border: 2px solid rgba(100, 181, 246, 0.4);
   color: rgba(255, 255, 255, 0.8);
-  pointer-events: none;
   box-shadow: 4px 4px 0 #000;
+}
+#instructions .key {
+  flex: 1 1 auto;
+  padding: 7px 12px;
+  text-align: center;
+  white-space: nowrap;
+  box-shadow: -1px -1px 0 0 rgba(100, 181, 246, 0.4);
+}
+#instructions #move-keys {
+  display: contents;
+}
+#instructions kbd + kbd {
+  margin-left: 3px;
 }
 @media (max-width: 1440px) {
   #instructions {
     font-size: 15px;
   }
-} /* keeps clear of the chat line */
+}
+/* What stacks up from the bottom in the middle stands clear of a legend of more than one row
+   (--legend-rise, Hud.ts). */
+#item-hint,
+#fuel,
+#gear {
+  margin-bottom: var(--legend-rise, 0px);
+}
+#move-hint {
+  bottom: calc(76px + var(--legend-rise, 0px));
+}
 
 /* Info card overlay: a game dialog, not a web modal. Hard edges, hard shadow, scanlines. */
 #info-overlay {

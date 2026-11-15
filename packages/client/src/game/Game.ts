@@ -11,6 +11,7 @@ import {
   WORLD_SHAPE,
   DOOR_REACH,
   lookVector,
+  moveKeys,
   movesHelp,
   WORLD_STRUCTURES,
   PINEAPPLE_HORN,
@@ -844,17 +845,17 @@ export class Game {
     // look changes, and never up through a lintel or ceiling the body fits under.
     const worn = statureOf(self.avatar);
     this.stature = this.stature === null ? worn : this.stature + (worn - this.stature) * Math.min(1, dt / EYE_EASE);
-    // A new class is seen its own way (a dragon from behind and above, by default) and has its own
-    // keys.
+    // A new class is seen its own way (a dragon from behind and above, by default).
     const cls = classOf(self.avatar).id;
     if (cls !== this.classId) {
       if (cls === 'asian-dragon') this.view.set('third');
-      this.hud.setKeys(cls);
       this.mobile.setClass(cls);
       this.environment.setBounds(cls === 'asian-dragon' ? 'sky' : 'ground');
       this.classId = cls;
     }
     if (self.avatar !== this.look) {
+      // A look has its class's keys and those of its own moves.
+      this.hud.setKeys(cls, moveKeys(self.avatar));
       if (this.look) this.say(this.myId, 'enter');
       this.look = self.avatar;
       for (const id of VOICES[self.avatar].death ?? []) this.sfx.want(id);

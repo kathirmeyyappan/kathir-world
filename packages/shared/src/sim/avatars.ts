@@ -425,23 +425,47 @@ export function poundOf(avatar: AvatarId): Pound | null {
   return (look.class === 'walker' && look.pound) || null;
 }
 
-// How each move only some looks have is done, for the hint bar: with the keys, and on touch. A new
-// move on `Moves` needs its row here before it compiles, so no look gets one nobody is told of;
-// null is a move left for players to find (a chain of jumps comes of jumping again as it lands).
-const MOVE_HELP: Record<Exclude<keyof Moves, 'walk' | 'jump'>, { keys: string; touch: string } | null> = {
+// How each move only some looks have is done, for the hint bar: with the keys, and on touch; and
+// for one with a key of its own, that key and what it does, for the key legend. A new move on
+// `Moves` needs its row here before it compiles, so no look gets one nobody is told of; null is a
+// move left for players to find (a chain of jumps comes of jumping again as it lands).
+interface MoveHelp {
+  keys: string;
+  touch: string;
+  key?: MoveKey;
+}
+export interface MoveKey {
+  key: string; // as the legend names it
+  does: string;
+}
+const MOVE_HELP: Record<Exclude<keyof Moves, 'walk' | 'jump'>, MoveHelp | null> = {
   leap: { keys: 'run + jump to long jump', touch: 'run + JUMP to long jump' },
-  pound: { keys: 'X in the air to ground pound', touch: 'POUND in the air to ground pound' },
+  pound: {
+    keys: 'X in the air to ground pound',
+    touch: 'POUND in the air to ground pound',
+    key: { key: 'X', does: 'ground pound' },
+  },
   chain: null,
 };
 
-// What a look can do that the rest can't, each with how it's done; none for most.
-export function movesHelp(avatar: AvatarId, touch = false): string[] {
+// The help of each move a look has, in the order they're listed.
+function movesOf(avatar: AvatarId): MoveHelp[] {
   const look: AvatarSpec = AVATARS[avatar];
   if (look.class !== 'walker') return [];
   return (Object.keys(MOVE_HELP) as (keyof typeof MOVE_HELP)[]).flatMap((move) => {
     const help = MOVE_HELP[move];
-    return look[move] && help ? [help[touch ? 'touch' : 'keys']] : [];
+    return look[move] && help ? [help] : [];
   });
+}
+
+// What a look can do that the rest can't, each with how it's done; none for most.
+export function movesHelp(avatar: AvatarId, touch = false): string[] {
+  return movesOf(avatar).map((help) => help[touch ? 'touch' : 'keys']);
+}
+
+// The keys a look's own moves add to everyone's, each with what it does.
+export function moveKeys(avatar: AvatarId): MoveKey[] {
+  return movesOf(avatar).flatMap((help) => (help.key ? [help.key] : []));
 }
 
 // How fast a look climbs a ladder, m/s, along the rails.
