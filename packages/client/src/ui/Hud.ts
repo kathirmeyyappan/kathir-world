@@ -39,6 +39,8 @@ export class Hud {
   private readonly itemHintMain = this.itemHint.querySelector('.main')!;
   private readonly itemHintStats = this.itemHint.querySelector('.stats')!;
   private readonly moveHint = document.getElementById('move-hint')!;
+  private readonly moveHintTitle = this.moveHint.querySelector('.title')!;
+  private readonly moveHintMoves = this.moveHint.querySelector('.moves')!;
   private readonly fuel = document.getElementById('fuel')!;
   private readonly gear = document.getElementById('gear')!;
   private moveHintText = '';
@@ -302,13 +304,17 @@ export class Hud {
     this.itemHint.classList.add('timed');
   }
 
-  // The moves the player's look has of its own and how each is done, or '' for none: a banner of
-  // its own, up for MOVE_HINT_MS from when its text is first given (the look being taken), whatever
-  // is held meanwhile.
-  setMoveHint(text: string): void {
+  // The moves the player's look has of its own: the look's name over them, then how each is done
+  // on a line of its own; none hides it. A banner of its own, up for MOVE_HINT_MS from when its
+  // words are first given (the look being taken), whatever is held meanwhile.
+  setMoveHint(title: string, moves: string[]): void {
+    const text = moves.length > 0 ? [title, ...moves].join('\n') : '';
     if (text !== this.moveHintText) {
       this.moveHintText = text;
-      this.moveHint.textContent = text;
+      this.moveHintTitle.textContent = title;
+      this.moveHintMoves.replaceChildren(
+        ...moves.map((move) => Object.assign(document.createElement('div'), { textContent: move })),
+      );
       window.clearTimeout(this.moveHintTimer);
       // Its life is a CSS animation (#move-hint), which starts over as the element is shown again.
       this.moveHint.classList.add('hidden');

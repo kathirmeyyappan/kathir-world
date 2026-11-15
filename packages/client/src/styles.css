@@ -1337,6 +1337,20 @@ body {
 #move-hint {
   border-color: rgba(100, 181, 246, 0.6);
   animation: move-hint-life 20s step-end forwards;
+  text-align: center;
+  width: max-content;
+  max-width: calc(100vw - 32px);
+}
+/* The look's name heads it, over a rule, and each move has a line of its own under that. */
+#move-hint .title {
+  margin-bottom: 5px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(100, 181, 246, 0.35);
+  color: #9fd4ff;
+  letter-spacing: 3px;
+}
+#move-hint .moves div + div {
+  margin-top: 3px;
 }
 @keyframes move-hint-life {
   0%,

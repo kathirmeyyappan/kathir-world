@@ -409,23 +409,22 @@ export function poundOf(avatar: AvatarId): Pound | null {
 }
 
 // How each move only some looks have is done, for the hint bar: with the keys, and on touch. A new
-// move on `Moves` needs its row here before it compiles, so no look gets one nobody is told of.
-const MOVE_HELP: Record<Exclude<keyof Moves, 'walk' | 'jump'>, { keys: string; touch: string }> = {
+// move on `Moves` needs its row here before it compiles, so no look gets one nobody is told of;
+// null is a move left for players to find (a chain of jumps comes of jumping again as it lands).
+const MOVE_HELP: Record<Exclude<keyof Moves, 'walk' | 'jump'>, { keys: string; touch: string } | null> = {
   leap: { keys: 'run + jump to long jump', touch: 'run + JUMP to long jump' },
   pound: { keys: 'X in the air to ground pound', touch: 'POUND in the air to ground pound' },
-  chain: {
-    keys: 'jump as you land to double, then triple jump',
-    touch: 'JUMP as you land to double, then triple jump',
-  },
+  chain: null,
 };
 
 // What a look can do that the rest can't, each with how it's done; none for most.
 export function movesHelp(avatar: AvatarId, touch = false): string[] {
   const look: AvatarSpec = AVATARS[avatar];
   if (look.class !== 'walker') return [];
-  return (Object.keys(MOVE_HELP) as (keyof typeof MOVE_HELP)[])
-    .filter((move) => look[move])
-    .map((move) => MOVE_HELP[move][touch ? 'touch' : 'keys']);
+  return (Object.keys(MOVE_HELP) as (keyof typeof MOVE_HELP)[]).flatMap((move) => {
+    const help = MOVE_HELP[move];
+    return look[move] && help ? [help[touch ? 'touch' : 'keys']] : [];
+  });
 }
 
 // How fast a look climbs a ladder, m/s, along the rails.

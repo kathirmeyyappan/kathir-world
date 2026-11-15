@@ -934,7 +934,7 @@ export class Game {
     // A look's own moves get their hint as the look is taken, once the start press (main.ts
     // showStart, which takes #start away) has let the player in to read it.
     const moves = this.dead || document.getElementById('start') ? [] : movesHelp(self.avatar, IS_TOUCH);
-    this.hud.setMoveHint(moves.length > 0 ? [self.avatar.toUpperCase(), ...moves].join(' · ') : '');
+    this.hud.setMoveHint(self.avatar.toUpperCase(), moves);
     const fuelMax = held && ITEMS[held.id].fuelSeconds;
     this.fuel.set(
       held && fuelMax && held.fuel !== null && !this.dead ? held.fuel / fuelMax : null,
