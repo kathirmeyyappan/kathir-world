@@ -25,6 +25,10 @@ const FOOTFALLS: Record<Footfall, SoundId[]> = {
   thud: ['step-1', 'step-2', 'step-3', 'step-4'],
   crunch: ['crunch-1', 'crunch-2', 'crunch-3', 'crunch-4'],
 };
+// A hand coming down at a crawl: a scuff, quieter and lower than a step.
+const SHUFFLES: SoundId[] = ['crunch-1', 'crunch-2', 'crunch-3', 'crunch-4'];
+const SHUFFLE_LEVEL = 0.5;
+const SHUFFLE_RATE = 0.75;
 const JUMPED = 3; // metres moved in one frame that can only be a respawn or a correction
 // Your own movement plays at this share of its volume, under other people's, so theirs stand out.
 const SELF = 0.6;
@@ -80,6 +84,7 @@ export class Footsteps {
       leap: boolean;
       hop: number; // which jump of a chain of them it's on (sim/avatars.ts `Chain`), from 1; 0 with none
       backflip: boolean; // in the jump out of a crouch (sim/avatars.ts `Crouch`), which sounds as a chain's third
+      crouch: boolean; // crouched: its walk is a crawl, paced by its hands and sounding as a shuffle
       climbing: boolean; // on a ladder (sim/types.ts `climb`): off the ground, and neither jumping nor falling
       pound: boolean; // in a ground pound (sim/avatars.ts `Pound`): it lands as hard as a landing gets
       falling?: number;
@@ -112,7 +117,11 @@ export class Footsteps {
       const at = p.self ? null : p.pos;
       const level = p.self ? SELF : 1;
       const rate = gait.pitch;
-      w.stride = gait.stride;
+      // A crawl has a stride of its own; a change of stride keeps how far through it the body is.
+      const crawl = p.crouch ? (gait.crawl ?? null) : null;
+      const stride = crawl ?? gait.stride;
+      w.walked *= stride / w.stride;
+      w.stride = stride;
       const across = Math.hypot(p.pos.x - w.at.x, p.pos.z - w.at.z);
       const down = w.at.y - p.pos.y;
       const wasGrounded = w.grounded;
@@ -171,10 +180,13 @@ export class Footsteps {
       const bar = typeof steps === 'object' && 'bar' in steps ? steps.bar : null;
       const thuds =
         FOOTFALLS[SURFACES[this.structures.footing(p.pos.x, p.pos.z, p.pos.y - EYE_HEIGHT + STEP_UP).surface].footfall];
-      w.step = bar
-        ? (w.step + 1) % bar.length
-        : (w.step + 1 + Math.floor(Math.random() * (thuds.length - 1))) % thuds.length;
-      this.sfx.play(bar ? bar[w.step] : thuds[w.step], at, { level, rate });
+      const falling = crawl ? SHUFFLES : thuds;
+      w.step =
+        bar && !crawl
+          ? (w.step + 1) % bar.length
+          : (w.step + 1 + Math.floor(Math.random() * (falling.length - 1))) % falling.length;
+      if (crawl) this.sfx.play(falling[w.step], at, { level: level * SHUFFLE_LEVEL, rate: rate * SHUFFLE_RATE });
+      else this.sfx.play(bar ? bar[w.step] : thuds[w.step], at, { level, rate });
     }
     for (const id of this.walkers.keys()) if (!seen.has(id)) this.walkers.delete(id);
     return loops;

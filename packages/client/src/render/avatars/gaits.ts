@@ -12,15 +12,16 @@ export interface GaitSpec {
   // played round in order; or a loop that runs for as long as it moves along the ground.
   steps: 'thuds' | { bar: SoundId[] } | { loop: SoundId };
   pitch: number; // the step and landing sounds' rate: 1 as recorded, less is lower and longer
+  crawl?: number; // metres between its hands coming down at a crawl (sim/avatars.ts `Crouch`), for a look with one
 }
 
 export const GAITS: Record<AvatarId, GaitSpec | null> = {
   standard: { stride: 2.6, steps: 'thuds', pitch: 1 },
   // As Super Mario 64 paces his run: the stride the same at any speed, the legs only quicker.
-  mario: { stride: 1.8, steps: 'thuds', pitch: 1.05 },
-  luigi: { stride: 2, steps: 'thuds', pitch: 1 },
-  wario: { stride: 1.7, steps: 'thuds', pitch: 0.85 }, // short legs under a heavy body
-  waluigi: { stride: 2.8, steps: 'thuds', pitch: 0.95 }, // legs twice Mario's: long steps
+  mario: { stride: 1.8, steps: 'thuds', pitch: 1.05, crawl: 0.75 },
+  luigi: { stride: 2, steps: 'thuds', pitch: 1, crawl: 0.8 },
+  wario: { stride: 1.7, steps: 'thuds', pitch: 0.85, crawl: 0.65 }, // short legs under a heavy body
+  waluigi: { stride: 2.8, steps: 'thuds', pitch: 0.95, crawl: 2.1 }, // legs twice Mario's: long steps
   spongebob: { stride: 2.3, steps: { bar: ['squeak-1', 'squeak-2', 'squeak-3', 'squeak-4'] }, pitch: 1.05 }, // high, low, high, low
   patrick: { stride: 2.6, steps: 'thuds', pitch: 0.9 },
   krabs: { stride: 0.52, steps: { loop: 'scuttle' }, pitch: 1 }, // the scuttle: tiny quick steps under one loop
