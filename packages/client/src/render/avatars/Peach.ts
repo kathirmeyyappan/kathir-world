@@ -2,17 +2,16 @@
 // scripts/jointed-model.py), a jointed body (Jointed.ts). Where she moves her own way the clips are
 // Super Smash Bros. Brawl's own of her (peachClips.ts, made by scripts/peach-clips.py): standing,
 // her walk and the quick walk she has in a run's place, her jump, fall and landing, and her float.
-// The rest are Mario's. Her skirt and her ponytail move by themselves (soft.ts). Worn with /peach;
+// The rest are the family's (sm64.ts). Her skirt and her ponytail move by themselves (soft.ts). Worn with /peach;
 // her hit capsule is AVATARS.peach.hitbox.
 import type { JointedSpec, Style } from './Jointed';
-import { MARIO_STYLE } from './Mario';
-import { MARIO_CLIPS } from './marioClips';
 import { PEACH_CLIPS } from './peachClips';
 import { PEACH_MODEL } from './peachModel';
+import { SM64_STYLE } from './sm64';
 
 export const PEACH_STYLE: Style = {
-  ...MARIO_STYLE,
-  clips: { ...MARIO_CLIPS, ...PEACH_CLIPS },
+  ...SM64_STYLE,
+  clips: { ...SM64_STYLE.clips, ...PEACH_CLIPS },
 };
 
 export const PEACH: JointedSpec = {

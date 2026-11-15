@@ -1,4 +1,4 @@
-"""What the clip scripts share (jointed-clips.py, peach-clips.py): carrying a source skeleton's
+"""What the clip scripts share (sm64-clips.py, peach-clips.py): carrying a source skeleton's
 poses onto a jointed body's (render/avatars/Jointed.ts), and writing them as a clips file.
 
 A source is a skeleton in a frame of y up, facing +z, its left at +x, with a standing pose to

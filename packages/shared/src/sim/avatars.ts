@@ -139,6 +139,16 @@ export type AvatarSpec = (Look & { class: 'walker' } & Moves) | (Look & { class:
 const LIGHT_DRAGON_SIZE = 1.15;
 const COLGERA_SIZE = 1.15;
 
+// The moves Super Mario 64's Mario has, which every look of his family starts from: a row spreads
+// these, sets its own over them (Wario's heavier pound) and adds what is its alone (Peach's float).
+const SM64_MOVES = {
+  leap: { rise: 0.5, speed: 1.25, float: 0.5, grip: 6 }, // at twice its walk, a quarter over its run, and half its jump's height
+  // The twirl as long as its clip (Jointed.ts); the knock a hop back, a third of a second off the ground.
+  pound: { damage: 1.5, reach: 3, twirl: 1 / 3, speed: 20, recover: 0.35, knock: { speed: 4, lift: 3, grip: 6 } },
+  chain: { jumps: 3, gap: 0.3, rise: 1.2 }, // a jump, a double and a triple
+  crouch: { crawl: 0.3, flip: 1.5 },
+} satisfies Partial<Moves>;
+
 const LOOKS = {
   standard: {
     id: 'standard',
@@ -163,11 +173,7 @@ const LOOKS = {
     hitbox: { top: 2.0, radius: 0.5, head: 0.85 }, // as tall as the standard body; the head, cap and all, is 0.8 m across and everything over the shoulders
     walk: 8,
     jump: 1.45,
-    leap: { rise: 0.5, speed: 1.25, float: 0.5, grip: 6 }, // at twice its walk, a quarter over its run, and half its jump's height
-    // The twirl as long as its clip (Jointed.ts); the knock a hop back, a third of a second off the ground.
-    pound: { damage: 1.5, reach: 3, twirl: 1 / 3, speed: 20, recover: 0.35, knock: { speed: 4, lift: 3, grip: 6 } },
-    chain: { jumps: 3, gap: 0.3, rise: 1.2 }, // a jump, a double and a triple
-    crouch: { crawl: 0.3, flip: 1.5 },
+    ...SM64_MOVES,
   },
   luigi: {
     id: 'luigi',
@@ -180,11 +186,7 @@ const LOOKS = {
     hitbox: { top: 2.2, radius: 0.45, head: 0.9 }, // a tenth taller than Mario, as their models stand, and narrower: a head 0.66 m across
     walk: 8,
     jump: 1.6,
-    leap: { rise: 0.5, speed: 1.25, float: 0.5, grip: 6 }, // at twice its walk, a quarter over its run, and half its jump's height
-    // The twirl as long as its clip (Jointed.ts); the knock a hop back, a third of a second off the ground.
-    pound: { damage: 1.5, reach: 3, twirl: 1 / 3, speed: 20, recover: 0.35, knock: { speed: 4, lift: 3, grip: 6 } },
-    chain: { jumps: 3, gap: 0.3, rise: 1.2 }, // a jump, a double and a triple
-    crouch: { crawl: 0.3, flip: 1.5 },
+    ...SM64_MOVES,
   },
   wario: {
     id: 'wario',
@@ -197,11 +199,8 @@ const LOOKS = {
     hitbox: { top: 2.2, radius: 0.7, head: 0.85 }, // as tall as Luigi and 1.26 m across the belly; the head everything over the shoulders
     walk: 6.5,
     jump: 1.3,
-    leap: { rise: 0.5, speed: 1.25, float: 0.5, grip: 6 }, // at twice its walk, a quarter over its run, and half its jump's height
-    // The twirl as long as its clip (Jointed.ts); heavier than the brothers', it lands harder and wider.
-    pound: { damage: 2.5, reach: 4, twirl: 1 / 3, speed: 20, recover: 0.35, knock: { speed: 4, lift: 3, grip: 6 } },
-    chain: { jumps: 3, gap: 0.3, rise: 1.2 }, // a jump, a double and a triple
-    crouch: { crawl: 0.3, flip: 1.5 },
+    ...SM64_MOVES,
+    pound: { ...SM64_MOVES.pound, damage: 2.5, reach: 4 }, // heavier than the brothers', it lands harder and wider
   },
   waluigi: {
     id: 'waluigi',
@@ -214,11 +213,7 @@ const LOOKS = {
     hitbox: { top: 3.1, radius: 0.45, head: 0.8 }, // half again as tall as Mario, as their models stand, on legs 1.4 m long; a body 0.46 m across under a head 0.82 m across
     walk: 8,
     jump: 1.5,
-    leap: { rise: 0.5, speed: 1.25, float: 0.5, grip: 6 }, // at twice its walk, a quarter over its run, and half its jump's height
-    // The twirl as long as its clip (Jointed.ts); the knock a hop back, a third of a second off the ground.
-    pound: { damage: 1.5, reach: 3, twirl: 1 / 3, speed: 20, recover: 0.35, knock: { speed: 4, lift: 3, grip: 6 } },
-    chain: { jumps: 3, gap: 0.3, rise: 1.2 }, // a jump, a double and a triple
-    crouch: { crawl: 0.3, flip: 1.5 },
+    ...SM64_MOVES,
   },
   peach: {
     id: 'peach',
@@ -231,10 +226,7 @@ const LOOKS = {
     hitbox: { top: 2.5, radius: 0.5, head: 0.65 },
     walk: 6.5,
     jump: 1.3,
-    leap: { rise: 0.5, speed: 1.25, float: 0.5, grip: 6 },
-    pound: { damage: 1.5, reach: 3, twirl: 1 / 3, speed: 20, recover: 0.35, knock: { speed: 4, lift: 3, grip: 6 } },
-    chain: { jumps: 3, gap: 0.3, rise: 1.2 },
-    crouch: { crawl: 0.3, flip: 1.5 },
+    ...SM64_MOVES,
     float: { seconds: 3, sink: 0.4 },
   },
   spongebob: {

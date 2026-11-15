@@ -4,8 +4,8 @@
 // the whole way up and down. Worn with /luigi; his hit capsule is AVATARS.luigi.hitbox.
 import type { JointedSpec, Style } from './Jointed';
 import { LUIGI_MODEL } from './luigiModel';
-import { MARIO_STYLE } from './Mario';
+import { SM64_STYLE } from './sm64';
 
-export const LUIGI_STYLE: Style = { ...MARIO_STYLE, flutter: 3 };
+export const LUIGI_STYLE: Style = { ...SM64_STYLE, flutter: 3 };
 
 export const LUIGI: JointedSpec = { kind: 'luigi', model: LUIGI_MODEL, style: LUIGI_STYLE, shadow: 1.2 };

@@ -490,7 +490,7 @@ chest, head, arms with elbows, hands with fingers and a thumb, legs with knees a
 model from `scripts/jointed-model.py`, which reads a rip of the character's own model (Mario's,
 Luigi's, Wario's, Waluigi's and Peach's are on one rig, in a T-pose), moved by animation clips (`render/avatars/clips.ts`):
 frames of where the hips are and how each bone is turned, drawn by an animator, never worked out.
-Mario's are Super Mario 64's own (`marioClips.ts`, baked by `scripts/jointed-clips.py` from a
+Mario's are Super Mario 64's own (`sm64Clips.ts`, baked by `scripts/sm64-clips.py` from a
 rigged, animated rip of that game's Mario: each source bone's turn from its T-pose carried onto
 the jointed body's, the hips in leg lengths so a longer-legged body bobs as far for its size, and
 each frame stood on the ground). A `Style` is its clips (idle, walk, run, jump, fall, land, and
@@ -524,7 +524,13 @@ out as rests it on whatever of the head is under it (`Rig.resting`, from the hea
 hand's vertices, the model script's `skull` and `mitt`), so it touches the head and is never in it. Characters on one rig can share clips (Luigi plays
 Mario's, his legs running on in the air, and Wario plays them on his own short, wide-set legs with most of the arms' swing taken out and
 his body rocking over each foot, the style's `arms` and `waddle`; Waluigi plays them as they are), and a new one is a row in the model script's
-`CHARACTERS`, its files, and clips of its own if it moves its own way. Peach moves her own way
+`CHARACTERS`, its files, and clips of its own if it moves its own way. What the family shares is
+said once and each member is that with its own over it: on the client `SM64_STYLE`
+(`render/avatars/sm64.ts`), a character's style spreading it and setting its own numbers or its
+own clips in the places it differs; in the sim `SM64_MOVES` (`sim/avatars.ts`), a row spreading it,
+setting its own over a move (Wario's pound) and adding what is its alone (Peach's float). A move
+is its field on the row, its state on `PlayerState` and its clip in the style, each optional, so a
+character has any mix of them. Peach moves her own way
 wherever Mario's won't do for her: her idle, her walk, the quick walk she has in a run's place, her
 jump, fall, landing and float are Super Smash Bros. Brawl's (`peachClips.ts`, baked by
 `scripts/peach-clips.py` from her files in that game, which `scripts/brawl.py` reads: the model's
