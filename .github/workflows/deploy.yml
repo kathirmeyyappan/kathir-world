@@ -27,14 +27,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
+      - name: Node dependencies
+        uses: ./.github/actions/node-deps
 
       - name: Format, lint, typecheck and test
         run: npm run lint && npm run typecheck && npm test
@@ -63,14 +57,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
+      - name: Node dependencies
+        uses: ./.github/actions/node-deps
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -123,15 +111,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-
       # deploy.sh rebuilds the bots' world map with the real sim.
-      - name: Install dependencies
-        run: npm ci
+      - name: Node dependencies
+        uses: ./.github/actions/node-deps
 
       - name: Setup Python
         uses: actions/setup-python@v5
