@@ -48,6 +48,9 @@ export type SoundId =
   | 'suction-4'
   | 'jump'
   | 'mario-jump-1'
+  | 'mario-jump-3'
+  | 'luigi-jump-2'
+  | 'luigi-jump-3'
   | 'mario-leap-1'
   | 'mario-leap-2'
   | 'mario-leap-3'
@@ -142,6 +145,9 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   // switch's a little under that, a long jump under those. The jump, heard at every hop, is kept
   // far quieter than any of them.
   'mario-jump-1': { file: 'mario-jump-1.mp3', half: 6, reach: 30, volume: 0.08 },
+  'mario-jump-3': { file: 'mario-jump-3.mp3', half: 6, reach: 30, volume: 0.08 },
+  'luigi-jump-2': { file: 'luigi-jump-2.mp3', half: 6, reach: 30, volume: 0.08 },
+  'luigi-jump-3': { file: 'luigi-jump-3.mp3', half: 6, reach: 30, volume: 0.08 },
   'mario-leap-1': { file: 'mario-leap-1.mp3', half: 6, reach: 30, volume: 0.12 },
   'mario-leap-2': { file: 'mario-leap-2.mp3', half: 6, reach: 30, volume: 0.12 },
   'mario-leap-3': { file: 'mario-leap-3.mp3', half: 6, reach: 30, volume: 0.12 },
