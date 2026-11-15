@@ -4,13 +4,15 @@
 // image), triangles (Uint16) and, per vertex, the four bones it follows (Uint8 indices into `bones`) and
 // how much (Uint8, summing to 255); all base64. `bones` is each bone's pivot in metres, in index order.
 // `hand` is the right palm, `back` where the tank hangs, `lie` how high the hips lie when it is on its back,
-// `sole` how far a shoe's toe reaches ahead of its ankle and its heel behind it.
+// `sole` how far a shoe's toe reaches ahead of its ankle and its heel behind it, `temple` where a hand laid
+// on the right side of the head rests.
 export const WALUIGI_MODEL = {
   height: 3.1,
   hand: [1.3376, 2.1671, 0.0182],
   back: [0.0, 1.966, -0.209],
   lie: 0.2466,
   sole: [0.4445, 0.2052],
+  temple: [0.2584, 2.6423, 0.139],
   bones: {
     hips: [0.0, 1.6475, 0.0],
     spine: [0.0, 1.7919, 0.0],

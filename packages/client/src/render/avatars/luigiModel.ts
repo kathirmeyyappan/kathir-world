@@ -4,13 +4,15 @@
 // image), triangles (Uint16) and, per vertex, the four bones it follows (Uint8 indices into `bones`) and
 // how much (Uint8, summing to 255); all base64. `bones` is each bone's pivot in metres, in index order.
 // `hand` is the right palm, `back` where the tank hangs, `lie` how high the hips lie when it is on its back,
-// `sole` how far a shoe's toe reaches ahead of its ankle and its heel behind it.
+// `sole` how far a shoe's toe reaches ahead of its ankle and its heel behind it, `temple` where a hand laid
+// on the right side of the head rests.
 export const LUIGI_MODEL = {
   height: 2.2,
   hand: [0.7271, 1.2179, 0.071],
   back: [0.0, 1.0168, -0.2116],
   lie: 0.3528,
   sole: [0.3345, 0.167],
+  temple: [0.2734, 1.6942, 0.0607],
   bones: {
     hips: [0.0, 0.8956, 0.0],
     spine: [0.0, 0.9236, 0.0],

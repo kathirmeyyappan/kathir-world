@@ -504,7 +504,9 @@ down, and a landing's weight is the drop from its highest point. Every change of
 rest to rest over a few frames, never snapped. The poses no clip covers (on a ladder, lying dead)
 are written as a `BodyPose` (`render/avatars/motion.ts`), which the rig solves, bending each leg
 to put its foot where the pose says; on a ladder each fist and foot is put on a rung of it
-(`rungHeld`, `Rig.reach` and `Rig.tread`), the hips an arm's length back. Characters on one rig can share clips (Luigi plays
+(`rungHeld`, `Rig.reach` and `Rig.tread`), the hips an arm's length back. A clip's arms are as
+long as the body it was drawn on, so where its hands have to be somewhere on another body the rig
+puts them there over the clip: sat in a crouch, on the head (`Rig.clasp`, to the model's `temple`). Characters on one rig can share clips (Luigi plays
 Mario's, his legs running on in the air, and Wario plays them on his own short, wide-set legs with most of the arms' swing taken out and
 his body rocking over each foot, the style's `arms` and `waddle`; Waluigi plays them as they are), and a new one is a row in the model script's
 `CHARACTERS`, its files, and clips of its own if it moves its own way.
