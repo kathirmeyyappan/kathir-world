@@ -71,6 +71,7 @@ export type SoundId =
   | 'luigi-hurt-1'
   | 'luigi-hurt-2'
   | 'wario-hurt-1'
+  | 'waluigi-hurt-1'
   | 'spongebob-hurt'
   | 'patrick-hurt-1'
   | 'patrick-hurt-2'
@@ -80,6 +81,7 @@ export type SoundId =
   | 'wario-kill-2'
   | 'waluigi-kill-1'
   | 'waluigi-kill-2'
+  | 'waluigi-kill-3'
   | 'spongebob-kill-1'
   | 'spongebob-kill-2'
   | 'patrick-kill-1'
@@ -189,6 +191,7 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'luigi-hurt-1': { file: 'luigi-hurt-1.mp3', half: 6, reach: 30, volume: 0.25 },
   'luigi-hurt-2': { file: 'luigi-hurt-2.mp3', half: 6, reach: 30, volume: 0.25 },
   'wario-hurt-1': { file: 'wario-hurt-1.mp3', half: 6, reach: 30, volume: 0.25 },
+  'waluigi-hurt-1': { file: 'waluigi-hurt-1.mp3', half: 6, reach: 30, volume: 0.25 },
   'spongebob-hurt': { file: 'spongebob-hurt.mp3', half: 6, reach: 30, volume: 0.25 },
   'patrick-hurt-1': { file: 'patrick-hurt-1.mp3', half: 6, reach: 30, volume: 0.25 },
   'patrick-hurt-2': { file: 'patrick-hurt-2.mp3', half: 6, reach: 30, volume: 0.25 },
@@ -201,6 +204,7 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'wario-kill-2': { file: 'wario-kill-2.mp3', half: 6, reach: 30, volume: 0.2 },
   'waluigi-kill-1': { file: 'waluigi-kill-1.mp3', half: 6, reach: 30, volume: 0.2 },
   'waluigi-kill-2': { file: 'waluigi-kill-2.mp3', half: 6, reach: 30, volume: 0.2 },
+  'waluigi-kill-3': { file: 'waluigi-kill-3.mp3', half: 6, reach: 30, volume: 0.2 },
   'spongebob-kill-1': { file: 'spongebob-kill-1.mp3', half: 6, reach: 30, volume: 0.2 },
   'spongebob-kill-2': { file: 'spongebob-kill-2.mp3', half: 6, reach: 30, volume: 0.2 },
   'patrick-kill-1': { file: 'patrick-kill-1.mp3', half: 6, reach: 30, volume: 0.2 },
