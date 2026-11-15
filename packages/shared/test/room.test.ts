@@ -1100,7 +1100,7 @@ test('/light-dragon: 40 hearts, full, breath for good and no kit, 1.5 hearts bac
   assert.equal(snap.pickups.filter((p) => p.kind === 'big-heart').length, 5);
 });
 
-test('a ground pound: pressed in the air it hangs, drops faster than a fall, plants its feet, and hurts whoever is on foot near where it lands, harder and further from higher up, at no cost to itself', () => {
+test('a ground pound: pressed in the air it hangs, drops faster than a fall, plants its feet, and hurts whoever is on foot near where it lands, harder and further from higher up, and lands as a fall from where it began, whatever fell before', () => {
   const room = new Room('pound', { seed: 3, structures: new Structures([]) });
   const [a, b, c] = [link(), link(), link()];
   const [ida, idb, idc] = [room.join('alice', a)!, room.join('bob', b)!, room.join('carol', c)!];
@@ -1129,13 +1129,19 @@ test('a ground pound: pressed in the air it hangs, drops faster than a fall, pla
   room.step();
   assert.ok(bob.pos.x > 3.5 && bob.pos.y > EYE_HEIGHT, 'and knocked back off his feet');
   assert.equal(carol.hearts, MAX_HEARTS, 'carol, past it, is not');
-  assert.equal(alice.hearts, MAX_HEARTS, 'and it lands as the plain fall it began as, unhurt');
+  assert.equal(alice.hearts, MAX_HEARTS, 'and it lands as a fall of that height, unhurt');
   room.receive(ida, { t: 'input', f: { ...frame(0, []), my: 1 } });
   room.step();
   assert.equal(alice.pos.z, 0, 'feet planted');
   for (let i = 0; i < Math.round(pound.recover * TICK_RATE); i++) room.step();
   assert.equal(alice.pound, null);
   assert.equal(bob.hearts, MAX_HEARTS - pound.damage - 1, 'hurt once');
+  // Begun 3 m up at the end of a fall fast enough to kill, it lands as the 3 m it is.
+  alice.pos = { x: 40, y: EYE_HEIGHT + 3, z: 0 };
+  alice.vy = -45;
+  room.receive(ida, { t: 'input', f: frame(0, ['pound']) });
+  for (let i = 0; i < 60 && stage() !== 'land'; i++) room.step();
+  assert.ok(stage() === 'land' && alice.hearts === MAX_HEARTS, 'a pound begun low breaks the fall');
 });
 
 test('a strike: a windup after the press its blow lands once on whoever on foot is in front of the body within its reach, a weapon in hand or none, and throws them back', () => {

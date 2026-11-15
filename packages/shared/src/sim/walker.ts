@@ -120,7 +120,7 @@ export function stepWalker(
   const pound = poundOf(p.avatar);
   if (p.pound && (!pound || p.dead || p.thrown !== null)) p.pound = null;
   if (pound && !p.pound && !grounded && !p.dead && input?.actions.includes('pound')) {
-    p.pound = { stage: 'twirl', t: 0, from: p.pos.y, vy: p.vy };
+    p.pound = { stage: 'twirl', t: 0, from: p.pos.y };
     p.hop = 0;
     p.vx = p.vz = p.vy = 0;
     p.thrown = null;
@@ -277,8 +277,9 @@ export function stepWalker(
 
 // One tick of a ground pound: hanging where it began while it turns over, then straight down from
 // the pound's speed, then planted where it landed. Returns the landing's speed on the tick it
-// lands, as a plain fall from where the pound began would have landed, so the pound's own speed
-// neither hurts its player nor spares them a long fall.
+// lands, as a fall from rest where the pound began would have landed: the pound's own speed doesn't
+// hurt its player, and whatever fall the body was in ended where it hung, so a pound begun low
+// breaks a long fall and one begun high is the fall its height is.
 function stepPound(
   p: PlayerState,
   state: NonNullable<PlayerState['pound']>,
@@ -311,7 +312,7 @@ function stepPound(
   p.pos.y = floor;
   p.vy = 0;
   p.pound = { ...state, stage: 'land', t: 0 };
-  return dropSpeed(Math.max(0, state.from - floor) + (state.vy * state.vy) / (2 * GRAVITY));
+  return dropSpeed(Math.max(0, state.from - floor));
 }
 
 // Takes hold of a ladder by the face a walker faces, or by the other face through it where there's
