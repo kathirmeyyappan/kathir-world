@@ -80,7 +80,6 @@ export type SoundId =
   | 'luigi-kill-2'
   | 'wario-kill-1'
   | 'wario-kill-2'
-  | 'wario-kill-3'
   | 'waluigi-kill-1'
   | 'waluigi-kill-2'
   | 'waluigi-kill-3'
@@ -93,6 +92,7 @@ export type SoundId =
   | 'luigi-enter'
   | 'wario-enter'
   | 'wario-enter-2'
+  | 'wario-enter-3'
   | 'waluigi-enter'
   | 'patrick-enter'
   | 'spongebob-enter'
@@ -206,7 +206,6 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'luigi-kill-2': { file: 'luigi-kill-2.mp3', half: 6, reach: 30, volume: 0.2 },
   'wario-kill-1': { file: 'wario-kill-1.mp3', half: 6, reach: 30, volume: 0.2 },
   'wario-kill-2': { file: 'wario-kill-2.mp3', half: 6, reach: 30, volume: 0.2 },
-  'wario-kill-3': { file: 'wario-kill-3.mp3', half: 6, reach: 30, volume: 0.2 },
   'waluigi-kill-1': { file: 'waluigi-kill-1.mp3', half: 6, reach: 30, volume: 0.2 },
   'waluigi-kill-2': { file: 'waluigi-kill-2.mp3', half: 6, reach: 30, volume: 0.2 },
   'waluigi-kill-3': { file: 'waluigi-kill-3.mp3', half: 6, reach: 30, volume: 0.2 },
@@ -216,6 +215,7 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'luigi-enter': { file: 'luigi-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'wario-enter': { file: 'wario-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'wario-enter-2': { file: 'wario-enter-2.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
+  'wario-enter-3': { file: 'wario-enter-3.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'waluigi-enter': { file: 'waluigi-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'patrick-enter': { file: 'patrick-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'spongebob-enter': { file: 'spongebob-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },

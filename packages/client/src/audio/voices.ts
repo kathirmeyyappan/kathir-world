@@ -43,11 +43,11 @@ export const VOICES: Record<AvatarId, Voice> = {
     death: ['mario-death'],
   },
   wario: {
-    enter: ['wario-enter', 'wario-enter-2'],
+    enter: ['wario-enter', 'wario-enter-2', 'wario-enter-3'],
     jump: ['mario-jump-1', 'wario-jump-2', 'wario-jump-3'],
     leap: ['wario-leap-1', 'wario-leap-2'],
     hurt: ['wario-hurt-1'],
-    kill: ['wario-kill-1', 'wario-kill-2', 'wario-kill-3'],
+    kill: ['wario-kill-1', 'wario-kill-2'],
     death: ['mario-death'],
   },
   waluigi: {
