@@ -112,6 +112,7 @@ const PARENTS: Record<JointedBone, JointedBone | null> = {
 // A model on this rig, standing in a T-pose: its arms straight out to the sides, its legs straight down.
 export interface JointedModel extends SkinnedModel<JointedBone> {
   readonly sole: readonly number[]; // metres a shoe's toe reaches ahead of its ankle, and its heel behind it
+  readonly temple: readonly number[]; // where a hand laid on the right side of the head rests
 }
 
 // The clips only a look with the move has.
@@ -171,7 +172,6 @@ const TOUCHDOWN_SECONDS = 0.12;
 const APEX_SECONDS = 0.28;
 const LAND_IN = 0.05; // seconds a landing takes to drop into its crouch
 const CROUCH_SECONDS = 0.15; // seconds it takes to sink into a crouch, and to rise out of one
-const CRAWL_CYCLE = 3; // leg lengths it crawls in one cycle of its limbs
 const EASE_DIRECTION = 0.09; // seconds its stride takes to come round to a new way of going
 const EASE_TURN = 0.12; // seconds its body takes to come round to face the way it's going
 const EASE_AIM = 0.06; // and to face its look, with something in its hand to aim
@@ -260,7 +260,6 @@ export class JointedAvatar extends WalkerAvatar {
   private readonly flip: number; // seconds its triple jump's somersault takes: done just before it's down again on the flat
   private readonly backflip: number; // and its backflip's
   private crouching = 0; // how far down into its crouch it is: 0 standing, 1 sat in it
-  private crawled = 0; // cycles of its crawl it has gone
   private impact = 0; // how hard it last landed, 0 to 1
   private landing = Infinity; // seconds since it last landed
   private stood = 0; // seconds it has been drawn, for its idle
@@ -361,14 +360,14 @@ export class JointedAvatar extends WalkerAvatar {
       grip += (GRIP_RUN - GRIP_IDLE) * striding * running;
     }
 
-    // A crouch, sunk into and risen out of: sat on its heels, or crawling as far through the cycle
-    // of its limbs as it has gone.
+    // A crouch, sunk into and risen out of: sat on its heels, or crawling.
     this.crouching = Math.min(1, Math.max(0, this.crouching + (p.crouch ? dt : -dt) / CROUCH_SECONDS));
+    const sat = clips.crouch && p.grounded && !p.pound ? smooth(this.crouching) * (1 - striding) : 0;
     if (clips.crouch && this.crouching > 0) {
       sample(other, clips.crouch, this.stood / clips.crouch.seconds, true);
+      // The crawl's limbs go by the footsteps' count, a hand down at each (gaits.ts `crawl`).
       if (clips.crawl && striding > 0) {
-        this.crawled += (p.walk * dt) / (CRAWL_CYCLE * this.rig.legLength);
-        sample(third, clips.crawl, this.crawled, true);
+        sample(third, clips.crawl, step / 2, true);
         blend(other, other, third, striding);
       }
       blend(out, out, other, smooth(this.crouching));
@@ -456,6 +455,9 @@ export class JointedAvatar extends WalkerAvatar {
     // A waddle: over the right foot as it comes down, the stride's start, and over the left at its middle.
     const rock = (style.waddle ?? 0) * striding * Math.cos(Math.PI * step);
     this.rig.play(out, grip, this.bank + rock, armed ? hips * striding : 0, head, p.pitch * style.follow * looks);
+    // Sat in a crouch its hands are on its head, which the clip's arms reach only on the body it
+    // was drawn for.
+    if (sat > 0) this.rig.clasp(sat);
     if (!turning && !flipping) this.arm(p);
     return walked;
   }
@@ -551,13 +553,18 @@ class Rig {
   private readonly hipsAt: Vector3; // the hips' pivot, standing
   private readonly bones: TransformNode[]; // the bones a clip turns, in a clip's order
   private gripped = -1; // how closed `play` last left the hands, none yet
-  readonly legLength: number; // metres, hip to ankle, the leg straight
   private readonly thigh: number; // metres, hip to knee
   private readonly shin: number; // knee to ankle
   private readonly ankle: number; // metres the ankle stands off the ground
   private readonly toe: number;
   private readonly heel: number;
   readonly shoulder: Vector3; // the right shoulder, standing
+  // In the chest's frame, which the head and both arms hang in: each shoulder and the neck; and in
+  // the head's, from the neck, where the right hand rests on it.
+  private readonly shoulderL: Vector3;
+  private readonly shoulderR: Vector3;
+  private readonly neck: Vector3;
+  private readonly temple: Vector3;
   readonly armLength: number; // metres from a shoulder to its fist's middle, the arm straight
   private readonly upper: number; // metres, shoulder to elbow
   private readonly fore: number; // elbow to the fist's middle
@@ -576,7 +583,6 @@ class Rig {
     this.hipsAt = at('hips');
     this.thigh = Vector3.Distance(at('legR'), at('shinR'));
     this.shin = Vector3.Distance(at('shinR'), at('footR'));
-    this.legLength = this.thigh + this.shin;
     this.ankle = model.bones.footR[1];
     [this.toe, this.heel] = model.sole;
     this.hipL = at('legL').subtract(this.hipsAt);
@@ -584,6 +590,10 @@ class Rig {
     this.standL = at('footL');
     this.standR = at('footR');
     this.shoulder = at('armR');
+    this.shoulderL = at('armL').subtract(at('chest'));
+    this.shoulderR = at('armR').subtract(at('chest'));
+    this.neck = at('head').subtract(at('chest'));
+    this.temple = Vector3.FromArray(model.temple as number[]).subtract(at('head'));
     this.upper = Vector3.Distance(at('armR'), at('forearmR'));
     this.fore = Vector3.Distance(at('forearmR'), Vector3.FromArray(model.hand as number[]));
     this.armLength = this.upper + this.fore;
@@ -691,6 +701,43 @@ class Rig {
     pose[at + ARM_ELBOW] = Math.PI - Math.acos((upper * upper + fore * fore - span * span) / (2 * upper * fore));
   }
 
+  // Lays each palm on its side of the head, `weight` of the way from how a clip's moment has left
+  // the arms (`play`). A clip's arms are as long as the body it was drawn on, so on another its
+  // hands miss the head; this puts them there by the body's own lengths: the elbow under the line
+  // from shoulder to palm, the back of the hand turned away from the head.
+  clasp(weight: number): void {
+    const head = this.skin.node('head').rotationQuaternion!;
+    const { upper, fore } = this;
+    for (const side of [-1, 1] as const) {
+      const shoulder = side < 0 ? this.shoulderL : this.shoulderR;
+      // The palm's place and the middle of the head beside it, as the head is turned.
+      PALM.set(side * (this.temple.x + PALM_OFF * fore), this.temple.y, this.temple.z);
+      PALM.rotateByQuaternionToRef(head, PALM).addInPlace(this.neck);
+      AWAY.set(0, this.temple.y, this.temple.z).rotateByQuaternionToRef(head, AWAY).addInPlace(this.neck);
+      PALM.subtractToRef(AWAY, AWAY);
+      PALM.subtractInPlace(shoulder);
+      const span = Math.min(upper + fore - 1e-4, Math.max(Math.abs(upper - fore) + 1e-4, PALM.length()));
+      PALM.normalize();
+      // The arm's triangle, its elbow off the line toward the hips and a little out and ahead.
+      POLE.set(side * 0.3, -1, 0.3);
+      POLE.subtractInPlace(PALM.scaleToRef(Vector3.Dot(POLE, PALM), STEP)).normalize();
+      const along = (upper * upper + span * span - fore * fore) / (2 * span);
+      const off = Math.sqrt(Math.max(0, upper * upper - along * along));
+      PALM.scaleToRef(along, ELBOW).addInPlace(POLE.scaleToRef(off, STEP));
+      PALM.scaleToRef(span, WRIST).subtractInPlace(ELBOW);
+      alongArm(ELBOW, side, AWAY, THIGH);
+      alongArm(WRIST, side, AWAY, SHIN);
+      const [a, f, h] = side < 0 ? LEFT_ARM : RIGHT_ARM;
+      const arm = this.skin.node(a).rotationQuaternion!;
+      Quaternion.SlerpToRef(arm, THIGH, weight, arm);
+      THIGH.conjugateToRef(B).multiplyToRef(SHIN, A);
+      const forearm = this.skin.node(f).rotationQuaternion!;
+      Quaternion.SlerpToRef(forearm, A, weight, forearm);
+      const hand = this.skin.node(h).rotationQuaternion!;
+      Quaternion.SlerpToRef(hand, IDENTITY, weight, hand);
+    }
+  }
+
   // Puts a foot of `pose` with the ball of its sole at a point in the body's frame, as `reach` does
   // a fist.
   tread(pose: BodyPose, side: 1 | -1, x: number, y: number, z: number): void {
@@ -790,6 +837,14 @@ class Rig {
 
 // Scratch for the frame's arithmetic, shared by every jointed body: none of it survives a call.
 const IDENTITY = Quaternion.Identity();
+const PALM = new Vector3();
+const AWAY = new Vector3();
+const POLE = new Vector3();
+const ELBOW = new Vector3();
+const WRIST = new Vector3();
+const LEFT_ARM = ['armL', 'forearmL', 'handL'] as const;
+const RIGHT_ARM = ['armR', 'forearmR', 'handR'] as const;
+const PALM_OFF = 0.1; // the share of a forearm's length a palm's middle is off what it lies on: half the hand's thickness
 // The right hand, which the model holds palm down, turned about the arm's length to thumb up.
 const THUMB_UP = Quaternion.RotationAxis(Vector3.RightReadOnly, -Math.PI / 2);
 const HIPS = new Quaternion();
@@ -825,6 +880,15 @@ function set(node: TransformNode, turn: Quaternion): void {
 function within(parent: Quaternion, turn: Quaternion, node: TransformNode): void {
   parent.conjugateToRef(B);
   B.multiplyToRef(turn, (node.rotationQuaternion ??= new Quaternion()));
+}
+
+// The turn of an arm bone on `side` that runs along `out` from its joint, in its parent's frame,
+// the back of its hand toward `back`: its frame's x away from the body's middle, its y that back.
+function alongArm(out: Vector3, side: 1 | -1, back: Vector3, result: Quaternion): void {
+  out.scaleToRef(side / out.length(), HINGE);
+  back.subtractToRef(HINGE.scaleToRef(Vector3.Dot(back, HINGE), STEP), UP).normalize();
+  Vector3.CrossToRef(HINGE, UP, AHEAD);
+  Quaternion.RotationQuaternionFromAxisToRef(HINGE, UP, AHEAD, result);
 }
 
 // The turn of a leg bone that runs along `down` from its joint, HINGE across it: its frame's y back

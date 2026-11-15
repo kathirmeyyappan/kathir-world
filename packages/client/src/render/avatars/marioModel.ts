@@ -4,13 +4,15 @@
 // image), triangles (Uint16) and, per vertex, the four bones it follows (Uint8 indices into `bones`) and
 // how much (Uint8, summing to 255); all base64. `bones` is each bone's pivot in metres, in index order.
 // `hand` is the right palm, `back` where the tank hangs, `lie` how high the hips lie when it is on its back,
-// `sole` how far a shoe's toe reaches ahead of its ankle and its heel behind it.
+// `sole` how far a shoe's toe reaches ahead of its ankle and its heel behind it, `temple` where a hand laid
+// on the right side of the head rests.
 export const MARIO_MODEL = {
   height: 2.0,
   hand: [0.7382, 1.1051, 0.0633],
   back: [0.0, 0.8959, -0.2364],
   lie: 0.3599,
   sole: [0.3388, 0.1921],
+  temple: [0.4023, 1.5527, 0.0],
   bones: {
     hips: [0.0, 0.8301, 0.0],
     spine: [0.0, 0.8561, 0.0],
