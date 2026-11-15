@@ -9,7 +9,9 @@ export interface Voice {
   // Its intro: said as a player switches to this look, heard by them and everyone near. Lazy in
   // SOUNDS, so it's fetched the first time it's said within earshot and costs nothing until then.
   enter: SoundId[];
-  jump?: SoundId; // leaving the ground on a jump: the swoosh unless given
+  // Leaving the ground on a jump, in the swoosh's place: the first of a chain of jumps (sim/avatars.ts
+  // `Chain`), then its second and its third, the last one given serving any after it.
+  jump?: SoundId[];
   leap?: SoundId[]; // leaving it on a long jump (sim/avatars.ts `Leap`): the jump's sound unless given
   hurt?: SoundId[]; // taking damage, heard by everyone near
   kill?: SoundId[]; // a moment after killing someone
@@ -26,7 +28,7 @@ export const VOICES: Record<AvatarId, Voice> = {
   standard: { enter: [] },
   mario: {
     enter: ['mario-enter'],
-    jump: 'mario-jump',
+    jump: ['mario-jump-1'],
     leap: ['mario-leap-1', 'mario-leap-2', 'mario-leap-3'],
     hurt: ['mario-hurt-1', 'mario-hurt-2', 'mario-hurt-3'],
     kill: ['mario-kill-1', 'mario-kill-2'],
@@ -34,7 +36,7 @@ export const VOICES: Record<AvatarId, Voice> = {
   },
   luigi: {
     enter: ['luigi-enter'],
-    jump: 'mario-jump',
+    jump: ['mario-jump-1'],
     leap: ['luigi-leap-1', 'luigi-leap-2'],
     hurt: ['luigi-hurt-1', 'luigi-hurt-2'],
     kill: ['luigi-kill-1', 'luigi-kill-2'],

@@ -36,6 +36,7 @@ export interface RemotePlayer {
   thrusting: boolean;
   walk: number; // how fast their feet are walking, m/s (sim/types.ts): paces their legs and footsteps
   leap: boolean; // in a long jump (sim/avatars.ts `Leap`)
+  hop: number; // which jump of a chain of them the last was (sim/avatars.ts `Chain`), from 1; 0 with none
   pound: 'twirl' | 'drop' | 'land' | null; // the stage of its ground pound (sim/avatars.ts `Pound`), if it's in one
   climb: { piece: number; side: 1 | -1; way: 1 | -1 } | null; // on a ladder (sim/types.ts): the piece, the face held, and the way round to it
   chilled: boolean; // slowed by an ice hit (sim/constants.ts): frosted over
@@ -118,6 +119,7 @@ export class Interpolation {
         thrusting: b.thrusting,
         walk: b.walk,
         leap: b.leap,
+        hop: b.hop,
         pound: b.pound?.stage ?? null,
         climb: b.climb,
         chilled: b.chilled > 0,

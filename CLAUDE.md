@@ -407,7 +407,11 @@ height, hitbox, and on foot its `walk` in m/s and its `jump` power, 1 rising `JU
 `walkSpeedOf`, `jumpVelocityOf` and `climbSpeedOf` read them for the sim; with a `leap`, a jump
 taken at a run, on the move, is a long jump: off the way the keys go at a multiple of its run,
 rising a share of its jump under a share of gravity with little grip on the flight, until it lands,
-`PlayerState.leap` and `walker.ts`; with a `pound`, the `pound` action in the air (X, or the touch
+`PlayerState.leap` and `walker.ts`; with a `chain`, a plain jump taken within its `gap` of landing
+the last is the next of the chain, each rising `rise` times as high as the one before, and the jump
+after its last, or after a longer wait on the ground, is the first again (`PlayerState.hop`, which
+jump of the chain the last was, and `down`, the seconds since landing; holding the jump key runs
+the chain, since a held key repeats); with a `pound`, the `pound` action in the air (X, or the touch
 POUND button) is a ground pound, `PlayerState.pound`: the body hangs turning over for the `twirl`,
 drops straight down from `speed` under gravity, and lands planted for `recover`, the keys and a
 jetpack doing nothing throughout; the landing is judged as the plain fall it began as, and the Room
@@ -443,7 +447,9 @@ Mario's are Super Mario 64's own (`marioClips.ts`, baked by `scripts/jointed-cli
 rigged, animated rip of that game's Mario: each source bone's turn from its T-pose carried onto
 the jointed body's, the hips in leg lengths so a longer-legged body bobs as far for its size, and
 each frame stood on the ground). A `Style` is its clips (idle, walk, run, jump, fall, land, and
-for a look with the move a `leap`, a long jump played takeoff to landing, and `pound` and
+for a look with the move a `leap`, a long jump played takeoff to landing, `double` and
+`doubleFall`, the second of a chain of jumps going up and coming down, `triple`, its third, a
+somersault fitted to the flight so it's over just before the landing, and `pound` and
 `pounded`, a ground pound turning over into the seat it drops in, then landing sat and getting
 up) and a few numbers; the frame's pose is those sampled and blended: the idle into the walk or run at the
 point in the stride its feet have got to (the footsteps' phase, so feet land with their sounds,
@@ -475,8 +481,9 @@ and on the home screen as the look is picked (`Sfx.ts` `audition`). An intro is 
 and played with `Sfx.soon`: fetched the first time it's said within earshot and played as it
 arrives (let go if that takes over `LATE_MS`), so a client pays for the intros it hears and no
 others. Adding one is its file (mono mp3, levelled to the others' loudness), a `lazy` row in
-`SOUNDS` and its name in the look's `enter`. The rest only some looks have: a sound
-for a jump in the swoosh's place, and the takes it picks from on a long jump, at a hit (heard by
+`SOUNDS` and its name in the look's `enter`. The rest only some looks have: its sounds
+for a jump in the swoosh's place (`jump`, by where the jump is in a chain of them: the first, the
+second, the third, the last one given serving the rest), and the takes it picks from on a long jump, at a hit (heard by
 everyone near, no more often than `CRY_GAP_MS`; its own player hears it in the hurt sound's
 place) and a moment after a kill (`Game.say`); and its `death`,
 which its own player alone hears on the hit that kills them, in the hurt sound's place, and on

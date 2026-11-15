@@ -27,6 +27,7 @@ import {
   climbSpeedOf,
   dragonShape,
   jumpVelocityOf,
+  chainOf,
   leapOf,
   lifeOf,
   poundOf,
@@ -83,11 +84,28 @@ export function characterStats(id: AvatarId): Stat[] {
 }
 
 // What a character can do that the rest can't, each with its own numbers.
-export type AbilityId = 'leap' | 'pound';
+export type AbilityId = 'leap' | 'pound' | 'chain';
 
 // A character's special abilities, read off its row: none for most.
 export function abilityStats(id: AvatarId): { id: AbilityId; stats: Stat[] }[] {
-  return [...leapStats(id), ...poundStats(id)];
+  return [...leapStats(id), ...chainStats(id), ...poundStats(id)];
+}
+
+function chainStats(id: AvatarId): { id: AbilityId; stats: Stat[] }[] {
+  const chain = chainOf(id);
+  const look = AVATARS[id];
+  if (!chain || look.class !== 'walker') return [];
+  const heights = Array.from({ length: chain.jumps }, (_, n) => JUMP_RISE * look.jump * chain.rise ** n);
+  return [
+    {
+      id: 'chain',
+      stats: [
+        { label: 'Use', value: 'Space again as you land' },
+        { label: 'Heights', value: `${heights.map(num).join(', ')} m` },
+        { label: 'Time to jump again', value: `${num(chain.gap)} s` },
+      ],
+    },
+  ];
 }
 
 function poundStats(id: AvatarId): { id: AbilityId; stats: Stat[] }[] {

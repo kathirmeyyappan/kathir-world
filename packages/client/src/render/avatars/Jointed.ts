@@ -6,7 +6,7 @@
 // moves as whoever animated the clips moved it, and a new character is a model and its clips. The
 // walker still places the body, counts its stride, aims what it holds and lays it down dead.
 import { Quaternion, TransformNode, Vector3 } from '@babylonjs/core';
-import { GRAVITY, WORLD_STRUCTURES, poundOf, walkSpeedOf, type AvatarId } from '@world/shared';
+import { GRAVITY, WORLD_STRUCTURES, chainOf, jumpVelocityOf, poundOf, walkSpeedOf, type AvatarId } from '@world/shared';
 import type { RemotePlayer } from '../../net/Interpolation';
 import type { Engine } from '../Engine';
 import { CLIP_BONES, LEGS, blend, clip, motion, sample, turnAt, type Clip, type Motion, type RawClip } from './clips';
@@ -94,7 +94,7 @@ export interface JointedModel extends SkinnedModel<JointedBone> {
 }
 
 // The clips only a look with the move has.
-type Moves = 'leap' | 'pound' | 'pounded';
+type Moves = 'leap' | 'pound' | 'pounded' | 'double' | 'doubleFall' | 'triple';
 
 // How a character moves: its clips, and the few numbers round them.
 export interface Style {
@@ -110,6 +110,11 @@ export interface Style {
     // held at its end; and landing sat, then getting up.
     pound?: RawClip;
     pounded?: RawClip;
+    // A chain of jumps (sim/avatars.ts `Chain`): its second going up, held at its end, and coming
+    // down; and its third, a somersault through the whole flight, held at its end.
+    double?: RawClip;
+    doubleFall?: RawClip;
+    triple?: RawClip;
   };
   flutter?: number; // strides a second its legs run on at in the air: a scuttle
   landSpeed: number; // m/s of fall that lands all the way into the landing's crouch
@@ -181,6 +186,7 @@ const FIST = 0.05; // metres a fist's middle is from the palm's, on the palm's s
 // Where a held item's own origin (the top of its handle) goes from the fist's middle, in the grip's
 // frame: the handle's middle in the fist, so the barrel runs over the top of the hand.
 const HOLD = new Vector3(0, 0.02, 0.06);
+const FLIP_SHARE = 0.9; // the share of a triple jump's flight on the flat its somersault takes
 const POUND_IN = 0.07; // seconds a ground pound takes to pull the body into its turn
 const GETS_UP = 0.5; // the share of a ground pound's landing after which it's on its feet, and eases into what it does next
 const HEAD_AT = turnAt(CLIP_BONES.indexOf('head')); // where the head's turn is in a clip's moment
@@ -214,6 +220,7 @@ export class JointedAvatar extends WalkerAvatar {
   private pound: RemotePlayer['pound'] = null; // the stage of its ground pound when it was last drawn
   private turned = 0; // seconds since its ground pound began
   private sat = Infinity; // seconds since its ground pound landed
+  private readonly flip: number; // seconds its triple jump's somersault takes: done just before it's down again on the flat
   private impact = 0; // how hard it last landed, 0 to 1
   private landing = Infinity; // seconds since it last landed
   private stood = 0; // seconds it has been drawn, for its idle
@@ -244,7 +251,13 @@ export class JointedAvatar extends WalkerAvatar {
       leap: raw.leap ? clip(raw.leap) : null,
       pound: raw.pound ? clip(raw.pound) : null,
       pounded: raw.pounded ? clip(raw.pounded) : null,
+      double: raw.double ? clip(raw.double) : null,
+      doubleFall: raw.doubleFall ? clip(raw.doubleFall) : null,
+      triple: raw.triple ? clip(raw.triple) : null,
     };
+    const chain = chainOf(kind);
+    const third = jumpVelocityOf(kind) * Math.sqrt((chain?.rise ?? 1) ** 2);
+    this.flip = FLIP_SHARE * ((2 * third) / GRAVITY);
     sample(this.third, this.clips.idle, 0, true);
     this.ahead = this.third.slice(HEAD_AT, HEAD_AT + 4);
   }
@@ -322,6 +335,7 @@ export class JointedAvatar extends WalkerAvatar {
     }
 
     // In the air: its jump going up and its fall coming down, by which way it last moved.
+    const flipping = p.hop === 3 && !p.grounded ? clips.triple : null;
     this.aloft = p.grounded ? 0 : this.aloft + dt;
     this.kicking = eased(this.kicking, p.thrusting ? 0 : 1, dt, EASE_KICKING);
     this.airborne = Math.min(
@@ -330,8 +344,11 @@ export class JointedAvatar extends WalkerAvatar {
     );
     if (this.airborne > 0) {
       const down = smooth(this.falling);
-      sample(other, clips.jump, this.aloft / clips.jump.seconds, false);
-      sample(third, clips.fall, this.aloft / clips.fall.seconds, true);
+      // The second of a chain of jumps goes up and comes down its own way.
+      const rise = (p.hop === 2 && clips.double) || clips.jump;
+      sample(other, rise, this.aloft / rise.seconds, false);
+      if (p.hop === 2 && clips.doubleFall) sample(third, clips.doubleFall, this.falling, false);
+      else sample(third, clips.fall, this.aloft / clips.fall.seconds, true);
       blend(other, other, third, down);
       if (style.flutter && this.kicking > 0.001) {
         sample(third, clips.run, this.aloft * style.flutter, true);
@@ -343,6 +360,8 @@ export class JointedAvatar extends WalkerAvatar {
         sample(third, clips.leap, this.aloft / clips.leap.seconds, false);
         blend(other, other, third, smooth(this.leaping));
       }
+      // And the third is one somersault, the whole body's, from takeoff to landing.
+      if (flipping) sample(other, flipping, this.aloft / this.flip, false);
       const air = smooth(this.airborne);
       blend(out, out, other, air);
       grip += (GRIP_RUN + (GRIP_FALL - GRIP_RUN) * down - grip) * air;
@@ -372,10 +391,10 @@ export class JointedAvatar extends WalkerAvatar {
     if (own > 0) blend(out, out, third, own);
 
     const off = wrap(p.yaw - this.facing);
-    const looks = smooth((HEAD_GIVES_UP - Math.abs(off)) / HEAD_FADE) * (1 - own);
+    const looks = flipping ? 0 : smooth((HEAD_GIVES_UP - Math.abs(off)) / HEAD_FADE) * (1 - own);
     const head = Math.max(-HEAD_TURN_LIMIT, Math.min(HEAD_TURN_LIMIT, off)) * looks;
     this.rig.play(out, grip, this.bank, armed ? hips * striding : 0, head, p.pitch * style.follow * looks);
-    if (!turning) this.arm(p);
+    if (!turning && !flipping) this.arm(p);
     return walked;
   }
 

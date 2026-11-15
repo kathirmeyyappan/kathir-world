@@ -48,6 +48,10 @@ export const ABILITIES: Record<AbilityId, Entry> = {
     'Ground pound',
     'In the air, turns over and drops straight down, hurting everyone on foot near where it lands and knocking them back. A jump clears it.',
   ),
+  chain: plain(
+    'Triple jump',
+    'A jump taken as the last one lands goes higher: a double, then a triple with a somersault. Waiting on the ground starts over.',
+  ),
 };
 
 export const CHARACTERS: Record<AvatarId, Entry> = {
