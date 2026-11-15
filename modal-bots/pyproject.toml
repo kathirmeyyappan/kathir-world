@@ -14,7 +14,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-test = ["pytest", "ruff==0.16.9", "mypy==2.3.1"]  # pinned: CI and local must agree
+test = ["pytest", "pytest-xdist", "ruff==0.16.9", "mypy==2.3.1"]  # pinned: CI and local must agree
 
 [tool.setuptools.packages.find]
 where = ["."]
@@ -22,3 +22,6 @@ include = ["bots*", "common*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# The tests against a real room server run in real time, each on a server of its own, so they run
+# side by side.
+addopts = "-n 4"
