@@ -96,8 +96,8 @@ export interface Chain {
 // where it lands, knocking them back off their feet (the Room), its own feet planted a moment after. The keys and a jetpack do nothing
 // from its start until it's back on its feet.
 export interface Pound {
-  damage: number; // hearts it takes off everyone it lands near
-  reach: number; // metres across the floor from where it lands that it hurts
+  damage: number; // hearts it takes off everyone it lands near, from a short drop (`poundPower`)
+  reach: number; // metres across the floor from where it lands that it hurts, from a short drop
   twirl: number; // seconds it hangs turning over before it drops
   speed: number; // m/s it starts down at, gravity adding to it as to any fall
   recover: number; // seconds its feet stay planted once it's down
@@ -441,6 +441,19 @@ export function crouchOf(avatar: AvatarId): Crouch | null {
 export function poundOf(avatar: AvatarId): Pound | null {
   const look: AvatarSpec = AVATARS[avatar];
   return (look.class === 'walker' && look.pound) || null;
+}
+
+// A ground pound's damage and reach landing `height` metres under where it began: its own up to
+// the first POUND_DAMAGE_STEP, then half a heart more for every POUND_DAMAGE_STEP metres it fell
+// and a metre further for every POUND_REACH_STEP.
+const POUND_DAMAGE_STEP = 5;
+const POUND_REACH_STEP = 10;
+export function poundPower(pound: Pound, height: number): { damage: number; reach: number } {
+  const h = Math.max(0, height);
+  return {
+    damage: pound.damage + 0.5 * Math.floor(h / POUND_DAMAGE_STEP),
+    reach: pound.reach + Math.floor(h / POUND_REACH_STEP),
+  };
 }
 
 // How each move only some looks have is done, for the hint bar: with the keys, and on touch, a key

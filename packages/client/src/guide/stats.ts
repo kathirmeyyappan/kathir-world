@@ -139,6 +139,7 @@ function poundStats(id: AvatarId): { id: AbilityId; stats: Stat[] }[] {
       id: 'pound',
       stats: [
         { label: 'Use', value: 'Hit X in the air' },
+        { label: 'Height', value: 'More height gives more power' },
         { label: 'Ground pound damage', value: `${num(pound.damage)} hearts` },
         { label: 'Reach', value: `${num(pound.reach)} m` },
         { label: 'Knockback', value: `${num(pound.knock.speed)} m/s` },
