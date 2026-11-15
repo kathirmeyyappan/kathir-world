@@ -18,6 +18,7 @@ import {
 } from '@world/shared';
 import type { RemotePlayer } from '../../net/Interpolation';
 import type { Engine } from '../Engine';
+import { Sparkles } from '../Sparkles';
 import {
   ARMS,
   CLIP_BONES,
@@ -202,6 +203,9 @@ const TAKEOFF_SECONDS = 0.12;
 const TOUCHDOWN_SECONDS = 0.12;
 const APEX_SECONDS = 0.28;
 const LAND_IN = 0.05; // seconds a landing takes to drop into its crouch
+// A float's sparkles come out across this many metres under the body, this far over its feet.
+const SPARKLES_ACROSS = 0.7;
+const SPARKLES_UP = 0.15;
 const FLOAT_SECONDS = 0.2; // seconds it takes to settle into a float, and to drop out of one
 const CROUCH_SECONDS = 0.15; // seconds it takes to sink into a crouch, and to rise out of one
 const EASE_DIRECTION = 0.09; // seconds its stride takes to come round to a new way of going
@@ -287,6 +291,7 @@ export class JointedAvatar extends WalkerAvatar {
   private kicking = 1; // how much of its flutter its legs have in the air: none under a jet's thrust
   private leaping = 0; // how far into its long jump's pose it is, of its poses in the air
   private floating = 0; // and into its float's
+  private sparkles: Sparkles | null = null; // what a float gives off under it, once it has floated
   private pound: RemotePlayer['pound'] = null; // the stage of its ground pound when it was last drawn
   private turned = 0; // seconds since its ground pound began
   private sat = Infinity; // seconds since its ground pound landed
@@ -314,6 +319,15 @@ export class JointedAvatar extends WalkerAvatar {
     this.rig = rig!;
     this.style = spec.style;
     const raw = spec.style.clips;
+    if (raw.float) {
+      const extra = this.figure.extra;
+      this.figure.extra = (p, pose) => {
+        extra?.(p, pose);
+        const on = p.floating && !p.dead;
+        if (on) this.sparkles ??= new Sparkles(engine, SPARKLES_ACROSS);
+        this.sparkles?.set(on, UNDER.copyFrom(this.root.position).addInPlaceFromFloats(0, SPARKLES_UP, 0));
+      };
+    }
     this.clips = {
       idle: clip(raw.idle),
       walk: clip(raw.walk),
@@ -528,6 +542,16 @@ export class JointedAvatar extends WalkerAvatar {
     rig.apply(held);
     this.arm(p);
     return posed;
+  }
+
+  override hide(): void {
+    super.hide();
+    this.sparkles?.set(false, this.root.position);
+  }
+
+  override dispose(): void {
+    super.dispose();
+    this.sparkles?.dispose();
   }
 
   protected override lie(): void {
@@ -1007,6 +1031,7 @@ const HINGE = new Vector3();
 const KNEEWARD = new Vector3();
 const KNEE = new Vector3();
 const STEP = new Vector3();
+const UNDER = new Vector3();
 const UP = new Vector3();
 const AHEAD = new Vector3();
 

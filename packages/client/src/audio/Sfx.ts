@@ -110,6 +110,7 @@ export type SoundId =
   | 'land-hard'
   | 'pound-twirl'
   | 'pound-twirl-heavy'
+  | 'float-sparkle'
   | 'hurt'
   | 'roar-1'
   | 'roar-2'
@@ -248,6 +249,7 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'land-hard': { file: 'land-hard.mp3', half: 10, reach: 40, volume: 0.14 },
   'pound-twirl': { file: 'pound-twirl.mp3', half: 6, reach: 30, volume: 0.08 }, // a ground pound turning over (sim/avatars.ts `Pound`)
   'pound-twirl-heavy': { file: 'pound-twirl-heavy.mp3', half: 6, reach: 30, volume: 0.08 }, // the same whirl a fifth of its pitch lower, as long as it was: a heavy body's
+  'float-sparkle': { file: 'float-sparkle.mp3', half: 4, reach: 20, volume: 0.07, lazy: true }, // a float's twinkle, a second of it: said again for as long as the float goes on
   hurt: { file: 'hurt.mp3', half: 6, reach: 30, volume: 0.3 }, // your own damage, and a corpse poofing
   // A dragon's (the light dragon's own cries): its roars carry across the whole world, faint from
   // the far side, as does the cry it rises out of the ground with; its theme plays from its head,

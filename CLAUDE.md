@@ -463,7 +463,8 @@ and throws a walker back (its `knock`), a kill by it announced with `item: 'stri
 `recover` later it can be swung again; Tung Tung Tung Sahur's bat is the one there is; with a `float`, the `float` action (the jump
 key held, which the touch JUMP button holds too) coming down holds the fall, `PlayerState.floating`:
 it sinks at `sink` for as long as it's held, up to `seconds` between one landing and the next
-(`floated`), and a long jump and a ground pound don't float) and a builder in `packages/client/src/render/avatars/` (`MAKERS` in `index.ts`,
+(`floated`), and a long jump and a ground pound don't float; the client gives it a few sparkles
+under the body, `render/Sparkles.ts`, and a twinkle said again while it lasts, `Footsteps`) and a builder in `packages/client/src/render/avatars/` (`MAKERS` in `index.ts`,
 which the compiler asks for). Everyone on foot is a `Figure` (`render/avatars/Walker.ts`): the
 builder makes the avatar's parts under the base node and says which plays which role (what tips
 with the look, a head, the legs, the free arm, the weapon arm with its grip and the way it reaches
