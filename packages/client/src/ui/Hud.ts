@@ -59,6 +59,7 @@ export class Hud {
   private readonly moveHintMoves = this.moveHint.querySelector('.moves')!;
   private readonly hearts = document.getElementById('hearts')!;
   private readonly condition = document.getElementById('condition')!;
+  private readonly areaTitle = document.getElementById('area-title')!;
   private moveHintText = '';
   private moveHintTimer = 0;
   private moveHintBottom = 0; // CSS pixels down the view the move hint reaches, with its gap; 0 with none up
@@ -378,11 +379,14 @@ export class Hud {
     }
   }
 
-  // Stands the move hint clear of what it shares the top of the view with: under the hearts and
-  // the condition's banner; on a touch screen, where the stylesheet has it under the HUD's buttons
-  // and the item hint is at the top too, under that when it's up.
+  // Stands the move hint clear of what it shares the top of the view with: under the hearts, the
+  // condition's banner and, while it shows, the area's title; on a touch screen, where the
+  // stylesheet has it under the HUD's buttons and the item hint is at the top too, under that when
+  // it's up.
   private placeMoveHint(): void {
-    const over = (COARSE.matches ? [this.itemHint] : [this.hearts, this.condition])
+    // The title is there until it has faded right out, a moment after its class goes.
+    const titled = Number(getComputedStyle(this.areaTitle).opacity) > 0;
+    const over = (COARSE.matches ? [this.itemHint] : [this.hearts, this.condition, ...(titled ? [this.areaTitle] : [])])
       .map((el) => el.getBoundingClientRect())
       .filter((box) => box.height > 0);
     this.moveHint.style.top = over.length > 0 ? `${Math.max(...over.map((box) => box.bottom)) + HINT_GAP}px` : '';
