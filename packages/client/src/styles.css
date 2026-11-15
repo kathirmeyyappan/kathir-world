@@ -1332,11 +1332,31 @@ body {
   box-shadow: 4px 4px 0 #000;
 }
 /* The moves a look has of its own (Hud.setMoveHint), a banner of its own stacked clear of the item
-   hint, in the HUD's blue. It lives 10 s from the look being taken: steady for 5, then ticking dim
+   hint, in the HUD's blue. It lives 20 s from the look being taken: steady for 15, then ticking dim
    and back every half second, then gone. */
 #move-hint {
   border-color: rgba(100, 181, 246, 0.6);
-  animation: item-hint-life 10s step-end forwards;
+  animation: move-hint-life 20s step-end forwards;
+}
+@keyframes move-hint-life {
+  0%,
+  77.5%,
+  82.5%,
+  87.5%,
+  92.5%,
+  97.5% {
+    opacity: 1;
+  }
+  75%,
+  80%,
+  85%,
+  90%,
+  95% {
+    opacity: 0.35;
+  }
+  100% {
+    opacity: 0;
+  }
 }
 /* An ice item's hint is frosted over: white, not the red of the rest. */
 #item-hint.ice {

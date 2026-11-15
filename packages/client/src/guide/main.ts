@@ -119,7 +119,7 @@ function items(): Section[] {
   const cube: Pick = {
     id: 'resume-cube',
     entry: RESUME_CUBE,
-    stats: () => [{ label: 'In the world', value: `${CUBES.length}` }],
+    stats: () => [{ label: 'Count', value: `${CUBES.length}` }],
     view: { thing: cubeThing(CUBES[0]) },
   };
   return [
@@ -299,29 +299,29 @@ function placeStats(place: Place): Stat[] {
         // To the deck on the crown, the top of the house anyone stands on.
         { label: 'Height', value: `${num(DUNE_HEIGHT + PINEAPPLE_PROFILE.attic.deck.y)} m` },
         { label: 'Floors', value: `${PINEAPPLE_LEVELS.length}` },
-        { label: 'Hearts', value: `${heartsIn(PINEAPPLE_LEVELS)}` },
+        { label: 'Heart pickups', value: `${heartsIn(PINEAPPLE_LEVELS)}` },
       ];
     case 'krusty-krab':
       return [
         // To the tops of the arches, the highest of it anyone stands on.
         { label: 'Height', value: `${num(KRUSTY_KRAB_PROFILE.size.h)} m` },
-        { label: 'Hearts', value: `${heartsIn([KRUSTY_KRAB_FLOOR])}` },
+        { label: 'Heart pickups', value: `${heartsIn([KRUSTY_KRAB_FLOOR])}` },
       ];
     case 'welcome-building':
     case 'anime-building':
     case 'building4': {
       const ground = BUILDING_GROUNDS[place.building ?? 0];
       const levels = BUILDING_LEVELS.filter((r) => Math.hypot(r.x - ground.x, r.z - ground.z) < 1);
-      return [topOf(levels), { label: 'Hearts', value: `${heartsIn(levels)}` }];
+      return [topOf(levels), { label: 'Heart pickups', value: `${heartsIn(levels)}` }];
     }
     case 'tower':
       return [
         topOf(TOWER_LEVELS),
         { label: 'Floors', value: `${TOWER_LEVELS.length - 1}` },
-        { label: 'Hearts', value: `${heartsIn(TOWER_LEVELS)}` },
+        { label: 'Heart pickups', value: `${heartsIn(TOWER_LEVELS)}` },
       ];
     case 'terrace':
-      return [topOf([TERRACE]), { label: 'Hearts', value: `${heartsIn([TERRACE])}` }];
+      return [topOf([TERRACE]), { label: 'Heart pickups', value: `${heartsIn([TERRACE])}` }];
   }
 }
 

@@ -488,7 +488,7 @@ front, which is right for what anyone near can hear at any moment and wrong for 
 or rarely heard. A clip cut from something longer gets a `swell` and a `fade` in `SOUNDS` to suit
 how its cut begins and ends (a one-shot's `fade` dies away into its end): listen to both ends of
 every new recording, a death's above all, since one shorter than the death screen ends in silence,
-where a hard stop is plain.
+where a hard stop is plain. A death as long as the death screen takes no `fade`: the reload ends it.
 
 Craft a character with love: look at it in every state before the PR, and put the shots in it.
 Standing, walking, holding and aiming each weapon, firing, hit, dead, on a ladder; from the front,

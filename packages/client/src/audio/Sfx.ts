@@ -156,17 +156,10 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   // A look's death (voices.ts): the sting and jingle, ten seconds of song, the death screen's
   // length, and Roz's line. Each is heard only by a player who dies as that look, so each is fetched
   // on demand. Each is a cut from something longer, so each swells and fades by how its cut begins
-  // and ends: the song comes in and goes out mid-bar, the jingle and the line stop short.
+  // and ends: the song comes in mid-bar, and the jingle and the line stop short. The song has no
+  // fade: it lasts the death screen out, whose reload ends it.
   'mario-death': { file: 'mario-death.mp3', half: 6, reach: 30, volume: 0.25, fade: 0.4, lazy: true },
-  'spongebob-death': {
-    file: 'spongebob-death.mp3',
-    half: 6,
-    reach: 30,
-    volume: 0.2,
-    swell: 0.8,
-    fade: 1.5,
-    lazy: true,
-  },
+  'spongebob-death': { file: 'spongebob-death.mp3', half: 6, reach: 30, volume: 0.2, swell: 0.8, lazy: true },
   'mike-death': { file: 'mike-death.mp3', half: 6, reach: 30, volume: 0.5, swell: 0.15, fade: 0.5, lazy: true },
   'boat-horn': { file: 'boat-horn.mp3', half: 10, reach: 40, volume: 0.3, lazy: true }, // the foghorn alarm clock in SpongeBob's bedroom, at a click
   land: { file: 'land.mp3', half: 8, reach: 35, volume: 0.1 },
