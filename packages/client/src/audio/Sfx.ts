@@ -72,6 +72,7 @@ export type SoundId =
   | 'luigi-hurt-2'
   | 'wario-hurt-1'
   | 'waluigi-hurt-1'
+  | 'waluigi-hurt-2'
   | 'spongebob-hurt'
   | 'patrick-hurt-1'
   | 'patrick-hurt-2'
@@ -193,6 +194,7 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'luigi-hurt-2': { file: 'luigi-hurt-2.mp3', half: 6, reach: 30, volume: 0.25 },
   'wario-hurt-1': { file: 'wario-hurt-1.mp3', half: 6, reach: 30, volume: 0.25 },
   'waluigi-hurt-1': { file: 'waluigi-hurt-1.mp3', half: 6, reach: 30, volume: 0.25 },
+  'waluigi-hurt-2': { file: 'waluigi-hurt-2.mp3', half: 6, reach: 30, volume: 0.25 },
   'spongebob-hurt': { file: 'spongebob-hurt.mp3', half: 6, reach: 30, volume: 0.25 },
   'patrick-hurt-1': { file: 'patrick-hurt-1.mp3', half: 6, reach: 30, volume: 0.25 },
   'patrick-hurt-2': { file: 'patrick-hurt-2.mp3', half: 6, reach: 30, volume: 0.25 },
