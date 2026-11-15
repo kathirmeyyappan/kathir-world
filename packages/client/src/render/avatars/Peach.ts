@@ -9,11 +9,9 @@ import { PEACH_CLIPS } from './peachClips';
 import { PEACH_MODEL } from './peachModel';
 import { SM64_STYLE } from './sm64';
 
-// Her arms held closer through a stride than the clips swing them: she doesn't flail.
 export const PEACH_STYLE: Style = {
   ...SM64_STYLE,
   clips: { ...SM64_STYLE.clips, ...PEACH_CLIPS },
-  arms: 0.4,
 };
 
 export const PEACH: JointedSpec = {
