@@ -112,7 +112,7 @@ const PARENTS: Record<JointedBone, JointedBone | null> = {
 // A model on this rig, standing in a T-pose: its arms straight out to the sides, its legs straight down.
 export interface JointedModel extends SkinnedModel<JointedBone> {
   readonly sole: readonly number[]; // metres a shoe's toe reaches ahead of its ankle, and its heel behind it
-  readonly temple: readonly number[]; // where a hand laid on the right side of the head rests
+  readonly temple: readonly number[]; // where the middle of a palm laid flat beside the head on its right goes, clear of all of it
 }
 
 // The clips only a look with the move has.
@@ -565,6 +565,8 @@ class Rig {
   private readonly shoulderR: Vector3;
   private readonly neck: Vector3;
   private readonly temple: Vector3;
+  private readonly palm: Vector3; // the right palm's middle from its wrist, in the hand's frame
+  private readonly wrist: number; // metres, elbow to wrist
   readonly armLength: number; // metres from a shoulder to its fist's middle, the arm straight
   private readonly upper: number; // metres, shoulder to elbow
   private readonly fore: number; // elbow to the fist's middle
@@ -594,6 +596,8 @@ class Rig {
     this.shoulderR = at('armR').subtract(at('chest'));
     this.neck = at('head').subtract(at('chest'));
     this.temple = Vector3.FromArray(model.temple as number[]).subtract(at('head'));
+    this.palm = Vector3.FromArray(model.hand as number[]).subtract(at('handR'));
+    this.wrist = Vector3.Distance(at('forearmR'), at('handR'));
     this.upper = Vector3.Distance(at('armR'), at('forearmR'));
     this.fore = Vector3.Distance(at('forearmR'), Vector3.FromArray(model.hand as number[]));
     this.armLength = this.upper + this.fore;
@@ -701,41 +705,60 @@ class Rig {
     pose[at + ARM_ELBOW] = Math.PI - Math.acos((upper * upper + fore * fore - span * span) / (2 * upper * fore));
   }
 
-  // Lays each palm on its side of the head, `weight` of the way from how a clip's moment has left
-  // the arms (`play`). A clip's arms are as long as the body it was drawn on, so on another its
-  // hands miss the head; this puts them there by the body's own lengths: the elbow under the line
-  // from shoulder to palm, the back of the hand turned away from the head.
+  // Lays each hand flat beside its side of the head, `weight` of the way from how a clip's moment
+  // has left the arms (`play`). A clip's arms are as long as the body it was drawn on, so on another
+  // its hands miss the head or go into it. The model's `temple` is on a plane clear of the whole
+  // head, so a hand lying in that plane touches the head and is never in it: the palm goes to the
+  // temple, or as near it on the plane as the arm reaches, the fingers pointing away from the
+  // shoulder, the wrist bent to keep the hand in the plane, the elbow under it.
   clasp(weight: number): void {
     const head = this.skin.node('head').rotationQuaternion!;
-    const { upper, fore } = this;
+    const { upper, wrist } = this;
+    const reach = CLASP_REACH * (upper + wrist);
     for (const side of [-1, 1] as const) {
       const shoulder = side < 0 ? this.shoulderL : this.shoulderR;
-      // The palm's place and the middle of the head beside it, as the head is turned.
-      PALM.set(side * (this.temple.x + PALM_OFF * fore), this.temple.y, this.temple.z);
+      // In the chest's frame, as the head is turned: the plane's way out from the head, the temple
+      // on it, and the point of it nearest the shoulder.
+      AWAY.set(side, 0, 0).rotateByQuaternionToRef(head, AWAY);
+      PALM.set(side * this.temple.x, this.temple.y, this.temple.z);
       PALM.rotateByQuaternionToRef(head, PALM).addInPlace(this.neck);
-      AWAY.set(0, this.temple.y, this.temple.z).rotateByQuaternionToRef(head, AWAY).addInPlace(this.neck);
-      PALM.subtractToRef(AWAY, AWAY);
-      PALM.subtractInPlace(shoulder);
-      const span = Math.min(upper + fore - 1e-4, Math.max(Math.abs(upper - fore) + 1e-4, PALM.length()));
-      PALM.normalize();
+      NEAR.copyFrom(shoulder).addInPlace(AWAY.scaleToRef(Vector3.Dot(PALM.subtract(shoulder), AWAY), STEP));
+      // The palm as far from that point toward the temple as leaves the wrist in reach.
+      PALM.subtractToRef(NEAR, ALONG);
+      const far = ALONG.length();
+      ALONG.scaleInPlace(1 / Math.max(far, 1e-6));
+      const out = Vector3.Distance(NEAR, shoulder);
+      const most = Math.sqrt(Math.max(0, reach * reach - out * out)) + this.palm.x;
+      const at = Math.min(far, most);
+      NEAR.addToRef(ALONG.scaleToRef(at, STEP), PALM);
+      // The hand in the plane: its fingers along it, the back of it away from the head.
+      alongArm(ALONG, side, AWAY, HAND);
+      WRIST.set(side * this.palm.x, this.palm.y, this.palm.z).rotateByQuaternionToRef(HAND, WRIST);
+      PALM.subtractToRef(WRIST, WRIST).subtractInPlace(shoulder);
+      const span = Math.min(upper + wrist - 1e-4, Math.max(Math.abs(upper - wrist) + 1e-4, WRIST.length()));
+      WRIST.normalize();
       // The arm's triangle, its elbow off the line toward the hips and a little out and ahead.
       POLE.set(side * 0.3, -1, 0.3);
-      POLE.subtractInPlace(PALM.scaleToRef(Vector3.Dot(POLE, PALM), STEP)).normalize();
-      const along = (upper * upper + span * span - fore * fore) / (2 * span);
+      POLE.subtractInPlace(WRIST.scaleToRef(Vector3.Dot(POLE, WRIST), STEP)).normalize();
+      const along = (upper * upper + span * span - wrist * wrist) / (2 * span);
       const off = Math.sqrt(Math.max(0, upper * upper - along * along));
-      PALM.scaleToRef(along, ELBOW).addInPlace(POLE.scaleToRef(off, STEP));
-      PALM.scaleToRef(span, WRIST).subtractInPlace(ELBOW);
+      WRIST.scaleToRef(along, ELBOW).addInPlace(POLE.scaleToRef(off, STEP));
+      WRIST.scaleToRef(span, FOREARM).subtractInPlace(ELBOW);
       alongArm(ELBOW, side, AWAY, THIGH);
-      alongArm(WRIST, side, AWAY, SHIN);
-      const [a, f, h] = side < 0 ? LEFT_ARM : RIGHT_ARM;
+      alongArm(FOREARM, side, AWAY, SHIN);
+      const [a, f, h, fingers, thumb] = side < 0 ? LEFT_ARM : RIGHT_ARM;
       const arm = this.skin.node(a).rotationQuaternion!;
       Quaternion.SlerpToRef(arm, THIGH, weight, arm);
       THIGH.conjugateToRef(B).multiplyToRef(SHIN, A);
       const forearm = this.skin.node(f).rotationQuaternion!;
       Quaternion.SlerpToRef(forearm, A, weight, forearm);
+      SHIN.conjugateToRef(B).multiplyToRef(HAND, A);
       const hand = this.skin.node(h).rotationQuaternion!;
-      Quaternion.SlerpToRef(hand, IDENTITY, weight, hand);
+      Quaternion.SlerpToRef(hand, A, weight, hand);
+      // Open, as the model holds it: a closing hand's fingers go in toward the head.
+      this.hand(side, GRIP_IDLE * (1 - weight), fingers, thumb);
     }
+    this.gripped = -1;
   }
 
   // Puts a foot of `pose` with the ball of its sole at a point in the body's frame, as `reach` does
@@ -842,9 +865,13 @@ const AWAY = new Vector3();
 const POLE = new Vector3();
 const ELBOW = new Vector3();
 const WRIST = new Vector3();
-const LEFT_ARM = ['armL', 'forearmL', 'handL'] as const;
-const RIGHT_ARM = ['armR', 'forearmR', 'handR'] as const;
-const PALM_OFF = 0.1; // the share of a forearm's length a palm's middle is off what it lies on: half the hand's thickness
+const NEAR = new Vector3();
+const FOREARM = new Vector3();
+const ALONG = new Vector3();
+const HAND = new Quaternion();
+const LEFT_ARM = ['armL', 'forearmL', 'handL', 'fingersL', 'thumbL'] as const;
+const RIGHT_ARM = ['armR', 'forearmR', 'handR', 'fingersR', 'thumbR'] as const;
+const CLASP_REACH = 0.97; // the share of its length, shoulder to wrist, an arm reaches to lay a hand by the head
 // The right hand, which the model holds palm down, turned about the arm's length to thumb up.
 const THUMB_UP = Quaternion.RotationAxis(Vector3.RightReadOnly, -Math.PI / 2);
 const HIPS = new Quaternion();

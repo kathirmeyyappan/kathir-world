@@ -4,15 +4,15 @@
 // image), triangles (Uint16) and, per vertex, the four bones it follows (Uint8 indices into `bones`) and
 // how much (Uint8, summing to 255); all base64. `bones` is each bone's pivot in metres, in index order.
 // `hand` is the right palm, `back` where the tank hangs, `lie` how high the hips lie when it is on its back,
-// `sole` how far a shoe's toe reaches ahead of its ankle and its heel behind it, `temple` where a hand laid
-// on the right side of the head rests.
+// `sole` how far a shoe's toe reaches ahead of its ankle and its heel behind it, `temple` where the middle
+// of a palm laid flat beside the head on its right goes, clear of all of it.
 export const WARIO_MODEL = {
   height: 2.2,
   hand: [1.2868, 1.1907, -0.0077],
   back: [0.0, 0.9732, -0.4739],
   lie: 0.464,
   sole: [0.3815, 0.2319],
-  temple: [0.4533, 1.7253, 0.0027],
+  temple: [0.7763, 1.7688, -0.2661],
   bones: {
     hips: [0.0, 0.5144, 0.0],
     spine: [0.0, 0.6766, 0.0005],

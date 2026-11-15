@@ -69,8 +69,8 @@ TORSO = ("hips", "spine", "chest")
 PALM = ("HandR", "Finger1R", "Thumb1R")  # a held item goes at their middle
 MESHES = ("Body__m_Body", "Body__m_Eye")  # the body and the face; the rest are the pupils
 BACK_DROP = 0.2  # metres below the shoulders the tank hangs
-TEMPLE_UP = 0.45  # the share of the way from the neck to the crown a hand on the head rests at
-TEMPLE_SPAN = 0.1  # the share of the head's height that far round there, up, down, ahead and behind, the hand covers
+PALM_CLEAR = 0.02  # metres a palm laid beside the head is kept off it
+PALM_DEPTH = 0.85  # the share of the hand's depth under its palm's middle that is under it where it meets the head
 
 
 @dataclass(frozen=True)
@@ -241,18 +241,17 @@ def main(name: str, folder: str) -> None:
     shoe = posed[order[:, 0] == bone_names.index("footR")]
     sole = np.array([shoe[:, 2].max() - pivots["footR"][2], pivots["footR"][2] - shoe[:, 2].min()])
 
-    # Where a hand laid on the side of the head rests: part of the way up from the neck to the crown,
-    # over the neck front to back, as far to its right as anything of the head is there, so a palm
-    # put there is on the head and never in it.
+    # Where the middle of a palm laid flat beside the head goes: level with the head's widest point
+    # (an ear's tip, if that is what sticks out) and as far out as it, plus the palm's own depth from
+    # its middle to its skin. A flat hand anywhere on that plane is clear of the whole head.
     skull = posed[order[:, 0] == bone_names.index("head")]
-    neck = pivots["head"]
-    tall = skull[:, 1].max() - neck[1]
-    beside = skull[
-        (abs(skull[:, 1] - neck[1] - TEMPLE_UP * tall) < TEMPLE_SPAN * tall)
-        & (abs(skull[:, 2] - neck[2]) < TEMPLE_SPAN * tall)
-    ]
-    temple = np.array([beside[:, 0].max(), neck[1] + TEMPLE_UP * tall, neck[2]])
-    print("temple:", np.round(temple, 3), "head:", np.round([neck[1], tall], 3))
+    widest = skull[np.argmax(skull[:, 0])]
+    # The palm's skin is the underside of the hand as the model holds it, palm down: the fingers'
+    # and the hand's own, the thumb hanging lower than either.
+    mitt = posed[np.isin(order[:, 0], [bone_names.index(b) for b in ("handR", "fingersR")])]
+    depth = palm[1] - mitt[:, 1].min()
+    temple = np.array([widest[0] + PALM_DEPTH * depth + PALM_CLEAR, widest[1], widest[2]])
+    print("temple:", np.round(temple, 3), "widest:", np.round(widest, 3), "palm depth:", round(float(depth), 3))
 
     regions = [
         textured(Image.open(rip / part["picture"]).convert("RGB"), uv, span, character.texture_size)
@@ -274,8 +273,8 @@ def main(name: str, folder: str) -> None:
         "// image), triangles (Uint16) and, per vertex, the four bones it follows (Uint8 indices into `bones`) and",
         "// how much (Uint8, summing to 255); all base64. `bones` is each bone's pivot in metres, in index order.",
         "// `hand` is the right palm, `back` where the tank hangs, `lie` how high the hips lie when it is on its back,",
-        "// `sole` how far a shoe's toe reaches ahead of its ankle and its heel behind it, `temple` where a hand laid",
-        "// on the right side of the head rests.",
+        "// `sole` how far a shoe's toe reaches ahead of its ankle and its heel behind it, `temple` where the middle",
+        "// of a palm laid flat beside the head on its right goes, clear of all of it.",
         f"export const {name.upper()}_MODEL = {{",
         f"  height: {character.height},",
         f"  hand: {vec(palm)},",
