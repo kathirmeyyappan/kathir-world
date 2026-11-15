@@ -27,6 +27,9 @@ export class CommandHint {
     const text = this.el.querySelector('.text')!;
     text.innerHTML = LINES.map((line) => `<span class="line">${line}</span>`).join('');
     text.querySelector('.gear-key')?.append(gearIcon('gear'));
+    // It lies across the middle of a small screen, where it takes a tap (styles.css) that puts it
+    // away: on the click, so the tap's click isn't left to the world under it.
+    this.el.addEventListener('click', () => this.retire());
   }
 
   // Off for good on this device, and gone now if it's up.
@@ -54,7 +57,7 @@ export class CommandHint {
     const seconds = Math.ceil((this.until - now) / 1000);
     if (seconds !== this.shownSeconds) {
       this.shownSeconds = seconds;
-      this.count.textContent = `Message disappearing in ${seconds}s`;
+      this.count.textContent = `Message disappearing in ${seconds}s${IS_TOUCH ? ' · tap to clear' : ''}`;
     }
   }
 }

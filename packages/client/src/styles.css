@@ -1363,6 +1363,13 @@ body {
 #move-hint .moves div + div {
   margin-top: 5px;
 }
+/* What a touch screen says of putting the hint away (Hud.ts). */
+#move-hint .clear {
+  display: none;
+  margin-top: 4px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.4);
+}
 @keyframes move-hint-life {
   0%,
   77.5%,
@@ -2132,6 +2139,15 @@ body {
   }
   #item-hint.timed {
     animation: item-hint-life 10s step-end forwards;
+  }
+  /* A tap on a hint or the commands' banner puts it away (Hud.ts, CommandHint.ts). */
+  #item-hint,
+  #move-hint,
+  #command-hint.on {
+    pointer-events: auto;
+  }
+  #move-hint .clear {
+    display: block;
   }
 }
 @keyframes item-hint-life {
