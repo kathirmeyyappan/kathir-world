@@ -316,27 +316,6 @@ test("lag compensation: a shot is judged where the target was on the shooter's s
   assert.equal(bob.hearts, MAX_HEARTS - ITEMS.gun.damage, 'too far back to rewind: clamped, so it misses');
 });
 
-test('weapon command shortcuts equip the matching item', () => {
-  const room = new Room('item-shortcuts', { seed: 6 });
-  const playerId = room.join('alice', link())!;
-  const player = room.players.find((candidate) => candidate.id === playerId)!;
-
-  for (const [command, item] of [
-    ['/g', 'gun'],
-    ['/ft', 'flamethrower'],
-  ] as const) {
-    room.receive(playerId, { t: 'chat', text: command });
-    assert.equal(player.item?.id, item);
-  }
-  room.receive(playerId, { t: 'chat', text: '/j' });
-  assert.equal(player.gear?.id, 'jetpack', 'gear goes on beside the weapon');
-  assert.equal(player.item?.id, 'flamethrower');
-
-  room.receive(playerId, { t: 'chat', text: '/unequip' });
-  assert.equal(player.item, null, '/unequip puts the weapon down');
-  assert.equal(player.gear, null, 'and takes the gear off');
-});
-
 test('hearts: walking into one heals 3 up to full, a full player leaves it, and it comes back 30 s later', () => {
   const welcome = link();
   new Room('default-hearts', { seed: 1 }).join('a', welcome);
@@ -416,7 +395,7 @@ test('a hard landing hurts like a shot with no shooter, and a fatal one is annou
   assert.ok(a.inbox.some((m) => m.t === 'fell' && m.victim === id));
 });
 
-test('commands swap items freely, items stay, and the gun only reaches 20 m', () => {
+test('commands and their shortcuts swap items freely, gear goes on beside, items stay, and the gun only reaches 20 m', () => {
   const room = new Room('items', { seed: 6 });
   const a = link();
   const b = link();
@@ -444,6 +423,21 @@ test('commands swap items freely, items stay, and the gun only reaches 20 m', ()
   assert.ok(!bob.dead, 'the sniper only fires while scoped');
   press(room, ida, 0, true);
   assert.ok(bob.dead, 'scoped, the sniper reaches 25 m');
+
+  for (const [command, item] of [
+    ['/g', 'gun'],
+    ['/ft', 'flamethrower'],
+  ] as const) {
+    room.receive(ida, { t: 'chat', text: command });
+    assert.equal(alice.item?.id, item);
+  }
+  room.receive(ida, { t: 'chat', text: '/j' });
+  assert.equal(alice.gear?.id, 'jetpack', 'gear goes on beside the weapon');
+  assert.equal(alice.item?.id, 'flamethrower');
+
+  room.receive(ida, { t: 'chat', text: '/unequip' });
+  assert.equal(alice.item, null, '/unequip puts the weapon down');
+  assert.equal(alice.gear, null, 'and takes the gear off');
 });
 
 test('a corpse that never rejoins is removed and its link closed', () => {

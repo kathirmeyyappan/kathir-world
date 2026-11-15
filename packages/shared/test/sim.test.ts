@@ -121,16 +121,6 @@ test('jump only from the ground, and gravity brings you back', () => {
   assert.equal(p.vy, 0);
 });
 
-test('cubes stay inside the world and spawn apart', () => {
-  const rng = createRng(42);
-  const cubes = createCubes(['a', 'b', 'c', 'd', 'e', 'f'], WORLD_SHAPE, rng);
-  for (let i = 0; i < cubes.length; i++)
-    for (let j = i + 1; j < cubes.length; j++)
-      assert.ok(Math.hypot(cubes[i].pos.x - cubes[j].pos.x, cubes[i].pos.z - cubes[j].pos.z) >= 7.9);
-  for (let t = 0; t < 30 * 60 * 5; t++) stepCubes(cubes, TICK_DT, WORLD_SHAPE, rng);
-  for (const c of cubes) assert.ok(worldDistance(c.pos.x, c.pos.z, WORLD_SHAPE) < -7);
-});
-
 test('the annex is reachable only through the bridge', () => {
   // Walking +x along z=0 goes through the bridge into the second disc.
   const via = createPlayer('a', 'a', '#fff', { x: 0, y: EYE_HEIGHT, z: 0 });
@@ -153,9 +143,12 @@ test('the annex is reachable only through the bridge', () => {
   }
 });
 
-test('cubes all live in the main disc and cover it evenly', () => {
+test('cubes spawn apart, all live in the main disc and cover it evenly', () => {
   const rng = createRng(7);
   const cubes = createCubes(['a', 'b', 'c', 'd', 'e', 'f'], WORLD_SHAPE, rng);
+  for (let i = 0; i < cubes.length; i++)
+    for (let j = i + 1; j < cubes.length; j++)
+      assert.ok(Math.hypot(cubes[i].pos.x - cubes[j].pos.x, cubes[i].pos.z - cubes[j].pos.z) >= 7.9);
   const quadrants = new Set<string>();
   for (let t = 0; t < 30 * 60 * 10; t++) {
     stepCubes(cubes, TICK_DT, WORLD_SHAPE, rng);
