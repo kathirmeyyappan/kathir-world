@@ -58,6 +58,7 @@ export const CHARACTERS: Record<AvatarId, Entry> = {
   standard: plain('Standard', 'The default skin.'),
   mario: plain('Mario', 'Italian plumber.'),
   luigi: plain('Luigi', 'The green goat.'),
+  wario: plain('Wario', 'Wario from Super Mario.'),
   spongebob: plain('SpongeBob SquarePants', 'The one and only SpongeBob SquarePants.'),
   patrick: plain('Patrick Star', 'SpongeBob’s best friend. Is mayonnaise an instrument?'),
   krabs: plain('Eugene Krabs', 'Standing at the concession. Plotting our oppression.'),

@@ -23,6 +23,7 @@ const STAY = BOT_MAX_SECONDS;
 export const CIRCLE_LOOKS: readonly AvatarId[] = [
   'mario',
   'luigi',
+  'wario',
   'spongebob',
   'patrick',
   'krabs',

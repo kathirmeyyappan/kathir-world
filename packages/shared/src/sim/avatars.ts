@@ -14,6 +14,7 @@ export type AvatarId =
   | 'standard'
   | 'mario'
   | 'luigi'
+  | 'wario'
   | 'spongebob'
   | 'patrick'
   | 'krabs'
@@ -147,6 +148,22 @@ const LOOKS = {
     leap: { rise: 0.5, speed: 1.25, float: 0.5, grip: 6 }, // at twice its walk, a quarter over its run, and half its jump's height
     // The twirl as long as its clip (Jointed.ts); the knock a hop back, a third of a second off the ground.
     pound: { damage: 1.5, reach: 3, twirl: 1 / 3, speed: 20, recover: 0.35, knock: { speed: 4, lift: 3, grip: 6 } },
+    chain: { jumps: 3, gap: 0.3, rise: 1.2 }, // a jump, a double and a triple
+  },
+  wario: {
+    id: 'wario',
+    class: 'walker',
+    item: null,
+    regen: false,
+    blurb: 'become wario',
+    command: 'wario',
+    eye: 1.72,
+    hitbox: { top: 2.2, radius: 0.7, head: 0.85 }, // as tall as Luigi and 1.26 m across the belly; the head everything over the shoulders
+    walk: 8,
+    jump: 1.35,
+    leap: { rise: 0.5, speed: 1.25, float: 0.5, grip: 6 }, // at twice its walk, a quarter over its run, and half its jump's height
+    // The twirl as long as its clip (Jointed.ts); heavier than the brothers', it lands harder and wider.
+    pound: { damage: 2.5, reach: 4, twirl: 1 / 3, speed: 20, recover: 0.35, knock: { speed: 4, lift: 3, grip: 6 } },
     chain: { jumps: 3, gap: 0.3, rise: 1.2 }, // a jump, a double and a triple
   },
   spongebob: {
