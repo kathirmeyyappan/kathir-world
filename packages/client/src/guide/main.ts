@@ -261,11 +261,13 @@ class Catalog {
     });
     this.viewBox.classList.toggle('none', !pick.view);
     const { entry } = pick;
+    const abilities = pick.abilities?.() ?? [];
     this.text.replaceChildren(
       el('h2', '', entry.title),
       ...(entry.summary ? [el('p', 'summary', entry.summary)] : []),
       statTable(pick.stats()),
-      ...(pick.abilities?.() ?? []).flatMap((a) => [
+      ...(abilities.length ? [el('hr', 'rule')] : []),
+      ...abilities.flatMap((a) => [
         el('h3', '', `Special ability: ${a.entry.title}`),
         el('p', 'summary', a.entry.summary),
         statTable(a.stats),

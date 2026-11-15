@@ -79,6 +79,7 @@ export class Footsteps {
       grounded: boolean;
       leap: boolean;
       hop: number; // which jump of a chain of them it's on (sim/avatars.ts `Chain`), from 1; 0 with none
+      backflip: boolean; // in the jump out of a crouch (sim/avatars.ts `Crouch`), which sounds as a chain's third
       climbing: boolean; // on a ladder (sim/types.ts `climb`): off the ground, and neither jumping nor falling
       pound: boolean; // in a ground pound (sim/avatars.ts `Pound`): it lands as hard as a landing gets
       falling?: number;
@@ -141,7 +142,7 @@ export class Footsteps {
           const voice = VOICES[p.avatar];
           this.sfx.play(
             (p.leap ? take(voice.leap) : undefined) ??
-              voice.jump?.[Math.min(voice.jump.length, Math.max(1, p.hop)) - 1] ??
+              voice.jump?.[Math.min(voice.jump.length, p.backflip ? 3 : Math.max(1, p.hop)) - 1] ??
               'jump',
             at,
             { level },
