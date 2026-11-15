@@ -73,6 +73,13 @@
   height: 34px;
   padding: 0;
 }
+#menu .close svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+  margin: auto;
+  fill: currentColor;
+}
 
 /* The tabs: the one shown is lit, the others are outlines. */
 #menu nav {

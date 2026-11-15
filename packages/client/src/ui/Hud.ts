@@ -9,6 +9,7 @@ import {
   type AvatarId,
   type Element,
   type ItemId,
+  type MoveKey,
   type PlayerClass,
 } from '@world/shared';
 import { HEART, KNIFE, ROBOT, SKULL, pixelSvg } from './pixelIcons';
@@ -38,6 +39,7 @@ export class Hud {
   private readonly itemHint = document.getElementById('item-hint')!;
   private readonly itemHintMain = this.itemHint.querySelector('.main')!;
   private readonly itemHintStats = this.itemHint.querySelector('.stats')!;
+  private readonly legend = document.getElementById('instructions')!;
   private readonly moveHint = document.getElementById('move-hint')!;
   private readonly moveHintTitle = this.moveHint.querySelector('.title')!;
   private readonly moveHintMoves = this.moveHint.querySelector('.moves')!;
@@ -62,6 +64,15 @@ export class Hud {
   onChatOpenChange: ((open: boolean) => void) | null = null;
 
   constructor(roomId: string) {
+    // The legend wraps onto more rows when it's too long for one, and what stacks up from the bottom
+    // in the middle of the screen (the hints, the fuel bar, the gear panel) stands that much higher
+    // to stay clear of it: --legend-rise, the height of its rows past the first (styles.css).
+    new ResizeObserver(() => {
+      const row = this.legend.querySelector<HTMLElement>('.key')?.offsetHeight ?? 0;
+      const rise = Math.max(0, this.legend.clientHeight - row);
+      document.documentElement.style.setProperty('--legend-rise', `${rise}px`);
+    }).observe(this.legend);
+
     this.roomCode.textContent = roomId;
     this.roomCode.addEventListener('click', () => {
       navigator.clipboard?.writeText(roomLink(roomId)).then(() => this.tip(this.roomCode, 'copied'));
@@ -273,15 +284,22 @@ export class Hud {
   }
 
   // What you're holding and how to use it, or nothing.
-  // The key legend along the bottom: the walker's is the page's own; a dragon flies forward and roars.
-  setKeys(cls: PlayerClass): void {
-    const el = document.getElementById('instructions')!;
+  // The key legend along the bottom, a cell to each key: the walker's is the page's own, with the
+  // keys its look's own moves add (`extra`) after the jump's; a dragon flies forward and roars.
+  setKeys(cls: PlayerClass, extra: MoveKey[] = []): void {
+    const el = this.legend;
     this.walkerKeys ??= el.innerHTML;
-    el.innerHTML =
-      cls === 'walker'
-        ? this.walkerKeys
-        : `<kbd translate="no">W</kbd> fly forward &nbsp;|&nbsp; <kbd translate="no">A</kbd><kbd translate="no">S</kbd><kbd translate="no">D</kbd> roar &nbsp;|&nbsp;
-           Click select &nbsp;|&nbsp; <kbd translate="no">Z</kbd> toggle perspective &nbsp;|&nbsp; <kbd translate="no">O</kbd> fullscreen &nbsp;|&nbsp; <kbd translate="no">Esc</kbd> mouse`;
+    if (cls === 'walker') el.innerHTML = this.walkerKeys;
+    else
+      el.replaceChildren(
+        keyCell(['W'], 'fly forward'),
+        keyCell(['A', 'S', 'D'], 'roar'),
+        keyCell([], 'Click select'),
+        keyCell(['Z'], 'toggle perspective'),
+        keyCell(['O'], 'fullscreen'),
+        keyCell(['Esc'], 'mouse'),
+      );
+    el.querySelector('#move-keys')?.replaceChildren(...extra.map(({ key, does }) => keyCell([key], does)));
   }
   private walkerKeys: string | null = null;
 
@@ -478,4 +496,14 @@ function loadHistory(): string[] {
   } catch {
     return [];
   }
+}
+
+// A cell of the key legend: the keys, then what they do.
+function keyCell(keys: string[], does: string): HTMLElement {
+  const cell = Object.assign(document.createElement('span'), { className: 'key' });
+  cell.append(
+    ...keys.map((key) => Object.assign(document.createElement('kbd'), { textContent: key, translate: false })),
+  );
+  cell.append(keys.length > 0 ? ` ${does}` : does);
+  return cell;
 }
