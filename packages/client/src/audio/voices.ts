@@ -28,7 +28,7 @@ const BIKINI_BOTTOM = { death: ['spongebob-death'] } satisfies Partial<Voice>;
 export const VOICES: Record<AvatarId, Voice> = {
   standard: { enter: [] },
   mario: {
-    enter: ['mario-enter'],
+    enter: ['mario-enter', 'mario-enter-2'],
     jump: ['mario-jump-1', 'mario-jump-2', 'mario-jump-3'],
     leap: ['mario-leap-1', 'mario-leap-2', 'mario-leap-3'],
     hurt: ['mario-hurt-1', 'mario-hurt-2', 'mario-hurt-3'],
@@ -36,7 +36,7 @@ export const VOICES: Record<AvatarId, Voice> = {
     death: ['mario-death'],
   },
   luigi: {
-    enter: ['luigi-enter'],
+    enter: ['luigi-enter', 'luigi-enter-2'],
     jump: ['mario-jump-1', 'luigi-jump-2', 'luigi-jump-3'],
     leap: ['luigi-leap-1', 'luigi-leap-2'],
     hurt: ['luigi-hurt-1', 'luigi-hurt-2'],
@@ -44,7 +44,7 @@ export const VOICES: Record<AvatarId, Voice> = {
     death: ['mario-death'],
   },
   wario: {
-    enter: ['wario-enter'],
+    enter: ['wario-enter', 'wario-enter-2', 'wario-enter-3'],
     jump: ['mario-jump-1', 'wario-jump-2', 'wario-jump-3'],
     leap: ['wario-leap-1', 'wario-leap-2'],
     hurt: ['wario-hurt-1'],
@@ -53,10 +53,11 @@ export const VOICES: Record<AvatarId, Voice> = {
     twirl: 'pound-twirl-heavy',
   },
   waluigi: {
-    enter: ['waluigi-enter'],
+    enter: ['waluigi-enter', 'waluigi-kill-3'],
     jump: ['mario-jump-1', 'waluigi-jump-2', 'waluigi-jump-3'],
     leap: ['waluigi-leap-1', 'waluigi-leap-2'],
-    kill: ['waluigi-kill-1', 'waluigi-kill-2'],
+    hurt: ['waluigi-hurt-1', 'waluigi-hurt-2'],
+    kill: ['waluigi-kill-1', 'waluigi-kill-2', 'waluigi-kill-3'],
     death: ['mario-death'],
     twirl: 'pound-twirl-heavy',
   },
