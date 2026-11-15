@@ -27,7 +27,7 @@ const BIKINI_BOTTOM = { death: ['spongebob-death'] } satisfies Partial<Voice>;
 export const VOICES: Record<AvatarId, Voice> = {
   standard: { enter: [] },
   mario: {
-    enter: ['mario-enter'],
+    enter: ['mario-enter', 'mario-enter-2'],
     jump: ['mario-jump-1', 'mario-jump-2', 'mario-jump-3'],
     leap: ['mario-leap-1', 'mario-leap-2', 'mario-leap-3'],
     hurt: ['mario-hurt-1', 'mario-hurt-2', 'mario-hurt-3'],

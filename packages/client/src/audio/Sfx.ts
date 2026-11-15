@@ -89,6 +89,7 @@ export type SoundId =
   | 'mario-kill-1'
   | 'mario-kill-2'
   | 'mario-enter'
+  | 'mario-enter-2'
   | 'luigi-enter'
   | 'wario-enter'
   | 'wario-enter-2'
@@ -202,6 +203,7 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'mario-kill-1': { file: 'mario-kill-1.mp3', half: 6, reach: 30, volume: 0.2 },
   'mario-kill-2': { file: 'mario-kill-2.mp3', half: 6, reach: 30, volume: 0.2 },
   'mario-enter': { file: 'mario-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
+  'mario-enter-2': { file: 'mario-enter-2.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'luigi-kill-1': { file: 'luigi-kill-1.mp3', half: 6, reach: 30, volume: 0.2 },
   'luigi-kill-2': { file: 'luigi-kill-2.mp3', half: 6, reach: 30, volume: 0.2 },
   'wario-kill-1': { file: 'wario-kill-1.mp3', half: 6, reach: 30, volume: 0.2 },
