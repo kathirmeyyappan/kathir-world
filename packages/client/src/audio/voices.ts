@@ -50,7 +50,12 @@ export const VOICES: Record<AvatarId, Voice> = {
     kill: ['wario-kill-1'],
     death: ['mario-death'],
   },
-  spongebob: { enter: ['spongebob-enter'], hurt: ['spongebob-hurt'], ...BIKINI_BOTTOM },
+  spongebob: {
+    enter: ['spongebob-enter'],
+    hurt: ['spongebob-hurt'],
+    kill: ['spongebob-kill-1', 'spongebob-kill-2'],
+    ...BIKINI_BOTTOM,
+  },
   patrick: { enter: ['patrick-enter'], hurt: ['patrick-hurt'], ...BIKINI_BOTTOM },
   krabs: { enter: [], ...BIKINI_BOTTOM },
   squidward: { enter: [], ...BIKINI_BOTTOM },

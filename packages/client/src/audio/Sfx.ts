@@ -72,6 +72,8 @@ export type SoundId =
   | 'luigi-kill-1'
   | 'luigi-kill-2'
   | 'wario-kill-1'
+  | 'spongebob-kill-1'
+  | 'spongebob-kill-2'
   | 'mario-kill-1'
   | 'mario-kill-2'
   | 'mario-enter'
@@ -181,6 +183,8 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'luigi-kill-1': { file: 'luigi-kill-1.mp3', half: 6, reach: 30, volume: 0.2 },
   'luigi-kill-2': { file: 'luigi-kill-2.mp3', half: 6, reach: 30, volume: 0.2 },
   'wario-kill-1': { file: 'wario-kill-1.mp3', half: 6, reach: 30, volume: 0.2 },
+  'spongebob-kill-1': { file: 'spongebob-kill-1.mp3', half: 6, reach: 30, volume: 0.2 },
+  'spongebob-kill-2': { file: 'spongebob-kill-2.mp3', half: 6, reach: 30, volume: 0.2 },
   'luigi-enter': { file: 'luigi-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'wario-enter': { file: 'wario-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'patrick-enter': { file: 'patrick-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
