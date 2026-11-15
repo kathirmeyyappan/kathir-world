@@ -1214,6 +1214,13 @@ body {
   opacity: 1;
   transform: none;
 }
+/* The condition's banner, which stands where the title does, stands under it while it shows; the
+   move hint follows them both down (Hud.ts). */
+@media not (pointer: coarse) {
+  body:has(#area-title.on) #condition {
+    top: 128px;
+  }
+}
 
 #command-hint {
   position: fixed;
