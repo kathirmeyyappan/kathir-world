@@ -14,17 +14,20 @@ import type { Engine } from '../Engine';
 import { centreOf, createShadowBlob, Gait, placeShadow, type Avatar } from './common';
 import { HeldItems } from './HeldItems';
 import { HitFlash } from './HitFlash';
+import { smooth } from './motion';
 
-const RUNG = 0.3; // metres between a ladder's rungs (render/Structures.ts): a leg steps one at a time
+export const RUNG = 0.3; // metres between a ladder's rungs (render/Structures.ts)
 const SWING_HALF_LIFE = 0.08; // seconds: the swing round a ladder is mostly over in a third of a second
 const HEAD_TURN = 1.2; // radians a head may turn from the body on a ladder, where the body faces the rungs
 const ARM_TURN = Math.PI / 2; // radians the weapon arm may turn from the body there: as far as the look is held
-// Climbing: radians the legs are bent at the hip and swing from there, a knee up at each rung, and
-// the elevation of a free hand's reach up the rungs, pumping with the legs.
+// Climbing: radians the legs are bent at the hip, and swing from there for each rung a foot is from
+// the middle of its step; and the elevation of a hand's reach up the rungs, and its swing a rung.
 const CLIMB_KNEE = 0.5;
-const CLIMB_STEP = 0.45;
+const CLIMB_STEP = 0.65;
 const CLIMB_REACH = 0.93;
-const CLIMB_PUMP = 0.4;
+const CLIMB_PUMP = 0.55;
+const REACHING = 0.3; // the share of its two rungs of climb a limb spends going up to its next rung
+const FOOT_LAG = 0.3; // rungs of climb a foot goes up after the hand across from it
 
 export interface Leg {
   node: TransformNode; // swings at the hip
@@ -95,7 +98,8 @@ export class WalkerAvatar implements Avatar {
   private readonly hitFlash: HitFlash;
   private readonly shadow: Mesh;
   protected readonly gait = new Gait();
-  protected climbPhase = 0; // radians along the rung-to-rung cycle of the legs
+  protected climbed = 0; // rungs up its ladder the feet are, along the rails
+  protected rungsAhead = 0; // metres from the body to the middle of the ladder's rungs
   private held: RemotePlayer['climb'] = null; // the ladder face last seen held
   private swing = 0; // radians the body has still to turn round the ladder after a swap
   private dead = false;
@@ -197,28 +201,29 @@ export class WalkerAvatar implements Avatar {
     // Mid-swing the body is the way round the ladder's centre line that its turn has got to; and
     // it leans with the rails, its head toward where the ladder's top is over.
     const line = WORLD_STRUCTURES.ladderLine(hold.piece, feetY);
+    const lean = WORLD_STRUCTURES.ladderLean(hold.piece);
     const dx = p.x - line.x;
     const dz = p.z - line.z;
     const cos = Math.cos(this.swing);
     const sin = Math.sin(this.swing);
     this.root.position.set(line.x + dx * cos + dz * sin, feetY, line.z - dx * sin + dz * cos);
     this.root.rotation.y = facing + this.swing;
-    this.root.rotation.x = -hold.side * WORLD_STRUCTURES.ladderLean(hold.piece);
+    this.root.rotation.x = -hold.side * lean;
     if (f.head) f.head.rotation.y = clamp(wrap(p.yaw - facing), HEAD_TURN);
     if (f.tilt) f.tilt.node.rotation.x = p.pitch * f.tilt.follow;
     this.base.rotation.set(0, 0, 0);
     this.base.position.set(0, 0, 0);
     if (f.rock) f.rock.rotation.z = 0;
 
-    this.climbPhase += (p.walk / RUNG) * Math.PI * dt;
-    const s = Math.sin(this.climbPhase);
+    this.climbed = (feetY - WORLD_STRUCTURES.ladderSpan(hold.piece).base) / Math.cos(lean) / RUNG;
+    this.rungsAhead = Math.hypot(dx, dz);
     for (const leg of f.legs ?? []) {
-      leg.node.rotation.x = -CLIMB_KNEE - leg.side * CLIMB_STEP * s;
+      leg.node.rotation.x = -CLIMB_KNEE - CLIMB_STEP * holding(this.climbed + limbLead(leg.side, true));
       if (leg.foot) leg.foot.node.rotation.x = 0;
     }
-    if (f.armL) point(f.armL, CLIMB_REACH - CLIMB_PUMP * s);
+    if (f.armL) point(f.armL, CLIMB_REACH + CLIMB_PUMP * holding(this.climbed + limbLead(-1, false)));
     if (p.item) this.aim(p);
-    else point(f.armR, CLIMB_REACH + CLIMB_PUMP * s);
+    else point(f.armR, CLIMB_REACH + CLIMB_PUMP * holding(this.climbed + limbLead(1, false)));
     return { phase: this.gait.phase, effort: 0, climbing: true };
   }
 
@@ -311,6 +316,30 @@ const HAND = new Quaternion();
 const AXES = new Matrix();
 
 // Points an arm straight out of the body's front at `elevation` radians above level.
+// A climber's limbs go up a ladder in turn, two rungs each, a hand and then the foot across from
+// it: how many rungs of climb ahead of the left hand a limb is.
+export function limbLead(side: 1 | -1, foot: boolean): number {
+  return foot ? (side < 0 ? 1 : 0) - FOOT_LAG : side < 0 ? 0 : 1;
+}
+
+// How far above the middle of its reach a limb holding a ladder is, in rungs, with the body
+// `climbed` rungs up it: on its rung, so sinking as the body climbs past it, then up to the rung
+// two above. Going down runs it backward, and a body stopped on the ladder holds still.
+export function holding(climbed: number): number {
+  const through = (((climbed / 2) % 1) + 1) % 1;
+  const held = 1 - REACHING;
+  return through < held ? held - 2 * through : held * (2 * smooth((through - held) / REACHING) - 1);
+}
+
+// Metres above a climber's feet a limb holds the ladder at, its reach centred as near `about`
+// metres up as leaves it on the ladder's own rungs: a hand or a foot put there is on one, but for
+// while it goes up to its next.
+export function rungHeld(climbed: number, lead: number, about: number): number {
+  const held = 1 - REACHING;
+  const middle = Math.round(about / RUNG - lead + held) + lead - held;
+  return (middle + holding(climbed + lead)) * RUNG;
+}
+
 export function point(arm: Arm, elevation: number): void {
   const turn = (arm.node.rotationQuaternion ??= new Quaternion());
   AHEAD.set(0, Math.sin(elevation), Math.cos(elevation));
