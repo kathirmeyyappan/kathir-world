@@ -10,7 +10,8 @@ export interface Voice {
   // SOUNDS, so it's fetched the first time it's said within earshot and costs nothing until then.
   enter: SoundId[];
   // Leaving the ground on a jump, in the swoosh's place: the first of a chain of jumps (sim/avatars.ts
-  // `Chain`), then its second and its third, the last one given serving any after it.
+  // `Chain`), then its second and its third, the last one given serving any after it; a backflip
+  // (`Crouch`) sounds as the third.
   jump?: SoundId[];
   leap?: SoundId[]; // leaving it on a long jump (sim/avatars.ts `Leap`): the jump's sound unless given
   hurt?: SoundId[]; // taking damage, heard by everyone near

@@ -2051,13 +2051,14 @@ body {
   bottom: 178px;
   width: 84px;
 }
-/* SWAP, on a ladder, and POUND, in the air: a square beside JUMP, to its left. */
+/* SWAP, on a ladder, and a look's own move (CROUCH, or POUND in the air): a square beside JUMP, to its left. */
 #swap-button,
 #pound-button {
   bottom: 26px;
   right: 118px;
   width: 84px;
   height: 84px;
+  padding: 0;
 }
 #chat-button {
   top: 16px;

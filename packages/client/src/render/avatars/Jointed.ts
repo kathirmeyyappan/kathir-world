@@ -6,7 +6,16 @@
 // moves as whoever animated the clips moved it, and a new character is a model and its clips. The
 // walker still places the body, counts its stride, aims what it holds and lays it down dead.
 import { Quaternion, TransformNode, Vector3 } from '@babylonjs/core';
-import { GRAVITY, WORLD_STRUCTURES, chainOf, jumpVelocityOf, poundOf, walkSpeedOf, type AvatarId } from '@world/shared';
+import {
+  GRAVITY,
+  WORLD_STRUCTURES,
+  chainOf,
+  crouchOf,
+  jumpVelocityOf,
+  poundOf,
+  walkSpeedOf,
+  type AvatarId,
+} from '@world/shared';
 import type { RemotePlayer } from '../../net/Interpolation';
 import type { Engine } from '../Engine';
 import {
@@ -106,7 +115,7 @@ export interface JointedModel extends SkinnedModel<JointedBone> {
 }
 
 // The clips only a look with the move has.
-type Moves = 'leap' | 'pound' | 'pounded' | 'double' | 'doubleFall' | 'triple';
+type Moves = 'leap' | 'pound' | 'pounded' | 'double' | 'doubleFall' | 'triple' | 'crouch' | 'crawl' | 'backflip';
 
 // How a character moves: its clips, and the few numbers round them.
 export interface Style {
@@ -127,6 +136,11 @@ export interface Style {
     double?: RawClip;
     doubleFall?: RawClip;
     triple?: RawClip;
+    // A crouch (sim/avatars.ts `Crouch`): sat low, looped; a cycle of its crawl, looped; and the
+    // jump out of it, a backward somersault through the whole flight, held at its end.
+    crouch?: RawClip;
+    crawl?: RawClip;
+    backflip?: RawClip;
   };
   flutter?: number; // strides a second its legs run on at in the air: a scuttle
   landSpeed: number; // m/s of fall that lands all the way into the landing's crouch
@@ -156,6 +170,8 @@ const TAKEOFF_SECONDS = 0.12;
 const TOUCHDOWN_SECONDS = 0.12;
 const APEX_SECONDS = 0.28;
 const LAND_IN = 0.05; // seconds a landing takes to drop into its crouch
+const CROUCH_SECONDS = 0.15; // seconds it takes to sink into a crouch, and to rise out of one
+const CRAWL_CYCLE = 3; // leg lengths it crawls in one cycle of its limbs
 const EASE_DIRECTION = 0.09; // seconds its stride takes to come round to a new way of going
 const EASE_TURN = 0.12; // seconds its body takes to come round to face the way it's going
 const EASE_AIM = 0.06; // and to face its look, with something in its hand to aim
@@ -242,6 +258,9 @@ export class JointedAvatar extends WalkerAvatar {
   private turned = 0; // seconds since its ground pound began
   private sat = Infinity; // seconds since its ground pound landed
   private readonly flip: number; // seconds its triple jump's somersault takes: done just before it's down again on the flat
+  private readonly backflip: number; // and its backflip's
+  private crouching = 0; // how far down into its crouch it is: 0 standing, 1 sat in it
+  private crawled = 0; // cycles of its crawl it has gone
   private impact = 0; // how hard it last landed, 0 to 1
   private landing = Infinity; // seconds since it last landed
   private stood = 0; // seconds it has been drawn, for its idle
@@ -276,10 +295,14 @@ export class JointedAvatar extends WalkerAvatar {
       double: raw.double ? clip(raw.double) : null,
       doubleFall: raw.doubleFall ? clip(raw.doubleFall) : null,
       triple: raw.triple ? clip(raw.triple) : null,
+      crouch: raw.crouch ? clip(raw.crouch) : null,
+      crawl: raw.crawl ? clip(raw.crawl) : null,
+      backflip: raw.backflip ? clip(raw.backflip) : null,
     };
     const chain = chainOf(kind);
     const third = jumpVelocityOf(kind) * Math.sqrt((chain?.rise ?? 1) ** 2);
     this.flip = FLIP_SHARE * ((2 * third) / GRAVITY);
+    this.backflip = FLIP_SHARE * ((2 * jumpVelocityOf(kind) * Math.sqrt(crouchOf(kind)?.flip ?? 1)) / GRAVITY);
     sample(this.third, this.clips.idle, 0, true);
     this.ahead = this.third.slice(HEAD_AT, HEAD_AT + 4);
     this.rest = this.third.slice();
@@ -338,6 +361,19 @@ export class JointedAvatar extends WalkerAvatar {
       grip += (GRIP_RUN - GRIP_IDLE) * striding * running;
     }
 
+    // A crouch, sunk into and risen out of: sat on its heels, or crawling as far through the cycle
+    // of its limbs as it has gone.
+    this.crouching = Math.min(1, Math.max(0, this.crouching + (p.crouch ? dt : -dt) / CROUCH_SECONDS));
+    if (clips.crouch && this.crouching > 0) {
+      sample(other, clips.crouch, this.stood / clips.crouch.seconds, true);
+      if (clips.crawl && striding > 0) {
+        this.crawled += (p.walk * dt) / (CRAWL_CYCLE * this.rig.legLength);
+        sample(third, clips.crawl, this.crawled, true);
+        blend(other, other, third, striding);
+      }
+      blend(out, out, other, smooth(this.crouching));
+    }
+
     // A landing, as hard as the drop from its highest point: into the crouch and back up out of it.
     if (p.grounded) {
       if (!this.grounded) {
@@ -359,7 +395,7 @@ export class JointedAvatar extends WalkerAvatar {
     }
 
     // In the air: its jump going up and its fall coming down, by which way it last moved.
-    const flipping = p.hop === 3 && !p.grounded ? clips.triple : null;
+    const flipping = p.grounded ? null : p.backflip ? clips.backflip : p.hop === 3 ? clips.triple : null;
     this.aloft = p.grounded ? 0 : this.aloft + dt;
     this.kicking = eased(this.kicking, p.thrusting ? 0 : 1, dt, EASE_KICKING);
     this.airborne = Math.min(
@@ -384,8 +420,8 @@ export class JointedAvatar extends WalkerAvatar {
         sample(third, clips.leap, this.aloft / clips.leap.seconds, false);
         blend(other, other, third, smooth(this.leaping));
       }
-      // And the third is one somersault, the whole body's, from takeoff to landing.
-      if (flipping) sample(other, flipping, this.aloft / this.flip, false);
+      // And the third is one somersault, the whole body's, from takeoff to landing, as a backflip is.
+      if (flipping) sample(other, flipping, this.aloft / (p.backflip ? this.backflip : this.flip), false);
       const air = smooth(this.airborne);
       blend(out, out, other, air);
       grip += (GRIP_RUN + (GRIP_FALL - GRIP_RUN) * down - grip) * air;
@@ -515,6 +551,7 @@ class Rig {
   private readonly hipsAt: Vector3; // the hips' pivot, standing
   private readonly bones: TransformNode[]; // the bones a clip turns, in a clip's order
   private gripped = -1; // how closed `play` last left the hands, none yet
+  readonly legLength: number; // metres, hip to ankle, the leg straight
   private readonly thigh: number; // metres, hip to knee
   private readonly shin: number; // knee to ankle
   private readonly ankle: number; // metres the ankle stands off the ground
@@ -539,6 +576,7 @@ class Rig {
     this.hipsAt = at('hips');
     this.thigh = Vector3.Distance(at('legR'), at('shinR'));
     this.shin = Vector3.Distance(at('shinR'), at('footR'));
+    this.legLength = this.thigh + this.shin;
     this.ankle = model.bones.footR[1];
     [this.toe, this.heel] = model.sole;
     this.hipL = at('legL').subtract(this.hipsAt);

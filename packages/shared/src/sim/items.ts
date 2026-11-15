@@ -15,9 +15,20 @@ export type ItemId = 'gun' | 'sniper' | 'flamethrower' | 'ice-blower' | 'firebre
 //   toggle  a state the client flips and reports while on (the sniper's scope)
 // The swaps are a climber's, not an item's: a tap on A or D on a ladder (the touch SWAP button is
 // A's), to go round to its other face by its left or its right (walker.ts). The run is a walker's
-// too, held on Shift: its walk at RUN_MULTIPLIER (walker.ts).
+// too, held on Shift: its walk at RUN_MULTIPLIER (walker.ts). The crouch and the pound are a look's
+// own moves (avatars.ts), on one key: held on the ground and tapped in the air.
 export type ItemAction =
-  'shoot' | 'scope' | 'thrust' | 'roar-1' | 'roar-2' | 'roar-3' | 'swap-left' | 'swap-right' | 'run' | 'pound';
+  | 'shoot'
+  | 'scope'
+  | 'thrust'
+  | 'roar-1'
+  | 'roar-2'
+  | 'roar-3'
+  | 'swap-left'
+  | 'swap-right'
+  | 'run'
+  | 'pound'
+  | 'crouch';
 export type ActionMode = 'tap' | 'hold' | 'toggle';
 
 export interface ActionSpec {
@@ -176,7 +187,8 @@ export function isItemAction(v: unknown): v is ItemAction {
     v === 'swap-left' ||
     v === 'swap-right' ||
     v === 'run' ||
-    v === 'pound'
+    v === 'pound' ||
+    v === 'crouch'
   );
 }
 
@@ -220,6 +232,7 @@ const ACTION_HELP: Record<ItemAction, (spec: ActionSpec) => string> = {
   'roar-3': () => '% to roar',
   run: () => '% to run',
   pound: () => '% in the air to ground pound',
+  crouch: () => 'hold % to crouch',
 };
 
 // "range: 20m, dmg: 2 (headshot 2.5x)" or "range: 10m, dps: 1, chills 5s": the numbers that

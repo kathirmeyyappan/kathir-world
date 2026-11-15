@@ -62,6 +62,20 @@ h3 {
   font: 9px/1.4 var(--pixel);
 }
 
+/* A special ability's heading, over a table whose labels are the mint of any other heading. */
+h3.ability {
+  margin: 26px 0 10px;
+  color: var(--accent);
+  font-size: 11px;
+}
+
+/* Between what every entry has and what only some do: a character's own moves. */
+.rule {
+  margin: 36px 0 30px;
+  border: 0;
+  border-top: 2px solid var(--line);
+}
+
 .intro {
   max-width: 760px;
   margin: 0 0 8px;

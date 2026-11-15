@@ -2,7 +2,17 @@
 // slides on ice, and flies on a jetpack, all against the structures; a shot has to land in their
 // avatar's capsule. The sim half of the walker class (classes.ts); the look and the held item are
 // applied before it runs (player.ts).
-import { AVATARS, chainOf, climbSpeedOf, jumpVelocityOf, leapOf, poundOf, walkSpeedOf, type Pound } from './avatars';
+import {
+  AVATARS,
+  chainOf,
+  climbSpeedOf,
+  crouchOf,
+  jumpVelocityOf,
+  leapOf,
+  poundOf,
+  walkSpeedOf,
+  type Pound,
+} from './avatars';
 import type { ClassSpec } from './classes';
 import {
   CHILLED_SPEED_MULTIPLIER,
@@ -48,6 +58,7 @@ export const WALKER: ClassSpec = {
     p.rest = 0;
     p.hop = 0;
     p.pound = null;
+    p.crouch = p.backflip = false;
   },
   step: stepWalker,
   aim: (p) => lookDirection(p.yaw, p.pitch),
@@ -72,19 +83,25 @@ export function stepWalker(
   shape: WorldPart[],
   structures: Structures,
 ): number {
+  const grounded = isGrounded(p, structures);
+  // A look with a crouch is in it for as long as the action is held with its feet down (a tick
+  // with no frame keeps what the last one held).
+  const crouch = crouchOf(p.avatar);
+  const held = input ? input.actions.includes('crouch') : p.crouch;
+  p.crouch = crouch !== null && held && grounded && !p.dead && !p.climb && !p.pound;
   // Scoped (decided by the item step from this frame) slows the walk and pins them to the ground; an
-  // ice hit's chill slows it too. Holding the run speeds it up, whichever way it goes, except
-  // scoped, and so does a boost: the faster of the two, never both.
+  // ice hit's chill slows it too, and a crouch to a crawl. Holding the run speeds it up, whichever
+  // way it goes, except scoped or crouched, and so does a boost: the faster of the two, never both.
   const fast = Math.max(
     p.boost > 0 ? SPEEDY_MULTIPLIER : 1,
-    !p.scoped && input?.actions.includes('run') ? RUN_MULTIPLIER : 1,
+    !p.scoped && !p.crouch && input?.actions.includes('run') ? RUN_MULTIPLIER : 1,
   );
   const speed =
     walkSpeedOf(p.avatar) *
     fast *
     (p.scoped ? SCOPED_SPEED_MULTIPLIER : 1) *
-    (p.chilled > 0 ? CHILLED_SPEED_MULTIPLIER : 1);
-  const grounded = isGrounded(p, structures);
+    (p.chilled > 0 ? CHILLED_SPEED_MULTIPLIER : 1) *
+    (p.crouch && crouch ? crouch.crawl : 1);
   if (p.climb) return climb(p, input, dt, structures);
   // A ground pound, from the press in the air until it's back on its feet, is all the body does;
   // dying, a throw or a change of look ends it.
@@ -95,7 +112,7 @@ export function stepWalker(
     p.hop = 0;
     p.vx = p.vz = p.vy = 0;
     p.thrown = null;
-    p.leap = false;
+    p.leap = p.backflip = false;
     stepGear(p, [], grounded, dt);
     return 0;
   }
@@ -117,14 +134,17 @@ export function stepWalker(
     const takeoff = structures.footing(p.pos.x, p.pos.z, p.pos.y - EYE_HEIGHT + STEP_UP, PLAYER_RADIUS);
     const grip = SURFACES[takeoff.surface].grip;
     const jump = jumpVelocityOf(p.avatar);
-    // A jump at a run, for a look with a long jump, is one whatever is underfoot: it rises a share
-    // of its jump under a share of gravity.
-    const leap = input.actions.includes('run') && (input.mx !== 0 || input.my !== 0) ? leapOf(p.avatar) : null;
-    // A plain jump is the next of its look's chain, each rising that much higher than the last.
-    p.hop = chain && !leap ? (p.hop % chain.jumps) + 1 : 0;
+    // A jump at a run, or out of a crawl, for a look with a long jump, is one whatever is underfoot:
+    // it rises a share of its jump under a share of gravity.
+    const moving = input.mx !== 0 || input.my !== 0;
+    const leap = moving && (p.crouch || input.actions.includes('run')) ? leapOf(p.avatar) : null;
+    // A jump out of a crouch held still is a backflip, higher than the jump; any other plain jump
+    // is the next of its look's chain, each rising that much higher than the last.
+    const flip = p.crouch && crouch && !leap ? crouch.flip : null;
+    p.hop = chain && !leap && flip === null ? (p.hop % chain.jumps) + 1 : 0;
     const up = leap
       ? jump * Math.sqrt(leap.rise * leap.float)
-      : jump * Math.sqrt(chain ? chain.rise ** (p.hop - 1) : 1);
+      : jump * Math.sqrt(flip ?? (chain ? chain.rise ** (p.hop - 1) : 1));
     if (grip === Infinity && leap) {
       // Off a sure footing it goes the way the keys go at a multiple of its run, the keys left
       // little grip on it.
@@ -146,6 +166,8 @@ export function stepWalker(
       throwWalker(p, { x: (-up * sx) / len, y: up / len, z: (-up * sz) / len }, grip);
     }
     p.leap = leap !== null;
+    p.backflip = flip !== null;
+    p.crouch = false;
   }
   const push = stepGear(p, input ? input.actions : [], grounded, dt);
 
@@ -153,7 +175,7 @@ export function stepWalker(
   // land on the highest top within a step of where the feet were.
   const feet = p.pos.y - EYE_HEIGHT;
   const ceiling = structures.ceilingAt(p.pos.x, p.pos.z, p.pos.y + CAPSULE_TOP);
-  if (push) p.leap = false;
+  if (push) p.leap = p.backflip = false;
   if (push) p.hop = 0;
   p.vy -= GRAVITY * (p.leap ? (leapOf(p.avatar)?.float ?? 1) : 1) * dt;
   if (push) p.vy = thrust(p.vy, push, dt);
@@ -174,7 +196,7 @@ export function stepWalker(
     if (!grounded) p.down = 0;
     if (p.leap) p.rest = LEAP_REST;
     p.thrown = null;
-    p.leap = false;
+    p.leap = p.backflip = false;
   }
 
   // Across the floor: where the keys send the walk, at its speed. On a sure footing, and in the
@@ -292,7 +314,7 @@ function takeHold(
     p.pos.z = spot.z;
     p.vx = p.vz = p.vy = 0;
     p.thrown = null;
-    p.leap = false;
+    p.leap = p.backflip = false;
     p.hop = 0;
     return true;
   }

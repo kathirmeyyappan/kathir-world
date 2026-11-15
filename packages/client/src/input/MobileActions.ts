@@ -1,7 +1,7 @@
 // Touch replacements for the keyboard and mouse actions: one context button that reads SELECT
 // when the crosshair is on a cube and FIRE when holding a weapon, a SCOPE button that only
-// exists for items that can scope, a SWAP button on a ladder (A and D's job there), a POUND button in the air for a look with a
-// ground pound (X's job), and a CHAT
+// exists for items that can scope, a SWAP button on a ladder (A and D's job there), a button for a look's own moves (X's job: CROUCH on the
+// ground, POUND in the air), and a CHAT
 // button since there is no Enter key. Plain DOM,
 // only mounted on touch devices. The Game tells it what's true each frame; it never reads
 // game state itself.
@@ -14,7 +14,7 @@ export interface MobileActionState {
   scoped: boolean;
   canFire: boolean; // false for a scope-only weapon that isn't scoped
   climbing: boolean; // on a ladder: SWAP goes round to its other face
-  canPound: boolean; // in the air, as a look with a ground pound
+  move: { label: 'CROUCH' | 'POUND'; on: boolean } | null; // what a look's own move is where it stands, and whether it's on
 }
 
 export interface MobileActionHandlers {
@@ -60,7 +60,11 @@ export class MobileActions {
     this.scope.classList.toggle('hidden', !canScope);
     this.scope.classList.toggle('on', state.scoped);
     this.swap?.classList.toggle('hidden', !state.climbing);
-    this.pound?.classList.toggle('hidden', !state.canPound);
+    if (this.pound) {
+      this.pound.classList.toggle('hidden', !state.move);
+      this.pound.classList.toggle('on', !!state.move?.on);
+      if (state.move && this.pound.textContent !== state.move.label) this.pound.textContent = state.move.label;
+    }
   }
 }
 
