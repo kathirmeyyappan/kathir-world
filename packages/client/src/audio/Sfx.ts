@@ -76,6 +76,7 @@ export type SoundId =
   | 'mario-kill-2'
   | 'mario-enter'
   | 'luigi-enter'
+  | 'wario-enter'
   | 'patrick-enter'
   | 'spongebob-enter'
   | 'mario-death'
@@ -181,6 +182,7 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'luigi-kill-2': { file: 'luigi-kill-2.mp3', half: 6, reach: 30, volume: 0.2 },
   'wario-kill-1': { file: 'wario-kill-1.mp3', half: 6, reach: 30, volume: 0.2 },
   'luigi-enter': { file: 'luigi-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
+  'wario-enter': { file: 'wario-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'patrick-enter': { file: 'patrick-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'spongebob-enter': { file: 'spongebob-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   // A look's death (voices.ts): the sting and jingle, ten seconds of song, the death screen's
