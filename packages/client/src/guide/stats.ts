@@ -75,7 +75,7 @@ export function characterStats(id: AvatarId): Stat[] {
     const shape = dragonShape(id);
     rows.push(
       { label: 'Length', value: `${num(shape.links.reduce((a, b) => a + b, 0))} m` },
-      { label: 'Cruise', value: `${num(shape.cruise)} m/s` },
+      { label: 'Speed', value: `${num(shape.cruise)} m/s` },
       { label: 'Turning radius', value: `${num(shape.turnRadius)} m` },
     );
   }
@@ -97,7 +97,7 @@ function poundStats(id: AvatarId): { id: AbilityId; stats: Stat[] }[] {
     {
       id: 'pound',
       stats: [
-        { label: 'Use', value: 'X, in the air' },
+        { label: 'Keys', value: 'X, in the air' },
         { label: 'Ground pound damage', value: `${num(pound.damage)} hearts` },
         { label: 'Reach', value: `${num(pound.reach)} m` },
         { label: 'Knockback', value: `${num(pound.knock.speed)} m/s` },
@@ -120,7 +120,7 @@ function leapStats(id: AvatarId): { id: AbilityId; stats: Stat[] }[] {
     {
       id: 'leap',
       stats: [
-        { label: 'Use', value: 'Shift + Space, moving' },
+        { label: 'Keys', value: 'Shift + Space, moving' },
         { label: 'Distance', value: `${num(speed * seconds)} m` },
         { label: 'Height', value: `${num(JUMP_RISE * (jump.class === 'walker' ? jump.jump : 1) * leap.rise)} m` },
         { label: 'Speed', value: `${num(speed)} m/s` },
@@ -139,7 +139,7 @@ export function itemStats(id: ItemId): Stat[] {
   if (command) rows.push({ label: 'Equip', value: `/${command}` });
   if (spec.actions.scope?.key)
     rows.push(
-      { label: 'Scope', value: keyName(spec.actions.scope.key) },
+      { label: 'Scope key', value: keyName(spec.actions.scope.key) },
       { label: 'Scoped walk', value: `${num(SCOPED_SPEED_MULTIPLIER * 100)}%` },
     );
   if (spec.actions.shoot?.mode === 'hold') {
@@ -157,12 +157,12 @@ export function itemStats(id: ItemId): Stat[] {
     rows.push({ label: 'Spray cone', value: `${num((2 * spec.fire.halfAngle * 180) / Math.PI)}°` });
   if (spec.fuelSeconds !== null)
     rows.push(
-      { label: 'Tank', value: `${num(spec.fuelSeconds)} s` },
+      { label: 'Fuel', value: `${num(spec.fuelSeconds)} s` },
       { label: 'Refill', value: `${num(spec.fuelSeconds / FUEL_REFILL_RATE)} s` },
     );
   if (spec.element === 'ice')
     rows.push(
-      { label: 'Chill', value: `${num(CHILL_SECONDS)} s` },
+      { label: 'Chill duration', value: `${num(CHILL_SECONDS)} s` },
       { label: 'Chilled walk', value: `${num(CHILLED_SPEED_MULTIPLIER * 100)}%` },
     );
   return rows;
@@ -173,8 +173,8 @@ export function gearStats(id: GearId): Stat[] {
   const thrust = spec.actions.thrust?.key;
   return [
     { label: 'Equip', value: `/${id}` },
-    ...(thrust ? [{ label: 'Thrust', value: keyName(thrust) }] : []),
-    { label: 'Lasts', value: `${num(spec.seconds)} s` },
+    ...(thrust ? [{ label: 'Thrust key', value: keyName(thrust) }] : []),
+    { label: 'Duration', value: `${num(spec.seconds)} s` },
     { label: 'Fuel', value: `${num(spec.fuelSeconds)} s` },
     { label: 'Lift', value: `${num(spec.lift - GRAVITY)} m/s²` },
     { label: 'Max rise', value: `${num(spec.maxRise)} m/s` },
@@ -190,7 +190,7 @@ export function pickupStats(kind: PickupKind): Stat[] {
   const areas = PICKUP_AREAS.filter((a) => a.kind === kind);
   if (areas.length > 0)
     rows.push(
-      { label: 'In the world', value: `${areas.reduce((n, a) => n + a.count, 0)}` },
+      { label: 'Count', value: `${areas.reduce((n, a) => n + a.count, 0)}` },
       { label: 'Respawn', value: `${num(Math.max(...areas.map((a) => a.respawnSeconds)))} s` },
     );
   return rows;
@@ -200,7 +200,7 @@ export function speedyStats(): Stat[] {
   return [
     { label: 'Equip', value: '/speedy' },
     { label: 'Speed', value: `×${num(SPEEDY_MULTIPLIER)}` },
-    { label: 'Lasts', value: `${num(SPEEDY_SECONDS)} s` },
+    { label: 'Duration', value: `${num(SPEEDY_SECONDS)} s` },
   ];
 }
 
