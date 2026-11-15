@@ -25,6 +25,7 @@ export const CLIP_BONES = [
   'footR',
 ] as const;
 export type ClipBone = (typeof CLIP_BONES)[number];
+export const ARMS = CLIP_BONES.indexOf('armL'); // the first of the six arm bones, which come before the legs
 export const LEGS = CLIP_BONES.indexOf('legL'); // the first of the six leg bones, which are the last in a frame
 
 const HIPS = 3; // numbers a frame gives the hips: x, y, z from standing straight, in leg lengths
@@ -84,17 +85,26 @@ export function sample(out: Motion, c: Clip, at: number, loops: boolean): void {
 }
 
 // `a` on the way to `b`, `t` of the way, into `out` (which may be either); with `from`, only the
-// bones from that one on, the rest left as `out` has them (a body's legs alone).
-export function blend(out: Motion, a: Motion, b: Motion, t: number, from = 0): void {
+// bones from that one up to `to`, the rest left as `out` has them (a body's legs alone, or its arms).
+export function blend(out: Motion, a: Motion, b: Motion, t: number, from = 0, to: number = CLIP_BONES.length): void {
   if (from > 0 && out !== a) out.set(a);
-  mixed(out, a, 0, b, 0, t, from);
+  mixed(out, a, 0, b, 0, t, from, to);
 }
 
 // Hips straight between the two; each turn between its two the short way round, to unit length
 // (close enough to the arc between turns a frame or a blend apart).
-function mixed(out: Motion, a: Float32Array, ai: number, b: Float32Array, bi: number, t: number, from: number): void {
+function mixed(
+  out: Motion,
+  a: Float32Array,
+  ai: number,
+  b: Float32Array,
+  bi: number,
+  t: number,
+  from: number,
+  to: number = CLIP_BONES.length,
+): void {
   if (from === 0) for (let i = 0; i < HIPS; i++) out[i] = a[ai + i] + (b[bi + i] - a[ai + i]) * t;
-  for (let bone = from; bone < CLIP_BONES.length; bone++) {
+  for (let bone = from; bone < to; bone++) {
     const o = HIPS + bone * TURN;
     const ax = a[ai + o];
     const ay = a[ai + o + 1];
