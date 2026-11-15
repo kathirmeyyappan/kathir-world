@@ -497,6 +497,13 @@ how its cut begins and ends (a one-shot's `fade` dies away into its end): listen
 every new recording, a death's above all, since one shorter than the death screen ends in silence,
 where a hard stop is plain. A death as long as the death screen takes no `fade`: the reload ends it.
 
+Every sound is balanced against the rest of its kind, so no clip stands out from its neighbours:
+level the file itself (a voice clip to a mean of about -17 dB with its peak under 0, by ffmpeg's
+`volumedetect`, measured over the sound and not the silence round it) and give it the `volume` its
+kind has in `SOUNDS` (the comment there ranks the kinds), never a `volume` of its own to make up
+for a quiet file. Measure a new clip beside the ones it will be heard among, and put the numbers in
+the PR.
+
 Craft a character with love: look at it in every state before the PR, and put the shots in it.
 Standing, walking, holding and aiming each weapon, firing, hit, dead, on a ladder; from the front,
 the side and behind; and your own body in third person. The model's bind pose decides how the arms
