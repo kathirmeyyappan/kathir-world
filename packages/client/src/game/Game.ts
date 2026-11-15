@@ -135,7 +135,8 @@ const ECHO_LEVEL = 0.3;
 const GLOAT_DELAY = 0.4; // seconds after a kill that the killer's own line for one starts, clear of the shot
 const OWN_MOVE = 0.6; // the share of its volume the player's own ground pound turns over at, as their own steps do (Footsteps.ts)
 const DEATH_SOUND_DELAY = 0.5; // seconds from dying to the look's death sound: the hurt sound or cry of the last hit, played out
-const CRY_GAP_MS = 600; // a player's cries at being hit come no closer together than this: the longest lasts 0.4 s
+const CRY_GAP_MS = 600; // a player's cries at being hit come no closer together than this, however short the cry
+type Line = 'hurt' | 'kill' | 'enter' | 'death'; // the lines of a look's voice that are a list of takes (voices.ts)
 // Metres nearer than the dragon whose theme is playing another has to be to take the theme over,
 // so two at a like distance don't trade it back and forth.
 const THEME_HYSTERESIS = 15;
@@ -177,7 +178,7 @@ export class Game {
   private poundRequested = false; // and the touch POUND button
   private readonly pounds = new Map<string, RemotePlayer['pound']>(); // the stage each player's ground pound was last seen at
   private readonly cried = new Set<string>(); // the dragons heard crying on their way out of the ground
-  private readonly criedOut = new Map<string, number>(); // when each player last cried out at a hit (performance.now)
+  private readonly criedOut = new Map<string, number>(); // when each player may next cry out at a hit (performance.now)
   private themeOf: string | null = null; // the dragon whose theme is playing
   // When the first dragon of each theme rose (ms): its theme has been running since, heard or not.
   private readonly themeClocks = new Map<SoundId, number>();
@@ -677,15 +678,17 @@ export class Game {
     headshot: boolean;
     hearts: number;
   }): void {
+    const spray = this.sprayed(m.shooter);
     if (m.victim === this.myId) {
       for (const s of this.pendingShots) if (s.shooter === m.shooter) s.hitMe = true;
       // The look's cry, or failing one the hurt sound: the hit that kills sounds like any other.
-      if (!this.cry(m.victim)) this.sfx.play('hurt');
+      // A spray's hits come too fast for a voice, so each is the hurt sound whatever the look.
+      if (spray || !this.cry(m.victim)) this.sfx.play('hurt');
       this.damageFlash.flash();
       this.hearts.set(m.hearts);
     } else {
       this.avatars.get(m.victim)?.flash();
-      this.cry(m.victim);
+      if (!spray) this.cry(m.victim);
     }
     if (m.shooter === this.myId) {
       this.hud.hitMarker();
@@ -708,27 +711,47 @@ export class Game {
 
   // One of a player's lines in their own voice (voices.ts), `delay` seconds from now, from where
   // their head is, or the local player's own, from nowhere. False if their look has no such line.
-  private say(id: string, line: 'hurt' | 'kill' | 'enter' | 'death', delay = 0): boolean {
+  private say(id: string, line: Line, delay = 0): boolean {
+    const said = this.line(id, line);
+    if (!said) return false;
+    // An intro is fetched as it's first said, so it's played the moment it's here.
+    if (line === 'enter') {
+      this.sfx.soon(said.sound, said.at);
+      return true;
+    }
+    return this.sfx.play(said.sound, said.at, { delay });
+  }
+
+  // The take a player would say a line with and where from (null: the local player's own, from
+  // nowhere), or null if their look has no such line or they can't be placed.
+  private line(id: string, line: Line): { sound: SoundId; at: Vec3 | null } | null {
     const mine = id === this.myId;
     const avatar = mine ? this.prediction?.state.avatar : this.avatars.get(id)?.kind;
     const sound = avatar && take(VOICES[avatar][line]);
     const at = mine ? null : this.headOf(id);
-    if (!sound || (!mine && !at)) return false;
-    // An intro is fetched as it's first said, so it's played the moment it's here.
-    if (line === 'enter') {
-      this.sfx.soon(sound, at);
-      return true;
-    }
-    return this.sfx.play(sound, at, { delay });
+    return sound && (mine || at) ? { sound, at } : null;
   }
 
-  // A player's cry at a hit. False if their look has none, or their last is still sounding (a
-  // spray lands many hits a second).
+  // A player's cry at a hit. False if their look has none, or their last is still sounding: no
+  // cry starts before the one before it has run out, nor within CRY_GAP_MS of it.
   private cry(id: string): boolean {
     const now = performance.now();
-    if (now - (this.criedOut.get(id) ?? -Infinity) < CRY_GAP_MS || !this.say(id, 'hurt')) return false;
-    this.criedOut.set(id, now);
+    if (now < (this.criedOut.get(id) ?? 0)) return false;
+    const said = this.line(id, 'hurt');
+    if (!said || !this.sfx.play(said.sound, said.at)) return false;
+    this.criedOut.set(id, now + Math.max(CRY_GAP_MS, this.sfx.seconds(said.sound) * 1000));
     return true;
+  }
+
+  // Whether a hit by `shooter` is a spray's: what they hold fires for as long as it's held (fire,
+  // ice, a dragon's breath), landing many hits a second.
+  private sprayed(shooter: string | null): boolean {
+    if (!shooter) return false;
+    const item =
+      shooter === this.myId
+        ? this.held?.id
+        : this.interp.sample(performance.now(), this.myId).players.find((p) => p.id === shooter)?.item;
+    return !!item && ITEMS[item].actions.shoot?.mode === 'hold';
   }
 
   // This tick's tap shots, each played where its shooter stands. One that passed close to the
