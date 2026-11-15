@@ -27,7 +27,7 @@ export const VOICES: Record<AvatarId, Voice> = {
   mario: {
     enter: ['mario-enter'],
     jump: 'mario-jump',
-    leap: ['mario-leap-1', 'mario-leap-2'],
+    leap: ['mario-leap-1', 'mario-leap-2', 'mario-leap-3'],
     hurt: ['mario-hurt-1', 'mario-hurt-2', 'mario-hurt-3'],
     kill: ['mario-kill-1', 'mario-kill-2'],
     death: ['mario-death'],

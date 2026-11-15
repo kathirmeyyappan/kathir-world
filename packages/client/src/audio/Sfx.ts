@@ -50,6 +50,7 @@ export type SoundId =
   | 'mario-jump'
   | 'mario-leap-1'
   | 'mario-leap-2'
+  | 'mario-leap-3'
   | 'luigi-leap-1'
   | 'luigi-leap-2'
   | 'mario-hurt-1'
@@ -140,6 +141,7 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'mario-jump': { file: 'mario-jump.mp3', half: 6, reach: 30, volume: 0.015 },
   'mario-leap-1': { file: 'mario-leap-1.mp3', half: 6, reach: 30, volume: 0.12 },
   'mario-leap-2': { file: 'mario-leap-2.mp3', half: 6, reach: 30, volume: 0.12 },
+  'mario-leap-3': { file: 'mario-leap-3.mp3', half: 6, reach: 30, volume: 0.12 },
   'luigi-leap-1': { file: 'luigi-leap-1.mp3', half: 6, reach: 30, volume: 0.12 },
   'luigi-leap-2': { file: 'luigi-leap-2.mp3', half: 6, reach: 30, volume: 0.12 },
   'mario-hurt-1': { file: 'mario-hurt-1.mp3', half: 6, reach: 30, volume: 0.25 },
