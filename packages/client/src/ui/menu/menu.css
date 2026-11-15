@@ -67,17 +67,19 @@
   letter-spacing: 1px;
   padding: 5px 12px;
 }
-#menu .close {
+/* The close button: a square with its cross in the middle. Named as closely as the buttons' own
+   rule above, whose padding would push the cross off to one side. */
+#menu .head button.close {
   flex: none;
+  display: grid;
+  place-items: center;
   width: 34px;
   height: 34px;
   padding: 0;
 }
 #menu .close svg {
-  display: block;
   width: 16px;
   height: 16px;
-  margin: auto;
   fill: currentColor;
 }
 
