@@ -681,9 +681,10 @@ export class Game {
     const spray = this.sprayed(m.shooter);
     if (m.victim === this.myId) {
       for (const s of this.pendingShots) if (s.shooter === m.shooter) s.hitMe = true;
-      // The look's cry, or failing one the hurt sound: the hit that kills sounds like any other.
-      // A spray's hits come too fast for a voice, so each is the hurt sound whatever the look.
-      if (spray || !this.cry(m.victim)) this.sfx.play('hurt');
+      // The hurt sound at every hit, the one that kills like any other, and over it the look's cry
+      // where it has one. A spray's hits come too fast for a voice, so they are the hurt sound alone.
+      this.sfx.play('hurt');
+      if (!spray) this.cry(m.victim);
       this.damageFlash.flash();
       this.hearts.set(m.hearts);
     } else {
