@@ -300,6 +300,7 @@ export class BodyView {
       thrusting: false,
       walk: 0,
       leap: false,
+      hop: 0,
       pound: null,
       climb: null,
       chilled: shown.chilled,

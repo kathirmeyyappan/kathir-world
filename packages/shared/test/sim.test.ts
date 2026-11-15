@@ -222,6 +222,27 @@ test('a jump at a run is a long jump for a look that has one: lower and further,
   assert.ok(long.peak < plain.peak * 0.75, `lower: ${long.peak.toFixed(2)} m against ${plain.peak.toFixed(2)} m`);
 });
 
+test('a chain of jumps: each taken as the last lands rises higher, the third the last, and a wait on the ground starts it over', () => {
+  const p = createPlayer('a', 'a', '#fff', { x: 0, y: EYE_HEIGHT, z: 0 });
+  becomeAvatar(p, 'mario');
+  let seq = 0;
+  // One jump, the key held from `wait` ticks after the last landing: how high it gets.
+  const hop = (wait: number): number => {
+    for (let i = 0; i < wait; i++) stepPlayer(p, frame(++seq, {}), TICK_DT, WORLD_SHAPE);
+    let peak = 0;
+    do {
+      stepPlayer(p, frame(++seq, { jump: true }), TICK_DT, WORLD_SHAPE);
+      peak = Math.max(peak, p.pos.y - EYE_HEIGHT);
+    } while (!isGrounded(p));
+    return peak;
+  };
+  const [first, second, third, again] = [hop(0), hop(0), hop(0), hop(0)];
+  const about = (a: number, b: number) => Math.abs(a / b - 1) < 0.03;
+  assert.ok(about(second, first * 1.2) && about(third, first * 1.44), `${first}, ${second}, ${third}`);
+  assert.ok(about(again, first), 'the jump after the third is the first again');
+  assert.ok(about(hop(0), second) && about(hop(10), first), 'and so is one taken after a wait on the ground');
+});
+
 test('/speedy boost multiplies movement and wears off; holding the run does too; a scope slows it and stops jumps; a chill halves it and wears off', () => {
   const p = createPlayer('a', 'a', '#fff', { x: 0, y: EYE_HEIGHT, z: 0 });
   p.boost = SPEEDY_SECONDS;

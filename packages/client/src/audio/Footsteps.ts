@@ -78,6 +78,7 @@ export class Footsteps {
       avatar: AvatarId;
       grounded: boolean;
       leap: boolean;
+      hop: number; // which jump of a chain of them it's on (sim/avatars.ts `Chain`), from 1; 0 with none
       climbing: boolean; // on a ladder (sim/types.ts `climb`): off the ground, and neither jumping nor falling
       pound: boolean; // in a ground pound (sim/avatars.ts `Pound`): it lands as hard as a landing gets
       falling?: number;
@@ -138,7 +139,13 @@ export class Footsteps {
         w.falling = Math.max(w.falling, p.falling ?? 0);
         if (w.liftedFrom !== null && p.pos.y - w.liftedFrom > RISE) {
           const voice = VOICES[p.avatar];
-          this.sfx.play((p.leap ? take(voice.leap) : undefined) ?? voice.jump ?? 'jump', at, { level });
+          this.sfx.play(
+            (p.leap ? take(voice.leap) : undefined) ??
+              voice.jump?.[Math.min(voice.jump.length, Math.max(1, p.hop)) - 1] ??
+              'jump',
+            at,
+            { level },
+          );
           w.liftedFrom = null;
         } else if (down > 0) w.liftedFrom = null; // going down first: they stepped off something
         continue;

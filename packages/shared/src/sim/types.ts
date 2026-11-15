@@ -23,6 +23,10 @@ export interface PlayerState {
   thrown: number | null;
   leap: boolean; // in a long jump (avatars.ts `Leap`), until it lands or something else moves it
   rest: number; // seconds its feet have still to stay down before they can jump (a long jump's landing, LEAP_REST)
+  // A chain of jumps (avatars.ts `Chain`): which jump of it the last one was, from 1, or 0 with no
+  // chain running; and the seconds its feet have been down since they last landed, up to a second.
+  hop: number;
+  down: number;
   // In a ground pound (avatars.ts `Pound`, walker.ts): the stage it's at and the seconds into it,
   // 0 on the tick the stage began, with the eye height and vertical speed (m/s) it began at, which
   // its landing is judged as a plain fall from; null otherwise.

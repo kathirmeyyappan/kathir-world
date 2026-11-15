@@ -95,6 +95,11 @@ CLIPS = {
     "fall": Clip("86/87 - General fall/General land", 4, 4),
     "land": Clip("77/78 - Single jump/Land from single jump", 24, 37),
     "leap": Clip("19 - Fast longjump", 0, 22),
+    # A chain of jumps' second, going up and coming down, and its third, the whole flight: a
+    # somersault or two.
+    "double": Clip("80 - Double jump rise", 0, 5),
+    "doubleFall": Clip("76 - Double jump fall", 0, 8),
+    "triple": Clip("193 - Triple jump", 0, 35),
     # A ground pound: turning over in the air, into the seat it drops in; then landing sat, and (the
     # game's stop from a slide, from where it starts to rise) getting back up.
     "pound": Clip("60/61 - Start ground-pound/Ground-pound", 0, 10),

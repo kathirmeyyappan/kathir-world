@@ -2,7 +2,7 @@
 // slides on ice, and flies on a jetpack, all against the structures; a shot has to land in their
 // avatar's capsule. The sim half of the walker class (classes.ts); the look and the held item are
 // applied before it runs (player.ts).
-import { AVATARS, climbSpeedOf, jumpVelocityOf, leapOf, poundOf, walkSpeedOf, type Pound } from './avatars';
+import { AVATARS, chainOf, climbSpeedOf, jumpVelocityOf, leapOf, poundOf, walkSpeedOf, type Pound } from './avatars';
 import type { ClassSpec } from './classes';
 import {
   CHILLED_SPEED_MULTIPLIER,
@@ -46,6 +46,7 @@ export const WALKER: ClassSpec = {
     p.climb = null;
     p.leap = false;
     p.rest = 0;
+    p.hop = 0;
     p.pound = null;
   },
   step: stepWalker,
@@ -91,6 +92,7 @@ export function stepWalker(
   if (p.pound && (!pound || p.dead || p.thrown !== null)) p.pound = null;
   if (pound && !p.pound && !grounded && !p.dead && input?.actions.includes('pound')) {
     p.pound = { stage: 'twirl', t: 0, from: p.pos.y, vy: p.vy };
+    p.hop = 0;
     p.vx = p.vz = p.vy = 0;
     p.thrown = null;
     p.leap = false;
@@ -107,6 +109,10 @@ export function stepWalker(
       return climb(p, input, dt, structures);
   }
   if (grounded) p.rest = Math.max(0, p.rest - dt);
+  // A chain of jumps runs on only while each is taken soon after the last one lands.
+  const chain = chainOf(p.avatar);
+  if (grounded) p.down = Math.min(1, p.down + dt);
+  if (!chain || (grounded && p.down > chain.gap)) p.hop = 0;
   if (input?.jump && grounded && !p.dead && !p.scoped && p.rest === 0) {
     const takeoff = structures.footing(p.pos.x, p.pos.z, p.pos.y - EYE_HEIGHT + STEP_UP, PLAYER_RADIUS);
     const grip = SURFACES[takeoff.surface].grip;
@@ -114,7 +120,11 @@ export function stepWalker(
     // A jump at a run, for a look with a long jump, is one whatever is underfoot: it rises a share
     // of its jump under a share of gravity.
     const leap = input.actions.includes('run') && (input.mx !== 0 || input.my !== 0) ? leapOf(p.avatar) : null;
-    const up = leap ? jump * Math.sqrt(leap.rise * leap.float) : jump;
+    // A plain jump is the next of its look's chain, each rising that much higher than the last.
+    p.hop = chain && !leap ? (p.hop % chain.jumps) + 1 : 0;
+    const up = leap
+      ? jump * Math.sqrt(leap.rise * leap.float)
+      : jump * Math.sqrt(chain ? chain.rise ** (p.hop - 1) : 1);
     if (grip === Infinity && leap) {
       // Off a sure footing it goes the way the keys go at a multiple of its run, the keys left
       // little grip on it.
@@ -144,6 +154,7 @@ export function stepWalker(
   const feet = p.pos.y - EYE_HEIGHT;
   const ceiling = structures.ceilingAt(p.pos.x, p.pos.z, p.pos.y + CAPSULE_TOP);
   if (push) p.leap = false;
+  if (push) p.hop = 0;
   p.vy -= GRAVITY * (p.leap ? (leapOf(p.avatar)?.float ?? 1) : 1) * dt;
   if (push) p.vy = thrust(p.vy, push, dt);
   p.pos.y += p.vy * dt;
@@ -160,6 +171,7 @@ export function stepWalker(
   }
   const standing = p.pos.y <= floor;
   if (standing) {
+    if (!grounded) p.down = 0;
     if (p.leap) p.rest = LEAP_REST;
     p.thrown = null;
     p.leap = false;
@@ -281,6 +293,7 @@ function takeHold(
     p.vx = p.vz = p.vy = 0;
     p.thrown = null;
     p.leap = false;
+    p.hop = 0;
     return true;
   }
   return false;

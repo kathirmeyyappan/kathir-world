@@ -60,6 +60,7 @@ interface Moves {
   jump: number;
   leap?: Leap;
   pound?: Pound;
+  chain?: Chain;
 }
 
 // A long jump: what a jump taken at a run is, for a look that has one (walker.ts). It goes low and
@@ -69,6 +70,15 @@ export interface Leap {
   speed: number; // the share of its run it flies at
   float: number; // the share of gravity that pulls on it in the air
   grip: number; // m/s² the keys have on its flight
+}
+
+// A chain of jumps, for a look that has one (walker.ts): a jump taken within `gap` seconds of
+// landing the last is the next of the chain, rising `rise` times as high as the one before, up to
+// `jumps` of them; the jump after the last, or after a longer wait on the ground, is the first again.
+export interface Chain {
+  jumps: number;
+  gap: number;
+  rise: number;
 }
 
 // A ground pound: what the pound action does in the air, for a look that has one (walker.ts). The
@@ -121,6 +131,7 @@ const LOOKS = {
     leap: { rise: 0.5, speed: 1.25, float: 0.5, grip: 6 }, // at twice its walk, a quarter over its run, and half its jump's height
     // The twirl as long as its clip (Jointed.ts); the knock a hop back, a third of a second off the ground.
     pound: { damage: 1.5, reach: 3, twirl: 1 / 3, speed: 20, recover: 0.35, knock: { speed: 4, lift: 3, grip: 6 } },
+    chain: { jumps: 3, gap: 0.2, rise: 1.2 }, // a jump, a double and a triple
   },
   luigi: {
     id: 'luigi',
@@ -136,6 +147,7 @@ const LOOKS = {
     leap: { rise: 0.5, speed: 1.25, float: 0.5, grip: 6 }, // at twice its walk, a quarter over its run, and half its jump's height
     // The twirl as long as its clip (Jointed.ts); the knock a hop back, a third of a second off the ground.
     pound: { damage: 1.5, reach: 3, twirl: 1 / 3, speed: 20, recover: 0.35, knock: { speed: 4, lift: 3, grip: 6 } },
+    chain: { jumps: 3, gap: 0.2, rise: 1.2 }, // a jump, a double and a triple
   },
   spongebob: {
     id: 'spongebob',
@@ -367,6 +379,12 @@ export function leapOf(avatar: AvatarId): Leap | null {
   return (look.class === 'walker' && look.leap) || null;
 }
 
+// A look's chain of jumps, if it has one.
+export function chainOf(avatar: AvatarId): Chain | null {
+  const look: AvatarSpec = AVATARS[avatar];
+  return (look.class === 'walker' && look.chain) || null;
+}
+
 // A look's ground pound, if it has one.
 export function poundOf(avatar: AvatarId): Pound | null {
   const look: AvatarSpec = AVATARS[avatar];
@@ -378,6 +396,10 @@ export function poundOf(avatar: AvatarId): Pound | null {
 const MOVE_HELP: Record<Exclude<keyof Moves, 'walk' | 'jump'>, { keys: string; touch: string }> = {
   leap: { keys: 'run + jump to long jump', touch: 'run + JUMP to long jump' },
   pound: { keys: 'X in the air to ground pound', touch: 'POUND in the air to ground pound' },
+  chain: {
+    keys: 'jump as you land to double, then triple jump',
+    touch: 'JUMP as you land to double, then triple jump',
+  },
 };
 
 // What a look can do that the rest can't, each with how it's done; none for most.
