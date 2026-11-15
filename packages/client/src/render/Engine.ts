@@ -7,9 +7,12 @@ import {
   DefaultRenderingPipeline,
   DirectionalLight,
   Engine as BabylonEngine,
+  GlowLayer,
   HemisphericLight,
   Scene,
+  StandardMaterial,
   Vector3,
+  type AbstractMesh,
 } from '@babylonjs/core';
 import { Picture } from './Picture';
 
@@ -28,6 +31,7 @@ export class Engine {
   readonly engine: BabylonEngine;
   readonly scene: Scene;
   readonly picture: Picture;
+  private readonly glowing = new Set<number>(); // the meshes that glow (`glow`), by uniqueId
   private drawnAt = performance.now(); // when the last frame was drawn
   private due = performance.now(); // when the next frame is due: the frame rate's interval on from the last
   private ran = performance.now(); // when the loop last ran, on a tick of the display
@@ -55,6 +59,19 @@ export class Engine {
     fill.diffuse = new Color3(0.5, 0.6, 0.9);
     fill.groundColor = new Color3(0.05, 0.2, 0.1);
 
+    // The glow is a blurred picture of the scene drawn over it. Every opaque mesh is drawn into that
+    // picture with depth, black unless it glows, so whatever stands in front of a glowing mesh covers
+    // its glow as it covers the mesh: drawing the glowing meshes alone would shine through walls.
+    const glow = new GlowLayer('glow', this.scene, { mainTextureRatio: 0.25, blurKernelSize: 24 });
+    glow.intensity = 0.8;
+    glow.customEmissiveColorSelector = (mesh, _subMesh, material, result) => {
+      if (this.glowing.has(mesh.uniqueId) && material instanceof StandardMaterial) {
+        const level = material.emissiveTexture?.level ?? 1;
+        const { r, g, b } = material.emissiveColor;
+        result.set(r * level, g * level, b * level, material.alpha);
+      } else result.set(0, 0, 0, 1);
+    };
+
     const pipeline = new DefaultRenderingPipeline('post', false, this.scene);
     // Anti-alias the low-res frame itself: pixels stay blocky after upscaling but stop shimmering.
     pipeline.samples = 4;
@@ -79,6 +96,13 @@ export class Engine {
         this.picture.lost();
         location.reload();
       });
+  }
+
+  // Gives a mesh a soft halo of its own light (its material's emissive colour and texture), hidden
+  // by anything in front of it.
+  glow(mesh: AbstractMesh): void {
+    this.glowing.add(mesh.uniqueId);
+    mesh.onDisposeObservable.add(() => this.glowing.delete(mesh.uniqueId));
   }
 
   // Every tick of the display, a frame when one is due: each is due the frame rate's interval on
