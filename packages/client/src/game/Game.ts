@@ -11,7 +11,6 @@ import {
   WORLD_SHAPE,
   DOOR_REACH,
   lookVector,
-  moveKeys,
   movesHelp,
   WORLD_STRUCTURES,
   PINEAPPLE_HORN,
@@ -83,6 +82,7 @@ import { GearHud } from '../ui/GearHud';
 import { Hearts } from '../ui/Hearts';
 import { HitNotice } from '../ui/HitNotice';
 import { Hud } from '../ui/Hud';
+import { legendOf } from '../ui/legend';
 import { Minimap } from '../ui/Minimap';
 import { Overlay } from '../ui/Overlay';
 import { NameTags } from '../ui/NameTags';
@@ -914,9 +914,8 @@ export class Game {
       this.environment.setBounds(cls === 'asian-dragon' ? 'sky' : 'ground');
       this.classId = cls;
     }
+    this.hud.setKeys(legendOf(self));
     if (self.avatar !== this.look) {
-      // A look has its class's keys and those of its own moves.
-      this.hud.setKeys(cls, moveKeys(self.avatar));
       if (this.look) this.say(this.myId, 'enter');
       this.look = self.avatar;
       for (const id of VOICES[self.avatar].death ?? []) this.sfx.want(id);

@@ -2,21 +2,13 @@
 // the chat offers the commands it could be the start of (commands.ts), listed above the box with
 // the best nearest it: Up picks from the bottom, Down comes back, Enter or Tab (or a click) puts
 // the pick in the box, where Enter sends it as anything else.
-import {
-  MAX_CHAT_LENGTH,
-  MAX_HEARTS,
-  heartsOf,
-  type AvatarId,
-  type Element,
-  type ItemId,
-  type MoveKey,
-  type PlayerClass,
-} from '@world/shared';
+import { MAX_CHAT_LENGTH, MAX_HEARTS, heartsOf, type AvatarId, type Element, type ItemId } from '@world/shared';
 import { HEART, KNIFE, ROBOT, SKULL, pixelSvg } from './pixelIcons';
 
 import { IS_TOUCH } from '../input/touch';
 import { roomLink } from '../net/lobby';
 import { commandGroups, completionsOf, type Row } from './commands';
+import type { LegendCell } from './legend';
 
 const CHAT_LINES = 8;
 const CHAT_FADE_MS = 12_000;
@@ -308,26 +300,16 @@ export class Hud {
     this.crosshair.classList.toggle('target', on);
   }
 
-  // What you're holding and how to use it, or nothing.
-  // The key legend along the bottom, a cell to each key: the walker's is the page's own, with the
-  // keys its look's own moves add (`extra`) after the jump's; a dragon flies forward and roars.
-  setKeys(cls: PlayerClass, extra: MoveKey[] = []): void {
-    const el = this.legend;
-    this.walkerKeys ??= el.innerHTML;
-    if (cls === 'walker') el.innerHTML = this.walkerKeys;
-    else
-      el.replaceChildren(
-        keyCell(['W'], 'fly forward'),
-        keyCell(['A', 'S', 'D'], 'roar'),
-        keyCell([], 'Click select'),
-        keyCell(['Z'], 'toggle perspective'),
-        keyCell(['O'], 'fullscreen'),
-        keyCell(['Esc'], 'mouse'),
-      );
-    el.querySelector('#move-keys')?.replaceChildren(...extra.map(({ key, does }) => keyCell([key], does)));
+  // The key legend along the bottom (legend.ts), drawn again only when its cells change.
+  setKeys(cells: LegendCell[]): void {
+    const text = JSON.stringify(cells);
+    if (text === this.legendText) return;
+    this.legendText = text;
+    this.legend.replaceChildren(...cells.map(({ keys, does }) => keyCell(keys, does)));
   }
-  private walkerKeys: string | null = null;
+  private legendText = '';
 
+  // What you're holding and how to use it, or nothing.
   // `item` names what the hint is for: its text changes with the scope, but only a new item (or the
   // same one drawn again) starts the hint's time on touch over. An ice item's hint is frosted.
   setItemHint(text: string, stats = '', item = '', element: Element | null = null): void {
