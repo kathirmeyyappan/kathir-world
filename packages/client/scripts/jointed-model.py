@@ -6,6 +6,8 @@ Jointed.ts) from a rip of the character's model, unpacked into a folder:
     python packages/client/scripts/jointed-model.py luigi path/to/Luigi
     python packages/client/scripts/jointed-model.py wario path/to/Wario
     python packages/client/scripts/jointed-model.py waluigi path/to/Waluigi
+    python packages/client/scripts/jointed-model.py peach path/to/Peach
+    python packages/client/scripts/jointed-model.py daisy path/to/Daisy
 
 A rip is the character's own model in Collada (<name>.dae): a body and a face skinned over a rig of
 34 joints (a hip the legs hang from by a knee and a foot, two joints of spine, a head with its cap,
@@ -66,8 +68,9 @@ BONES: tuple[tuple[str, str], ...] = (
     ("footR", "FootR"),
 )
 # Bones only some rigs have, after the rest: what hangs off a body and moves by itself (Jointed.ts
-# `SoftBone`). Peach's skirt is three rings down from her hips, and her ponytail three joints back
-# from her head.
+# `SoftBone`). Peach's skirt and Daisy's are three rings down from the hips, and Peach's ponytail
+# three joints back from her head. Daisy's hair has the first of those alone, for the flicks at its
+# ends: a bone nothing moves, which keeps them out of what is measured as her head.
 SOFT: tuple[tuple[str, str], ...] = (
     ("skirt1", "Skirt1"),
     ("skirt2", "Skirt2"),
@@ -100,6 +103,7 @@ CHARACTERS = {
     "wario": Character("Wario", "Mario Kart 8", 2.2),
     "waluigi": Character("Waluigi", "Mario Kart 8", 3.1),
     "peach": Character("Peach", "Mario Kart 8", 2.5),
+    "daisy": Character("Daisy", "Mario Kart 8", 2.4),
 }
 
 
@@ -173,11 +177,11 @@ def main(name: str, folder: str) -> None:
     rip = Path(folder)
     out = CLIENT / f"src/render/avatars/{name}Model.ts"
     texture_out = CLIENT / f"public/assets/textures/avatars/{name}.png"
-    doc = ET.parse(rip / f"{name}.dae").getroot()
-
-    # An image is named as the ripper's machine had it: the file of that name in the rip's folder,
+    # A file is named as the ripper's machine had it: the one of that name in the rip's folder,
     # whatever its path and case.
     files = {file.name.lower(): file.name for file in rip.iterdir()}
+    doc = ET.parse(rip / files[f"{name}.dae"]).getroot()
+
     images = {
         image.get("id"): files[Path(image.findtext(f"{NS}init_from") or "").name.lower()]
         for image in doc.iter(f"{NS}image")

@@ -22,6 +22,7 @@ export const GAITS: Record<AvatarId, GaitSpec | null> = {
   luigi: { stride: 2, steps: 'thuds', pitch: 1, crawl: 0.8 },
   wario: { stride: 1.7, steps: 'thuds', pitch: 0.85, crawl: 0.65 }, // short legs under a heavy body
   peach: { stride: 2.8, steps: 'thuds', pitch: 1.25, crawl: 1.1 }, // her walk about as fast as its clip was drawn: unhurried, light on her feet
+  daisy: { stride: 2.7, steps: 'thuds', pitch: 1.25, crawl: 1.05 }, // Peach's walk on legs a little shorter
   waluigi: { stride: 2.8, steps: 'thuds', pitch: 0.95, crawl: 2.1 }, // legs twice Mario's: long steps
   spongebob: { stride: 2.3, steps: { bar: ['squeak-1', 'squeak-2', 'squeak-3', 'squeak-4'] }, pitch: 1.05 }, // high, low, high, low
   patrick: { stride: 2.6, steps: 'thuds', pitch: 0.9 },

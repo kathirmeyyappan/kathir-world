@@ -17,6 +17,7 @@ export type AvatarId =
   | 'wario'
   | 'waluigi'
   | 'peach'
+  | 'daisy'
   | 'spongebob'
   | 'patrick'
   | 'krabs'
@@ -224,6 +225,20 @@ const LOOKS = {
     command: 'peach',
     eye: 2.1,
     hitbox: { top: 2.5, radius: 0.5, head: 0.65 },
+    walk: 7,
+    jump: 1.3,
+    ...SM64_MOVES,
+    float: { seconds: 3, sink: 0.4 },
+  },
+  daisy: {
+    id: 'daisy',
+    class: 'walker',
+    item: null,
+    regen: false,
+    blurb: 'become daisy',
+    command: 'daisy',
+    eye: 2.0,
+    hitbox: { top: 2.4, radius: 0.5, head: 0.6 }, // a tenth shorter than Peach, as their models stand
     walk: 7,
     jump: 1.3,
     ...SM64_MOVES,

@@ -62,6 +62,15 @@ export const VOICES: Record<AvatarId, Voice> = {
     kill: ['peach-kill-1', 'peach-kill-2'],
     death: ['mario-death'],
   },
+  // As Peach, the swoosh for her first jump.
+  daisy: {
+    enter: ['daisy-enter'],
+    jump: ['jump', 'daisy-jump-2', 'daisy-jump-3'],
+    leap: ['daisy-leap-1', 'daisy-leap-2'],
+    hurt: ['daisy-hurt-1', 'daisy-hurt-2'],
+    kill: ['daisy-kill-1', 'daisy-kill-2'],
+    death: ['mario-death'],
+  },
   waluigi: {
     enter: ['waluigi-enter', 'waluigi-kill-3'],
     jump: ['mario-jump-1', 'waluigi-jump-2', 'waluigi-jump-3'],
