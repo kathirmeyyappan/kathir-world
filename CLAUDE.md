@@ -682,8 +682,10 @@ with LAME (ffmpeg's `libmp3lame`), whose header the browsers' decoders read to t
 so the loop and the join from its intro are gapless; check a new one decodes to its exact sample
 count before trusting it. A new class is a spec
 and its sim in a file of its own, a case in `PlayerClass`, and a row in `CLASSES`; nothing else
-has to know it exists, except the client's `createAvatar` for how it's drawn and `VIEWS`
-(`game/View.ts`) for how it's seen. Every dragon is drawn by `render/avatars/Dragon.ts`: its model
+has to know it exists, except the client's `createAvatar` for how it's drawn, `VIEWS`
+(`game/View.ts`) for how it's seen, and `BOARDS` (`ui/legend.ts`) for the key legend along the
+bottom, a board of cells read off the player's state every frame (a walker's swaps to the climb's
+keys on a ladder, keeping only the look's moves that work there). Every dragon is drawn by `render/avatars/Dragon.ts`: its model
 puts a bone at the eyes, one wherever it needs on the spine (`along` metres behind the eyes) and
 one hung on another for a part that moves on its own (the jaw; a wing, hung at its shoulder and
 listed in `wings`, which the renderer beats, each pair behind the one before), and the

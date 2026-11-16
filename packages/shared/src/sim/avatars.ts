@@ -523,6 +523,7 @@ interface MoveHelp {
 export interface MoveKey {
   key: string; // as the legend names it
   does: string;
+  climbing: boolean; // whether it works on a ladder, where the legend shows only those that do
 }
 const MOVE_HELP: Record<Exclude<keyof Moves, 'walk' | 'jump'>, MoveHelp | null> = {
   leap: { keys: '[Shift] + [Space] to long jump', touch: 'run + [JUMP] to long jump' },
@@ -531,12 +532,12 @@ const MOVE_HELP: Record<Exclude<keyof Moves, 'walk' | 'jump'>, MoveHelp | null> 
   crouch: {
     keys: 'hold [X] to crouch, and [Space] from it to backflip',
     touch: '[CROUCH] to crouch, and [JUMP] from it to backflip',
-    key: { key: 'X', does: 'crouch' },
+    key: { key: 'X', does: 'crouch', climbing: false },
   },
   strike: {
     keys: '[X] to swing the bat',
     touch: '[BAT] to swing the bat',
-    key: { key: 'X', does: 'swing the bat' },
+    key: { key: 'X', does: 'swing the bat', climbing: true },
   },
   float: { keys: 'hold [Space] in the air to float', touch: 'hold [JUMP] in the air to float' },
 };
