@@ -57,7 +57,9 @@ class Piece:
     takes: its top, its bottom, the end nearest the body's middle from side to side (`inner`, an arm
     held straight out), under that end where it comes out of the side of the torso (`armpit`, an
     arm whose root is sunk in a wide trunk, so hung down it hangs beside the trunk rather than in
-    it) or its front (a tail)."""
+    it) or its front (a tail). With `blend`, it fades in from its node's bone between those shares
+    of the model's height out from the body's middle, so a limb sunk in the trunk bends out of it,
+    never opening a gap between them as a hinge would."""
 
     node: Joint
     x: int = 0
@@ -65,6 +67,7 @@ class Piece:
     y: tuple[float, float] | None = None
     off: float = 0
     end: str = "top"
+    blend: tuple[float, float] | None = None
 
 
 @dataclass(frozen=True)
@@ -282,8 +285,8 @@ MODELS = {
         (
             ("body", 2),
             ("head", Piece(2, y=(0.58, 0.88), end="bottom")),
-            ("armL", Piece(2, x=-1, y=(0.3, 0.58), off=0.1, end="armpit")),
-            ("armR", Piece(2, x=1, y=(0.3, 0.58), off=0.1, end="armpit")),
+            ("armL", Piece(2, x=-1, y=(0.3, 0.58), off=0.1, end="armpit", blend=(0.12, 0.2))),
+            ("armR", Piece(2, x=1, y=(0.3, 0.58), off=0.1, end="armpit", blend=(0.12, 0.2))),
             ("legL", Piece(2, x=-1, y=(0, 0.25))),
             ("legR", Piece(2, x=1, y=(0, 0.25))),
             ("tail", Piece(2, z=-1, off=0.15, end="front")),
@@ -489,8 +492,13 @@ def main(name: str, glb: str) -> None:
                 assert len(bones) <= 1, f"node {index}: a piece at x {x:.2f}, z {-z:.2f} is {len(bones)} bones"
                 if not bones:
                     continue
-                folded[vertices] = 0
-                folded[vertices, bones[0]] = 1
+                piece = dict(limbs)[bones[0]]
+                share = np.ones(len(vertices))
+                if piece.blend:
+                    across = abs(posed[vertices, 0] - hip[0]) / tall
+                    share = np.clip((across - piece.blend[0]) / (piece.blend[1] - piece.blend[0]), 0, 1)
+                folded[vertices] *= (1 - share)[:, None]
+                folded[vertices, bones[0]] += share
                 for i, lower in lowers.get(bones[0], []):
                     ys = posed[vertices, 1]
                     height = ys.max() - ys.min()
@@ -585,7 +593,9 @@ def main(name: str, glb: str) -> None:
     for bone, ref in model.bones:
         if bone not in model.hinges and bone not in model.necks and not isinstance(ref, (Piece, Lower)):
             continue
-        own = posed[order[:, 0] == bone_names.index(bone)]
+        # A piece blended into its node is all it moves, however little; anything else what it moves most.
+        blended = isinstance(ref, Piece) and ref.blend
+        own = posed[folded[:, bone_names.index(bone)] > 0 if blended else order[:, 0] == bone_names.index(bone)]
         # Along which axis its end is, and which way along it: up, down, toward the body's middle, ahead.
         turns_on = "bottom" if bone in model.necks else ref.end if isinstance(ref, Piece) else "top"
         axis = {"top": 1, "bottom": 1, "inner": 0, "armpit": 0, "front": 2}[turns_on]
