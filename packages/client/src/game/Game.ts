@@ -871,6 +871,7 @@ export class Game {
     const avatar = createAvatar(this.engine, p);
     avatar.hide();
     this.avatars.set(p.id, avatar);
+    this.wantVoice(p.avatar, false);
   }
 
   private frame(dt: number): void {
