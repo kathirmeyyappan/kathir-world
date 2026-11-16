@@ -16,6 +16,16 @@ Babylon.js multiplayer 3D playground. `packages/shared` is the pure sim + protoc
   changes, edit the source and re-render the PNG with headless Chromium at 2x (a 1560 px viewport,
   `deviceScaleFactor: 2`, full page).
 
+## Writing for the long run
+
+Write each change as if the code had been designed with it in mind from the start, not patched to
+fit. When a fix or a feature doesn't fit the shape of the code, reshape the code (rename, split, or
+merge two mechanisms that do the same job) rather than add a special case beside it, and leave each
+file you touch at least as clear as you found it. Keep one mechanism per job: before adding a second
+way to load, cache, register or configure something, extend the first. Prefer a name and a type
+that say what a thing is over a comment that explains a confusing one. If doing it properly is much
+bigger than what was asked, do the targeted change and say what the proper one would be.
+
 ## Formatting and type checks
 
 CI fails on any of these, so run them before pushing:
@@ -65,16 +75,16 @@ connection and memory as much as a desktop's. Joining the world today fetches ab
 anything that can wait off the path everyone pays:
 
 - Code is one chunk (1.15 MB gzipped), mostly the engine. A dynamic `import()` takes something out
-  of it, as the dragons' models are (560 KB, fetched when the page is idle) and every look drawn
-  from a model is (below).
+  of it, as every look's model is (below).
 - Anything heavy that stands somewhere (a model's parts, a region's meshes) registers with
   `render/Loader.ts` and arrives nearest first.
-- A look drawn from a model (its builder, mesh and own clips, 15 to 60 KB of code, and its atlas,
-  about 100 KB) is a chunk of its own in `LOOKS` (`render/avatars/index.ts`), fetched the first time
-  someone is seen wearing it, as a skin's command is pointed at or sent, or as it's picked on the
-  home screen. Until it's here the player keeps the body they had (the standard body where that
-  was a dragon, or for someone first seen in it), so the look's cost is paid only by the clients
-  that meet it. The dragons' atlases (1.2 MB) are fetched when the page is idle.
+- A look's files (its model, 15 to 60 KB of code on foot and 260 to 300 KB a dragon, and its
+  atlases, about 100 KB on foot and 600 KB a dragon) are fetched the first time someone is seen
+  wearing it, as a skin's command is pointed at or sent, or as it's picked on the home screen
+  (`LOOKS` and `wantLook` in `render/avatars/index.ts`), so a look's cost is paid only by the
+  clients that meet it. Until a look on foot is here the player keeps the body they had (the
+  standard body where that was a dragon, or for someone first seen in it); a dragon rises and roars
+  at once and its body fills in as it lands.
 - A sound is fetched by everyone up front unless it's `lazy` in `SOUNDS` (`Sfx.soon`, `Sfx.want`).
   Every look's voice is lazy: an intro is fetched as it's said within earshot, and a look's jumps,
   long jumps, hurts and kills (with its death for its own player) as it's first seen worn

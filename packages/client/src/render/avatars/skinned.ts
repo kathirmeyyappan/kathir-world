@@ -102,15 +102,15 @@ export class SkinnedBody<B extends string> {
   }
 }
 
-// An avatar's atlas (public/assets/textures/avatars/<id>.png), sampled nearest like the world's
+// A look's atlas, or its glow atlas (what shines on it in the dark), by file name.
+export type AtlasName = AvatarId | `${AvatarId}-glow`;
+
+// An avatar's atlas (public/assets/textures/avatars/<name>.png), sampled nearest like the world's
 // textures; glTF texture coordinates run down the image, so it isn't flipped on load. Fetched once a
 // scene: Babylon hands later askers the texture already loaded, so a look whose atlas was sent for
-// ahead (index.ts `wantLook`) goes on without a wait. `done` is called once it has loaded or failed.
-export function skinTexture(
-  scene: Engine['scene'],
-  avatar: AvatarId | `${AvatarId}-glow`,
-  done: (() => void) | null = null,
-): Texture {
+// ahead (index.ts `wantLook`) is drawn painted from its first frame. `done` is called once it has
+// loaded or failed.
+export function skinTexture(scene: Engine['scene'], avatar: AtlasName, done: (() => void) | null = null): Texture {
   const url = `/assets/textures/avatars/${avatar}.png`;
   return new Texture(url, scene, false, false, Texture.NEAREST_NEAREST_MIPLINEAR, done, done);
 }

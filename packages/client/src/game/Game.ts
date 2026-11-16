@@ -58,7 +58,7 @@ import { IS_TOUCH, onTap } from '../input/touch';
 import type { Connection } from '../net/Connection';
 import { Interpolation, type RemotePlayer } from '../net/Interpolation';
 import { Prediction } from '../net/Prediction';
-import { createAvatar, preloadAvatars, wantLook, type Avatar } from '../render/avatars';
+import { createAvatar, wantLook, type Avatar } from '../render/avatars';
 import { CubeMesh } from '../render/CubeMesh';
 import { Engine } from '../render/Engine';
 import { Environment } from '../render/Environment';
@@ -267,7 +267,6 @@ export class Game {
     buildStructures(this.engine, WORLD_STRUCTURES.list, this.loader);
     this.frost = new FrostLayer(this.engine, WORLD_STRUCTURES.list);
     this.models = new Models(this.engine, this.loader);
-    preloadAvatars(this.engine);
     this.wallFrames = new WallFrames(this.engine, WALL_FRAMES);
     this.camera = new UniversalCamera('camera', new Vector3(0, 1.7, 0), this.engine.scene);
     this.camera.minZ = NEAR;
