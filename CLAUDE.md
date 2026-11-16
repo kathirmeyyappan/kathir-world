@@ -474,7 +474,14 @@ builder makes the avatar's parts under the base node and says which plays which 
 with the look, a head, the legs, the free arm, the weapon arm with its grip and the way it reaches
 in the model) and the numbers its walk takes (swings, bob, sway, how it lies dead), and
 `WalkerAvatar` poses every figure the same way: standing, walking, aiming what it holds, falling,
-climbing a ladder and lying dead. Motion is written there once, for all of them, and an avatar's
+climbing a ladder and lying dead. Empty-handed the body turns to face the way it's going (the look
+only turns its head) and stays facing that way when it stops; with something to aim it faces its
+look, so the aim shows. It watches how it moves from where it's drawn, which for a player's own
+body is a sim tick at a time, on whichever frames the ticks fall, with a hair of drift on every
+frame between as its prediction's correction dies away. So nothing is read from a speed taken
+frame to frame (it comes out zero and double by turns, and a pose hung on it flickers): the
+heading is taken over the time since the body last moved by more than that drift, and in the air
+only which way it last moved is read, up or down. Motion is written there once, for all of them, and an avatar's
 own touches (a tail, a twitch, feet that lift) are its `extra` hook. A body that differs by a
 number (how far a leg swings, a two-part tentacle, no legs at all) is still a figure; one that
 differs by a rule (a sidestep, a slither, tentacles wrapping the rungs) extends `WalkerAvatar` and
@@ -510,16 +517,10 @@ in the air through a float) and a few numbers; the frame's pose is those sampled
 point in the stride its feet have got to (the footsteps' phase, so feet land with their sounds,
 and the stride is the same at any speed, the legs only quicker), the jump going up into the fall
 coming down, and a landing as hard as the drop. Don't invent a character's motion from numbers:
-it reads as wrong however it's tuned. Find its clips. Empty-handed the body turns to face the way
-it's going (the look only turns its head), leaning into the turn by the style's `bank`, and stays
-facing that way when it stops; with something to aim it faces its look, its hips turned toward
-the way its feet go and its chest back, running the stride backward past a point. It watches how
-it moves from where it's drawn, which for a player's own body is a sim tick at a time, on
-whichever frames the ticks fall, with a hair of drift on every frame between as its prediction's
-correction dies away. So nothing is read from a speed taken frame to frame (it comes out zero and
-double by turns, and a pose hung on it flickers): the heading is taken over the time since the
-body last moved by more than that drift, in the air only which way it last moved is read, up or
-down, and a landing's weight is the drop from its highest point. Every change of pose runs from
+it reads as wrong however it's tuned. Find its clips. The walker turns the body as it does any
+figure's, and the jointed body leans into the turn by the style's `bank`; with something to aim,
+its hips turn toward the way its feet go and its chest back, running the stride backward past a
+point. A landing's weight is the drop from its highest point. Every change of pose runs from
 rest to rest over a few frames, never snapped. The poses no clip covers (on a ladder, lying dead)
 are written as a `BodyPose` (`render/avatars/motion.ts`), which the rig solves, bending each leg
 to put its foot where the pose says; on a ladder each fist and foot is put on a rung of it

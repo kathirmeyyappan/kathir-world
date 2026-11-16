@@ -18,9 +18,19 @@ import { smooth } from './motion';
 
 export const RUNG = 0.3; // metres between a ladder's rungs (render/Structures.ts)
 const SWING_HALF_LIFE = 0.08; // seconds: the swing round a ladder is mostly over in a third of a second
-const HEAD_TURN = 1.2; // radians a head may turn from the body: on a ladder, or standing empty-handed
-const EASE_TURN = 0.12; // seconds an empty-handed body takes to come round to its look once it walks
-const STANDING = 0.1; // m/s of walk under which an empty-handed body keeps the way it faces
+export const HEAD_LIMIT = 1.2; // radians a head may turn from the way the body faces
+// A head turns to the look while the look is within HEAD_GIVES_UP radians of the way the body
+// faces, less and less over the last HEAD_FADE of that: running back toward the eye, it looks ahead.
+const HEAD_GIVES_UP = 2.4;
+const HEAD_FADE = 0.8;
+const EASE_TURN = 0.12; // seconds a body takes to come round to face the way it's going
+const EASE_AIM = 0.06; // and to face its look, with something in its hand to aim
+export const MOVING = 0.4; // m/s across the floor that is going somewhere: under it the body keeps the way it had
+// Metres that is moving: a player's own body drifts by less on every frame, as its prediction's
+// correction dies away, and that isn't a step of the sim.
+const MOVED = 1e-3;
+const STILL = 0.1; // seconds without moving that is standing still, not waiting on the sim's next tick
+const JUMPED = 3; // metres moved at once that can only be a respawn or a correction
 const ARM_TURN = Math.PI / 2; // radians the weapon arm may turn from the body there: as far as the look is held
 // Climbing: radians the legs are bent at the hip, and swing from there for each rung a foot is from
 // the middle of its step; and the elevation of a hand's reach up the rungs, and its swing a rung.
@@ -104,9 +114,15 @@ export class WalkerAvatar implements Avatar {
   protected rungsAhead = 0; // metres from the body to the middle of the ladder's rungs
   private held: RemotePlayer['climb'] = null; // the ladder face last seen held
   private swing = 0; // radians the body has still to turn round the ladder after a swap
-  private heading: number | null = null; // the way the body faces on foot, radians in the world; none until drawn
+  protected facing = 0; // the way the body faces, radians in the world: the root's yaw
+  protected turn = 0; // radians the body came round by this frame, on foot
+  protected velX = 0; // m/s across the floor, in the world, as it last moved
+  protected velZ = 0;
+  protected sinking = false; // whether it last moved down
+  protected stood = 0; // seconds it has been drawn
+  private drawn: number | null = null; // when it was last drawn, seconds
+  private last: { x: number; y: number; z: number; at: number } | null = null; // where it last moved to, and when
   private dead = false;
-  private lastNow = performance.now();
   readonly color?: string;
 
   constructor(
@@ -133,11 +149,13 @@ export class WalkerAvatar implements Avatar {
   }
 
   update(p: RemotePlayer, step: number): void {
-    const now = performance.now();
-    const dt = Math.min(0.1, (now - this.lastNow) / 1000);
-    this.lastNow = now;
+    const now = performance.now() / 1000;
+    const dt = this.drawn === null ? 0 : Math.min(0.1, now - this.drawn);
+    this.drawn = now;
+    this.stood += dt;
     this.hitFlash.update(p.chilled);
     const feetY = p.y - EYE_HEIGHT;
+    this.watch(p, feetY, now);
     const pose = p.climb && !p.dead ? this.climb(p, feetY, dt) : this.walk(p, feetY, step, dt);
     if (p.dead) this.lie();
     this.dead = p.dead;
@@ -149,19 +167,19 @@ export class WalkerAvatar implements Avatar {
 
   // On the ground or in the air: the legs swing with the stride and the arms against them, the
   // body rising and rocking with it, the weapon arm pointed along the look while holding an item.
-  // Holding one the body faces its look, which gives away its aim; empty-handed it keeps the way it
-  // faces while it stands, only its head turning to look about, and comes round to the look as it
-  // walks.
+  // Empty-handed the body turns to face the way it's going and stays facing that way when it stops,
+  // the head turning to the look; with something to aim it faces its look, which gives the aim away.
   protected walk(p: RemotePlayer, feetY: number, step: number, dt: number): Pose {
     const f = this.figure;
     this.held = null;
     this.swing = 0;
     this.root.position.set(p.x, feetY, p.z);
-    const free = !p.item && !p.dead;
-    if (this.heading === null || p.item) this.heading = p.yaw;
-    else if (free && p.walk > STANDING)
-      this.heading = wrap(this.heading + wrap(p.yaw - this.heading) * (1 - Math.exp((-3 * dt) / EASE_TURN)));
-    this.root.rotation.set(0, this.heading, 0);
+    const armed = p.item !== null;
+    const going = Math.hypot(this.velX, this.velZ) > MOVING;
+    const want = p.dead ? this.facing : armed ? p.yaw : going ? Math.atan2(this.velX, this.velZ) : this.facing;
+    this.turn = wrap(want - this.facing) * (1 - Math.exp((-3 * dt) / (armed ? EASE_AIM : EASE_TURN)));
+    this.facing = wrap(this.facing + this.turn);
+    this.root.rotation.set(0, this.facing, 0);
     const airborne = !p.grounded;
     this.gait.update(p.walk / walkSpeedOf(this.kind), airborne, step);
     const { phase, effort } = this.gait;
@@ -185,7 +203,8 @@ export class WalkerAvatar implements Avatar {
     this.base.position.set(0, airborne ? 0 : Math.abs(Math.sin(phase)) * f.bob * effort, 0);
     (f.rock ?? this.base).rotation.z = airborne ? 0 : Math.sin(phase) * (f.sway ?? 0) * effort;
     if (f.tilt) f.tilt.node.rotation.x = p.pitch * f.tilt.follow;
-    if (f.head) f.head.rotation.y = free ? clamp(wrap(p.yaw - this.heading), HEAD_TURN) : 0;
+    const off = wrap(p.yaw - this.facing);
+    if (f.head) f.head.rotation.y = p.dead ? 0 : clamp(off, HEAD_LIMIT) * headShare(off);
     if (p.item && !p.dead) this.aim(p);
     else {
       hang(f.armR.node);
@@ -218,9 +237,9 @@ export class WalkerAvatar implements Avatar {
     const sin = Math.sin(this.swing);
     this.root.position.set(line.x + dx * cos + dz * sin, feetY, line.z - dx * sin + dz * cos);
     this.root.rotation.y = facing + this.swing;
-    this.heading = facing;
+    this.facing = facing;
     this.root.rotation.x = -hold.side * lean;
-    if (f.head) f.head.rotation.y = clamp(wrap(p.yaw - facing), HEAD_TURN);
+    if (f.head) f.head.rotation.y = clamp(wrap(p.yaw - facing), HEAD_LIMIT);
     if (f.tilt) f.tilt.node.rotation.x = p.pitch * f.tilt.follow;
     this.base.rotation.set(0, 0, 0);
     this.base.position.set(0, 0, 0);
@@ -288,6 +307,34 @@ export class WalkerAvatar implements Avatar {
     UNDO.multiplyToRef(HAND, (grip.rotationQuaternion ??= new Quaternion()));
   }
 
+  // How the body has moved since it last did: its speed across the floor, and whether it went up
+  // or down. A body isn't moved every frame (a player's own is moved a sim tick at a time, on
+  // whichever frames the ticks fall, and between them only drifts a hair as its correction dies
+  // away), so its speed across is taken over the time since it last moved by MOVED, which gives its
+  // heading true and its size roughly, and nothing here is read from how fast it rises or falls,
+  // only which. It's standing still only after STILL without moving.
+  private watch(p: RemotePlayer, feetY: number, now: number): void {
+    const last = this.last;
+    if (!last) {
+      this.last = { x: p.x, y: feetY, z: p.z, at: now };
+      this.facing = p.yaw;
+      return;
+    }
+    const dx = p.x - last.x;
+    const dy = feetY - last.y;
+    const dz = p.z - last.z;
+    const since = now - last.at;
+    if (Math.hypot(dx, dy, dz) < MOVED && since < STILL) return;
+    last.x = p.x;
+    last.y = feetY;
+    last.z = p.z;
+    last.at = now;
+    if (since <= 0 || Math.hypot(dx, dy, dz) > JUMPED) return;
+    this.velX = dx / since;
+    this.velZ = dz / since;
+    if (Math.abs(dy) > MOVED) this.sinking = dy < 0;
+  }
+
   flash(): void {
     this.hitFlash.trigger();
   }
@@ -312,6 +359,12 @@ export class WalkerAvatar implements Avatar {
   corpse(): Vector3 | null {
     return this.dead && this.root.isEnabled() ? centreOf(this.base) : null;
   }
+}
+
+// The share of its turn toward the look a head takes, with the look `off` radians from the way the
+// body faces.
+export function headShare(off: number): number {
+  return smooth((HEAD_GIVES_UP - Math.abs(off)) / HEAD_FADE);
 }
 
 // Scratch for the frame's arithmetic, shared by every walker: none of it survives a call.
