@@ -492,7 +492,8 @@ body is a sim tick at a time, on whichever frames the ticks fall, with a hair of
 frame between as its prediction's correction dies away. So nothing is read from a speed taken
 frame to frame (it comes out zero and double by turns, and a pose hung on it flickers): the
 heading is taken over the time since the body last moved by more than that drift, and in the air
-only which way it last moved is read, up or down. Motion is written there once, for all of them, and an avatar's
+only which way it last moved is read, up or down. A body dying leaps `DEATH_LEAP` of its height and goes
+over in the air, landing as it lies (`WalkerAvatar.lie`); one first seen dead just lies. Motion is written there once, for all of them, and an avatar's
 own touches (a tail, a twitch, feet that lift) are its `extra` hook. A body that differs by a
 number (how far a leg swings, a two-part tentacle, no legs at all) is still a figure; one that
 differs by a rule (a sidestep, a slither, tentacles wrapping the rungs) extends `WalkerAvatar` and
@@ -524,7 +525,8 @@ somersault fitted to the flight so it's over just before the landing, and `pound
 `pounded`, a ground pound turning over into the seat it drops in, then landing sat and getting
 up, and `crouch`, `crawl` and `backflip`, sat low, a cycle of the crawl's limbs, and the backward
 somersault of the jump out of it, fitted to its flight as the triple's is, and `float`, hanging
-in the air through a float) and a few numbers; the frame's pose is those sampled and blended: the idle into the walk or run at the
+in the air through a float, and `die`, dying where it stands, played once and held where it leaves
+the body, in the leap's place: the game's own reel and fall, which Mario's whole family plays) and a few numbers; the frame's pose is those sampled and blended: the idle into the walk or run at the
 point in the stride its feet have got to (the footsteps' phase, so feet land with their sounds,
 and the stride is the same at any speed, the legs only quicker), the jump going up into the fall
 coming down, and a landing as hard as the drop. Don't invent a character's motion from numbers:

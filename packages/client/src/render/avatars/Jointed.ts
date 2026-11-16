@@ -135,7 +135,7 @@ export interface JointedModel extends SkinnedModel<JointedBone> {
 
 // The clips only a look with the move has.
 type Moves =
-  'leap' | 'pound' | 'pounded' | 'double' | 'doubleFall' | 'triple' | 'crouch' | 'crawl' | 'backflip' | 'float';
+  'leap' | 'pound' | 'pounded' | 'double' | 'doubleFall' | 'triple' | 'crouch' | 'crawl' | 'backflip' | 'float' | 'die';
 
 // How a character moves: its clips, and the few numbers round them.
 export interface Style {
@@ -162,6 +162,9 @@ export interface Style {
     crawl?: RawClip;
     backflip?: RawClip;
     float?: RawClip; // a float (sim/avatars.ts `Float`): held up in the air, looped
+    // Dying where it stands, played once and held at its end, where it lies. A body without one
+    // goes over in the walker's leap and lies as `dead` has it.
+    die?: RawClip;
   };
   flutter?: number; // strides a second its legs run on at in the air: a scuttle
   landSpeed: number; // m/s of fall that lands all the way into the landing's crouch
@@ -198,6 +201,7 @@ const LAND_IN = 0.05; // seconds a landing takes to drop into its crouch
 const SPARKLES_ACROSS = 0.7;
 const SPARKLES_UP = 0.15;
 const FLOAT_SECONDS = 0.2; // seconds it takes to settle into a float, and to drop out of one
+const DIE_IN = 0.15; // seconds it takes to go from whatever it was doing into its dying
 const CROUCH_SECONDS = 0.15; // seconds it takes to sink into a crouch, and to rise out of one
 const EASE_DIRECTION = 0.09; // seconds its stride takes to come round to a new way of going
 const EASE_KICKING = 0.15; // seconds its legs take to stop fluttering as a jet takes its weight, and to start again
@@ -316,6 +320,7 @@ export class JointedAvatar extends WalkerAvatar {
       crawl: raw.crawl ? clip(raw.crawl) : null,
       backflip: raw.backflip ? clip(raw.backflip) : null,
       float: raw.float ? clip(raw.float) : null,
+      die: raw.die ? clip(raw.die) : null,
     };
     const chain = chainOf(kind);
     const third = jumpVelocityOf(kind) * Math.sqrt((chain?.rise ?? 1) ** 2);
@@ -519,8 +524,18 @@ export class JointedAvatar extends WalkerAvatar {
   }
 
   protected override lie(): void {
-    super.lie();
-    this.rig.apply(this.style.dead);
+    const { die } = this.clips;
+    if (!die) {
+      super.lie();
+      this.rig.apply(this.style.dead);
+      return;
+    }
+    // The clip takes the body over itself, from standing where it stood.
+    this.base.rotation.set(0, 0, 0);
+    this.base.position.set(0, 0, 0);
+    sample(this.third, die, this.gone / die.seconds, false);
+    blend(this.out, this.out, this.third, smooth(this.gone / DIE_IN));
+    this.rig.play(this.out, 0, 0, 0, 0, 0);
   }
 
   // With something in its hand, the weapon arm, straight, along the look.

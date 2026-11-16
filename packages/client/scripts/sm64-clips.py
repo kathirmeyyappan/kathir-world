@@ -86,6 +86,8 @@ CLIPS = {
     "crouch": Clip("152 - Crouching", 0, 89, 6),
     "crawl": Clip("153 - Crawling", 86, 91, 2, then=(("153 - Crawling", 0, 85),)),
     "backflip": Clip("4 - Backflip", 0, 32),
+    # Dying where it stands: reeling, then over onto its back, where its last frame leaves it.
+    "die": Clip("50 - Dying fall over", 0, 94, 2),
 }
 
 
