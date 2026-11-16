@@ -1,4 +1,4 @@
-// Sandy Cheeks: 2.2 m of squirrel in her air suit, from Cheryl Hill's Battle for Bikini Bottom
+// Sandy Cheeks: 2.85 m of squirrel in her air suit, from Cheryl Hill's Battle for Bikini Bottom
 // Rehydrated model (sandyModel.ts, made by scripts/avatar-model.py), skinned over seven bones: the
 // suit, her head inside the helmet, the arms, the legs and the tail. The helmet is glass, which the
 // model leaves out and this draws: a clear dome on the suit, the flower on top of it, her head
@@ -14,7 +14,7 @@ const LEG_SWING = 0.7; // radians each way at a full-speed walk
 const AIR_LEGS = 0.4;
 const ARM_SWING = 0.6;
 const ARMS_DOWN = 1.25; // the model holds her arms straight out
-const BOB = 0.05; // metres the body rises mid-stride
+const BOB = 0.065; // metres the body rises mid-stride
 const HEAD_FOLLOW = 0.5; // how much of the look's pitch the head takes
 const TAIL_SWAY = 0.18; // radians each way, all the time
 const TAIL_SWAY_MS = 1400;
@@ -78,7 +78,7 @@ export function buildSandy(engine: Engine, id: string, base: TransformNode): Fig
     armR: { node: armR, grip, reach },
     back: { node: body, at: skin.offset('body', SANDY_MODEL.back) },
     materials: [skin.material],
-    shadow: 1.2,
+    shadow: 1.55,
     legSwing: LEG_SWING,
     airLegs: AIR_LEGS,
     armSwing: ARM_SWING,
