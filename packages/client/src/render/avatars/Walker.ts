@@ -8,7 +8,7 @@
 // of its own in one of them (a sidestep, a slither, tentacles wrapping the rungs) extends
 // WalkerAvatar and overrides that phase, keeping the rest. The dragon is its own class (Dragon.ts).
 import { Matrix, Mesh, Quaternion, StandardMaterial, TransformNode, Vector3 } from '@babylonjs/core';
-import { EYE_HEIGHT, WORLD_STRUCTURES, walkSpeedOf, type AvatarId } from '@world/shared';
+import { AVATARS, EYE_HEIGHT, GRAVITY, WORLD_STRUCTURES, walkSpeedOf, type AvatarId } from '@world/shared';
 import type { RemotePlayer } from '../../net/Interpolation';
 import type { Engine } from '../Engine';
 import { centreOf, createShadowBlob, Gait, placeShadow, type Avatar } from './common';
@@ -31,6 +31,7 @@ export const MOVING = 0.4; // m/s across the floor that is going somewhere: unde
 const MOVED = 1e-3;
 const STILL = 0.1; // seconds without moving that is standing still, not waiting on the sim's next tick
 const JUMPED = 3; // metres moved at once that can only be a respawn or a correction
+const DEATH_LEAP = 2 / 3; // of its height: how high a body leaps as it dies, going over in the air
 const ARM_TURN = Math.PI / 2; // radians the weapon arm may turn from the body there: as far as the look is held
 // Climbing: radians the legs are bent at the hip, and swing from there for each rung a foot is from
 // the middle of its step; and the elevation of a hand's reach up the rungs, and its swing a rung.
@@ -123,6 +124,9 @@ export class WalkerAvatar implements Avatar {
   private drawn: number | null = null; // when it was last drawn, seconds
   private last: { x: number; y: number; z: number; at: number } | null = null; // where it last moved to, and when
   private dead = false;
+  protected gone = Infinity; // seconds since it was seen to die: forever for one first seen dead
+  protected crashed = false; // whether a fall killed it
+  private readonly leap: number; // metres its dying leap rises
   readonly color?: string;
 
   constructor(
@@ -139,6 +143,7 @@ export class WalkerAvatar implements Avatar {
     this.figure = build(engine, id, this.base, color);
     const { armR, back, materials, shadow, itemScale, bend } = this.figure;
     this.color = this.figure.color;
+    this.leap = AVATARS[kind].hitbox.top * DEATH_LEAP;
     this.aimFrom = bend ? raised(armR.reach, bend) : armR.reach;
     this.hitFlash = new HitFlash(materials);
     const hold = armR.hold ?? Vector3.Zero();
@@ -157,7 +162,10 @@ export class WalkerAvatar implements Avatar {
     const feetY = p.y - EYE_HEIGHT;
     this.watch(p, feetY, now);
     const pose = p.climb && !p.dead ? this.climb(p, feetY, dt) : this.walk(p, feetY, step, dt);
-    if (p.dead) this.lie();
+    if (p.dead) {
+      this.gone = this.dead ? this.gone + dt : this.stood > 0 ? 0 : Infinity;
+      this.lie();
+    }
     this.dead = p.dead;
     this.figure.extra?.(p, pose);
     this.items.update(p);
@@ -257,28 +265,34 @@ export class WalkerAvatar implements Avatar {
     return { phase: this.gait.phase, effort: 0, climbing: true };
   }
 
-  // Dead: the base over onto its back or side, the limbs dropped.
+  // Dead: the base over onto its back or side, the limbs dropped. Dying, it gets there in a leap:
+  // up `leap` and down again as gravity has it, going over and letting its limbs go on the way, so
+  // it lands lying. The stride's pose, which `walk` has just struck, is what it goes over from.
   protected lie(): void {
     const f = this.figure;
     const { onto, height, shift = 0, legs = 0, arms = 0, head = 0 } = f.lie;
-    if (f.tilt) f.tilt.node.rotation.x = 0;
-    if (f.head) f.head.rotation.set(head, 0, 0);
-    if (f.rock) f.rock.rotation.z = 0;
+    const through = Math.min(1, this.gone / (2 * Math.sqrt((2 * this.leap) / GRAVITY)));
+    const over = smooth(through);
+    const up = 4 * this.leap * through * (1 - through);
+    if (f.tilt) f.tilt.node.rotation.x *= 1 - over;
+    if (f.head) f.head.rotation.set(head * over, 0, 0);
+    if (f.rock) f.rock.rotation.z *= 1 - over;
     for (const leg of f.legs ?? []) {
-      leg.node.rotation.x = legs;
-      if (leg.foot) leg.foot.node.rotation.x = 0;
+      leg.node.rotation.x += (legs - leg.node.rotation.x) * over;
+      if (leg.foot) leg.foot.node.rotation.x *= 1 - over;
     }
     for (const arm of [f.armL, f.armR]) {
       if (!arm) continue;
       hang(arm.node);
-      arm.node.rotation.x = arms;
+      arm.node.rotation.x += (arms - arm.node.rotation.x) * over;
     }
+    const quarter = (Math.PI / 2) * over;
     this.base.rotation.set(
-      onto === 'back' ? -Math.PI / 2 : 0,
+      onto === 'back' ? -quarter : 0,
       0,
-      onto === 'left' ? Math.PI / 2 : onto === 'right' ? -Math.PI / 2 : 0,
+      onto === 'left' ? quarter : onto === 'right' ? -quarter : 0,
     );
-    this.base.position.set(shift, height, 0);
+    this.base.position.set(shift * over, height * over + up, 0);
   }
 
   // Points the weapon arm along the look, however the body stands (turned no further than
@@ -337,6 +351,10 @@ export class WalkerAvatar implements Avatar {
 
   flash(): void {
     this.hitFlash.trigger();
+  }
+
+  fell(): void {
+    this.crashed = true;
   }
 
   fire(): void {
