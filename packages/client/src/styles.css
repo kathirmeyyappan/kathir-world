@@ -449,12 +449,17 @@ body {
   left: 0;
   right: 0;
   top: 100%;
-  height: 264px;
   padding: 6px 6px 6px 0;
   background: var(--panel);
   border: 2px solid var(--accent);
   border-top: 0;
   box-shadow: 3px 3px 0 #000;
+}
+.picker .options.up {
+  top: auto;
+  bottom: 100%;
+  border-top: 2px solid var(--accent);
+  border-bottom: 0;
 }
 .picker ul {
   list-style: none;
