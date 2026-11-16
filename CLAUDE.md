@@ -494,7 +494,7 @@ A character that should move like itself is a jointed body (`render/avatars/Join
 `JointedAvatar`, a `WalkerAvatar` that poses every phase itself): a whole skeleton (hips, spine,
 chest, head, arms with elbows, hands with fingers and a thumb, legs with knees and feet) under a
 model from `scripts/jointed-model.py`, which reads a rip of the character's own model (Mario's,
-Luigi's, Wario's, Waluigi's and Peach's are on one rig, in a T-pose), moved by animation clips (`render/avatars/clips.ts`):
+Luigi's, Wario's, Waluigi's, Peach's and Daisy's are on one rig, in a T-pose), moved by animation clips (`render/avatars/clips.ts`):
 frames of where the hips are and how each bone is turned, drawn by an animator, never worked out.
 Mario's are Super Mario 64's own (`sm64Clips.ts`, baked by `scripts/sm64-clips.py` from a
 rigged, animated rip of that game's Mario: each source bone's turn from its T-pose carried onto
@@ -542,6 +542,8 @@ jump, fall, landing and float are Super Smash Bros. Brawl's (`peachClips.ts`, ba
 `scripts/peach-clips.py` from her files in that game, which `scripts/brawl.py` reads: the model's
 bones and the animations' keys), and the rest Mario's; what the two bake scripts share, carrying a
 source skeleton's poses onto the jointed body's and writing a clips file, is `scripts/clips.py`.
+Daisy is Peach over again in her own model and voice: Peach's row in the sim, her style and her
+skirt; her hair is short, so it has no tail.
 
 A model may carry bones no clip or pose turns (`SoftBone`, the model script's `SOFT`), which move
 by themselves after the frame's pose (`render/avatars/soft.ts`, run as the figure's `extra`).
