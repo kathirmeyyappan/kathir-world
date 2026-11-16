@@ -97,6 +97,7 @@ export type SoundId =
   | 'squidward-hurt-2'
   | 'squidward-hurt-3'
   | 'plankton-hurt'
+  | 'sandy-hurt-1'
   | 'luigi-kill-1'
   | 'luigi-kill-2'
   | 'wario-kill-1'
@@ -120,6 +121,8 @@ export type SoundId =
   | 'squidward-kill-2'
   | 'plankton-kill-1'
   | 'plankton-kill-2'
+  | 'sandy-kill-1'
+  | 'sandy-kill-2'
   | 'mario-kill-1'
   | 'mario-kill-2'
   | 'mario-enter'
@@ -137,6 +140,8 @@ export type SoundId =
   | 'squidward-enter-1'
   | 'squidward-enter-2'
   | 'plankton-enter'
+  | 'sandy-enter'
+  | 'sandy-enter-2'
   | 'spongebob-enter'
   | 'spongebob-enter-2'
   | 'krabs-enter'
@@ -274,6 +279,7 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'squidward-hurt-2': { file: 'squidward-hurt-2.mp3', half: 6, reach: 30, volume: 0.25, lazy: true },
   'squidward-hurt-3': { file: 'squidward-hurt-3.mp3', half: 6, reach: 30, volume: 0.25, lazy: true },
   'plankton-hurt': { file: 'plankton-hurt.mp3', half: 6, reach: 30, volume: 0.25, lazy: true },
+  'sandy-hurt-1': { file: 'sandy-hurt-1.mp3', half: 6, reach: 30, volume: 0.25, lazy: true },
   'mario-kill-1': { file: 'mario-kill-1.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'mario-kill-2': { file: 'mario-kill-2.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'mario-enter': { file: 'mario-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
@@ -301,6 +307,8 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'squidward-kill-2': { file: 'squidward-kill-2.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'plankton-kill-1': { file: 'plankton-kill-1.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'plankton-kill-2': { file: 'plankton-kill-2.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
+  'sandy-kill-1': { file: 'sandy-kill-1.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
+  'sandy-kill-2': { file: 'sandy-kill-2.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'luigi-enter': { file: 'luigi-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'luigi-enter-2': { file: 'luigi-enter-2.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'wario-enter': { file: 'wario-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
@@ -314,6 +322,8 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'squidward-enter-1': { file: 'squidward-enter-1.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'squidward-enter-2': { file: 'squidward-enter-2.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'plankton-enter': { file: 'plankton-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
+  'sandy-enter': { file: 'sandy-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
+  'sandy-enter-2': { file: 'sandy-enter-2.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'spongebob-enter': { file: 'spongebob-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'spongebob-enter-2': { file: 'spongebob-enter-2.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'krabs-enter': { file: 'krabs-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
