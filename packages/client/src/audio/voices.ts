@@ -122,7 +122,11 @@ export const VOICES: Record<AvatarId, Voice> = {
     kill: ['sandy-kill-1', 'sandy-kill-2'],
     ...BIKINI_BOTTOM,
   },
-  puff: { enter: [], ...BIKINI_BOTTOM },
+  puff: {
+    enter: ['puff-enter'],
+    kill: ['puff-kill-1', 'puff-kill-2'],
+    ...BIKINI_BOTTOM,
+  },
   larry: { enter: [], ...BIKINI_BOTTOM },
   sahur: { enter: ['sahur-enter'] },
   mike: { enter: [], death: ['mike-death'] },

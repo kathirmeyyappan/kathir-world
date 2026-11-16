@@ -123,6 +123,8 @@ export type SoundId =
   | 'plankton-kill-2'
   | 'sandy-kill-1'
   | 'sandy-kill-2'
+  | 'puff-kill-1'
+  | 'puff-kill-2'
   | 'mario-kill-1'
   | 'mario-kill-2'
   | 'mario-enter'
@@ -142,6 +144,7 @@ export type SoundId =
   | 'plankton-enter'
   | 'sandy-enter'
   | 'sandy-enter-2'
+  | 'puff-enter'
   | 'spongebob-enter'
   | 'spongebob-enter-2'
   | 'krabs-enter'
@@ -309,6 +312,8 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'plankton-kill-2': { file: 'plankton-kill-2.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'sandy-kill-1': { file: 'sandy-kill-1.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'sandy-kill-2': { file: 'sandy-kill-2.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
+  'puff-kill-1': { file: 'puff-kill-1.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
+  'puff-kill-2': { file: 'puff-kill-2.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'luigi-enter': { file: 'luigi-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'luigi-enter-2': { file: 'luigi-enter-2.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'wario-enter': { file: 'wario-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
@@ -324,6 +329,7 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'plankton-enter': { file: 'plankton-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'sandy-enter': { file: 'sandy-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'sandy-enter-2': { file: 'sandy-enter-2.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
+  'puff-enter': { file: 'puff-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'spongebob-enter': { file: 'spongebob-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'spongebob-enter-2': { file: 'spongebob-enter-2.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'krabs-enter': { file: 'krabs-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
