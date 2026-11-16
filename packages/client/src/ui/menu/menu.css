@@ -420,6 +420,11 @@
   color: rgba(255, 255, 255, 0.38);
 }
 
+/* The home screen's links (styles.css), as a row: the sections' own gap is all the room under it. */
+#menu .home-links {
+  margin-bottom: 0;
+}
+
 /* A row of buttons, sharing the width; a link among them looks like a button. */
 #menu .buttons {
   display: flex;
