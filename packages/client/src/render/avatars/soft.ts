@@ -12,6 +12,43 @@ export interface Hem {
   readonly drop: number;
 }
 
+// A skirt's bell as its model has it, in metres: how far out the cloth reaches to a side, ahead and
+// behind at each `cell` down from the top of the skirt.
+export interface Bell {
+  readonly cell: number;
+  readonly across: Float32Array;
+  readonly ahead: Float32Array;
+  readonly behind: Float32Array;
+}
+
+// Measures a bell off a skirt's vertices, each as [x, y, z] from the top of the skirt in the
+// model's frame (y up, z ahead). A level with no vertex on it is taken from the ones over and
+// under it.
+export function bellOf(cloth: readonly (readonly [number, number, number])[], drop: number): Bell {
+  const cell = BELL_CELL;
+  const cells = Math.round(drop / cell) + 1;
+  const sides = [new Float32Array(cells), new Float32Array(cells), new Float32Array(cells)];
+  const seen = new Uint8Array(cells);
+  for (const [x, y, z] of cloth) {
+    const i = Math.max(0, Math.min(cells - 1, Math.round(-y / cell)));
+    seen[i] = 1;
+    sides[0][i] = Math.max(sides[0][i], Math.abs(x));
+    sides[1][i] = Math.max(sides[1][i], z);
+    sides[2][i] = Math.max(sides[2][i], -z);
+  }
+  const known = [...seen.keys()].filter((i) => seen[i]);
+  for (let i = 0; i < cells && known.length > 0; i++) {
+    if (seen[i]) continue;
+    const over = known.reduce((last, k) => (k < i ? k : last), known[0]);
+    const under = known.find((k) => k > i) ?? known[known.length - 1];
+    const share = under === over ? 0 : Math.max(0, Math.min(1, (i - over) / (under - over)));
+    for (const side of sides) side[i] = side[over] + (side[under] - side[over]) * share;
+  }
+  return { cell, across: sides[0], ahead: sides[1], behind: sides[2] };
+}
+
+const BELL_CELL = 0.06; // metres between the levels a bell is measured at
+const HAND_CLEAR = 0.07; // metres a palm's middle is held off the cloth: half a hand's thickness and a little
 const KNEE_ROOM = 0.2; // radians of skirt kept clear round a knee, which is thicker than its joint
 const FOOT_SHOWS = 0.12; // radians past the hem a joint down at the hem may be: a foot shows under a skirt at the end of a step
 const HEM_NEAR = 0.9; // the share of the skirt's length down from which that begins
@@ -56,6 +93,7 @@ export class Skirt {
     rings: readonly TransformNode[],
     private readonly legs: readonly (readonly [TransformNode, TransformNode, TransformNode])[],
     private readonly hem: Hem,
+    private readonly bell: Bell,
   ) {
     this.ahead = Math.atan2(hem.ahead, hem.drop);
     this.behind = Math.atan2(hem.behind, hem.drop);
@@ -139,6 +177,29 @@ export class Skirt {
       );
     });
     this.tuck(hips);
+  }
+
+  // Where a palm's middle at `palm` (the frame the hips stand in) has to be to lie on the cloth
+  // and not in it, into `to`: the same height, straight out from the skirt's middle, on `side` of
+  // it where it is at the middle. False where the palm is clear of the skirt already. The bell is
+  // taken as it hangs standing, upright under the hips and spread as it is this frame.
+  clear(palm: Vector3, side: 1 | -1, to: Vector3): boolean {
+    const hips = this.hips.rotationQuaternion ?? Quaternion.Identity();
+    this.top.position.rotateByQuaternionToRef(hips, STEP).addInPlace(this.hips.position);
+    palm.subtractToRef(STEP, to);
+    const { cell, across, ahead, behind } = this.bell;
+    const level = -to.y / cell;
+    if (level < 0 || level > across.length - 1) return false;
+    const i = Math.min(across.length - 2, Math.floor(level));
+    const at = (reach: Float32Array) => reach[i] + (reach[i + 1] - reach[i]) * (level - i);
+    const wide = at(across) * this.wide + HAND_CLEAR;
+    const deep = at(to.z < 0 ? behind : ahead) * this.deep + HAND_CLEAR;
+    const inside = Math.hypot(to.x / wide, to.z / deep);
+    if (inside >= 1) return false;
+    if (inside < 1e-3) to.set(side * wide, to.y, 0);
+    else to.set(to.x / inside, to.y, to.z / inside);
+    to.addInPlace(STEP);
+    return true;
   }
 
   // Radians of cloth kept clear round a joint `down` metres under the top of the skirt: one down at

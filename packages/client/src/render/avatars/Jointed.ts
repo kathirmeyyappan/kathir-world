@@ -64,7 +64,7 @@ import {
   type BodyPose,
 } from './motion';
 import { bytes, SkinnedBody, type SkinnedModel } from './skinned';
-import { Skirt, Tail } from './soft';
+import { bellOf, Skirt, Tail } from './soft';
 import { limbLead, rungHeld, WalkerAvatar, type Figure, type Pose } from './Walker';
 
 export type JointedBone =
@@ -512,6 +512,8 @@ export class JointedAvatar extends WalkerAvatar {
     // Sat in a crouch its hands are on its head, which the clip's arms reach only on the body it
     // was drawn for.
     if (sat > 0) this.rig.clasp(sat);
+    // On its feet its hands rest on its skirt, if it has one; in the air its arms are the clip's own.
+    this.rig.drape((1 - smooth(this.airborne)) * (1 - smooth(this.crouching)) * (1 - own), !armed);
     if (!turning && !flipping) this.arm(p);
     return walked;
   }
@@ -601,6 +603,20 @@ export class JointedAvatar extends WalkerAvatar {
   }
 }
 
+// A skirt's vertices, each from the top of the skirt in the model's frame: the ones that follow a
+// skirt bone before any other.
+function cloth(model: JointedModel): [number, number, number][] {
+  const names = Object.keys(model.bones);
+  const top = model.bones.skirt1!;
+  const at = new Int16Array(bytes(model.positions).buffer);
+  const follows = bytes(model.boneIndices);
+  const out: [number, number, number][] = [];
+  for (let v = 0; v < at.length / 3; v++)
+    if (names[follows[v * 4]].startsWith('skirt'))
+      out.push([at[v * 3] / 1000 - top[0], at[v * 3 + 1] / 1000 - top[1], at[v * 3 + 2] / 1000 - top[2]]);
+  return out;
+}
+
 // `value` on its way to `target`, `dt` seconds on, most of the way there after `seconds`.
 function eased(value: number, target: number, dt: number, seconds: number): number {
   return value + (target - value) * (1 - Math.exp((-3 * dt) / seconds));
@@ -614,6 +630,7 @@ function wrap(angle: number): number {
 class Rig {
   readonly figure: Figure;
   private readonly skin: SkinnedBody<RigBone>;
+  private readonly skirt: Skirt | null;
   private readonly hipsAt: Vector3; // the hips' pivot, standing
   private readonly bones: TransformNode[]; // the bones a clip turns, in a clip's order
   private gripped = -1; // how closed `play` last left the hands, none yet
@@ -699,8 +716,10 @@ class Rig {
             [skin.node('legR'), skin.node('shinR'), skin.node('footR')],
           ],
           { across: hem[0], ahead: hem[1], behind: hem[2], drop: hem[3] },
+          bellOf(cloth(model), hem[3]),
         )
       : null;
+    this.skirt = skirt;
     const tail = spec.tail
       ? new Tail(
           skin.node('head'),
@@ -804,6 +823,51 @@ class Rig {
     pose[at + ARM_SWING] = Math.atan2(tz, -ty) - Math.acos(Math.min(1, ahead / Math.hypot(ty, tz)));
     pose[at + ARM_OUT] = Math.atan2(side * tx, ahead);
     pose[at + ARM_ELBOW] = Math.PI - Math.acos((upper * upper + fore * fore - span * span) / (2 * upper * fore));
+  }
+
+  // Holds each hand out of the skirt, `weight` of the way from how the frame's pose has left the
+  // arms: a clip hangs them by a body with no skirt, or a narrower one. An arm whose palm is in the
+  // cloth is swung from the shoulder, whole, the least that lays the palm on it (soft.ts
+  // `Skirt.clear`). The `right` arm is left alone where it has something to aim.
+  drape(weight: number, right: boolean): void {
+    const { skirt, skin } = this;
+    if (!skirt || weight <= 0) return;
+    // The chest in the frame the hips stand in: where it is and how it's turned.
+    const hips = skin.node('hips');
+    const spine = skin.node('spine');
+    const chest = skin.node('chest');
+    hips.rotationQuaternion!.multiplyToRef(spine.rotationQuaternion!, SPINE);
+    SPINE.multiplyToRef(chest.rotationQuaternion!, CHEST);
+    chest.position.rotateByQuaternionToRef(SPINE, NEAR);
+    spine.position.rotateByQuaternionToRef(hips.rotationQuaternion!, STEP);
+    NEAR.addInPlace(STEP).addInPlace(hips.position);
+    for (const side of right ? ([-1, 1] as const) : ([-1] as const)) {
+      const [a, f, h] = side < 0 ? LEFT_ARM : RIGHT_ARM;
+      const arm = skin.node(a);
+      const forearm = skin.node(f);
+      const hand = skin.node(h);
+      arm.position.rotateByQuaternionToRef(CHEST, ELBOW).addInPlace(NEAR);
+      const shoulder = ELBOW;
+      CHEST.multiplyToRef(arm.rotationQuaternion!, THIGH);
+      let swung = false;
+      // Swinging the arm out lifts the hand to where the skirt is narrower: three times round is near enough.
+      for (let pass = 0; pass < 3; pass++) {
+        THIGH.multiplyToRef(forearm.rotationQuaternion!, SHIN);
+        SHIN.multiplyToRef(hand.rotationQuaternion!, HAND);
+        PALM.set(side * this.palm.x, this.palm.y, this.palm.z).rotateByQuaternionToRef(HAND, PALM);
+        PALM.addInPlace(hand.position.rotateByQuaternionToRef(SHIN, STEP));
+        PALM.addInPlace(forearm.position.rotateByQuaternionToRef(THIGH, STEP)).addInPlace(shoulder);
+        if (!skirt.clear(PALM, side, WRIST)) break;
+        PALM.subtractInPlace(shoulder).normalize();
+        WRIST.subtractInPlace(shoulder).normalize();
+        Quaternion.FromUnitVectorsToRef(PALM, WRIST, A);
+        A.multiplyToRef(THIGH, THIGH);
+        swung = true;
+      }
+      if (!swung) continue;
+      CHEST.conjugateToRef(B).multiplyToRef(THIGH, A);
+      Quaternion.SlerpToRef(arm.rotationQuaternion!, A, weight, arm.rotationQuaternion!);
+    }
   }
 
   // Lays each hand flat on its side of the head, `weight` of the way from how a clip's moment has
