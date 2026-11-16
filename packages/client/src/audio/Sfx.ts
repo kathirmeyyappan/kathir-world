@@ -90,6 +90,7 @@ export type SoundId =
   | 'spongebob-hurt'
   | 'patrick-hurt-1'
   | 'patrick-hurt-2'
+  | 'krabs-hurt'
   | 'luigi-kill-1'
   | 'luigi-kill-2'
   | 'wario-kill-1'
@@ -104,6 +105,9 @@ export type SoundId =
   | 'spongebob-kill-1'
   | 'spongebob-kill-2'
   | 'patrick-kill-1'
+  | 'krabs-kill-1'
+  | 'krabs-kill-2'
+  | 'krabs-kill-3'
   | 'mario-kill-1'
   | 'mario-kill-2'
   | 'mario-enter'
@@ -119,6 +123,8 @@ export type SoundId =
   | 'daisy-enter'
   | 'patrick-enter'
   | 'spongebob-enter'
+  | 'krabs-enter'
+  | 'krabs-enter-2'
   | 'sahur-enter'
   | 'mario-death'
   | 'spongebob-death'
@@ -242,6 +248,7 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'spongebob-hurt': { file: 'spongebob-hurt.mp3', half: 6, reach: 30, volume: 0.25 },
   'patrick-hurt-1': { file: 'patrick-hurt-1.mp3', half: 6, reach: 30, volume: 0.25 },
   'patrick-hurt-2': { file: 'patrick-hurt-2.mp3', half: 6, reach: 30, volume: 0.25 },
+  'krabs-hurt': { file: 'krabs-hurt.mp3', half: 6, reach: 30, volume: 0.25 },
   'mario-kill-1': { file: 'mario-kill-1.mp3', half: 6, reach: 30, volume: 0.2 },
   'mario-kill-2': { file: 'mario-kill-2.mp3', half: 6, reach: 30, volume: 0.2 },
   'mario-enter': { file: 'mario-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
@@ -260,6 +267,9 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'spongebob-kill-1': { file: 'spongebob-kill-1.mp3', half: 6, reach: 30, volume: 0.2 },
   'spongebob-kill-2': { file: 'spongebob-kill-2.mp3', half: 6, reach: 30, volume: 0.2 },
   'patrick-kill-1': { file: 'patrick-kill-1.mp3', half: 6, reach: 30, volume: 0.2 },
+  'krabs-kill-1': { file: 'krabs-kill-1.mp3', half: 6, reach: 30, volume: 0.2 },
+  'krabs-kill-2': { file: 'krabs-kill-2.mp3', half: 6, reach: 30, volume: 0.2 },
+  'krabs-kill-3': { file: 'krabs-kill-3.mp3', half: 6, reach: 30, volume: 0.2 },
   'luigi-enter': { file: 'luigi-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'luigi-enter-2': { file: 'luigi-enter-2.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'wario-enter': { file: 'wario-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
@@ -271,6 +281,8 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'daisy-enter': { file: 'daisy-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'patrick-enter': { file: 'patrick-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'spongebob-enter': { file: 'spongebob-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
+  'krabs-enter': { file: 'krabs-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
+  'krabs-enter-2': { file: 'krabs-enter-2.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'sahur-enter': { file: 'sahur-enter.mp3', half: 6, reach: 30, volume: 0.2, fade: 0.3, lazy: true }, // the whole chant, 17 s: it's the joke
   // A look's death (voices.ts): the sting and jingle, ten seconds of song, the death screen's
   // length, and Roz's line. Each is heard only by a player who dies as that look, so each is fetched
