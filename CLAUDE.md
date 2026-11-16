@@ -504,7 +504,12 @@ it's fetched at startup); a trunk on two arms and two legs is a `BodySpec` (`Bod
 a whole skeleton a jointed body (below). Tung Tung Tung Sahur (`Sahur.ts`) is rigid parts from
 `scripts/sahur-model.py`: a sculpt's log and legs with arms and a bat drawn by the script, every
 part closed and turning on a joint sunk in the log, the bat in its left fist and an item in its
-right; the builder's `extra` poses the bat arm (carried, swung on a strike, held clear on a ladder). Rebuild the bot map after
+right; the builder's `extra` poses the bat arm (carried, swung on a strike, held clear on a ladder).
+Sandy (`Sandy.ts`) comes from a model with no rig at all, one mesh in separate pieces, so
+`avatar-model.py` gives each bone the pieces that lie where it is (a `Piece` by side, height and
+how far out, turning on its inner end, its bottom or its front) and thins each piece on its own
+(`apart`); the helmet's glass is left out of the mesh (`skip`) and drawn by the builder as a clear
+dome the size the model file gives (`glass`). Rebuild the bot map after
 adding one, and keep it as cheap as the ones there (triangles, one mesh, a small atlas), with the
 numbers in the PR.
 

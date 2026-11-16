@@ -31,6 +31,7 @@ export const CIRCLE_LOOKS: readonly AvatarId[] = [
   'squidward',
   'gary',
   'plankton',
+  'sandy',
   'mike',
   'sulley',
   'elizabeth',
