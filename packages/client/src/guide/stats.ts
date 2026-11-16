@@ -68,12 +68,10 @@ export function characterStats(id: AvatarId): Stat[] {
   if (look.class === 'walker') {
     rows.push(
       { label: 'Height', value: `${num(look.hitbox.top)} m` },
-      { label: 'Eye height', value: `${num(look.eye)} m` },
       { label: 'Walk', value: `${num(walkSpeedOf(id))} m/s` },
       { label: 'Jump power', value: num(look.jump) },
       { label: 'Ladder climb', value: `${num(climbSpeedOf(id))} m/s` },
       { label: 'Hitbox width', value: `${num(2 * look.hitbox.radius)} m` },
-      { label: 'Head hitbox', value: `${num(look.hitbox.head)} m` },
     );
   } else {
     const shape = dragonShape(id);
@@ -226,13 +224,13 @@ export function itemStats(id: ItemId): Stat[] {
       { label: 'Scoped walk', value: `${num(SCOPED_SPEED_MULTIPLIER * 100)}%` },
     );
   if (spec.actions.shoot?.mode === 'hold') {
-    rows.push({ label: 'Damage', value: `${num(spec.damage * perSecond)} hearts/s` });
+    rows.push({ label: 'DPS', value: num(spec.damage * perSecond) });
   } else {
     rows.push(
-      { label: 'Damage', value: `${num(spec.damage)} hearts` },
-      { label: 'Headshot', value: `${num(spec.damage * HEADSHOT_MULTIPLIER)} hearts` },
+      { label: 'Damage', value: num(spec.damage) },
+      { label: 'Headshot', value: num(spec.damage * HEADSHOT_MULTIPLIER) },
       { label: 'Fire rate', value: `${num(perSecond)}/s` },
-      { label: 'DPS', value: `${num(spec.damage * perSecond)} hearts/s` },
+      { label: 'DPS', value: num(spec.damage * perSecond) },
     );
   }
   rows.push({ label: 'Range', value: `${num(spec.range)} m` });
@@ -269,7 +267,7 @@ export function pickupStats(kind: PickupKind): Stat[] {
   const heals = PICKUPS[kind].heals;
   // A full life's worth, on foot, where a pickup heals everything.
   const hearts = heals === Infinity ? lifeOf('standard').hearts : heals;
-  const rows: Stat[] = [{ label: 'Heals', value: `${num(hearts)} hearts` }];
+  const rows: Stat[] = [{ label: 'Heals', value: num(hearts) }];
   const areas = PICKUP_AREAS.filter((a) => a.kind === kind);
   if (areas.length > 0)
     rows.push(
