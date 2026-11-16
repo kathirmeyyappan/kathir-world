@@ -53,7 +53,7 @@ space` is the kind to keep). Don't narrate the change or answer the request that
 
 What a client fetches without the player asking for it, every player pays for, on a phone's
 connection and memory as much as a desktop's. Joining the world today fetches about 1.8 MB of code
-(gzipped), 8 MB of assets and 1.5 MB of sounds. Know which of these a change adds to, and keep
+(gzipped), 8 MB of assets and 1.1 MB of sounds. Know which of these a change adds to, and keep
 anything that can wait off the path everyone pays:
 
 - Code is one chunk (1.7 MB gzipped) with the engine and every look on foot's mesh and clips in
@@ -63,6 +63,9 @@ anything that can wait off the path everyone pays:
   `render/Loader.ts` and arrives nearest first.
 - Avatar atlases (`SKINNED`, 1.5 MB for all of them) are fetched when the page is idle.
 - A sound is fetched by everyone up front unless it's `lazy` in `SOUNDS` (`Sfx.soon`, `Sfx.want`).
+  Every look's voice is lazy but its jumps and long jumps (about 240 KB for all of them, heard at
+  every hop): an intro is fetched as it's said within earshot, and a look's hurts and kills (with
+  its death for its own player) as it's first seen worn (`Game.wantVoice`).
 
 Fetch on demand whatever only some players will see or hear, so long as it can arrive a moment
 late, and say what stands in until it arrives and if it never does (a `lazy` sound late is left
@@ -71,9 +74,9 @@ and KB, and why it can't wait.
 
 Flag it to Kathir, before building on it, when a change adds more than about 100 KB up front, or
 when something paid by everyone grows with each thing added: every look on the Mario rig is about
-80 KB of atlas, 50 KB of mesh in the chunk and 80 KB of voice up front, whoever wears it. That
+80 KB of atlas, 50 KB of mesh in the chunk and 55 KB of jumps up front, whoever wears it. That
 pattern is the one that gets out of hand, and the fix is to fetch a look's atlas, mesh and voice
-the first time someone wears it.
+the first time someone wears it, as its hurts and kills already are.
 
 ## World geometry
 
@@ -583,13 +586,13 @@ for a jump in the swoosh's place (`jump`, by where the jump is in a chain of the
 second, the third, the last one given serving the rest), and the takes it picks from on a long jump, at a hit (heard by
 everyone near, never before the last cry has run out nor within `CRY_GAP_MS` of it; its own player
 hears it over the hurt sound, which sounds at every hit whatever the look; a spray's hits, fire's
-and ice's, come too fast for a voice and are the hurt sound alone, `Game.sprayed`) and a moment after a kill (`Game.say`; a long one is `lazy` like an intro, fetched as it's first said
-within earshot and played as it arrives); and its `death`,
+and ice's, come too fast for a voice and are the hurt sound alone, `Game.sprayed`) and a moment after a kill (`Game.say`); and its `death`,
 which its own player alone hears over the death screen (cut to its ten seconds; the reload ends
 it), `DEATH_SOUND_DELAY` after dying so the hit that killed them sounds first, as any hit does. A
-death is `lazy` too, and sent for as the player takes the look (`Sfx.want`), since it has to be
-there the moment they die; one that hasn't arrived is left out. Keep to one of those two
-for any sound only some players hear: everything else in `SOUNDS` is fetched by everyone up
+hurt, a kill and a death are `lazy` too, sent for (`Sfx.want`, `Game.wantVoice`) as a look is
+first seen worn, a death by its own player alone, since they have to be there the moment they're
+said; a hurt or a death that hasn't arrived is left out, and a kill not here yet is played as it
+arrives (`Sfx.soon`). Keep to one of those for any sound only some players hear: everything else in `SOUNDS` is fetched by everyone up
 front, which is right for what anyone near can hear at any moment and wrong for anything long
 or rarely heard. A clip cut from something longer gets a `swell` and a `fade` in `SOUNDS` to suit
 how its cut begins and ends (a one-shot's `fade` dies away into its end): listen to both ends of
