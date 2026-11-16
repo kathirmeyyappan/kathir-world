@@ -3,6 +3,7 @@
 // DOM, and a new kind of row is a type here and a case in `draw`.
 import { Picker, type Choice } from '../../app/Picker';
 import { IS_TOUCH } from '../../input/touch';
+import { pixelSvg } from '../pixelIcons';
 
 export interface Tab {
   title: string;
@@ -14,7 +15,7 @@ export interface Section {
   rows: Row[];
 }
 
-export type Row = Toggle | Stepper | Field | Select | Buttons | Share;
+export type Row = Toggle | Stepper | Field | Select | Buttons | Links | Share;
 
 // A setting with a few values: its button reads the one it's on and moves it to the next.
 export interface Toggle {
@@ -78,6 +79,20 @@ export interface Button {
   danger?: boolean; // red: a way out of the room
 }
 
+// Other pages to go and see, side by side as the home screen has them (`.home-link` in styles.css):
+// a pixel icon over the words, each opening in a new tab.
+export interface Links {
+  kind: 'links';
+  links: Link[];
+}
+
+export interface Link {
+  label: string;
+  href: string;
+  icon: string[]; // a bitmap of ui/pixelIcons.ts
+  classes?: Record<string, string>; // the CSS class of each of the bitmap's characters that has one
+}
+
 // A link to hand on: copied, or on a phone sent through the share sheet, and shown to copy by hand.
 export interface Share {
   kind: 'share';
@@ -106,6 +121,8 @@ export function draw(row: Row): Drawn {
       return select(row);
     case 'buttons':
       return buttons(row);
+    case 'links':
+      return links(row);
     case 'share':
       return share(row);
   }
@@ -257,6 +274,19 @@ function buttons(row: Buttons): Drawn {
     }
     if (b.press) button.addEventListener('click', b.press);
     el.append(button);
+  }
+  return { el };
+}
+
+function links(row: Links): Drawn {
+  const el = element('div', 'home-links');
+  for (const link of row.links) {
+    const a = element('a', 'home-link');
+    a.href = link.href;
+    a.target = '_blank';
+    a.rel = 'noopener';
+    a.append(pixelSvg(link.icon, 'home-icon', link.classes), element('span', '', link.label));
+    el.append(a);
   }
   return { el };
 }

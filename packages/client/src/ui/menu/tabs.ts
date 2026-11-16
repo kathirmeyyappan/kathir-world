@@ -19,7 +19,8 @@ import type { View } from '../../game/View';
 import { GLOBAL_ROOM, SERVED_BY_ROOM_HOST, colorName, leaveRoom, roomLink, switchRoom } from '../../net/lobby';
 import type { Picture } from '../../render/Picture';
 import type { Minimap } from '../Minimap';
-import type { Field, Note, Row, Section, Select, Tab } from './rows';
+import { BOOK, GITHUB } from '../pixelIcons';
+import type { Field, Links, Note, Row, Section, Select, Tab } from './rows';
 
 const GUIDE_URL = '/guide/';
 const REPO_URL = 'https://github.com/kathirmeyyappan/world';
@@ -65,8 +66,17 @@ export function toggleFullscreen(): void {
 }
 
 function you(hooks: MenuHooks, me: Me): Section {
-  return { title: 'YOU', rows: [nameField(hooks, me), skinSelect(hooks, me)] };
+  return { title: 'YOU', rows: [nameField(hooks, me), skinSelect(hooks, me), LINKS] };
 }
+
+// The guide and the source, as the home screen offers them.
+const LINKS: Links = {
+  kind: 'links',
+  links: [
+    { label: 'KATHIR WORLD GUIDE', href: GUIDE_URL, icon: BOOK, classes: { o: 'ink' } },
+    { label: 'SOURCE CODE', href: REPO_URL, icon: GITHUB },
+  ],
+};
 
 // The room's code and the link that brings a friend into it.
 function thisRoom(hooks: MenuHooks): Section {
