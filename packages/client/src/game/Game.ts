@@ -5,6 +5,7 @@ import {
   CUBES,
   GEAR,
   ITEMS,
+  parseCommand,
   SKY_OBJECTS,
   TICK_DT,
   INPUT_WAIT_TICKS,
@@ -57,7 +58,7 @@ import { IS_TOUCH, onTap } from '../input/touch';
 import type { Connection } from '../net/Connection';
 import { Interpolation, type RemotePlayer } from '../net/Interpolation';
 import { Prediction } from '../net/Prediction';
-import { createAvatar, preloadAvatars, type Avatar } from '../render/avatars';
+import { createAvatar, preloadAvatars, wantLook, type Avatar } from '../render/avatars';
 import { CubeMesh } from '../render/CubeMesh';
 import { Engine } from '../render/Engine';
 import { Environment } from '../render/Environment';
@@ -298,11 +299,13 @@ export class Game {
     });
     this.hud = new Hud(roomId);
     this.hud.onChat = (text) => {
+      this.wantCommand(text, true);
       conn.send({ t: 'chat', text });
       this.commandsMenu.set(false); // typed over the commands: the card goes, so what it did is in view
     };
     this.commandsMenu.onCommand = (text) => this.hud.onChat?.(text);
     this.commandsMenu.onDraft = (text) => this.hud.openChat(text);
+    this.commandsMenu.onPoint = (text) => this.wantCommand(text, false);
     // Chat, the commands and the menu are what the nudge points at: one found, it's done with.
     // The commands free the mouse for their buttons; the world has it back when they go.
     this.commandsMenu.onOpenChange = (open) => {
@@ -799,13 +802,22 @@ export class Game {
     return sound && (mine || at) ? { sound, at } : null;
   }
 
-  // Sends for a look's hurts and kills (lazy in SOUNDS) as it's first seen worn, so they're here
-  // by the time it's hit or gloats, and with `mine` its death too, which only its own player hears.
-  // A hurt that hasn't arrived by its hit is left out.
+  // Sends for a look's jumps, hurts and kills (lazy in SOUNDS) as it's first seen worn, so they're
+  // here by the time it hops, is hit or gloats, and with `mine` its death too, which only its own
+  // player hears. A hurt that hasn't arrived by its hit is left out, and a jump is the swoosh.
   private wantVoice(avatar: AvatarId, mine: boolean): void {
     const voice = VOICES[avatar];
-    for (const id of [...(voice.hurt ?? []), ...(voice.kill ?? []), ...(mine ? (voice.death ?? []) : [])])
-      this.sfx.want(id);
+    const lines = [voice.jump, voice.leap, voice.hurt, voice.kill, mine ? voice.death : undefined];
+    for (const id of lines.flatMap((l) => l ?? [])) this.sfx.want(id);
+  }
+
+  // A look the player may be about to put on: its body is sent for as its command is pointed at,
+  // and its voice too once it's `sent`, so the switch the server answers with finds them here.
+  private wantCommand(text: string, sent: boolean): void {
+    const command = parseCommand(text);
+    if (command?.name !== 'avatar') return;
+    void wantLook(this.engine, command.avatar).catch(() => {});
+    if (sent) this.wantVoice(command.avatar, true);
   }
 
   // A player's cry at a hit. False if their look has none, or their last is still sounding: no
@@ -1091,12 +1103,8 @@ export class Game {
       let avatar = this.avatars.get(rp.id);
       // A new look, or a new colour on the figure that wears it, is a new avatar.
       const was = avatar?.kind;
-      if (avatar && (was !== rp.avatar || (avatar.color !== undefined && avatar.color !== rp.color))) {
-        avatar.dispose();
-        avatar = undefined;
-      }
-      if (!avatar) {
-        avatar = createAvatar(this.engine, rp);
+      if (!avatar || was !== rp.avatar || (avatar.color !== undefined && avatar.color !== rp.color)) {
+        avatar = createAvatar(this.engine, rp, avatar ?? null);
         this.avatars.set(rp.id, avatar);
         this.wantVoice(rp.avatar, false);
         if (was && was !== rp.avatar) this.say(rp.id, 'enter');
@@ -1230,12 +1238,8 @@ export class Game {
   private updateOwnAvatar(at: Vec3, held: ItemState | null): void {
     const self = this.prediction!.state;
     let avatar = this.ownAvatar;
-    if (avatar && (avatar.kind !== self.avatar || (avatar.color !== undefined && avatar.color !== self.color))) {
-      avatar.dispose();
-      avatar = null;
-    }
-    if (!avatar) {
-      avatar = this.ownAvatar = createAvatar(this.engine, self);
+    if (!avatar || avatar.kind !== self.avatar || (avatar.color !== undefined && avatar.color !== self.color)) {
+      avatar = this.ownAvatar = createAvatar(this.engine, self, avatar);
       avatar.scaleWeapons(OWN_WEAPON_SCALE);
     }
     const own: Avatar = avatar;
