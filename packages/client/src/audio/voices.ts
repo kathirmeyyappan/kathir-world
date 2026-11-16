@@ -130,6 +130,7 @@ export const VOICES: Record<AvatarId, Voice> = {
   },
   larry: {
     enter: ['larry-enter', 'larry-enter-2'],
+    hurt: ['larry-hurt-1', 'larry-hurt-2'],
     kill: ['larry-kill-1', 'larry-kill-2'],
     ...BIKINI_BOTTOM,
   },

@@ -101,6 +101,8 @@ export type SoundId =
   | 'puff-hurt-1'
   | 'puff-hurt-2'
   | 'puff-hurt-3'
+  | 'larry-hurt-1'
+  | 'larry-hurt-2'
   | 'luigi-kill-1'
   | 'luigi-kill-2'
   | 'wario-kill-1'
@@ -294,6 +296,8 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'puff-hurt-1': { file: 'puff-hurt-1.mp3', half: 6, reach: 30, volume: 0.25, lazy: true },
   'puff-hurt-2': { file: 'puff-hurt-2.mp3', half: 6, reach: 30, volume: 0.25, lazy: true },
   'puff-hurt-3': { file: 'puff-hurt-3.mp3', half: 6, reach: 30, volume: 0.25, lazy: true },
+  'larry-hurt-1': { file: 'larry-hurt-1.mp3', half: 6, reach: 30, volume: 0.25, lazy: true },
+  'larry-hurt-2': { file: 'larry-hurt-2.mp3', half: 6, reach: 30, volume: 0.25, lazy: true },
   'mario-kill-1': { file: 'mario-kill-1.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'mario-kill-2': { file: 'mario-kill-2.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'mario-enter': { file: 'mario-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
