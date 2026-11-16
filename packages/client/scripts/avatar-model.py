@@ -122,6 +122,9 @@ class Model:
     # Joints whose skin is left out, every triangle with a corner that mostly follows one of them or
     # anything on it: eyelids the rig binds shut over the eyes.
     bare: tuple[Joint, ...] = ()
+    # Patches of the model's texture, each (u0, v0, u1, v1) with v down the image, whose pale pixels
+    # are painted white: eyeballs the texture has cream.
+    whitened: tuple[tuple[float, float, float, float], ...] = ()
 
 
 BIPED_PALM = ("Bip001_R_Hand", "Bip001_R_Finger0", "Bip001_R_Finger1", "Bip001_R_Finger2")
@@ -311,6 +314,7 @@ MODELS = {
         open_shells_too=True,
         texture_size=256,
         bare=("joint6", "joint8", "joint10", "joint12"),  # her lids, upper and lower
+        whitened=((0.42, 0.0, 0.59, 0.11),),  # her eyeballs
     ),
     # The same game's rig with its joints half unnamed: joint2 is the hip, with the legs and the
     # tail on it, joint6 the head with its eyestalks and antennae, and each arm ends in a claw.
@@ -625,7 +629,20 @@ def main(name: str, glb: str) -> None:
         )
         glass = ((left_out.min(axis=0) + left_out.max(axis=0)) / 2, left_out.max(axis=0) - left_out.min(axis=0))
 
+    drawn = uv
     atlas, uv = pack_atlas(doc, blob, uv, material, model.colours, model.texture_size)
+    if model.whitened:
+        pixels = np.asarray(atlas.convert("RGB")).copy()
+        for u0, v0, u1, v1 in model.whitened:
+            there = (drawn[:, 0] >= u0) & (drawn[:, 0] <= u1) & (drawn[:, 1] >= v0) & (drawn[:, 1] <= v1)
+            # The patch in the atlas: the box round where its vertices went.
+            x0, y0 = np.floor(uv[there].min(axis=0) * atlas.size).astype(int)
+            x1, y1 = np.ceil(uv[there].max(axis=0) * atlas.size).astype(int)
+            patch = pixels[y0:y1, x0:x1]
+            light = patch[..., :2].min(axis=2)
+            pale = (light > 180) & (patch[..., 2] < light)
+            patch[..., 2][pale] = light[pale]
+        atlas = Image.fromarray(pixels)
 
     def b64(a: np.ndarray) -> str:
         return base64.b64encode(a.tobytes()).decode()
