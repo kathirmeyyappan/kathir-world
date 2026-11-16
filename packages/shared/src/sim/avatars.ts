@@ -340,8 +340,8 @@ const LOOKS = {
     regen: false,
     blurb: 'become mrs. puff',
     command: 'puff',
-    eye: 1.85,
-    hitbox: { top: 2.4, radius: 0.85, head: 0.95 }, // as tall as Mr. Krabs, to the top of her hat; 1.45 m across the body and 1.9 m across the skirt: the head is everything from the mouth up
+    eye: 1.96,
+    hitbox: { top: 2.55, radius: 0.9, head: 1.0 }, // to the top of her hat; 1.55 m across the body and 2 m across the skirt: the head is everything from the mouth up
     walk: 6,
     jump: 0.8,
   },
@@ -352,8 +352,8 @@ const LOOKS = {
     regen: false,
     blurb: 'become larry the lobster',
     command: 'larry',
-    eye: 2.67,
-    hitbox: { top: 2.75, radius: 0.7, head: 0.55 }, // to the top of his eyestalks, the antennae 3.4 m up, a little over Tung Tung Tung Sahur; 1.5 m across the chest: the head is everything over the shoulders
+    eye: 2.86,
+    hitbox: { top: 2.95, radius: 0.75, head: 0.6 }, // to the top of his eyestalks, the antennae 3.65 m up; 1.6 m across the chest: the head is everything over the shoulders
     walk: 9,
     jump: 1.2,
   },

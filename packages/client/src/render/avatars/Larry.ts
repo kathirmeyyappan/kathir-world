@@ -1,4 +1,4 @@
-// Larry the Lobster: 2.7 m of lifeguard to the top of his head, his antennae 3.4 m up, from Cheryl
+// Larry the Lobster: 2.9 m of lifeguard to the top of his head, his antennae 3.65 m up, from Cheryl
 // Hill's Battle for Bikini Bottom Rehydrated model (larryModel.ts, made by scripts/avatar-model.py),
 // skinned over seven bones: the trunk, the head with its eyestalks and antennae, the arms out to
 // their claws, the legs and the tail. His head turns with the look and a held item sits in his right
@@ -13,7 +13,7 @@ const LEG_SWING = 0.6; // radians each way at a full-speed walk
 const AIR_LEGS = 0.35;
 const ARM_SWING = 0.35;
 const ARMS_DOWN = 1.15; // the model holds his arms straight out
-const BOB = 0.06; // metres the body rises mid-stride
+const BOB = 0.07; // metres the body rises mid-stride
 const HEAD_FOLLOW = 0.5; // how much of the look's pitch the head takes
 const TAIL_SWAY = 0.12; // radians each way, in time with his steps
 // Lying on his back: radians the legs and arms drop toward the ground.
@@ -56,7 +56,7 @@ export function buildLarry(engine: Engine, id: string, base: TransformNode): Fig
     armR: { node: armR, grip, reach },
     back: { node: body, at: skin.offset('body', LARRY_MODEL.back) },
     materials: [skin.material],
-    shadow: 1.4,
+    shadow: 1.5,
     legSwing: LEG_SWING,
     airLegs: AIR_LEGS,
     armSwing: ARM_SWING,

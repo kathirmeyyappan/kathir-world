@@ -34,7 +34,7 @@ export const GAITS: Record<AvatarId, GaitSpec | null> = {
   plankton: { stride: 0.8, steps: 'thuds', pitch: 1.6 }, // a tiny, quick patter
   sandy: { stride: 2.8, steps: 'thuds', pitch: 1.1 },
   puff: { stride: 1.6, steps: 'thuds', pitch: 0.9 }, // short legs under a heavy body
-  larry: { stride: 3.3, steps: 'thuds', pitch: 0.8 }, // long, heavy strides
+  larry: { stride: 3.5, steps: 'thuds', pitch: 0.8 }, // long, heavy strides
   sahur: { stride: 4.1, steps: 'thuds', pitch: 0.8 }, // plods
   mike: { stride: 1.5, steps: 'thuds', pitch: 1.25 }, // patters
   sulley: { stride: 4.4, steps: 'thuds', pitch: 0.85 }, // long, slow strides

@@ -296,7 +296,7 @@ MODELS = {
     "puff": Model(
         "BFBBR - Mrs Puff",
         "Cheryl Hill",
-        2.4,  # as tall as Mr. Krabs, to the top of her hat
+        2.55,  # to the top of her hat
         (
             ("body", "jt_hip"),
             ("head", "jt_head"),
@@ -317,7 +317,7 @@ MODELS = {
     "larry": Model(
         "BFBBR - Larry The Lobster",
         "Cheryl Hill",
-        3.4,  # to the tips of his antennae, a little over Tung Tung Tung Sahur; his head is 2.7 m up
+        3.65,  # to the tips of his antennae; his head is 2.9 m up
         (
             ("body", "joint2"),
             ("head", "joint6"),
