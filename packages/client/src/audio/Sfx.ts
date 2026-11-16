@@ -841,14 +841,22 @@ let auditioned: HTMLAudioElement | null = null; // the sound last played off the
 
 // A sound by itself, where there's no game to play it in (the home screen): fetched as it's played,
 // at its own volume, in place of the last one played this way (null only stops that one), and not
-// at all with effects muted. It starts on a person's own click, which is what lets a page make sound.
-export function audition(id: SoundId | null): void {
+// at all with effects muted. Resolves false where it didn't start: the browser lets a page make
+// sound only once a person has clicked or pressed a key on it (or, in some, on the site before).
+export function audition(id: SoundId | null): Promise<boolean> {
   auditioned?.pause();
   auditioned = null;
-  if (!id || loadMuted().has('effects')) return;
+  if (!id || loadMuted().has('effects')) return Promise.resolve(false);
   const spec = SOUNDS[id];
-  auditioned = Object.assign(new Audio(`/assets/sounds/${spec.file}`), { volume: spec.volume });
-  void auditioned.play().catch(() => {});
+  const audio = Object.assign(new Audio(`/assets/sounds/${spec.file}`), { volume: spec.volume });
+  auditioned = audio;
+  return audio.play().then(
+    () => true,
+    () => {
+      if (auditioned === audio) auditioned = null;
+      return false;
+    },
+  );
 }
 
 function loadMuted(): Set<Channel> {

@@ -77,8 +77,11 @@ export function showHome(): Promise<HomeResult> {
   roomInput.value = params.get('room') ?? params.get('code') ?? '';
   pick(params.get('tab') === 'create' ? 'create' : 'join');
   // Picking a look says its intro, as switching to it in the game does, and stops the last one's.
+  const intro = (value: string) => take(VOICES[lookOf(value).avatar ?? 'standard'].enter) ?? null;
+  let picked = false;
   const skin = new Picker(document.getElementById('home-skin')!, skinChoices(), (value) => {
-    audition(take(VOICES[lookOf(value).avatar ?? 'standard'].enter) ?? null);
+    picked = true;
+    void audition(intro(value));
   });
   const asked = params.has('avatar') || params.has('color');
   skin.choose(asked ? choiceOf(params.get('avatar'), params.get('color')) : (stored(SKIN_KEY) ?? STANDARD));
@@ -94,6 +97,29 @@ export function showHome(): Promise<HomeResult> {
     store(SKIN_KEY, skin.value);
   };
 
+  // The look the page opens on says its intro as the form first shows, as a pick would. Where the
+  // browser won't let the page make sound yet, it's said at the person's first click or key on the
+  // page instead, unless that's a pick (which says its own) or a way into the world (the JOIN
+  // buttons, or Enter in a field), where the look is introduced as the player comes in.
+  let greeted = false;
+  const greet = async () => {
+    if (greeted) return;
+    greeted = true;
+    const id = intro(skin.value);
+    if (!id || (await audition(id)) || picked) return;
+    const first = (e: Event) => {
+      window.removeEventListener('pointerdown', first, true);
+      window.removeEventListener('keydown', first, true);
+      const target = e.target instanceof Node ? e.target : null;
+      const leaving =
+        (e instanceof KeyboardEvent && e.key === 'Enter') ||
+        [joinBtn, globalBtn, offlineBtn].some((b) => target !== null && b.contains(target));
+      if (!picked && !leaving) void audition(intro(skin.value));
+    };
+    window.addEventListener('pointerdown', first, true);
+    window.addEventListener('keydown', first, true);
+  };
+
   // The page loads showing the loading screen. Only reveal the home screen when there is
   // nothing to auto-join (or an auto-join fails), so arriving via the lobby never flashes it.
   let busy = false;
@@ -103,6 +129,7 @@ export function showHome(): Promise<HomeResult> {
     loading.classList.add('hidden');
     root.classList.remove('hidden');
     stage.start();
+    void greet();
   };
   const hideForm = () => {
     root.classList.add('hidden');

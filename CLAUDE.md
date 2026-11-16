@@ -584,7 +584,9 @@ when adding one. What it says in its own voice is its row in `VOICES` (`audio/vo
 every look has. Its `enter` is its intro, the line every character is expected to have (empty
 until its recording is added): said as a player switches to the look, to them and everyone near,
 until they switch again (`Sfx.hush`; the home screen's stops at the next pick too),
-on the home screen as the look is picked (`Sfx.ts` `audition`), and to the player alone as they
+on the home screen as the look is picked (`Sfx.ts` `audition`) and as it opens on the saved look
+(or, where the browser holds sound back until a person acts, at their first click or key there
+that isn't a pick or a way into the world, `home.ts` `greet`), and to the player alone as they
 come into the world wearing it, after the start press (with longer to arrive, `START_INTRO_LATE_MS`). An intro is `lazy` in `SOUNDS`
 and played with `Sfx.soon`: fetched the first time it's said within earshot and played as it
 arrives (let go if that takes over `LATE_MS`), so a client pays for the intros it hears and no
