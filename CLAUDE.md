@@ -555,7 +555,11 @@ wider where they are further apart than it is, tipped whole over legs held out f
 (right over them, sat with them up in front of her in a ground pound), gathered up short of the
 floor when the hips come down, and taken round with the hips in a somersault; the model script
 closes its hem with a lining (`lining`), so nothing shows up it when it tips. Her legs move under
-it and stay out of sight. Her ponytail (`Tail`, with the look's
+it and stay out of sight: a knee or an ankle out past the cloth as it hangs that frame (a leg
+quicker than the skirt, a long jump's two further apart than it spreads) is turned back in under
+it (`Skirt.tuck`). And on her feet her hands rest on it, never in it: an arm whose palm a clip has
+left inside the bell (`Bell`, measured off the model's skirt vertices) is swung out from the
+shoulder until the palm lies on the cloth (`Rig.drape`, `Skirt.clear`). Her ponytail (`Tail`, with the look's
 `tail`, the way each link runs as the hair is dressed) is a chain of points that fall, are pulled
 toward that dressing and drag, kept off the head and the floor, worked out from where the body
 stands so the body's stepped travel never yanks it: it hangs down her back, swings behind a turn
