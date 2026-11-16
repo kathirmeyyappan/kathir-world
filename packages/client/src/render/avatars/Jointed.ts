@@ -359,8 +359,8 @@ export class JointedAvatar extends WalkerAvatar {
   // its fall and its landing, each blended into the next. Empty-handed the body turns to face the
   // way it's going, leaning into the turn, and stays facing that way when it stops; with something
   // to aim it faces its look, its hips turned toward the way its feet go.
-  protected override walk(p: RemotePlayer, feetY: number, step: number): Pose {
-    const walked = super.walk(p, feetY, step);
+  protected override walk(p: RemotePlayer, feetY: number, step: number, frame: number): Pose {
+    const walked = super.walk(p, feetY, step, frame);
     const dt = this.watch(p, feetY);
     const { style, clips, out, other, third } = this;
     const pace = p.walk / walkSpeedOf(this.kind);

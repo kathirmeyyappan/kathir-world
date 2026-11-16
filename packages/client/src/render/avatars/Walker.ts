@@ -18,7 +18,9 @@ import { smooth } from './motion';
 
 export const RUNG = 0.3; // metres between a ladder's rungs (render/Structures.ts)
 const SWING_HALF_LIFE = 0.08; // seconds: the swing round a ladder is mostly over in a third of a second
-const HEAD_TURN = 1.2; // radians a head may turn from the body on a ladder, where the body faces the rungs
+const HEAD_TURN = 1.2; // radians a head may turn from the body: on a ladder, or standing empty-handed
+const EASE_TURN = 0.12; // seconds an empty-handed body takes to come round to its look once it walks
+const STANDING = 0.1; // m/s of walk under which an empty-handed body keeps the way it faces
 const ARM_TURN = Math.PI / 2; // radians the weapon arm may turn from the body there: as far as the look is held
 // Climbing: radians the legs are bent at the hip, and swing from there for each rung a foot is from
 // the middle of its step; and the elevation of a hand's reach up the rungs, and its swing a rung.
@@ -102,6 +104,7 @@ export class WalkerAvatar implements Avatar {
   protected rungsAhead = 0; // metres from the body to the middle of the ladder's rungs
   private held: RemotePlayer['climb'] = null; // the ladder face last seen held
   private swing = 0; // radians the body has still to turn round the ladder after a swap
+  private heading: number | null = null; // the way the body faces on foot, radians in the world; none until drawn
   private dead = false;
   private lastNow = performance.now();
   readonly color?: string;
@@ -135,7 +138,7 @@ export class WalkerAvatar implements Avatar {
     this.lastNow = now;
     this.hitFlash.update(p.chilled);
     const feetY = p.y - EYE_HEIGHT;
-    const pose = p.climb && !p.dead ? this.climb(p, feetY, dt) : this.walk(p, feetY, step);
+    const pose = p.climb && !p.dead ? this.climb(p, feetY, dt) : this.walk(p, feetY, step, dt);
     if (p.dead) this.lie();
     this.dead = p.dead;
     this.figure.extra?.(p, pose);
@@ -146,12 +149,19 @@ export class WalkerAvatar implements Avatar {
 
   // On the ground or in the air: the legs swing with the stride and the arms against them, the
   // body rising and rocking with it, the weapon arm pointed along the look while holding an item.
-  protected walk(p: RemotePlayer, feetY: number, step: number): Pose {
+  // Holding one the body faces its look, which gives away its aim; empty-handed it keeps the way it
+  // faces while it stands, only its head turning to look about, and comes round to the look as it
+  // walks.
+  protected walk(p: RemotePlayer, feetY: number, step: number, dt: number): Pose {
     const f = this.figure;
     this.held = null;
     this.swing = 0;
     this.root.position.set(p.x, feetY, p.z);
-    this.root.rotation.set(0, p.yaw, 0);
+    const free = !p.item && !p.dead;
+    if (this.heading === null || p.item) this.heading = p.yaw;
+    else if (free && p.walk > STANDING)
+      this.heading = wrap(this.heading + wrap(p.yaw - this.heading) * (1 - Math.exp((-3 * dt) / EASE_TURN)));
+    this.root.rotation.set(0, this.heading, 0);
     const airborne = !p.grounded;
     this.gait.update(p.walk / walkSpeedOf(this.kind), airborne, step);
     const { phase, effort } = this.gait;
@@ -175,7 +185,7 @@ export class WalkerAvatar implements Avatar {
     this.base.position.set(0, airborne ? 0 : Math.abs(Math.sin(phase)) * f.bob * effort, 0);
     (f.rock ?? this.base).rotation.z = airborne ? 0 : Math.sin(phase) * (f.sway ?? 0) * effort;
     if (f.tilt) f.tilt.node.rotation.x = p.pitch * f.tilt.follow;
-    if (f.head) f.head.rotation.y = 0;
+    if (f.head) f.head.rotation.y = free ? clamp(wrap(p.yaw - this.heading), HEAD_TURN) : 0;
     if (p.item && !p.dead) this.aim(p);
     else {
       hang(f.armR.node);
@@ -208,6 +218,7 @@ export class WalkerAvatar implements Avatar {
     const sin = Math.sin(this.swing);
     this.root.position.set(line.x + dx * cos + dz * sin, feetY, line.z - dx * sin + dz * cos);
     this.root.rotation.y = facing + this.swing;
+    this.heading = facing;
     this.root.rotation.x = -hold.side * lean;
     if (f.head) f.head.rotation.y = clamp(wrap(p.yaw - facing), HEAD_TURN);
     if (f.tilt) f.tilt.node.rotation.x = p.pitch * f.tilt.follow;
