@@ -81,7 +81,7 @@ export const VOICES: Record<AvatarId, Voice> = {
     twirl: 'pound-twirl-heavy',
   },
   spongebob: {
-    enter: ['spongebob-enter'],
+    enter: ['spongebob-enter', 'spongebob-enter-2'],
     hurt: ['spongebob-hurt'],
     kill: ['spongebob-kill-1', 'spongebob-kill-2'],
     ...BIKINI_BOTTOM,
@@ -89,17 +89,27 @@ export const VOICES: Record<AvatarId, Voice> = {
   patrick: {
     enter: ['patrick-enter'],
     hurt: ['patrick-hurt-1', 'patrick-hurt-2'],
-    kill: ['patrick-kill-1'],
+    kill: ['patrick-kill-1', 'patrick-kill-2'],
     ...BIKINI_BOTTOM,
   },
-  krabs: { enter: [], ...BIKINI_BOTTOM },
+  krabs: {
+    enter: ['krabs-enter', 'krabs-enter-2'],
+    hurt: ['krabs-hurt'],
+    kill: ['krabs-kill-1', 'krabs-kill-2', 'krabs-kill-3'],
+    ...BIKINI_BOTTOM,
+  },
   squidward: {
     enter: ['squidward-enter-1', 'squidward-enter-2'],
     hurt: ['squidward-hurt-1', 'squidward-hurt-2', 'squidward-hurt-3'],
     kill: ['squidward-kill-1', 'squidward-kill-2'],
     ...BIKINI_BOTTOM,
   },
-  gary: { enter: [], ...BIKINI_BOTTOM },
+  gary: {
+    enter: ['gary-enter'],
+    hurt: ['gary-hurt-1', 'gary-hurt-2'],
+    kill: ['gary-kill-1'],
+    ...BIKINI_BOTTOM,
+  },
   plankton: {
     enter: ['plankton-enter'],
     hurt: ['plankton-hurt'],

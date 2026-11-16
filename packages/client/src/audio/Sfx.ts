@@ -90,6 +90,9 @@ export type SoundId =
   | 'spongebob-hurt'
   | 'patrick-hurt-1'
   | 'patrick-hurt-2'
+  | 'krabs-hurt'
+  | 'gary-hurt-1'
+  | 'gary-hurt-2'
   | 'squidward-hurt-1'
   | 'squidward-hurt-2'
   | 'squidward-hurt-3'
@@ -108,6 +111,11 @@ export type SoundId =
   | 'spongebob-kill-1'
   | 'spongebob-kill-2'
   | 'patrick-kill-1'
+  | 'patrick-kill-2'
+  | 'krabs-kill-1'
+  | 'krabs-kill-2'
+  | 'krabs-kill-3'
+  | 'gary-kill-1'
   | 'squidward-kill-1'
   | 'squidward-kill-2'
   | 'plankton-kill-1'
@@ -130,6 +138,10 @@ export type SoundId =
   | 'squidward-enter-2'
   | 'plankton-enter'
   | 'spongebob-enter'
+  | 'spongebob-enter-2'
+  | 'krabs-enter'
+  | 'krabs-enter-2'
+  | 'gary-enter'
   | 'sahur-enter'
   | 'mario-death'
   | 'spongebob-death'
@@ -212,7 +224,9 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   // A character's own voice (voices.ts). Every line but the jump is recorded at one loudness, so
   // the volumes here are how they compare: a hit's cry just under the hurt sound, a kill's and a
   // switch's a little under that, a long jump under those. The jump, heard at every hop, is kept
-  // far quieter than any of them.
+  // far quieter than any of them. Hurts and kills are lazy like the intros and deaths: each look's
+  // are sent for when someone near first wears it (Game.ts `voiceWanted`), so a client pays for the
+  // looks it meets, not every look there is.
   'mario-jump-1': { file: 'mario-jump-1.mp3', half: 6, reach: 30, volume: 0.08 },
   'mario-jump-2': { file: 'mario-jump-2.mp3', half: 6, reach: 30, volume: 0.08 },
   'mario-jump-3': { file: 'mario-jump-3.mp3', half: 6, reach: 30, volume: 0.08 },
@@ -239,45 +253,52 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'peach-leap-2': { file: 'peach-leap-2.mp3', half: 6, reach: 30, volume: 0.12 },
   'daisy-leap-1': { file: 'daisy-leap-1.mp3', half: 6, reach: 30, volume: 0.12 },
   'daisy-leap-2': { file: 'daisy-leap-2.mp3', half: 6, reach: 30, volume: 0.12 },
-  'mario-hurt-1': { file: 'mario-hurt-1.mp3', half: 6, reach: 30, volume: 0.25 },
-  'mario-hurt-2': { file: 'mario-hurt-2.mp3', half: 6, reach: 30, volume: 0.25 },
-  'mario-hurt-3': { file: 'mario-hurt-3.mp3', half: 6, reach: 30, volume: 0.25 },
-  'luigi-hurt-1': { file: 'luigi-hurt-1.mp3', half: 6, reach: 30, volume: 0.25 },
-  'luigi-hurt-2': { file: 'luigi-hurt-2.mp3', half: 6, reach: 30, volume: 0.25 },
-  'wario-hurt-1': { file: 'wario-hurt-1.mp3', half: 6, reach: 30, volume: 0.25 },
-  'waluigi-hurt-1': { file: 'waluigi-hurt-1.mp3', half: 6, reach: 30, volume: 0.25 },
-  'waluigi-hurt-2': { file: 'waluigi-hurt-2.mp3', half: 6, reach: 30, volume: 0.25 },
-  'peach-hurt-1': { file: 'peach-hurt-1.mp3', half: 6, reach: 30, volume: 0.25 },
-  'daisy-hurt-1': { file: 'daisy-hurt-1.mp3', half: 6, reach: 30, volume: 0.25 },
-  'daisy-hurt-2': { file: 'daisy-hurt-2.mp3', half: 6, reach: 30, volume: 0.25 },
-  'spongebob-hurt': { file: 'spongebob-hurt.mp3', half: 6, reach: 30, volume: 0.25 },
-  'patrick-hurt-1': { file: 'patrick-hurt-1.mp3', half: 6, reach: 30, volume: 0.25 },
-  'patrick-hurt-2': { file: 'patrick-hurt-2.mp3', half: 6, reach: 30, volume: 0.25 },
-  'squidward-hurt-1': { file: 'squidward-hurt-1.mp3', half: 6, reach: 30, volume: 0.25 },
-  'squidward-hurt-2': { file: 'squidward-hurt-2.mp3', half: 6, reach: 30, volume: 0.25 },
-  'squidward-hurt-3': { file: 'squidward-hurt-3.mp3', half: 6, reach: 30, volume: 0.25 },
-  'plankton-hurt': { file: 'plankton-hurt.mp3', half: 6, reach: 30, volume: 0.25 },
-  'mario-kill-1': { file: 'mario-kill-1.mp3', half: 6, reach: 30, volume: 0.2 },
-  'mario-kill-2': { file: 'mario-kill-2.mp3', half: 6, reach: 30, volume: 0.2 },
+  'mario-hurt-1': { file: 'mario-hurt-1.mp3', half: 6, reach: 30, volume: 0.25, lazy: true },
+  'mario-hurt-2': { file: 'mario-hurt-2.mp3', half: 6, reach: 30, volume: 0.25, lazy: true },
+  'mario-hurt-3': { file: 'mario-hurt-3.mp3', half: 6, reach: 30, volume: 0.25, lazy: true },
+  'luigi-hurt-1': { file: 'luigi-hurt-1.mp3', half: 6, reach: 30, volume: 0.25, lazy: true },
+  'luigi-hurt-2': { file: 'luigi-hurt-2.mp3', half: 6, reach: 30, volume: 0.25, lazy: true },
+  'wario-hurt-1': { file: 'wario-hurt-1.mp3', half: 6, reach: 30, volume: 0.25, lazy: true },
+  'waluigi-hurt-1': { file: 'waluigi-hurt-1.mp3', half: 6, reach: 30, volume: 0.25, lazy: true },
+  'waluigi-hurt-2': { file: 'waluigi-hurt-2.mp3', half: 6, reach: 30, volume: 0.25, lazy: true },
+  'peach-hurt-1': { file: 'peach-hurt-1.mp3', half: 6, reach: 30, volume: 0.25, lazy: true },
+  'daisy-hurt-1': { file: 'daisy-hurt-1.mp3', half: 6, reach: 30, volume: 0.25, lazy: true },
+  'daisy-hurt-2': { file: 'daisy-hurt-2.mp3', half: 6, reach: 30, volume: 0.25, lazy: true },
+  'spongebob-hurt': { file: 'spongebob-hurt.mp3', half: 6, reach: 30, volume: 0.25, lazy: true },
+  'patrick-hurt-1': { file: 'patrick-hurt-1.mp3', half: 6, reach: 30, volume: 0.25, lazy: true },
+  'patrick-hurt-2': { file: 'patrick-hurt-2.mp3', half: 6, reach: 30, volume: 0.25, lazy: true },
+  'krabs-hurt': { file: 'krabs-hurt.mp3', half: 6, reach: 30, volume: 0.25, lazy: true },
+  'gary-hurt-1': { file: 'gary-hurt-1.mp3', half: 6, reach: 30, volume: 0.25, lazy: true },
+  'gary-hurt-2': { file: 'gary-hurt-2.mp3', half: 6, reach: 30, volume: 0.25, lazy: true },
+  'squidward-hurt-1': { file: 'squidward-hurt-1.mp3', half: 6, reach: 30, volume: 0.25, lazy: true },
+  'squidward-hurt-2': { file: 'squidward-hurt-2.mp3', half: 6, reach: 30, volume: 0.25, lazy: true },
+  'squidward-hurt-3': { file: 'squidward-hurt-3.mp3', half: 6, reach: 30, volume: 0.25, lazy: true },
+  'plankton-hurt': { file: 'plankton-hurt.mp3', half: 6, reach: 30, volume: 0.25, lazy: true },
+  'mario-kill-1': { file: 'mario-kill-1.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
+  'mario-kill-2': { file: 'mario-kill-2.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'mario-enter': { file: 'mario-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'mario-enter-2': { file: 'mario-enter-2.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
-  'luigi-kill-1': { file: 'luigi-kill-1.mp3', half: 6, reach: 30, volume: 0.2 },
-  'luigi-kill-2': { file: 'luigi-kill-2.mp3', half: 6, reach: 30, volume: 0.2 },
-  'wario-kill-1': { file: 'wario-kill-1.mp3', half: 6, reach: 30, volume: 0.2 },
-  'wario-kill-2': { file: 'wario-kill-2.mp3', half: 6, reach: 30, volume: 0.2 },
-  'waluigi-kill-1': { file: 'waluigi-kill-1.mp3', half: 6, reach: 30, volume: 0.2 },
-  'waluigi-kill-2': { file: 'waluigi-kill-2.mp3', half: 6, reach: 30, volume: 0.2 },
-  'waluigi-kill-3': { file: 'waluigi-kill-3.mp3', half: 6, reach: 30, volume: 0.2 },
-  'peach-kill-1': { file: 'peach-kill-1.mp3', half: 6, reach: 30, volume: 0.2 },
-  'peach-kill-2': { file: 'peach-kill-2.mp3', half: 6, reach: 30, volume: 0.2 },
-  'daisy-kill-1': { file: 'daisy-kill-1.mp3', half: 6, reach: 30, volume: 0.2 },
-  'daisy-kill-2': { file: 'daisy-kill-2.mp3', half: 6, reach: 30, volume: 0.2 },
-  'spongebob-kill-1': { file: 'spongebob-kill-1.mp3', half: 6, reach: 30, volume: 0.2 },
-  'spongebob-kill-2': { file: 'spongebob-kill-2.mp3', half: 6, reach: 30, volume: 0.2 },
-  'patrick-kill-1': { file: 'patrick-kill-1.mp3', half: 6, reach: 30, volume: 0.2 },
-  'squidward-kill-1': { file: 'squidward-kill-1.mp3', half: 6, reach: 30, volume: 0.2 },
-  'squidward-kill-2': { file: 'squidward-kill-2.mp3', half: 6, reach: 30, volume: 0.2 },
-  // Five seconds each, so fetched the first time one is said within earshot, as an intro is.
+  'luigi-kill-1': { file: 'luigi-kill-1.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
+  'luigi-kill-2': { file: 'luigi-kill-2.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
+  'wario-kill-1': { file: 'wario-kill-1.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
+  'wario-kill-2': { file: 'wario-kill-2.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
+  'waluigi-kill-1': { file: 'waluigi-kill-1.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
+  'waluigi-kill-2': { file: 'waluigi-kill-2.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
+  'waluigi-kill-3': { file: 'waluigi-kill-3.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
+  'peach-kill-1': { file: 'peach-kill-1.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
+  'peach-kill-2': { file: 'peach-kill-2.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
+  'daisy-kill-1': { file: 'daisy-kill-1.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
+  'daisy-kill-2': { file: 'daisy-kill-2.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
+  'spongebob-kill-1': { file: 'spongebob-kill-1.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
+  'spongebob-kill-2': { file: 'spongebob-kill-2.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
+  'patrick-kill-1': { file: 'patrick-kill-1.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
+  'patrick-kill-2': { file: 'patrick-kill-2.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
+  'krabs-kill-1': { file: 'krabs-kill-1.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
+  'krabs-kill-2': { file: 'krabs-kill-2.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
+  'krabs-kill-3': { file: 'krabs-kill-3.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
+  'gary-kill-1': { file: 'gary-kill-1.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
+  'squidward-kill-1': { file: 'squidward-kill-1.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
+  'squidward-kill-2': { file: 'squidward-kill-2.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'plankton-kill-1': { file: 'plankton-kill-1.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'plankton-kill-2': { file: 'plankton-kill-2.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'luigi-enter': { file: 'luigi-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
@@ -294,6 +315,10 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'squidward-enter-2': { file: 'squidward-enter-2.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'plankton-enter': { file: 'plankton-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'spongebob-enter': { file: 'spongebob-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
+  'spongebob-enter-2': { file: 'spongebob-enter-2.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
+  'krabs-enter': { file: 'krabs-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
+  'krabs-enter-2': { file: 'krabs-enter-2.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
+  'gary-enter': { file: 'gary-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'sahur-enter': { file: 'sahur-enter.mp3', half: 6, reach: 30, volume: 0.2, fade: 0.3, lazy: true }, // the whole chant, 17 s: it's the joke
   // A look's death (voices.ts): the sting and jingle, ten seconds of song, the death screen's
   // length, and Roz's line. Each is heard only by a player who dies as that look, so each is fetched

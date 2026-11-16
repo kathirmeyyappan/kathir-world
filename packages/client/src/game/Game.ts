@@ -783,7 +783,7 @@ export class Game {
       return true;
     }
     if (this.sfx.play(said.sound, said.at, { delay })) return true;
-    // A long kill line is fetched as it's first said (lazy in SOUNDS): played as it arrives.
+    // A kill line not here yet (lazy in SOUNDS, sent for in wantVoice) is played as it arrives.
     if (line === 'kill') this.sfx.soon(said.sound, said.at);
     return line === 'kill';
   }
@@ -796,6 +796,15 @@ export class Game {
     const sound = avatar && take(VOICES[avatar][line]);
     const at = mine ? null : this.headOf(id);
     return sound && (mine || at) ? { sound, at } : null;
+  }
+
+  // Sends for a look's hurts and kills (lazy in SOUNDS) as it's first seen worn, so they're here
+  // by the time it's hit or gloats, and with `mine` its death too, which only its own player hears.
+  // A hurt that hasn't arrived by its hit is left out.
+  private wantVoice(avatar: AvatarId, mine: boolean): void {
+    const voice = VOICES[avatar];
+    for (const id of [...(voice.hurt ?? []), ...(voice.kill ?? []), ...(mine ? (voice.death ?? []) : [])])
+      this.sfx.want(id);
   }
 
   // A player's cry at a hit. False if their look has none, or their last is still sounding: no
@@ -862,6 +871,7 @@ export class Game {
     const avatar = createAvatar(this.engine, p);
     avatar.hide();
     this.avatars.set(p.id, avatar);
+    this.wantVoice(p.avatar, false);
   }
 
   private frame(dt: number): void {
@@ -921,7 +931,7 @@ export class Game {
     if (self.avatar !== this.look) {
       if (this.look) this.say(this.myId, 'enter');
       this.look = self.avatar;
-      for (const id of VOICES[self.avatar].death ?? []) this.sfx.want(id);
+      this.wantVoice(self.avatar, true);
     }
     // The look the player comes in as says its intro too, once the start press (main.ts showStart,
     // which takes #start away) has let sound play, with longer to arrive than a switch's: it is
@@ -1085,6 +1095,7 @@ export class Game {
       if (!avatar) {
         avatar = createAvatar(this.engine, rp);
         this.avatars.set(rp.id, avatar);
+        this.wantVoice(rp.avatar, false);
         if (was && was !== rp.avatar) this.say(rp.id, 'enter');
       }
       avatar.update(rp, this.footsteps.phase(rp.id));
