@@ -24,6 +24,7 @@ export type AvatarId =
   | 'squidward'
   | 'gary'
   | 'plankton'
+  | 'sandy'
   | 'sahur'
   | 'mike'
   | 'sulley'
@@ -317,6 +318,18 @@ const LOOKS = {
     walk: 3.5,
     jump: 1,
     life: { hearts: 3, row: 5, sprite: 'heart' }, // under a third of a walker's: he's the smallest target there is
+  },
+  sandy: {
+    id: 'sandy',
+    class: 'walker',
+    item: null,
+    regen: false,
+    blurb: 'become sandy cheeks',
+    command: 'sandy',
+    eye: 1.67,
+    hitbox: { top: 2.2, radius: 0.5, head: 0.93 }, // to the flower on her helmet, which is a metre across: the head is the helmet
+    walk: 8,
+    jump: 1.2, // a squirrel
   },
   sahur: {
     id: 'sahur',

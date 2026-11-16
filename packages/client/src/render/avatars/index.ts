@@ -14,6 +14,7 @@ import { MARIO } from './Mario';
 import { MIKE } from './Mike';
 import { PATRICK } from './Patrick';
 import { PLANKTON } from './Plankton';
+import { buildSandy } from './Sandy';
 import { buildSahur } from './Sahur';
 import { SPONGEBOB } from './SpongeBob';
 import { buildSquidward } from './Squidward';
@@ -44,6 +45,7 @@ const SKINNED: readonly AvatarId[] = [
   'squidward',
   'gary',
   'plankton',
+  'sandy',
   'mike',
   'sulley',
   ...(Object.keys(DRAGONS) as DragonAvatarId[]),
@@ -80,6 +82,7 @@ const MAKERS: Record<AvatarId, Make> = {
   squidward: walker(buildSquidward),
   gary: walker(buildGary),
   plankton: walker(bodyBuilder(PLANKTON)),
+  sandy: walker(buildSandy),
   sahur: walker(buildSahur),
   mike: walker(bodyBuilder(MIKE)),
   sulley: walker(buildSulley),

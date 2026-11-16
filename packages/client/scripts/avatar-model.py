@@ -9,6 +9,7 @@
     python packages/client/scripts/avatar-model.py squidward path/to/squidward_tentacles.glb
     python packages/client/scripts/avatar-model.py gary path/to/gary_spongebob.glb
     python packages/client/scripts/avatar-model.py plankton path/to/bfbbr_-_plankton.glb
+    python packages/client/scripts/avatar-model.py sandy path/to/bfbbr_-_sandy_updated.glb
 
 Each is a skinned mesh (or a few) on a rig of a hundred-odd joints, or rigid parts on a tree of
 nodes, with no animation. This poses it
@@ -46,13 +47,20 @@ Joint = str | int
 
 @dataclass(frozen=True)
 class Piece:
-    """One of the separate pieces of a rigid node's mesh, where it holds several limbs (four legs in
-    one mesh): the one whose middle is on this side of the body in the avatar's frame, `x` to its
-    right and `z` forward, each 1, -1 or 0 for either side."""
+    """Some of the separate pieces of a rigid node's mesh, where it holds several limbs (four legs in
+    one mesh, or a whole body): the ones whose middle is on this side of the body in the avatar's
+    frame, `x` to its right and `z` forward, each 1, -1 or 0 for either side; at least `off` of the
+    model's height out that way; and, with `y`, between those shares of the model's height from its
+    feet. A piece no bone takes stays with its node's bone. The bone turns on the `end` of what it
+    takes: its top, its bottom, the end nearest the body's middle from side to side (`inner`, an arm
+    held straight out) or its front (a tail)."""
 
     node: Joint
     x: int = 0
     z: int = 0
+    y: tuple[float, float] | None = None
+    off: float = 0
+    end: str = "top"
 
 
 @dataclass(frozen=True)
@@ -103,6 +111,12 @@ class Model:
     # Metres below the shoulders the tank hangs: a person's back is a hand's width down, a tiny
     # body's a fraction of that.
     back_drop: float = 0.2
+    # Nodes whose meshes are left out: glass, which the avatar draws its own way, round the middle
+    # and to the size the model file gives as `glass`.
+    skip: tuple[Joint, ...] = ()
+    # Each separate piece of a mesh counted as a part of its own when the model is decimated, so a
+    # mesh that is a whole body in pieces keeps its small ones and thins each closed one alike.
+    apart: bool = False
 
 
 BIPED_PALM = ("Bip001_R_Hand", "Bip001_R_Finger0", "Bip001_R_Finger1", "Bip001_R_Finger2")
@@ -247,7 +261,44 @@ MODELS = {
         texture_size=256,
         back_drop=0.02,
     ),
+    # Not rigged at all: one mesh (node 2) in a T-pose, in separate pieces, so every bone is the
+    # pieces that lie where it is. Her suit, the flower on her helmet and the acorn on her chest stay
+    # with the body; the head is everything in the helmet under the flower. The helmet's glass (node
+    # 3) is left out: the avatar draws it (Sandy.ts).
+    "sandy": Model(
+        "BFBBR - Sandy (Updated)",
+        "Cheryl Hill",
+        2.2,  # a little over SpongeBob, to the top of her helmet's flower
+        (
+            ("body", 2),
+            ("head", Piece(2, y=(0.58, 0.88), end="bottom")),
+            ("armL", Piece(2, x=-1, y=(0.3, 0.58), off=0.1, end="inner")),
+            ("armR", Piece(2, x=1, y=(0.3, 0.58), off=0.1, end="inner")),
+            ("legL", Piece(2, x=-1, y=(0, 0.25))),
+            ("legR", Piece(2, x=1, y=(0, 0.25))),
+            ("tail", Piece(2, z=-1, off=0.15, end="front")),
+        ),
+        ("body",),
+        "armR",
+        budget=3600,
+        open_shells_too=True,  # every rim (a neck, a cuff, the tail's root) is inside the piece it meets
+        texture_size=256,
+        skip=(3,),
+        apart=True,
+    ),
 }
+
+
+def posed_height(doc: dict, blob: bytes, transform, index: int) -> tuple[float, float]:
+    """How low and how high a rigid node's meshes reach in the scene."""
+    heights = np.concatenate(
+        [
+            (np.c_[p, np.ones(len(p))] @ transform(index).T)[:, 1]
+            for prim in doc["meshes"][doc["nodes"][index]["mesh"]]["primitives"]
+            for p in [accessor(doc, blob, prim["attributes"]["POSITION"]).astype(np.float64)]
+        ]
+    )
+    return float(heights.min()), float(heights.max())
 
 
 def main(name: str, glb: str) -> None:
@@ -322,8 +373,11 @@ def main(name: str, glb: str) -> None:
 
     # Every primitive of every skinned mesh, posed, with its weights folded onto the avatar's bones.
     parts = []
+    skipped = {joints[joint(ref)] for ref in model.skip}
+    whole = [posed_height(doc, blob, transform, i) for i, node in enumerate(nodes) if "mesh" in node and i not in skipped]
+    floor, tall = min(lo for lo, _ in whole), max(hi for _, hi in whole) - min(lo for lo, _ in whole)
     for index, node in enumerate(nodes):
-        if "mesh" not in node:
+        if "mesh" not in node or index in skipped:
             continue
         for prim in doc["meshes"][node["mesh"]]["primitives"]:
             attrs = prim["attributes"]
@@ -351,11 +405,22 @@ def main(name: str, glb: str) -> None:
                 )
                 np.add.at(folded, (np.arange(len(p)), joint_bone[j[:, k]]), w[:, k])
             limbs = pieces_of(joint_index.get(index, -1))
-            for vertices in components({"positions": posed, "triangles": triangles}) if limbs else []:
+            separate = components({"positions": posed, "triangles": triangles}) if limbs or model.apart else []
+            for vertices in separate if limbs else []:
                 # The rig's left is +x, the avatar's right (see below).
-                x, _, z = hip - posed[vertices].mean(axis=0)
-                bones = [i for i, piece in limbs if piece.x * x >= 0 and piece.z * z <= 0]
-                assert len(bones) == 1, f"node {index}: a piece at x {x:.2f}, z {-z:.2f} is {len(bones)} bones"
+                middle = posed[vertices].mean(axis=0)
+                x, _, z = hip - middle
+                up = (middle[1] - floor) / tall
+                bones = [
+                    i
+                    for i, piece in limbs
+                    if piece.x * x >= piece.off * tall * abs(piece.x)
+                    and piece.z * z <= -piece.off * tall * abs(piece.z)
+                    and (piece.y is None or piece.y[0] <= up < piece.y[1])
+                ]
+                assert len(bones) <= 1, f"node {index}: a piece at x {x:.2f}, z {-z:.2f} is {len(bones)} bones"
+                if not bones:
+                    continue
                 folded[vertices] = 0
                 folded[vertices, bones[0]] = 1
                 for i, lower in lowers.get(bones[0], []):
@@ -365,16 +430,28 @@ def main(name: str, glb: str) -> None:
                     share = np.clip((cut + (lower.blend * height) / 2 - ys) / (lower.blend * height), 0, 1)
                     folded[vertices, i] = share
                     folded[vertices, bones[0]] -= share
-            parts.append(
-                {
-                    "positions": posed,
-                    "normals": posed_normals,
-                    "uvs": accessor(doc, blob, attrs["TEXCOORD_0"]).astype(np.float64),
-                    "bones": folded,
-                    "triangles": triangles,
-                    "material": prim["material"],
-                }
-            )
+            part = {
+                "positions": posed,
+                "normals": posed_normals,
+                "uvs": accessor(doc, blob, attrs["TEXCOORD_0"]).astype(np.float64),
+                "bones": folded,
+                "triangles": triangles,
+                "material": prim["material"],
+            }
+            if not model.apart:
+                parts.append(part)
+                continue
+            for vertices in separate:
+                renumbered = np.full(len(posed), -1)
+                renumbered[vertices] = np.arange(len(vertices))
+                own = renumbered[triangles]
+                parts.append(
+                    {
+                        **{key: part[key][vertices] for key in ("positions", "normals", "uvs", "bones")},
+                        "triangles": own[(own >= 0).all(axis=1)],
+                        "material": prim["material"],
+                    }
+                )
     total = sum(len(part["triangles"]) for part in parts)
     if model.budget and model.budget < total:
         big = [
@@ -439,10 +516,14 @@ def main(name: str, glb: str) -> None:
         if bone not in model.hinges and bone not in model.necks and not isinstance(ref, (Piece, Lower)):
             continue
         own = posed[order[:, 0] == bone_names.index(bone)]
-        top, bottom = own[:, 1].max(), own[:, 1].min()
-        end = bottom if bone in model.necks else top
-        pivots[bone] = own[abs(own[:, 1] - end) < (top - bottom) / 20].mean(axis=0)
-        pivots[bone][1] = end
+        # Along which axis its end is, and which way along it: up, down, toward the body's middle, ahead.
+        turns_on = "bottom" if bone in model.necks else ref.end if isinstance(ref, Piece) else "top"
+        axis = {"top": 1, "bottom": 1, "inner": 0, "front": 2}[turns_on]
+        far = turns_on in ("top", "front") or (turns_on == "inner" and own[:, 0].mean() < 0)
+        low, high = own[:, axis].min(), own[:, axis].max()
+        end = high if far else low
+        pivots[bone] = own[abs(own[:, axis] - end) < (high - low) / 20].mean(axis=0)
+        pivots[bone][axis] = end
     if isinstance(model.palm, str):
         # The far end of the arm: the middle of what lies within a tenth of its length of its tip.
         own = posed[order[:, 0] == bone_names.index(model.palm)]
@@ -467,6 +548,21 @@ def main(name: str, glb: str) -> None:
     # behind the root bone's pivot.
     lie = -posed[:, 2].min()
 
+    # What was left out, as the box it fills: its middle and its size across, up and through.
+    glass = None
+    if skipped:
+        left_out = avatar(
+            np.vstack(
+                [
+                    (np.c_[p, np.ones(len(p))] @ transform(index).T)[:, :3]
+                    for index in skipped
+                    for prim in doc["meshes"][nodes[index]["mesh"]]["primitives"]
+                    for p in [accessor(doc, blob, prim["attributes"]["POSITION"]).astype(np.float64)]
+                ]
+            )
+        )
+        glass = ((left_out.min(axis=0) + left_out.max(axis=0)) / 2, left_out.max(axis=0) - left_out.min(axis=0))
+
     atlas, uv = pack_atlas(doc, blob, uv, material, model.colours, model.texture_size)
 
     def b64(a: np.ndarray) -> str:
@@ -483,11 +579,17 @@ def main(name: str, glb: str) -> None:
         "// image), triangles (Uint16) and, per vertex, the four bones it follows (Uint8 indices into `bones`) and",
         "// how much (Uint8, summing to 255); all base64. `bones` is each bone's pivot in metres, in index order.",
         "// `hand` is the right palm, `back` where the tank hangs, `lie` how high the hips lie when it is on its back.",
+        *(
+            ["// `glass` is what the mesh leaves out for the avatar to draw: the middle and the size of the box it fills."]
+            if glass
+            else []
+        ),
         f"export const {name.upper()}_MODEL = {{",
         f"  height: {model.height},",
         f"  hand: {vec(palm)},",
         f"  back: {vec(back)},",
         f"  lie: {lie:.4f},",
+        *([f"  glass: {{ at: {vec(glass[0])}, size: {vec(glass[1])} }},"] if glass else []),
         "  bones: {",
         *(f"    {bone}: {vec(pivots[bone])}," for bone in bone_names),
         "  },",
