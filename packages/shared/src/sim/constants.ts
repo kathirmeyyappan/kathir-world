@@ -58,6 +58,12 @@ export const MAX_REWIND_TICKS = 8;
 // Inputs a server tick will consume from one player's queue. >1 lets a lagging client catch up.
 export const MAX_INPUTS_PER_TICK = 3;
 export const MAX_INPUT_QUEUE = TICK_RATE;
+// Ticks a server will hold a player still waiting for a frame that's late (a stalled browser) before
+// stepping them without one. A frame stepped in its own place agrees with the client's prediction; a
+// tick stepped without it doesn't (it falls further), and the client is pulled back. The wait is a
+// debt, paid back as the late frames are run several to a tick, so withholding frames never slows a
+// body's fall: past this many ticks owed, every tick without a frame is stepped without one.
+export const INPUT_WAIT_TICKS = 10;
 
 export const CUBE_BASE_Y = 3;
 export const CUBE_FLOAT_AMPLITUDE = 0.3;

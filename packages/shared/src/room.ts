@@ -16,6 +16,7 @@ import {
   EYE_HEIGHT,
   MAX_INPUTS_PER_TICK,
   MAX_INPUT_QUEUE,
+  INPUT_WAIT_TICKS,
   MAX_NAME_LENGTH,
   MAX_BOTS,
   MAX_PLAYERS,
@@ -82,6 +83,7 @@ interface Seat {
   state: PlayerState;
   link: ClientLink;
   queue: InputFrame[];
+  owed: number; // ticks held waiting for a late frame, not yet made up (INPUT_WAIT_TICKS)
 }
 
 export interface JoinOptions extends BotPlacement {
@@ -217,6 +219,7 @@ export class Room {
       state,
       link,
       queue: [],
+      owed: 0,
       lastShotTick: -Infinity,
       lastActTick: -Infinity,
       lastRenameTick: -Infinity,
@@ -509,9 +512,11 @@ export class Room {
         me.hearts = Math.min(heartsOf(me.avatar), me.hearts + REGEN_RATE * TICK_DT);
       const n = Math.min(seat.queue.length, MAX_INPUTS_PER_TICK);
       if (n === 0) {
-        this.advance(seat, null);
+        if (seat.owed < INPUT_WAIT_TICKS) seat.owed++;
+        else this.advance(seat, null);
         continue;
       }
+      seat.owed = Math.max(0, seat.owed - (n - 1));
       for (let i = 0; i < n; i++) {
         this.advance(seat, seat.queue[i]);
         this.applyActions(seat, seat.queue[i]);
