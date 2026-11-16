@@ -782,7 +782,10 @@ export class Game {
       this.sfx.soon(said.sound, said.at, undefined, id);
       return true;
     }
-    return this.sfx.play(said.sound, said.at, { delay });
+    if (this.sfx.play(said.sound, said.at, { delay })) return true;
+    // A long kill line is fetched as it's first said (lazy in SOUNDS): played as it arrives.
+    if (line === 'kill') this.sfx.soon(said.sound, said.at);
+    return line === 'kill';
   }
 
   // The take a player would say a line with and where from (null: the local player's own, from

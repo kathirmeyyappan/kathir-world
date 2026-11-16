@@ -583,7 +583,8 @@ for a jump in the swoosh's place (`jump`, by where the jump is in a chain of the
 second, the third, the last one given serving the rest), and the takes it picks from on a long jump, at a hit (heard by
 everyone near, never before the last cry has run out nor within `CRY_GAP_MS` of it; its own player
 hears it over the hurt sound, which sounds at every hit whatever the look; a spray's hits, fire's
-and ice's, come too fast for a voice and are the hurt sound alone, `Game.sprayed`) and a moment after a kill (`Game.say`); and its `death`,
+and ice's, come too fast for a voice and are the hurt sound alone, `Game.sprayed`) and a moment after a kill (`Game.say`; a long one is `lazy` like an intro, fetched as it's first said
+within earshot and played as it arrives); and its `death`,
 which its own player alone hears over the death screen (cut to its ten seconds; the reload ends
 it), `DEATH_SOUND_DELAY` after dying so the hit that killed them sounds first, as any hit does. A
 death is `lazy` too, and sent for as the player takes the look (`Sfx.want`), since it has to be
