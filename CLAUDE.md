@@ -534,10 +534,7 @@ somersault fitted to the flight so it's over just before the landing, and `pound
 up, and `crouch`, `crawl` and `backflip`, sat low, a cycle of the crawl's limbs, and the backward
 somersault of the jump out of it, fitted to its flight as the triple's is, and `float`, hanging
 in the air through a float, and `die`, dying where it stands, played once and held where it leaves
-the body, in the leap's place: the game's own reel and fall, which Mario's whole family plays, and `fallen`,
-its place when a fall killed it (`Avatar.fell`, from the Room's `fell`): over backwards from where it landed,
-bouncing onto its back, and dying there, as the game has a fatal fall; Peach and Daisy, whose skirts that
-throws up over them, die of a fall as of anything else) and a few numbers; the frame's pose is those sampled and blended: the idle into the walk or run at the
+the body, in the leap's place: the game's own reel and fall, which Mario's whole family plays) and a few numbers; the frame's pose is those sampled and blended: the idle into the walk or run at the
 point in the stride its feet have got to (the footsteps' phase, so feet land with their sounds,
 and the stride is the same at any speed, the legs only quicker), the jump going up into the fall
 coming down, and a landing as hard as the drop. Don't invent a character's motion from numbers:

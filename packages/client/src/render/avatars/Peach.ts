@@ -11,9 +11,7 @@ import { SM64_STYLE } from './sm64';
 
 export const PEACH_STYLE: Style = {
   ...SM64_STYLE,
-  // Going over backwards onto her back throws her skirt up over her, so a fall kills her as
-  // anything else does.
-  clips: { ...SM64_STYLE.clips, ...PEACH_CLIPS, fallen: undefined },
+  clips: { ...SM64_STYLE.clips, ...PEACH_CLIPS },
 };
 
 export const PEACH: JointedSpec = {

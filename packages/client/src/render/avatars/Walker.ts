@@ -125,7 +125,6 @@ export class WalkerAvatar implements Avatar {
   private last: { x: number; y: number; z: number; at: number } | null = null; // where it last moved to, and when
   private dead = false;
   protected gone = Infinity; // seconds since it was seen to die: forever for one first seen dead
-  protected crashed = false; // whether a fall killed it
   private readonly leap: number; // metres its dying leap rises
   readonly color?: string;
 
@@ -351,10 +350,6 @@ export class WalkerAvatar implements Avatar {
 
   flash(): void {
     this.hitFlash.trigger();
-  }
-
-  fell(): void {
-    this.crashed = true;
   }
 
   fire(): void {

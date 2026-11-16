@@ -26,7 +26,6 @@ export interface Avatar {
   hide(): void;
   dispose(): void;
   corpse(): Vector3 | null; // where the body lies, while dead and drawn; null otherwise
-  fell?(): void; // it died of a fall: said about when it's first drawn dead, for a look that dies its own way of one
   setHeadless?(on: boolean): void; // draw the body without the head, for its own wearer's view from its eyes
   act?(action: ItemAction): void; // did one of its class's own actions (a dragon's roar)
 }

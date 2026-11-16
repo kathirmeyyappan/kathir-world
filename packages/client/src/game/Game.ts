@@ -668,7 +668,6 @@ export class Game {
       case 'fell':
         this.hud.announceFall(m.victim);
         this.hud.setDead(m.victim);
-        (m.victim === this.myId ? this.ownAvatar : this.avatars.get(m.victim))?.fell?.();
         if (m.victim === this.myId) this.die('you fell');
         return;
       case 'pong':
