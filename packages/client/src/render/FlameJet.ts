@@ -58,6 +58,7 @@ export class FlameJet implements Jet {
       mesh.isPickable = false;
       mesh.applyFog = false;
       mesh.setEnabled(false);
+      engine.glow(mesh);
       this.particles.push({ mesh, mat, t: i / count, ox: 0, oy: 0, sx: 0, spin: 0 });
       this.scatter(this.particles[i]);
     }

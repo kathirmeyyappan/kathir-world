@@ -151,6 +151,7 @@ export function buildFlash(engine: Engine, name: string, parent: TransformNode, 
   flash.isPickable = false;
   flash.applyFog = false;
   flash.setEnabled(false);
+  engine.glow(flash);
   return flash;
 }
 
