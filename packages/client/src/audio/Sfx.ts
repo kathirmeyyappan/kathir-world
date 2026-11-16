@@ -91,6 +91,7 @@ export type SoundId =
   | 'patrick-hurt-1'
   | 'patrick-hurt-2'
   | 'krabs-hurt'
+  | 'plankton-hurt'
   | 'luigi-kill-1'
   | 'luigi-kill-2'
   | 'wario-kill-1'
@@ -109,6 +110,8 @@ export type SoundId =
   | 'krabs-kill-1'
   | 'krabs-kill-2'
   | 'krabs-kill-3'
+  | 'plankton-kill-1'
+  | 'plankton-kill-2'
   | 'mario-kill-1'
   | 'mario-kill-2'
   | 'mario-enter'
@@ -123,6 +126,7 @@ export type SoundId =
   | 'peach-enter-2'
   | 'daisy-enter'
   | 'patrick-enter'
+  | 'plankton-enter'
   | 'spongebob-enter'
   | 'spongebob-enter-2'
   | 'krabs-enter'
@@ -251,6 +255,7 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'patrick-hurt-1': { file: 'patrick-hurt-1.mp3', half: 6, reach: 30, volume: 0.25 },
   'patrick-hurt-2': { file: 'patrick-hurt-2.mp3', half: 6, reach: 30, volume: 0.25 },
   'krabs-hurt': { file: 'krabs-hurt.mp3', half: 6, reach: 30, volume: 0.25 },
+  'plankton-hurt': { file: 'plankton-hurt.mp3', half: 6, reach: 30, volume: 0.25 },
   'mario-kill-1': { file: 'mario-kill-1.mp3', half: 6, reach: 30, volume: 0.2 },
   'mario-kill-2': { file: 'mario-kill-2.mp3', half: 6, reach: 30, volume: 0.2 },
   'mario-enter': { file: 'mario-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
@@ -267,12 +272,16 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'daisy-kill-1': { file: 'daisy-kill-1.mp3', half: 6, reach: 30, volume: 0.2 },
   'daisy-kill-2': { file: 'daisy-kill-2.mp3', half: 6, reach: 30, volume: 0.2 },
   'spongebob-kill-1': { file: 'spongebob-kill-1.mp3', half: 6, reach: 30, volume: 0.2 },
-  'spongebob-kill-2': { file: 'spongebob-kill-2.mp3', half: 6, reach: 30, volume: 0.2 },
+  // Five seconds, so fetched the first time it's said within earshot, as Plankton's are.
+  'spongebob-kill-2': { file: 'spongebob-kill-2.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'patrick-kill-1': { file: 'patrick-kill-1.mp3', half: 6, reach: 30, volume: 0.2 },
   'patrick-kill-2': { file: 'patrick-kill-2.mp3', half: 6, reach: 30, volume: 0.2 },
   'krabs-kill-1': { file: 'krabs-kill-1.mp3', half: 6, reach: 30, volume: 0.2 },
   'krabs-kill-2': { file: 'krabs-kill-2.mp3', half: 6, reach: 30, volume: 0.2 },
   'krabs-kill-3': { file: 'krabs-kill-3.mp3', half: 6, reach: 30, volume: 0.2 },
+  // Five seconds each, so fetched the first time one is said within earshot, as an intro is.
+  'plankton-kill-1': { file: 'plankton-kill-1.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
+  'plankton-kill-2': { file: 'plankton-kill-2.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'luigi-enter': { file: 'luigi-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'luigi-enter-2': { file: 'luigi-enter-2.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'wario-enter': { file: 'wario-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
@@ -283,6 +292,7 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'peach-enter-2': { file: 'peach-enter-2.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'daisy-enter': { file: 'daisy-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'patrick-enter': { file: 'patrick-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
+  'plankton-enter': { file: 'plankton-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'spongebob-enter': { file: 'spongebob-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'spongebob-enter-2': { file: 'spongebob-enter-2.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'krabs-enter': { file: 'krabs-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
