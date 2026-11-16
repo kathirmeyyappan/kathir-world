@@ -74,17 +74,21 @@ export function clonePlayer(p: PlayerState): PlayerState {
 
 // Puts `p` in `avatar`. A new look is a new body, its class's state made over (a dragon of another
 // shape); a new class also drops the old class's state and the kit where the class has none, at
-// the same eye point. A look with another life (another class's, or one of its own) starts it
-// full; one with the same life keeps the hearts it had, so a change of skin is no heal. The look's
-// own item is held for good, and put down when the look is left.
+// the same eye point. A look with the same life keeps the hearts it had, and one with another life
+// of hearts in the same class keeps the share of a full one it had (Gary's five at half are a
+// walker's ten at half), so a change of skin is no heal; any other starts its life full (crystals
+// are whole, one to a weak point, and a new class is a new body). The look's own item is held for
+// good, and put down when the look is left.
 export function becomeAvatar(p: PlayerState, avatar: AvatarId): void {
   const from = classOf(p.avatar);
   const to = classOf(avatar);
   const hadOwn = AVATARS[p.avatar].item !== null;
   const changed = avatar !== p.avatar;
   const newLife = lifeOf(avatar) !== lifeOf(p.avatar);
+  const hearts = (id: AvatarId) => lifeOf(id).sprite === 'heart';
+  const share = to === from && hearts(p.avatar) && hearts(avatar) ? p.hearts / heartsOf(p.avatar) : 1;
   p.avatar = avatar;
-  if (newLife && !p.dead) p.hearts = heartsOf(avatar);
+  if (newLife && !p.dead) p.hearts = heartsOf(avatar) * share;
   if (to !== from) from.exit(p);
   if (changed) to.enter(p);
   if (to !== from) {

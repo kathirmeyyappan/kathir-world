@@ -611,6 +611,21 @@ test('walking climbs stairs without a jump, and a taller step stops you', () => 
 const LIGHT = dragonShape('light-dragon'); // 20 links, at its size: the shape the tests fly
 const LINK = LIGHT.links[0];
 
+test('a look with a life of its own comes in full, and a change of skin keeps the share of a life it had', () => {
+  const p = createPlayer('g', 'g', '#fff', { x: 0, y: EYE_HEIGHT, z: 0 });
+  becomeAvatar(p, 'gary');
+  assert.equal(p.hearts, 5, 'gary comes in with his five');
+  p.hearts = 2.5;
+  becomeAvatar(p, 'standard');
+  assert.equal(p.hearts, 5, 'half of five is half of ten: no heal');
+  becomeAvatar(p, 'plankton');
+  assert.equal(p.hearts, 1.5, 'and half of three');
+  becomeAvatar(p, 'mario');
+  assert.equal(p.hearts, 5, 'back to a walker at half');
+  becomeAvatar(p, 'luigi');
+  assert.equal(p.hearts, 5, 'the same life keeps its hearts');
+});
+
 test('a dragon climbs straight out of the ground, flies forward where it looks in arcs with its head turned as far as the neck lets it, keeps 5 m up, and is too big for a door', () => {
   const open = new Structures([]);
   const fly = (p: ReturnType<typeof createPlayer>, ticks: number, over: Partial<InputFrame>, world = open) => {

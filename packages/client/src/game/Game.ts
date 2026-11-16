@@ -594,7 +594,7 @@ export class Game {
         this.interp.push(m, now);
         const me = m.players.find((p) => p.id === this.myId);
         if (me) {
-          this.hearts.setLife(lifeOf(me.avatar));
+          this.hearts.setLife(lifeOf(me.avatar), me.hearts);
           // A pickup's worth of hearts flashes; a regen's trickle each tick doesn't.
           if (me.hearts - this.hearts.count >= 1 && !this.dead) this.healFlash.flash();
           this.hearts.set(me.hearts);

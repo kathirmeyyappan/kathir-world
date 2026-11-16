@@ -303,6 +303,7 @@ const LOOKS = {
     hitbox: { top: 0.65, radius: 0.4, head: 0.2 }, // a 0.63 m snail, 0.75 m from shell to eyes, with the eyes as the head
     walk: 5,
     jump: 0.3,
+    life: { hearts: 5, row: 5, sprite: 'heart' }, // half a walker's: a snail's a small target
   },
   plankton: {
     id: 'plankton',
@@ -315,6 +316,7 @@ const LOOKS = {
     hitbox: { top: 0.28, radius: 0.06, head: 0.19 }, // 0.28 m to his antennae's tips, 0.07 m across: the head is everything from the mouth up
     walk: 3.5,
     jump: 1,
+    life: { hearts: 3, row: 5, sprite: 'heart' }, // under a third of a walker's: he's the smallest target there is
   },
   sahur: {
     id: 'sahur',

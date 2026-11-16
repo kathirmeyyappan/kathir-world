@@ -669,8 +669,13 @@ With `rising` the look comes up in a storm (`Room.storm`): a disc of ice on the 
 (`frost.ts` `frostDisc`) and a blast that throws every walker within reach away and up for its
 damage (`throwWalker`). A life is a `LifeSpec` (hearts, the HUD's row and the sprite it's drawn
 with: `heart`, or Colgera's `crystal`, each a pixel shape in `ui/Hearts.ts`), the class's unless
-the look has one of its own (`lifeOf`). `becomeAvatar` (`player.ts`) is the one way a player
-changes look: a new look is a new body at the same eye point with its full life.
+the look has one of its own (`lifeOf`: Gary's five hearts and Plankton's three, small bodies with
+small lives). `becomeAvatar` (`player.ts`) is the one way a player changes look: a new look is a
+new body at the same eye point, with the same hearts where the life is the same, the same share of
+a full life where it's another life of hearts in the same class (so switching skins never heals),
+and a full life otherwise (a new class, or crystals, whole ones to a weak point). The HUD's bar
+(`ui/Hearts.ts`) and the roster read the worn look's life, and a heart pickup fills to it; a
+fall's or a weapon's damage is the same hearts whatever the life, so a small one dies sooner.
 
 A new look in a class is a row in `AVATARS` (with `item` for one that comes with its own weapon,
 `regen` for hearts back steadily at `REGEN_RATE`, `hidden` to keep it out of the menu, `life` for a
