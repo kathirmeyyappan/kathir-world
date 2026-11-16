@@ -7,6 +7,7 @@ import {
   ITEMS,
   SKY_OBJECTS,
   TICK_DT,
+  INPUT_WAIT_TICKS,
   WALL_FRAMES,
   WORLD_SHAPE,
   DOOR_REACH,
@@ -91,7 +92,6 @@ import { Menu, toggleFullscreen } from '../ui/menu/Menu';
 import { rideGround } from './ride';
 import { VIEWS, View, boomOf, screenBoom, screenFov, type Boom } from './View';
 
-const MAX_TICKS_PER_FRAME = 5;
 const CORRECTION_HALF_LIFE = 0.06;
 // Seconds for the camera to catch up when it goes from riding the ground (ride.ts) to following the
 // body through the air, or back.
@@ -893,7 +893,9 @@ export class Game {
       WORLD_STRUCTURES,
     );
 
-    this.accumulator += Math.min(dt, TICK_DT * MAX_TICKS_PER_FRAME);
+    // After a long frame the ticks it covered are all sent, up to as many as the server waits for
+    // (each stepped in its own place there); time past that is let go, and the server has stepped on.
+    this.accumulator += Math.min(dt, TICK_DT * INPUT_WAIT_TICKS);
     while (this.accumulator >= TICK_DT) {
       this.accumulator -= TICK_DT;
       const frame = this.input.sampleFrame(

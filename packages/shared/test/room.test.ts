@@ -5,6 +5,7 @@ import {
   CUBE_IDS,
   EYE_HEIGHT,
   HEADSHOT_MULTIPLIER,
+  INPUT_WAIT_TICKS,
   ITEMS,
   MAX_HEARTS,
   poundOf,
@@ -106,6 +107,12 @@ function press(room: Room, id: string, pitch = 0, scoped = false, yaw = 0): void
   room.step();
 }
 
+// A tick with every player's client sending an idle frame on time, as a browser does.
+function tick(room: Room): void {
+  for (const p of room.players) room.receive(p.id, { t: 'input', f: frame(p.pitch, [], p.yaw) });
+  room.step();
+}
+
 // Hold the shoot action for `ticks` ticks.
 function hold(room: Room, id: string, ticks: number, on = true): void {
   for (let i = 0; i < ticks; i++) {
@@ -147,6 +154,29 @@ test('room seats players, applies inputs on step, and broadcasts', () => {
   room.leave(idb);
   assert.equal(a.inbox.at(-1)?.t, 'leave');
   assert.equal(room.playerCount, 1);
+});
+
+test('a late frame is stepped in its own place, waiting up to INPUT_WAIT_TICKS for it; past that the body moves on', () => {
+  const room = new Room('late', { seed: 1, structures: new Structures([]) });
+  const [ida, idb, idc] = ['alice', 'bob', 'carol'].map((name) => room.join(name, link())!);
+  const [alice, bob, carol] = [ida, idb, idc].map((id) => room.players.find((p) => p.id === id)!);
+  const up = EYE_HEIGHT + 20;
+  for (const p of [alice, bob, carol]) p.pos = { x: p.pos.x, y: up, z: p.pos.z };
+  // Alice's frames come on time, falling; bob's first five come together on the sixth tick, after a
+  // stall, and he ends where she does; carol sends none.
+  const send = (id: string) => room.receive(id, { t: 'input', f: frame(0, []) });
+  for (let i = 0; i < 9; i++) {
+    send(ida);
+    if (i === 5) for (let j = 0; j < 5; j++) send(idb);
+    if (i >= 5) send(idb);
+    room.step();
+  }
+  assert.ok(alice.pos.y < up);
+  assert.equal(bob.pos.y, alice.pos.y);
+  for (let i = 9; i < INPUT_WAIT_TICKS; i++) room.step();
+  assert.equal(carol.pos.y, up, 'held for INPUT_WAIT_TICKS');
+  room.step();
+  assert.ok(carol.pos.y < up, 'then falls without her frames');
 });
 
 test('a rename is announced, shows in the next snapshot, and waits RENAME_SECONDS before another', () => {
@@ -1104,37 +1134,37 @@ test('a ground pound: pressed in the air it hangs, drops faster than a fall, pla
   alice.pos = { x: 0, y: EYE_HEIGHT + 11, z: 0 };
   bob.pos = { x: 3.5, y: EYE_HEIGHT, z: 0 };
   carol.pos = { x: 5, y: EYE_HEIGHT, z: 0 };
-  room.step();
+  tick(room);
   const pound = poundOf('mario')!;
   const stage = () => alice.pound?.stage;
   room.receive(ida, { t: 'input', f: frame(0, ['pound']) });
   room.step();
   const from = alice.pos.y;
   assert.equal(stage(), 'twirl');
-  for (let i = 0; i < Math.round(pound.twirl * TICK_RATE) - 1; i++) room.step();
+  for (let i = 0; i < Math.round(pound.twirl * TICK_RATE) - 1; i++) tick(room);
   assert.ok(stage() === 'twirl' && alice.pos.y === from, 'hanging where it began, turning over');
   let ticks = 0;
-  while (stage() !== 'land' && ticks++ < 60) room.step();
+  while (stage() !== 'land' && ticks++ < 60) tick(room);
   // A plain fall of that height takes sqrt(2h/g): about 45 ticks.
   assert.ok(ticks < 20, `down in ${ticks} ticks`);
   assert.equal(alice.pos.y, EYE_HEIGHT);
   // Two 5 m steps of the drop are a heart more, one 10 m step a metre further.
   assert.equal(bob.hearts, MAX_HEARTS - pound.damage - 1, 'bob, within reach, is hurt');
-  room.step();
+  tick(room);
   assert.ok(bob.pos.x > 3.5 && bob.pos.y > EYE_HEIGHT, 'and knocked back off his feet');
   assert.equal(carol.hearts, MAX_HEARTS, 'carol, past it, is not');
   assert.equal(alice.hearts, MAX_HEARTS, 'and it lands as a fall of that height, unhurt');
   room.receive(ida, { t: 'input', f: { ...frame(0, []), my: 1 } });
   room.step();
   assert.equal(alice.pos.z, 0, 'feet planted');
-  for (let i = 0; i < Math.round(pound.recover * TICK_RATE); i++) room.step();
+  for (let i = 0; i < Math.round(pound.recover * TICK_RATE); i++) tick(room);
   assert.equal(alice.pound, null);
   assert.equal(bob.hearts, MAX_HEARTS - pound.damage - 1, 'hurt once');
   // Begun 3 m up at the end of a fall fast enough to kill, it lands as the 3 m it is.
   alice.pos = { x: 40, y: EYE_HEIGHT + 3, z: 0 };
   alice.vy = -45;
   room.receive(ida, { t: 'input', f: frame(0, ['pound']) });
-  for (let i = 0; i < 60 && stage() !== 'land'; i++) room.step();
+  for (let i = 0; i < 60 && stage() !== 'land'; i++) tick(room);
   assert.ok(stage() === 'land' && alice.hearts === MAX_HEARTS, 'a pound begun low breaks the fall');
 });
 
@@ -1156,24 +1186,24 @@ test('a strike: a windup after the press its blow lands once on whoever on foot 
   room.step();
   assert.equal(alice.strike, 0);
   const windup = Math.round(strike.windup * TICK_RATE);
-  for (let i = 0; i < windup - 1; i++) room.step();
+  for (let i = 0; i < windup - 1; i++) tick(room);
   assert.equal(bob.hearts, MAX_HEARTS, 'not before the windup is over');
-  room.step();
+  tick(room);
   assert.equal(bob.hearts, MAX_HEARTS - strike.damage, 'bob, in front and in reach, is hit');
-  room.step();
+  tick(room);
   assert.ok(bob.pos.z > 2.5 && bob.pos.y > EYE_HEIGHT, 'and knocked back off his feet');
   assert.equal(carol.hearts, MAX_HEARTS, 'carol, behind, is not');
   assert.equal(dave.hearts, MAX_HEARTS, 'nor dave, out of reach');
   // Pressed again mid-swing it does nothing; once the swing is over it can be swung again.
   room.receive(ids[0], { t: 'input', f: frame(0, ['strike']) });
-  for (let i = 0; i < Math.round(strike.recover * TICK_RATE); i++) room.step();
+  for (let i = 0; i < Math.round(strike.recover * TICK_RATE); i++) tick(room);
   assert.equal(alice.strike, null);
   assert.equal(bob.hearts, MAX_HEARTS - strike.damage, 'hit once');
   const kills = () => links[0].inbox.filter((m) => m.t === 'kill');
   bob.pos = { x: 0, y: EYE_HEIGHT, z: 2 };
   bob.hearts = strike.damage;
   room.receive(ids[0], { t: 'input', f: frame(0, ['strike']) });
-  for (let i = 0; i <= windup; i++) room.step();
+  for (let i = 0; i <= windup; i++) tick(room);
   assert.ok(bob.dead);
   assert.deepEqual(
     kills().map((m) => m.t === 'kill' && m.item),
