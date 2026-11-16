@@ -88,12 +88,6 @@ CLIPS = {
     "backflip": Clip("4 - Backflip", 0, 32),
     # Dying where it stands: reeling, then over onto its back, where its last frame leaves it.
     "die": Clip("50 - Dying fall over", 0, 94, 2),
-    # And of a fall, as the game has a fall that kills: over backwards from where it landed, bouncing
-    # onto its back (its hard knockback, up to where it would start to get up), then dying there,
-    # its head coming up and dropping.
-    "fallen": Clip(
-        "1/2 - Fall over backwards/Backward air kb", 0, 43, 2, then=(("3 - Dying on back", 0, 62),)
-    ),
 }
 
 

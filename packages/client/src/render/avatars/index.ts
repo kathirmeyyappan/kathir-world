@@ -167,7 +167,7 @@ export function createAvatar(
 
 // A look on foot on its way: what stands in for it, until it arrives and takes its place.
 // Everything the Game does to the body goes to whichever is there, and what lasts (the weapons'
-// scale, a death by a fall) is carried over to the arrival.
+// scale) is carried over to the arrival.
 class Pending implements Avatar {
   readonly id: string;
   readonly kind: AvatarId;
@@ -175,7 +175,6 @@ class Pending implements Avatar {
   private arrived = false;
   private gone = false;
   private weapons = 1;
-  private fallen = false;
 
   constructor(engine: Engine, p: { id: string; color: string; avatar: AvatarId }, standIn: Avatar) {
     this.id = p.id;
@@ -186,7 +185,6 @@ class Pending implements Avatar {
         if (this.gone) return;
         const body = make(engine, p.id, p.avatar, p.color);
         body.scaleWeapons(this.weapons);
-        if (this.fallen) body.fell?.();
         body.hide(); // until the next update places it
         this.body.dispose();
         this.body = body;
@@ -222,10 +220,6 @@ class Pending implements Avatar {
   }
   corpse(): Vector3 | null {
     return this.body.corpse();
-  }
-  fell(): void {
-    this.fallen = true;
-    this.body.fell?.();
   }
   act(action: ItemAction): void {
     this.body.act?.(action);

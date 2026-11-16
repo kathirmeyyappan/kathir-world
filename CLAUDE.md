@@ -527,7 +527,8 @@ how far out, turning on its inner end, its bottom or its front) and thins each p
 dome the size the model file gives (`glass`). Mrs. Puff and Larry the Lobster (`Puff.ts`,
 `Larry.ts`) are on that game's own rig, a head, two arms and two legs on a trunk (and Larry's
 tail); her eyelids, which the rig binds shut, are left out of the mesh (`bare`), and her eyeballs,
-cream in its texture, painted white (`whitened`). Rebuild the bot map after
+cream in its texture, painted white (`whitened`); the shine drawn on his claws is painted over
+(`plain`). Rebuild the bot map after
 adding one, and keep it as cheap as the ones there (triangles, one mesh, a small atlas), with the
 numbers in the PR.
 
@@ -548,10 +549,7 @@ somersault fitted to the flight so it's over just before the landing, and `pound
 up, and `crouch`, `crawl` and `backflip`, sat low, a cycle of the crawl's limbs, and the backward
 somersault of the jump out of it, fitted to its flight as the triple's is, and `float`, hanging
 in the air through a float, and `die`, dying where it stands, played once and held where it leaves
-the body, in the leap's place: the game's own reel and fall, which Mario's whole family plays, and `fallen`,
-its place when a fall killed it (`Avatar.fell`, from the Room's `fell`): over backwards from where it landed,
-bouncing onto its back, and dying there, as the game has a fatal fall; Peach and Daisy, whose skirts that
-throws up over them, die of a fall as of anything else) and a few numbers; the frame's pose is those sampled and blended: the idle into the walk or run at the
+the body, in the leap's place: the game's own reel and fall, which Mario's whole family plays) and a few numbers; the frame's pose is those sampled and blended: the idle into the walk or run at the
 point in the stride its feet have got to (the footsteps' phase, so feet land with their sounds,
 and the stride is the same at any speed, the legs only quicker), the jump going up into the fall
 coming down, and a landing as hard as the drop. Don't invent a character's motion from numbers:
