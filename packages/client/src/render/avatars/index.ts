@@ -1,65 +1,40 @@
-// Picks the avatar builder for a player's avatar id. The Game recreates a player's avatar
-// whenever the id in their state changes.
-import type { AvatarId } from '@world/shared';
+// Every look's body: how it's made and what it's drawn with. A look's files are fetched the first
+// time it's wanted (`wantLook`), never at startup, so what everyone pays for at join stays the same
+// however many looks there are. The Game makes a player's body with `createAvatar` whenever their
+// look or colour changes.
+import type { Vector3 } from '@babylonjs/core';
+import { AVATARS, type AvatarId, type ItemAction } from '@world/shared';
+import type { RemotePlayer } from '../../net/Interpolation';
 import type { Engine } from '../Engine';
-import { bodyBuilder } from './Body';
+import { bodyBuilder, type BodySpec } from './Body';
 import { DragonAvatar } from './Dragon';
 import { DRAGONS, type DragonAvatarId } from './dragons';
 import { buildElizabeth } from './Elizabeth';
-import { buildGary } from './Gary';
 import { JointedAvatar, type JointedSpec } from './Jointed';
-import { KRABS } from './Krabs';
-import { LUIGI } from './Luigi';
-import { MARIO } from './Mario';
-import { MIKE } from './Mike';
-import { PATRICK } from './Patrick';
-import { buildLarry } from './Larry';
-import { PLANKTON } from './Plankton';
-import { buildPuff } from './Puff';
-import { buildSandy } from './Sandy';
-import { buildSahur } from './Sahur';
-import { SPONGEBOB } from './SpongeBob';
-import { buildSquidward } from './Squidward';
 import { buildStandard } from './Standard';
-import { buildSulley } from './Sulley';
-import { skinTexture } from './skinned';
-import { PEACH } from './Peach';
-import { DAISY } from './Daisy';
-import { WALUIGI } from './Waluigi';
-import { WARIO } from './Wario';
+import { skinTexture, type AtlasName } from './skinned';
 import { WalkerAvatar, type Build } from './Walker';
 import type { Avatar } from './common';
 
 export type { Avatar } from './common';
 
-// The avatars drawn from a model with an atlas, each fetched once the page has nothing better to
-// do, with the dragons' models, so a change of look goes on without waiting on the network.
-const SKINNED: readonly AvatarId[] = [
-  'mario',
-  'luigi',
-  'wario',
-  'waluigi',
-  'peach',
-  'daisy',
-  'spongebob',
-  'patrick',
-  'krabs',
-  'squidward',
-  'gary',
-  'plankton',
-  'sandy',
-  'puff',
-  'larry',
-  'mike',
-  'sulley',
-  ...(Object.keys(DRAGONS) as DragonAvatarId[]),
-];
+type Make = (engine: Engine, id: string, kind: AvatarId, color: string) => Avatar;
+
+// A look: how its body is made, and the files it's drawn with, fetched together.
+//
+// One that `make`s its body has its maker in the chunk everyone loads, and makes it at once: a
+// dragon rises and roars as it comes up, and fills its model in when that and its atlases are here
+// (Dragon.ts). One that `load`s its maker has it in a chunk of its own (a dynamic import of its
+// builder, model and the clips only it uses), and its body waits for that and its atlases, the body
+// its player had standing in meanwhile (`Pending`).
+type Look = { atlases: readonly AtlasName[] } & (
+  | { make: Make; model?: () => Promise<unknown> } // a dragon's model (dragons.ts)
+  | { load: () => Promise<Make> }
+);
 
 // Everyone on foot is a figure the walker poses (Walker.ts), made from its builder; one that moves
-// by a rule of its own is a subclass of WalkerAvatar, made here by its class: a jointed
-// body (Jointed.ts) is posed in its own style. A dragon skin is the dragon (Dragon.ts) in that skin's
-// look (dragons.ts).
-type Make = (engine: Engine, id: string, kind: AvatarId, color: string) => Avatar;
+// by a rule of its own is a subclass of WalkerAvatar, made here by its class: a jointed body
+// (Jointed.ts) is posed in its own style.
 const walker =
   (build: Build): Make =>
   (engine, id, kind, color) =>
@@ -68,43 +43,185 @@ const jointed =
   (spec: JointedSpec): Make =>
   (engine, id, kind, color) =>
     new JointedAvatar(engine, id, kind, spec, color);
-const dragon =
-  (look: DragonAvatarId): Make =>
-  (engine, id, kind) =>
-    new DragonAvatar(engine, id, kind, DRAGONS[look]);
-const MAKERS: Record<AvatarId, Make> = {
-  standard: walker(buildStandard),
-  mario: jointed(MARIO),
-  luigi: jointed(LUIGI),
-  wario: jointed(WARIO),
-  waluigi: jointed(WALUIGI),
-  peach: jointed(PEACH),
-  daisy: jointed(DAISY),
-  spongebob: walker(bodyBuilder(SPONGEBOB)),
-  patrick: walker(bodyBuilder(PATRICK)),
-  krabs: walker(bodyBuilder(KRABS)),
-  squidward: walker(buildSquidward),
-  gary: walker(buildGary),
-  plankton: walker(bodyBuilder(PLANKTON)),
-  sandy: walker(buildSandy),
-  puff: walker(buildPuff),
-  larry: walker(buildLarry),
-  sahur: walker(buildSahur),
-  mike: walker(bodyBuilder(MIKE)),
-  sulley: walker(buildSulley),
-  elizabeth: walker(buildElizabeth),
-  'light-dragon': dragon('light-dragon'),
-  colgera: dragon('colgera'),
+
+const inChunk = (make: Make): Look => ({ make, atlases: [] });
+// A look on foot drawn from a model, from its module: a jointed body, a trunk on two arms and two
+// legs (Body.ts), or a builder of its own. Every one is painted by its atlas but Tung Tung Tung
+// Sahur, painted in its vertices.
+const ofJointed = (kind: AvatarId, spec: () => Promise<JointedSpec>): Look => ({
+  load: () => spec().then(jointed),
+  atlases: [kind],
+});
+const ofBody = (kind: AvatarId, spec: () => Promise<BodySpec>): Look => ({
+  load: () => spec().then((s) => walker(bodyBuilder(s))),
+  atlases: [kind],
+});
+const ofBuild = (kind: AvatarId, build: () => Promise<Build>, atlas = true): Look => ({
+  load: () => build().then(walker),
+  atlases: atlas ? [kind] : [],
+});
+// A dragon skin is the dragon (Dragon.ts) in that skin's look (dragons.ts).
+const ofDragon = (kind: DragonAvatarId): Look => {
+  const look = DRAGONS[kind];
+  return {
+    make: (engine, id) => new DragonAvatar(engine, id, kind, look, wantLook(engine, kind).then(look.model)),
+    atlases: look.glow ? [kind, `${kind}-glow`] : [kind],
+    model: look.model,
+  };
 };
 
-export function preloadAvatars(engine: Engine): void {
-  const idle = window.requestIdleCallback ?? ((f: () => void) => setTimeout(f, 3000));
-  idle(() => {
-    for (const avatar of SKINNED) skinTexture(engine.scene, avatar);
-    for (const look of Object.values(DRAGONS)) void look.model();
-  });
+const LOOKS: Record<AvatarId, Look> = {
+  standard: inChunk(walker(buildStandard)),
+  mario: ofJointed('mario', () => import('./Mario').then((m) => m.MARIO)),
+  luigi: ofJointed('luigi', () => import('./Luigi').then((m) => m.LUIGI)),
+  wario: ofJointed('wario', () => import('./Wario').then((m) => m.WARIO)),
+  waluigi: ofJointed('waluigi', () => import('./Waluigi').then((m) => m.WALUIGI)),
+  peach: ofJointed('peach', () => import('./Peach').then((m) => m.PEACH)),
+  daisy: ofJointed('daisy', () => import('./Daisy').then((m) => m.DAISY)),
+  spongebob: ofBody('spongebob', () => import('./SpongeBob').then((m) => m.SPONGEBOB)),
+  patrick: ofBody('patrick', () => import('./Patrick').then((m) => m.PATRICK)),
+  krabs: ofBody('krabs', () => import('./Krabs').then((m) => m.KRABS)),
+  squidward: ofBuild('squidward', () => import('./Squidward').then((m) => m.buildSquidward)),
+  gary: ofBuild('gary', () => import('./Gary').then((m) => m.buildGary)),
+  plankton: ofBody('plankton', () => import('./Plankton').then((m) => m.PLANKTON)),
+  sandy: ofBuild('sandy', () => import('./Sandy').then((m) => m.buildSandy)),
+  puff: ofBuild('puff', () => import('./Puff').then((m) => m.buildPuff)),
+  larry: ofBuild('larry', () => import('./Larry').then((m) => m.buildLarry)),
+  sahur: ofBuild('sahur', () => import('./Sahur').then((m) => m.buildSahur), false),
+  mike: ofBody('mike', () => import('./Mike').then((m) => m.MIKE)),
+  sulley: ofBuild('sulley', () => import('./Sulley').then((m) => m.buildSulley)),
+  elizabeth: inChunk(walker(buildElizabeth)),
+  'light-dragon': ofDragon('light-dragon'),
+  colgera: ofDragon('colgera'),
+};
+
+// A fetch begun once, whose result can be read without waiting once it's done. A maker that fails
+// to arrive is forgotten, so the next want tries again; an atlas that fails counts as done, and the
+// body is drawn with what there is.
+interface Fetch<T> {
+  promise: Promise<T>;
+  done: boolean;
+  value: T | undefined;
+}
+function begin<K, T>(fetches: Map<K, Fetch<T>>, key: K, start: () => Promise<T>): Fetch<T> {
+  let entry = fetches.get(key);
+  if (!entry) {
+    const begun: Fetch<T> = { promise: start(), done: false, value: undefined };
+    begun.promise.then(
+      (value) => Object.assign(begun, { done: true, value }),
+      () => fetches.delete(key),
+    );
+    fetches.set(key, (entry = begun));
+  }
+  return entry;
 }
 
-export function createAvatar(engine: Engine, p: { id: string; color: string; avatar: AvatarId }): Avatar {
-  return MAKERS[p.avatar](engine, p.id, p.avatar, p.color);
+// Makers fetched in chunks of their own, for every scene; atlases per scene, since a texture is.
+const makers = new Map<AvatarId, Fetch<Make>>();
+const atlases = new WeakMap<Engine['scene'], Map<AtlasName, Fetch<void>>>();
+
+function atlas(scene: Engine['scene'], name: AtlasName): Fetch<void> {
+  let mine = atlases.get(scene);
+  if (!mine) atlases.set(scene, (mine = new Map()));
+  return begin(mine, name, () => new Promise<void>((done) => void skinTexture(scene, name, done)));
+}
+
+// Sends for a look's files (its maker, its atlases in this scene, a dragon's model), resolving with
+// its maker once they're all here. Call as soon as the look is likely to be wanted.
+export function wantLook(engine: Engine, kind: AvatarId): Promise<Make> {
+  const look = LOOKS[kind];
+  const painting = look.atlases.map((name) => atlas(engine.scene, name).promise);
+  if ('make' in look) return Promise.all([...painting, look.model?.()]).then(() => look.make);
+  const maker = begin(makers, kind, look.load).promise;
+  return Promise.all([maker, ...painting]).then(() => maker);
+}
+
+// The maker of a body that can be drawn now: one made at once, or one whose chunk and atlases are
+// here; null while they're on their way.
+function readyMaker(engine: Engine, kind: AvatarId): Make | null {
+  const look = LOOKS[kind];
+  if ('make' in look) return look.make;
+  const maker = begin(makers, kind, look.load);
+  const painted = look.atlases.every((name) => atlas(engine.scene, name).done);
+  return maker.done && painted ? (maker.value ?? null) : null;
+}
+
+// A player's body as `p` wears it. `was`, the body they wore until now, is disposed of here: at once
+// if the new look can be drawn, or else kept standing in for it until it can (the standard body
+// standing in where it can't: a dragon becoming a walker, or a body first seen in its look), so a
+// player is never drawn in a look they aren't wearing for longer than it takes to arrive.
+export function createAvatar(
+  engine: Engine,
+  p: { id: string; color: string; avatar: AvatarId },
+  was: Avatar | null = null,
+): Avatar {
+  const make = readyMaker(engine, p.avatar);
+  if (make) {
+    was?.dispose();
+    return make(engine, p.id, p.avatar, p.color);
+  }
+  const keep = was && AVATARS[was.kind].class === 'walker' ? was : null;
+  if (was !== keep) was?.dispose();
+  return new Pending(engine, p, keep ?? walker(buildStandard)(engine, p.id, 'standard', p.color));
+}
+
+// A look on foot on its way: what stands in for it, until it arrives and takes its place.
+// Everything the Game does to the body goes to whichever is there, and what lasts (the weapons'
+// scale) is carried over to the arrival.
+class Pending implements Avatar {
+  readonly id: string;
+  readonly kind: AvatarId;
+  private body: Avatar;
+  private arrived = false;
+  private gone = false;
+  private weapons = 1;
+
+  constructor(engine: Engine, p: { id: string; color: string; avatar: AvatarId }, standIn: Avatar) {
+    this.id = p.id;
+    this.kind = p.avatar;
+    this.body = standIn;
+    wantLook(engine, p.avatar)
+      .then((make) => {
+        if (this.gone) return;
+        const body = make(engine, p.id, p.avatar, p.color);
+        body.scaleWeapons(this.weapons);
+        body.hide(); // until the next update places it
+        this.body.dispose();
+        this.body = body;
+        this.arrived = true;
+      })
+      .catch((e: unknown) => console.error(`loading ${p.avatar}`, e));
+  }
+
+  // The stand-in's colour isn't the look's: a change of colour while it's on its way is the same look.
+  get color(): string | undefined {
+    return this.arrived ? this.body.color : undefined;
+  }
+
+  update(p: RemotePlayer, step: number): void {
+    this.body.update(p, step);
+  }
+  flash(): void {
+    this.body.flash();
+  }
+  fire(): void {
+    this.body.fire();
+  }
+  scaleWeapons(factor: number): void {
+    this.weapons = factor;
+    this.body.scaleWeapons(factor);
+  }
+  hide(): void {
+    this.body.hide();
+  }
+  dispose(): void {
+    this.gone = true;
+    this.body.dispose();
+  }
+  corpse(): Vector3 | null {
+    return this.body.corpse();
+  }
+  act(action: ItemAction): void {
+    this.body.act?.(action);
+  }
 }

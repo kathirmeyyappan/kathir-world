@@ -16,6 +16,16 @@ Babylon.js multiplayer 3D playground. `packages/shared` is the pure sim + protoc
   changes, edit the source and re-render the PNG with headless Chromium at 2x (a 1560 px viewport,
   `deviceScaleFactor: 2`, full page).
 
+## Writing for the long run
+
+Write each change as if the code had been designed with it in mind from the start, not patched to
+fit. When a fix or a feature doesn't fit the shape of the code, reshape the code (rename, split, or
+merge two mechanisms that do the same job) rather than add a special case beside it, and leave each
+file you touch at least as clear as you found it. Keep one mechanism per job: before adding a second
+way to load, cache, register or configure something, extend the first. Prefer a name and a type
+that say what a thing is over a comment that explains a confusing one. If doing it properly is much
+bigger than what was asked, do the targeted change and say what the proper one would be.
+
 ## Formatting and type checks
 
 CI fails on any of these, so run them before pushing:
@@ -60,20 +70,25 @@ path everyone pays what has to be there the instant it's wanted, and when a savi
 experience pull apart, take the smooth one and tell Kathir what it costs.
 
 What a client fetches without the player asking for it, every player pays for, on a phone's
-connection and memory as much as a desktop's. Joining the world today fetches about 1.8 MB of code
-(gzipped), 8 MB of assets and 1.1 MB of sounds. Know which of these a change adds to, and keep
+connection and memory as much as a desktop's. Joining the world today fetches about 1.25 MB of code
+(gzipped), 7 MB of assets and 0.9 MB of sounds. Know which of these a change adds to, and keep
 anything that can wait off the path everyone pays:
 
-- Code is one chunk (1.7 MB gzipped) with the engine and every look on foot's mesh and clips in
-  it. A dynamic `import()` takes something out of it, as the dragons' models are (560 KB, fetched
-  when the page is idle).
+- Code is one chunk (1.15 MB gzipped), mostly the engine. A dynamic `import()` takes something out
+  of it, as every look's model is (below).
 - Anything heavy that stands somewhere (a model's parts, a region's meshes) registers with
   `render/Loader.ts` and arrives nearest first.
-- Avatar atlases (`SKINNED`, 1.5 MB for all of them) are fetched when the page is idle.
+- A look's files (its model, 15 to 60 KB of code on foot and 260 to 300 KB a dragon, and its
+  atlases, about 100 KB on foot and 600 KB a dragon) are fetched the first time someone is seen
+  wearing it, as a skin's command is pointed at or sent, or as it's picked on the home screen
+  (`LOOKS` and `wantLook` in `render/avatars/index.ts`), so a look's cost is paid only by the
+  clients that meet it. Until a look on foot is here the player keeps the body they had (the
+  standard body where that was a dragon, or for someone first seen in it); a dragon rises and roars
+  at once and its body fills in as it lands.
 - A sound is fetched by everyone up front unless it's `lazy` in `SOUNDS` (`Sfx.soon`, `Sfx.want`).
-  Every look's voice is lazy but its jumps and long jumps (about 240 KB for all of them, heard at
-  every hop): an intro is fetched as it's said within earshot, and a look's hurts and kills (with
-  its death for its own player) as it's first seen worn (`Game.wantVoice`).
+  Every look's voice is lazy: an intro is fetched as it's said within earshot, and a look's jumps,
+  long jumps, hurts and kills (with its death for its own player) as it's first seen worn
+  (`Game.wantVoice`); a jump not here yet is the swoosh.
 
 Fetch on demand whatever only some players will see or hear, so long as it can arrive a moment
 late, and say what stands in until it arrives and if it never does (a `lazy` sound late is left
@@ -81,10 +96,9 @@ out; nothing may wait on a fetch to work). In the PR, give what a change adds up
 and KB, and why it can't wait.
 
 Flag it to Kathir, before building on it, when a change adds more than about 100 KB up front, or
-when something paid by everyone grows with each thing added: every look on the Mario rig is about
-80 KB of atlas, 50 KB of mesh in the chunk and 55 KB of jumps up front, whoever wears it. That
-pattern is the one that gets out of hand, and the fix is to fetch a look's atlas, mesh and voice
-the first time someone wears it, as its hurts and kills already are.
+when something paid by everyone grows with each thing added. That pattern is the one that gets out
+of hand, and the fix is to fetch each thing the first time someone meets it, as a look's body and
+voice are.
 
 ## World geometry
 
@@ -479,7 +493,7 @@ and throws a walker back (its `knock`), a kill by it announced with `item: 'stri
 key held, which the touch JUMP button holds too) coming down holds the fall, `PlayerState.floating`:
 it sinks at `sink` for as long as it's held, up to `seconds` between one landing and the next
 (`floated`), and a long jump and a ground pound don't float; the client gives it a few sparkles
-under the body, `render/Sparkles.ts`, and a faint shimmer for as long as it lasts, a loop of `Footsteps`) and a builder in `packages/client/src/render/avatars/` (`MAKERS` in `index.ts`,
+under the body, `render/Sparkles.ts`, and a faint shimmer for as long as it lasts, a loop of `Footsteps`) and a builder in `packages/client/src/render/avatars/` (`LOOKS` in `index.ts`, a dynamic `import()` of its module,
 which the compiler asks for). Everyone on foot is a `Figure` (`render/avatars/Walker.ts`): the
 builder makes the avatar's parts under the base node and says which plays which role (what tips
 with the look, a head, the legs, the free arm, the weapon arm with its grip and the way it reaches
@@ -497,11 +511,11 @@ over in the air, landing as it lies (`WalkerAvatar.lie`); one first seen dead ju
 own touches (a tail, a twitch, feet that lift) are its `extra` hook. A body that differs by a
 number (how far a leg swings, a two-part tentacle, no legs at all) is still a figure; one that
 differs by a rule (a sidestep, a slither, tentacles wrapping the rungs) extends `WalkerAvatar` and
-overrides that one phase (`walk`, `climb`, `lie` or `aim`), registered in `MAKERS` by its class,
+overrides that one phase (`walk`, `climb`, `lie` or `aim`), registered in `LOOKS` by its class,
 and the walker never asks which avatar it is posing. A Sketchfab
 model goes through `packages/client/scripts/avatar-model.py` into a `<name>Model.ts` and a texture
-atlas (`public/assets/textures/avatars/<id>.png`, listed in `SKINNED` in `render/avatars/index.ts` so
-it's fetched at startup); a trunk on two arms and two legs is a `BodySpec` (`Body.ts`), and one with
+atlas (`public/assets/textures/avatars/<id>.png`, fetched with the look's chunk, see Client
+loading); a trunk on two arms and two legs is a `BodySpec` (`Body.ts`), and one with
 a whole skeleton a jointed body (below). Tung Tung Tung Sahur (`Sahur.ts`) is rigid parts from
 `scripts/sahur-model.py`: a sculpt's log and legs with arms and a bat drawn by the script, every
 part closed and turning on a joint sunk in the log, the bat in its left fist and an item in its

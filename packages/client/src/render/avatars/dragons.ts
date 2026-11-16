@@ -1,8 +1,8 @@
 // The dragon skins the client can draw, one per look of the asian-dragon class (sim/avatars.ts):
 // the model each is drawn from (written by a script in scripts/, fetched once, the first time one is
-// needed or at startup), what it rises out of the ground through, and the slow wave that runs down
-// its body in the air, if any. A new skin is a row here and a row in AVATARS; the renderer
-// (Dragon.ts) is the same for all of them.
+// needed: index.ts `wantLook`), what it rises out of the ground through, and the slow wave that
+// runs down its body in the air, if any. A new skin is a row here and a row in AVATARS; the
+// renderer (Dragon.ts) is the same for all of them.
 import { Color3, type Vector3 } from '@babylonjs/core';
 import type { AvatarsOf } from '@world/shared';
 import type { Engine } from '../Engine';

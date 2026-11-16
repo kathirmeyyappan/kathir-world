@@ -4,15 +4,9 @@
 // her walk and the quick walk she has in a run's place, her jump, fall and landing, and her float.
 // The rest are the family's (sm64.ts). Her skirt and her ponytail move by themselves (soft.ts). Worn with /peach;
 // her hit capsule is AVATARS.peach.hitbox.
-import type { JointedSpec, Style } from './Jointed';
-import { PEACH_CLIPS } from './peachClips';
+import type { JointedSpec } from './Jointed';
 import { PEACH_MODEL } from './peachModel';
-import { SM64_STYLE } from './sm64';
-
-export const PEACH_STYLE: Style = {
-  ...SM64_STYLE,
-  clips: { ...SM64_STYLE.clips, ...PEACH_CLIPS },
-};
+import { PEACH_STYLE } from './peachStyle';
 
 export const PEACH: JointedSpec = {
   kind: 'peach',

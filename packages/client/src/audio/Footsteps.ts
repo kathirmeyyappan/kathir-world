@@ -159,14 +159,12 @@ export class Footsteps {
         w.peak = Math.max(w.peak, p.pos.y);
         w.falling = Math.max(w.falling, p.falling ?? 0);
         if (w.liftedFrom !== null && p.pos.y - w.liftedFrom > RISE) {
+          // The look's own (lazy, sent for as it's first seen worn) or, until it's here, the swoosh.
           const voice = VOICES[p.avatar];
-          this.sfx.play(
+          const own =
             (p.leap ? take(voice.leap) : undefined) ??
-              voice.jump?.[Math.min(voice.jump.length, p.backflip ? 3 : Math.max(1, p.hop)) - 1] ??
-              'jump',
-            at,
-            { level },
-          );
+            voice.jump?.[Math.min(voice.jump.length, p.backflip ? 3 : Math.max(1, p.hop)) - 1];
+          if (!own || !this.sfx.play(own, at, { level })) this.sfx.play('jump', at, { level });
           w.liftedFrom = null;
         } else if (down > 0) w.liftedFrom = null; // going down first: they stepped off something
         continue;
