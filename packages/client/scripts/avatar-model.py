@@ -55,7 +55,9 @@ class Piece:
     model's height out that way; and, with `y`, between those shares of the model's height from its
     feet. A piece no bone takes stays with its node's bone. The bone turns on the `end` of what it
     takes: its top, its bottom, the end nearest the body's middle from side to side (`inner`, an arm
-    held straight out) or its front (a tail)."""
+    held straight out), under that end where it comes out of the side of the torso (`armpit`, an
+    arm whose root is sunk in a wide trunk, so hung down it hangs beside the trunk rather than in
+    it) or its front (a tail)."""
 
     node: Joint
     x: int = 0
@@ -280,8 +282,8 @@ MODELS = {
         (
             ("body", 2),
             ("head", Piece(2, y=(0.58, 0.88), end="bottom")),
-            ("armL", Piece(2, x=-1, y=(0.3, 0.58), off=0.1, end="inner")),
-            ("armR", Piece(2, x=1, y=(0.3, 0.58), off=0.1, end="inner")),
+            ("armL", Piece(2, x=-1, y=(0.3, 0.58), off=0.1, end="armpit")),
+            ("armR", Piece(2, x=1, y=(0.3, 0.58), off=0.1, end="armpit")),
             ("legL", Piece(2, x=-1, y=(0, 0.25))),
             ("legR", Piece(2, x=1, y=(0, 0.25))),
             ("tail", Piece(2, z=-1, off=0.15, end="front")),
@@ -578,18 +580,28 @@ def main(name: str, glb: str) -> None:
     }
     # A hinge, a piece or a lower part swings from the middle of the top of its own geometry, a neck
     # turns on the middle of the bottom of its: the band within a twentieth of its height of that end.
+    # An arm turning at its armpit keeps the height of its middle as its shoulder's, for the tank.
+    shoulders: dict[str, float] = {}
     for bone, ref in model.bones:
         if bone not in model.hinges and bone not in model.necks and not isinstance(ref, (Piece, Lower)):
             continue
         own = posed[order[:, 0] == bone_names.index(bone)]
         # Along which axis its end is, and which way along it: up, down, toward the body's middle, ahead.
         turns_on = "bottom" if bone in model.necks else ref.end if isinstance(ref, Piece) else "top"
-        axis = {"top": 1, "bottom": 1, "inner": 0, "front": 2}[turns_on]
-        far = turns_on in ("top", "front") or (turns_on == "inner" and own[:, 0].mean() < 0)
+        axis = {"top": 1, "bottom": 1, "inner": 0, "armpit": 0, "front": 2}[turns_on]
+        far = turns_on in ("top", "front") or (turns_on in ("inner", "armpit") and own[:, 0].mean() < 0)
         low, high = own[:, axis].min(), own[:, axis].max()
         end = high if far else low
         pivots[bone] = own[abs(own[:, axis] - end) < (high - low) / 20].mean(axis=0)
         pivots[bone][axis] = end
+        if turns_on == "armpit":
+            # Under the arm, out at the side of the torso as wide as it is at that height.
+            shoulders[bone] = pivots[bone][1]
+            under = own[:, 1].min()
+            trunk = np.isin(order[:, 0], [bone_names.index(b) for b in model.torso])
+            side = posed[trunk & (abs(posed[:, 1] - under) < 0.02 * model.height)]
+            pivots[bone][0] = np.sign(own[:, 0].mean()) * abs(side[:, 0]).max()
+            pivots[bone][1] = under
     if isinstance(model.palm, str):
         # The far end of the arm: the middle of what lies within a tenth of its length of its tip.
         own = posed[order[:, 0] == bone_names.index(model.palm)]
@@ -604,7 +616,7 @@ def main(name: str, glb: str) -> None:
         back = np.array([0, middle, own[abs(own[:, 1] - middle) < 0.05][:, 2].min() - 0.03])
     else:
         # The tank hangs on the back a little below the shoulders: as far back as the trunk goes there.
-        shoulder_y = (pivots["armL"][1] + pivots["armR"][1]) / 2 - model.back_drop
+        shoulder_y = sum(shoulders.get(arm, pivots[arm][1]) for arm in ("armL", "armR")) / 2 - model.back_drop
         trunk = np.isin(order[:, 0], [bone_names.index(b) for b in model.torso])
         back_z = (
             posed[trunk & (abs(posed[:, 1] - shoulder_y) < 1.5 * model.back_drop)][:, 2].min() - model.back_drop / 4
