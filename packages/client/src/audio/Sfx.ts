@@ -98,6 +98,9 @@ export type SoundId =
   | 'squidward-hurt-3'
   | 'plankton-hurt'
   | 'sandy-hurt-1'
+  | 'puff-hurt-1'
+  | 'puff-hurt-2'
+  | 'puff-hurt-3'
   | 'luigi-kill-1'
   | 'luigi-kill-2'
   | 'wario-kill-1'
@@ -145,6 +148,7 @@ export type SoundId =
   | 'sandy-enter'
   | 'sandy-enter-2'
   | 'puff-enter'
+  | 'puff-enter-2'
   | 'spongebob-enter'
   | 'spongebob-enter-2'
   | 'krabs-enter'
@@ -283,6 +287,9 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'squidward-hurt-3': { file: 'squidward-hurt-3.mp3', half: 6, reach: 30, volume: 0.25, lazy: true },
   'plankton-hurt': { file: 'plankton-hurt.mp3', half: 6, reach: 30, volume: 0.25, lazy: true },
   'sandy-hurt-1': { file: 'sandy-hurt-1.mp3', half: 6, reach: 30, volume: 0.25, lazy: true },
+  'puff-hurt-1': { file: 'puff-hurt-1.mp3', half: 6, reach: 30, volume: 0.25, lazy: true },
+  'puff-hurt-2': { file: 'puff-hurt-2.mp3', half: 6, reach: 30, volume: 0.25, lazy: true },
+  'puff-hurt-3': { file: 'puff-hurt-3.mp3', half: 6, reach: 30, volume: 0.25, lazy: true },
   'mario-kill-1': { file: 'mario-kill-1.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'mario-kill-2': { file: 'mario-kill-2.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'mario-enter': { file: 'mario-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
@@ -330,6 +337,7 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'sandy-enter': { file: 'sandy-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'sandy-enter-2': { file: 'sandy-enter-2.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'puff-enter': { file: 'puff-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
+  'puff-enter-2': { file: 'puff-enter-2.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'spongebob-enter': { file: 'spongebob-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'spongebob-enter-2': { file: 'spongebob-enter-2.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'krabs-enter': { file: 'krabs-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
