@@ -99,7 +99,12 @@ export const VOICES: Record<AvatarId, Voice> = {
     ...BIKINI_BOTTOM,
   },
   squidward: { enter: [], ...BIKINI_BOTTOM },
-  gary: { enter: [], ...BIKINI_BOTTOM },
+  gary: {
+    enter: ['gary-enter'],
+    hurt: ['gary-hurt-1', 'gary-hurt-2'],
+    kill: ['gary-kill-1'],
+    ...BIKINI_BOTTOM,
+  },
   plankton: {
     enter: ['plankton-enter'],
     hurt: ['plankton-hurt'],
