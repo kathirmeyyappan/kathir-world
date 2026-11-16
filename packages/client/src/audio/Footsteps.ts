@@ -40,7 +40,10 @@ const LANDINGS: { from: number; sound: SoundId }[] = [
   { from: 20, sound: 'land-hard' },
 ];
 
-const TWINKLE_SECONDS = 1; // how long a float's twinkle is (float-sparkle), and so how often it's said
+// A float's shimmer (float-sparkle) is taken up somewhere in its first seconds, a different place each
+// float, with a whole float's length of it still to run, so no two floats sound alike and none comes
+// round to its start.
+const SHIMMER_FROM = 3;
 
 interface Walker {
   at: Vec3;
@@ -53,7 +56,7 @@ interface Walker {
   climbing: boolean; // on a ladder when last seen
   peak: number; // highest they've been this time in the air
   falling: number; // fastest downward speed this time in the air, m/s, when it's known
-  twinkled: number; // seconds since a float's twinkle last began; Infinity out of one
+  shimmer: number | null; // seconds into its shimmer a float took it up at; null out of a float
 }
 
 export class Footsteps {
@@ -90,14 +93,14 @@ export class Footsteps {
       crouch: boolean; // crouched: its walk is a crawl, paced by its hands and sounding as a shuffle
       climbing: boolean; // on a ladder (sim/types.ts `climb`): off the ground, and neither jumping nor falling
       pound: boolean; // in a ground pound (sim/avatars.ts `Pound`): it lands as hard as a landing gets
-      floating: boolean; // holding a fall (sim/avatars.ts `Float`): it twinkles
+      floating: boolean; // holding a fall (sim/avatars.ts `Float`): it shimmers
       falling?: number;
       self: boolean;
     }[],
     dt: number,
-  ): { key: string; id: SoundId; at: Vec3 | null }[] {
+  ): { key: string; id: SoundId; at: Vec3 | null; elapsed?: number }[] {
     const seen = new Set<string>();
-    const loops: { key: string; id: SoundId; at: Vec3 | null }[] = [];
+    const loops: { key: string; id: SoundId; at: Vec3 | null; elapsed?: number }[] = [];
     for (const p of players) {
       seen.add(p.id);
       const gait = GAITS[p.avatar];
@@ -115,7 +118,7 @@ export class Footsteps {
           climbing: p.climbing,
           peak: p.pos.y,
           falling: 0,
-          twinkled: Infinity,
+          shimmer: null,
         });
         continue;
       }
@@ -135,12 +138,9 @@ export class Footsteps {
       w.at = { ...p.pos };
       w.grounded = p.grounded;
       if (across > JUMPED || Math.abs(down) > JUMPED) continue;
-      // A float twinkles as it starts and again each time the twinkle has run out.
-      w.twinkled = p.floating ? w.twinkled + dt : Infinity;
-      if (p.floating && w.twinkled >= TWINKLE_SECONDS) {
-        this.sfx.soon('float-sparkle', at);
-        w.twinkled = 0;
-      }
+      // A float shimmers for as long as it lasts.
+      w.shimmer = p.floating ? (w.shimmer ?? Math.random() * SHIMMER_FROM) : null;
+      if (w.shimmer !== null) loops.push({ key: p.id, id: 'float-sparkle', at, elapsed: w.shimmer });
 
       if (!p.grounded) {
         if (wasGrounded) {
