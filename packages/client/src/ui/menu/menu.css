@@ -420,9 +420,12 @@
   color: rgba(255, 255, 255, 0.38);
 }
 
-/* The home screen's links (styles.css), as a row: the sections' own gap is all the room under it. */
+/* The home screen's links (styles.css), as a row. The room over it (the field above's empty note
+   and its margin, which this one is taken from) and under it (this margin, then the sections' gap)
+   come to the same. */
 #menu .home-links {
-  margin-bottom: 0;
+  margin-top: -9px;
+  margin-bottom: 9px;
 }
 
 /* A row of buttons, sharing the width; a link among them looks like a button. */
@@ -536,6 +539,10 @@
   }
   #menu .panel {
     gap: 14px;
+  }
+  #menu .home-links {
+    margin-top: -12px;
+    margin-bottom: 12px;
   }
   #menu h2 {
     margin-bottom: 6px;
