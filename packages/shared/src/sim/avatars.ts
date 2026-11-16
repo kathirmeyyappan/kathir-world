@@ -328,8 +328,8 @@ const LOOKS = {
     regen: false,
     blurb: 'become sandy cheeks',
     command: 'sandy',
-    eye: 1.67,
-    hitbox: { top: 2.2, radius: 0.5, head: 0.93 }, // to the flower on her helmet, which is a metre across: the head is the helmet
+    eye: 2.16,
+    hitbox: { top: 2.85, radius: 0.65, head: 1.2 }, // as tall as Patrick, to the flower on her helmet, which is 1.3 m across: the head is the helmet
     walk: 8,
     jump: 1.2, // a squirrel
   },
@@ -340,8 +340,8 @@ const LOOKS = {
     regen: false,
     blurb: 'become mrs. puff',
     command: 'puff',
-    eye: 1.98,
-    hitbox: { top: 2.57, radius: 0.9, head: 1.0 }, // to the top of her hat, 1.55 m across the body and 2 m across the skirt: the head is everything from the mouth up
+    eye: 1.85,
+    hitbox: { top: 2.4, radius: 0.85, head: 0.95 }, // as tall as Mr. Krabs, to the top of her hat; 1.45 m across the body and 1.9 m across the skirt: the head is everything from the mouth up
     walk: 6,
     jump: 0.8,
   },
@@ -352,8 +352,8 @@ const LOOKS = {
     regen: false,
     blurb: 'become larry the lobster',
     command: 'larry',
-    eye: 3.39,
-    hitbox: { top: 3.5, radius: 0.9, head: 0.7 }, // to the top of his eyestalks, the antennae 4.3 m up; 1.9 m across the chest: the head is everything over the shoulders
+    eye: 2.67,
+    hitbox: { top: 2.75, radius: 0.7, head: 0.55 }, // to the top of his eyestalks, the antennae 3.4 m up, a little over Tung Tung Tung Sahur; 1.5 m across the chest: the head is everything over the shoulders
     walk: 9,
     jump: 1.2,
   },

@@ -1,4 +1,4 @@
-// Mrs. Puff: 2.57 m of pufferfish in her sailor dress and hat, from Cheryl Hill's Battle for Bikini
+// Mrs. Puff: 2.4 m of pufferfish in her sailor dress and hat, from Cheryl Hill's Battle for Bikini
 // Bottom Rehydrated model (puffModel.ts, made by scripts/avatar-model.py), skinned over six bones:
 // the round body with its skirt, the head, the arms and the short legs under the skirt. Her head
 // turns with the look. Worn with /puff; her hit capsule is AVATARS.puff.hitbox.
@@ -18,7 +18,7 @@ const HEAD_FOLLOW = 0.5; // how much of the look's pitch the head takes
 // Lying on her back: radians the legs and arms drop toward the ground.
 const DEAD_LEGS = 0.6;
 const DEAD_ARMS = 0.9;
-const LIES = 0.85; // metres her middle lies off the ground: on the back of her body, the skirt's rim crushed under it
+const LIES = 0.8; // metres her middle lies off the ground: on the back of her body, the skirt's rim crushed under it
 
 type Bone = keyof typeof PUFF_MODEL.bones;
 const PARENTS: Record<Bone, Bone | null> = {
@@ -53,7 +53,7 @@ export function buildPuff(engine: Engine, id: string, base: TransformNode): Figu
     armR: { node: armR, grip, reach },
     back: { node: body, at: skin.offset('body', PUFF_MODEL.back) },
     materials: [skin.material],
-    shadow: 1.9,
+    shadow: 1.8,
     legSwing: LEG_SWING,
     airLegs: AIR_LEGS,
     armSwing: ARM_SWING,

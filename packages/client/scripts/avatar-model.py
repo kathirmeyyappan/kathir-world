@@ -273,7 +273,7 @@ MODELS = {
     "sandy": Model(
         "BFBBR - Sandy (Updated)",
         "Cheryl Hill",
-        2.2,  # a little over SpongeBob, to the top of her helmet's flower
+        2.85,  # as tall as Patrick, to the top of her helmet's flower
         (
             ("body", 2),
             ("head", Piece(2, y=(0.58, 0.88), end="bottom")),
@@ -292,12 +292,11 @@ MODELS = {
         apart=True,
     ),
     # Battle for Bikini Bottom Rehydrated's rig, as Plankton's: a hip the legs hang from under her
-    # skirt, a spine up to the head with its hat and hair, and an arm a side. Heights among the
-    # game's characters are as its models stand: SpongeBob's is 154 units tall and hers 209.
+    # skirt, a spine up to the head with its hat and hair, and an arm a side.
     "puff": Model(
         "BFBBR - Mrs Puff",
         "Cheryl Hill",
-        2.57,  # to the top of her hat
+        2.4,  # as tall as Mr. Krabs, to the top of her hat
         (
             ("body", "jt_hip"),
             ("head", "jt_head"),
@@ -315,11 +314,10 @@ MODELS = {
     ),
     # The same game's rig with its joints half unnamed: joint2 is the hip, with the legs and the
     # tail on it, joint6 the head with its eyestalks and antennae, and each arm ends in a claw.
-    # His model is 351 units to the tips of his antennae.
     "larry": Model(
         "BFBBR - Larry The Lobster",
         "Cheryl Hill",
-        4.32,  # to the tips of his antennae; his head is 3.5 m up
+        3.4,  # to the tips of his antennae, a little over Tung Tung Tung Sahur; his head is 2.7 m up
         (
             ("body", "joint2"),
             ("head", "joint6"),
