@@ -418,7 +418,10 @@ lookouts, every avatar's hitbox and walk, and the jumps for each way a look on f
 distinct walk and jump power is simulated over the whole graph). Rebuild it and commit the new map with the change whenever any of those
 inputs move: a structure or landmark added or changed, the world's outline, the player's body or
 movement constants, or an avatar added or its hitbox resized. A test in `sim.test.ts` fails until
-you do (the map carries a fingerprint of all of them).
+you do (the map carries a fingerprint of all of them). The map also carries `code`, a hash of the
+sim files its builder runs (`scripts/botMapCode.ts`), which no test holds it to, so a change to how
+a body walks or collides needs no rebuild from you: `deploy.sh` builds the map itself when either
+is off (`npm run bot-map -- --if-stale`), and CI keeps what a deploy built for the next one.
 
 Cubes don't know about structures. Every map (the HUD's minimap, the menu's and the guide's) draws
 through `ui/MapCanvas.ts`, which reads the outline (`WORLD_SHAPE`) and `content/landmarks.ts` itself,

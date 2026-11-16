@@ -8,7 +8,8 @@
 // and every spot within their walls), where a sniper starts out and lies in wait.
 // `npm run bot-map` writes it, gzipped, to modal-bots/common/world_map.json.gz; it carries a
 // fingerprint of everything it was built from, and a test fails when that no longer matches, so a
-// change to the world regenerates it.
+// change to the world regenerates it. It carries a hash of the sim code that built it as well,
+// which no test holds it to: a deploy builds the map afresh when either is off (deploy.sh).
 import {
   EYE_HEIGHT,
   GRAVITY,
@@ -63,6 +64,7 @@ export type LookoutPlace = 'tower' | 'building' | 'elsewhere';
 
 export interface BotMap {
   source: number; // botMapSource() when it was built
+  code: number; // a hash of the sim code that built it (scripts/botMapCode.ts)
   structures: Structure[]; // as content/structures.ts lists them, without their looks
   nodes: [number, number, number][]; // feet x, y, z
   edges: number[][]; // per node, the nodes a player walking straight from it reaches
@@ -148,7 +150,7 @@ function shapes(): Structure[] {
   });
 }
 
-export function buildBotMap(): BotMap {
+export function buildBotMap(code: number): BotMap {
   const nodes = walkableNodes();
   const columns = new Map<string, number[]>();
   nodes.forEach((n, i) => {
@@ -176,6 +178,7 @@ export function buildBotMap(): BotMap {
   const found = lookouts(nodes, edges, jumps);
   return {
     source: botMapSource(),
+    code,
     structures: shapes(),
     nodes: nodes.map((n) => [n.x, Math.round(n.y * 100) / 100, n.z]),
     edges,
