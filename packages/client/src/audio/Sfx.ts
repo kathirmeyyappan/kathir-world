@@ -93,6 +93,9 @@ export type SoundId =
   | 'krabs-hurt'
   | 'gary-hurt-1'
   | 'gary-hurt-2'
+  | 'squidward-hurt-1'
+  | 'squidward-hurt-2'
+  | 'squidward-hurt-3'
   | 'plankton-hurt'
   | 'luigi-kill-1'
   | 'luigi-kill-2'
@@ -113,6 +116,8 @@ export type SoundId =
   | 'krabs-kill-2'
   | 'krabs-kill-3'
   | 'gary-kill-1'
+  | 'squidward-kill-1'
+  | 'squidward-kill-2'
   | 'plankton-kill-1'
   | 'plankton-kill-2'
   | 'mario-kill-1'
@@ -129,6 +134,8 @@ export type SoundId =
   | 'peach-enter-2'
   | 'daisy-enter'
   | 'patrick-enter'
+  | 'squidward-enter-1'
+  | 'squidward-enter-2'
   | 'plankton-enter'
   | 'spongebob-enter'
   | 'spongebob-enter-2'
@@ -261,6 +268,9 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'krabs-hurt': { file: 'krabs-hurt.mp3', half: 6, reach: 30, volume: 0.25 },
   'gary-hurt-1': { file: 'gary-hurt-1.mp3', half: 6, reach: 30, volume: 0.25 },
   'gary-hurt-2': { file: 'gary-hurt-2.mp3', half: 6, reach: 30, volume: 0.25 },
+  'squidward-hurt-1': { file: 'squidward-hurt-1.mp3', half: 6, reach: 30, volume: 0.25 },
+  'squidward-hurt-2': { file: 'squidward-hurt-2.mp3', half: 6, reach: 30, volume: 0.25 },
+  'squidward-hurt-3': { file: 'squidward-hurt-3.mp3', half: 6, reach: 30, volume: 0.25 },
   'plankton-hurt': { file: 'plankton-hurt.mp3', half: 6, reach: 30, volume: 0.25 },
   'mario-kill-1': { file: 'mario-kill-1.mp3', half: 6, reach: 30, volume: 0.2 },
   'mario-kill-2': { file: 'mario-kill-2.mp3', half: 6, reach: 30, volume: 0.2 },
@@ -286,6 +296,8 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'krabs-kill-2': { file: 'krabs-kill-2.mp3', half: 6, reach: 30, volume: 0.2 },
   'krabs-kill-3': { file: 'krabs-kill-3.mp3', half: 6, reach: 30, volume: 0.2 },
   'gary-kill-1': { file: 'gary-kill-1.mp3', half: 6, reach: 30, volume: 0.2 },
+  'squidward-kill-1': { file: 'squidward-kill-1.mp3', half: 6, reach: 30, volume: 0.2 },
+  'squidward-kill-2': { file: 'squidward-kill-2.mp3', half: 6, reach: 30, volume: 0.2 },
   // Five seconds each, so fetched the first time one is said within earshot, as an intro is.
   'plankton-kill-1': { file: 'plankton-kill-1.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'plankton-kill-2': { file: 'plankton-kill-2.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
@@ -299,6 +311,8 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'peach-enter-2': { file: 'peach-enter-2.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'daisy-enter': { file: 'daisy-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'patrick-enter': { file: 'patrick-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
+  'squidward-enter-1': { file: 'squidward-enter-1.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
+  'squidward-enter-2': { file: 'squidward-enter-2.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'plankton-enter': { file: 'plankton-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'spongebob-enter': { file: 'spongebob-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'spongebob-enter-2': { file: 'spongebob-enter-2.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
