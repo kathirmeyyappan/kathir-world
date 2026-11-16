@@ -67,6 +67,8 @@ export const CHARACTERS: Record<AvatarId, Entry> = {
   gary: plain('Gary', 'SpongeBob’s pet snail.'),
   plankton: plain('Plankton', 'Mr. Krabs’ arch nemesis and the smallest character in this game.'),
   sandy: plain('Sandy Cheeks', 'A squirrel from Texas who lives under the sea.'),
+  puff: plain('Mrs. Puff', 'A pufferfish who teaches at the boating school.'),
+  larry: plain('Larry the Lobster', 'The lifeguard at Goo Lagoon.'),
   sahur: plain('Tung Tung Tung Sahur', 'Tung Tung Tung Sahur.'),
   mike: plain('Mike Wazowski', 'Mike Wazowski from Monsters, Inc.'),
   sulley: plain('Sulley', 'Sulley from Monsters, Inc.'),

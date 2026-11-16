@@ -509,7 +509,11 @@ Sandy (`Sandy.ts`) comes from a model with no rig at all, one mesh in separate p
 `avatar-model.py` gives each bone the pieces that lie where it is (a `Piece` by side, height and
 how far out, turning on its inner end, its bottom or its front) and thins each piece on its own
 (`apart`); the helmet's glass is left out of the mesh (`skip`) and drawn by the builder as a clear
-dome the size the model file gives (`glass`). Rebuild the bot map after
+dome the size the model file gives (`glass`). Mrs. Puff and Larry the Lobster (`Puff.ts`,
+`Larry.ts`) are on that game's own rig, a head, two arms and two legs on a trunk (and Larry's
+tail); her eyelids, which the rig binds shut, are left out of the mesh (`bare`). The Bikini Bottom
+looks from that game stand as tall beside SpongeBob as its models do (his 154 units to Mrs. Puff's
+209 and Larry's 351, antennae and all). Rebuild the bot map after
 adding one, and keep it as cheap as the ones there (triangles, one mesh, a small atlas), with the
 numbers in the PR.
 

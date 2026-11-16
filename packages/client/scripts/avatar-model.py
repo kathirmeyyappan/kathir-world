@@ -10,6 +10,8 @@
     python packages/client/scripts/avatar-model.py gary path/to/gary_spongebob.glb
     python packages/client/scripts/avatar-model.py plankton path/to/bfbbr_-_plankton.glb
     python packages/client/scripts/avatar-model.py sandy path/to/bfbbr_-_sandy_updated.glb
+    python packages/client/scripts/avatar-model.py puff path/to/bfbbr_-_mrs_puff.glb
+    python packages/client/scripts/avatar-model.py larry path/to/bfbbr_-_larry_the_lobster.glb
 
 Each is a skinned mesh (or a few) on a rig of a hundred-odd joints, or rigid parts on a tree of
 nodes, with no animation. This poses it
@@ -117,6 +119,9 @@ class Model:
     # Each separate piece of a mesh counted as a part of its own when the model is decimated, so a
     # mesh that is a whole body in pieces keeps its small ones and thins each closed one alike.
     apart: bool = False
+    # Joints whose skin is left out, every triangle with a corner that mostly follows one of them or
+    # anything on it: eyelids the rig binds shut over the eyes.
+    bare: tuple[Joint, ...] = ()
 
 
 BIPED_PALM = ("Bip001_R_Hand", "Bip001_R_Finger0", "Bip001_R_Finger1", "Bip001_R_Finger2")
@@ -286,6 +291,50 @@ MODELS = {
         skip=(3,),
         apart=True,
     ),
+    # Battle for Bikini Bottom Rehydrated's rig, as Plankton's: a hip the legs hang from under her
+    # skirt, a spine up to the head with its hat and hair, and an arm a side. Heights among the
+    # game's characters are as its models stand: SpongeBob's is 154 units tall and hers 209.
+    "puff": Model(
+        "BFBBR - Mrs Puff",
+        "Cheryl Hill",
+        2.57,  # to the top of her hat
+        (
+            ("body", "jt_hip"),
+            ("head", "jt_head"),
+            ("armL", "jt_shoulder_L"),
+            ("armR", "jt_shoulder_R"),
+            ("legL", "jt_leg_L"),
+            ("legR", "jt_leg_R"),
+        ),
+        ("body",),
+        ("jt_hand_R", "jt_finger_R"),
+        budget=3600,
+        open_shells_too=True,
+        texture_size=256,
+        bare=("joint6", "joint8", "joint10", "joint12"),  # her lids, upper and lower
+    ),
+    # The same game's rig with its joints half unnamed: joint2 is the hip, with the legs and the
+    # tail on it, joint6 the head with its eyestalks and antennae, and each arm ends in a claw.
+    # His model is 351 units to the tips of his antennae.
+    "larry": Model(
+        "BFBBR - Larry The Lobster",
+        "Cheryl Hill",
+        4.32,  # to the tips of his antennae; his head is 3.5 m up
+        (
+            ("body", "joint2"),
+            ("head", "joint6"),
+            ("armL", "jt_shoulder_L"),
+            ("armR", "jt_shoulder_R"),
+            ("legL", "jt_leg_L"),
+            ("legR", "jt_leg_R"),
+            ("tail", "jt_tail1"),
+        ),
+        ("body",),
+        ("jt_clawUp_R", "jt_clawDw_R", "jt_clawUpEnd_R", "jt_clawDwEnd_R"),
+        budget=4000,
+        open_shells_too=True,
+        texture_size=256,
+    ),
 }
 
 
@@ -328,7 +377,6 @@ def main(name: str, glb: str) -> None:
         # its own node wholly, so its skinning matrix is just the node's transform.
         joints = list(range(len(nodes)))
         inverse_bind = np.broadcast_to(np.eye(4), (len(nodes), 4, 4))
-    skinning = np.array([transform(j) @ inverse_bind[k] for k, j in enumerate(joints)])
     names = [name_of(nodes[j]["name"]) for j in joints]
     joint_index = {j: k for k, j in enumerate(joints)}
     joint_parent = [joint_index.get(parent.get(j), -1) for j in joints]
@@ -338,6 +386,8 @@ def main(name: str, glb: str) -> None:
             return ref
         assert names.count(ref) == 1, f"{ref}: {names.count(ref)} joints of that name"
         return names.index(ref)
+
+    skinning = np.array([transform(j) @ inverse_bind[k] for k, j in enumerate(joints)])
 
     # Fold the rig onto the avatar's bones: a joint belongs to the first bone whose subtree holds it,
     # else to the root bone; a piece's bone takes it from whichever bone has its node.
@@ -363,6 +413,17 @@ def main(name: str, glb: str) -> None:
         return 0
 
     joint_bone = np.array([bone_of(k) for k in range(len(joints))])
+
+    bare_roots = {joint(ref) for ref in model.bare}
+
+    def is_bare(k: int) -> bool:
+        while k >= 0:
+            if k in bare_roots:
+                return True
+            k = joint_parent[k]
+        return False
+
+    joint_bare = np.array([is_bare(k) for k in range(len(joints))])
 
     def pieces_of(k: int) -> list[tuple[int, Piece]]:
         while k >= 0:
@@ -393,6 +454,9 @@ def main(name: str, glb: str) -> None:
                 # A part its node mirrors (a negative scale) comes out wound inside out.
                 if np.linalg.det(skinning[joint_index[index]][:3, :3]) < 0:
                     triangles = triangles[:, ::-1]
+            if bare_roots:
+                on_bare = (w * joint_bare[j]).sum(axis=1) > 0.5 * w.sum(axis=1)
+                triangles = triangles[~on_bare[triangles].any(axis=1)]
             homogeneous = np.c_[p, np.ones(len(p))]
             posed = np.zeros_like(p)
             posed_normals = np.zeros_like(n)

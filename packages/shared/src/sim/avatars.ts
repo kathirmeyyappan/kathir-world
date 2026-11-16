@@ -25,6 +25,8 @@ export type AvatarId =
   | 'gary'
   | 'plankton'
   | 'sandy'
+  | 'puff'
+  | 'larry'
   | 'sahur'
   | 'mike'
   | 'sulley'
@@ -330,6 +332,30 @@ const LOOKS = {
     hitbox: { top: 2.2, radius: 0.5, head: 0.93 }, // to the flower on her helmet, which is a metre across: the head is the helmet
     walk: 8,
     jump: 1.2, // a squirrel
+  },
+  puff: {
+    id: 'puff',
+    class: 'walker',
+    item: null,
+    regen: false,
+    blurb: 'become mrs. puff',
+    command: 'puff',
+    eye: 1.98,
+    hitbox: { top: 2.57, radius: 0.9, head: 1.0 }, // to the top of her hat, 1.55 m across the body and 2 m across the skirt: the head is everything from the mouth up
+    walk: 6,
+    jump: 0.8,
+  },
+  larry: {
+    id: 'larry',
+    class: 'walker',
+    item: null,
+    regen: false,
+    blurb: 'become larry the lobster',
+    command: 'larry',
+    eye: 3.39,
+    hitbox: { top: 3.5, radius: 0.9, head: 0.7 }, // to the top of his eyestalks, the antennae 4.3 m up; 1.9 m across the chest: the head is everything over the shoulders
+    walk: 9,
+    jump: 1.2,
   },
   sahur: {
     id: 'sahur',
