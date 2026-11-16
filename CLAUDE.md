@@ -513,7 +513,8 @@ how far out, turning on its inner end, its bottom or its front) and thins each p
 dome the size the model file gives (`glass`). Mrs. Puff and Larry the Lobster (`Puff.ts`,
 `Larry.ts`) are on that game's own rig, a head, two arms and two legs on a trunk (and Larry's
 tail); her eyelids, which the rig binds shut, are left out of the mesh (`bare`), and her eyeballs,
-cream in its texture, painted white (`whitened`). Rebuild the bot map after
+cream in its texture, painted white (`whitened`); the shine drawn on his claws is painted over
+(`plain`). Rebuild the bot map after
 adding one, and keep it as cheap as the ones there (triangles, one mesh, a small atlas), with the
 numbers in the PR.
 

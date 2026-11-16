@@ -130,7 +130,12 @@ class Model:
     # Patches of the model's texture, each (u0, v0, u1, v1) with v down the image, whose pale pixels
     # are painted white: eyeballs the texture has cream.
     whitened: tuple[tuple[float, float, float, float], ...] = ()
+    # And patches whose marks (whatever is much paler than the rest of the patch) are painted over
+    # in the patch's own colour: a shine drawn on a claw.
+    plain: tuple[tuple[float, float, float, float], ...] = ()
 
+
+PALER = 12  # of 255: this much more green than its patch's middle is a mark on a plain patch
 
 BIPED_PALM = ("Bip001_R_Hand", "Bip001_R_Finger0", "Bip001_R_Finger1", "Bip001_R_Finger2")
 
@@ -341,6 +346,7 @@ MODELS = {
         budget=4000,
         open_shells_too=True,
         texture_size=256,
+        plain=((0.13, 0.11, 0.22, 0.24),),  # the shine on each claw
     ),
 }
 
@@ -653,17 +659,38 @@ def main(name: str, glb: str) -> None:
 
     drawn = uv
     atlas, uv = pack_atlas(doc, blob, uv, material, model.colours, model.texture_size)
-    if model.whitened:
+    if model.whitened or model.plain:
         pixels = np.asarray(atlas.convert("RGB")).copy()
-        for u0, v0, u1, v1 in model.whitened:
+
+        def patch(u0: float, v0: float, u1: float, v1: float) -> np.ndarray:
+            """A patch of the model's texture, where the atlas has it: a texture goes into the atlas
+            scaled and moved, so where its vertices went says where the patch's corners did."""
             there = (drawn[:, 0] >= u0) & (drawn[:, 0] <= u1) & (drawn[:, 1] >= v0) & (drawn[:, 1] <= v1)
-            # The patch in the atlas: the box round where its vertices went.
-            x0, y0 = np.floor(uv[there].min(axis=0) * atlas.size).astype(int)
-            x1, y1 = np.ceil(uv[there].max(axis=0) * atlas.size).astype(int)
-            patch = pixels[y0:y1, x0:x1]
-            light = patch[..., :2].min(axis=2)
-            pale = (light > 180) & (patch[..., 2] < light)
-            patch[..., 2][pale] = light[pale]
+            same = material == np.bincount(material[there]).argmax()
+            box = []
+            for axis, (low, high) in enumerate(((u0, u1), (v0, v1))):
+                scale, moved = np.polyfit(drawn[same, axis], uv[same, axis], 1)
+                assert np.abs(drawn[same, axis] * scale + moved - uv[same, axis]).max() < 1e-3
+                box.append(sorted(((low * scale + moved) * atlas.size[axis], (high * scale + moved) * atlas.size[axis])))
+            (x0, x1), (y0, y1) = box
+            return pixels[max(0, int(np.floor(y0))) : int(np.ceil(y1)), max(0, int(np.floor(x0))) : int(np.ceil(x1))]
+
+        for box in model.whitened:
+            there = patch(*box)
+            light = there[..., :2].min(axis=2)
+            pale = (light > 180) & (there[..., 2] < light)
+            there[..., 2][pale] = light[pale]
+        for box in model.plain:
+            there = patch(*box)
+            green = there[..., 1].astype(int)
+            marked = green > np.median(green) + PALER
+            # And a pixel round it, where the mark's edge fades into the patch.
+            rim = marked.copy()
+            rim[1:] |= marked[:-1]
+            rim[:-1] |= marked[1:]
+            rim[:, 1:] |= marked[:, :-1]
+            rim[:, :-1] |= marked[:, 1:]
+            there[rim] = np.median(there[~rim], axis=0)
         atlas = Image.fromarray(pixels)
 
     def b64(a: np.ndarray) -> str:
