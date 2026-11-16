@@ -1135,4 +1135,11 @@ test('a ground pound: pressed in the air it hangs, drops faster than a fall, pla
   for (let i = 0; i < Math.round(pound.recover * TICK_RATE); i++) room.step();
   assert.equal(alice.pound, null);
   assert.equal(bob.hearts, MAX_HEARTS - pound.damage - 1, 'hurt once');
+  // From past a fatal fall it still goes off, killing bob as it kills alice.
+  alice.pos = { x: 0, y: EYE_HEIGHT + 100, z: 0 };
+  bob.pos = { x: 2, y: EYE_HEIGHT, z: 0 };
+  room.step();
+  room.receive(ida, { t: 'input', f: frame(0, ['pound']) });
+  for (let i = 0; i < 4 * TICK_RATE && !alice.dead; i++) room.step();
+  assert.ok(alice.dead && bob.dead, 'a kamikaze');
 });

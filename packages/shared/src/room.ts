@@ -435,14 +435,20 @@ export class Room {
     this.broadcast({ t: 'kill', shooter: shooter.id, victim: victim.id, item, headshot });
   }
 
-  // What the end of a step does: a landing at `speed` m/s hurts by its speed, and a ground pound
-  // landing this tick (avatars.ts `Pound`) hurts everyone else on foot within its reach across the
-  // floor, about level with it and in its sight, so not through a wall or a floor, and throws them
-  // back from it, harder and further the higher it began (`poundPower`).
+  // What the end of a step does: a ground pound landing this tick goes off, then a landing at
+  // `speed` m/s hurts by its speed, so a pound from high enough to kill its player still lands.
   private land(seat: Seat, speed: number): void {
     const me = seat.state;
+    this.pound(seat);
     const damage = fallDamage(speed);
     if (damage > 0 && !me.dead) this.damage(me, damage, null);
+  }
+
+  // A ground pound landing this tick (avatars.ts `Pound`) hurts everyone else on foot within its
+  // reach across the floor, about level with it and in its sight, so not through a wall or a floor,
+  // and throws them back from it, harder and further the higher it began (`poundPower`).
+  private pound(seat: Seat): void {
+    const me = seat.state;
     const pound = poundOf(me.avatar);
     if (!pound || me.dead || me.pound?.stage !== 'land' || me.pound.t !== 0) return;
     const { damage: hurt, reach } = poundPower(pound, me.pound.from - me.pos.y);
