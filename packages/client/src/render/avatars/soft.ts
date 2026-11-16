@@ -33,7 +33,9 @@ const SKIRT_EASE = 0.09; // seconds a skirt takes to follow the legs: stiff clot
 // carried, level, only as far as keeps both knees and both ankles under it, the middle ring half
 // as far, and pushed wider where they are further apart than it is; over legs held out further
 // than the hem can be carried the whole skirt tips after them; and it is gathered up short of the
-// floor when the hips come down.
+// floor when the hips come down. What it can't cover it holds in: a knee or an ankle out past the
+// cloth as it has come to hang (a leg quicker than the skirt, or two further apart than it
+// spreads) is turned back in under it, which nobody sees but for the foot at the hem.
 export class Skirt {
   private readonly ahead: number; // radians from straight down its hem reaches, ahead, behind and to a side
   private readonly behind: number;
@@ -91,9 +93,7 @@ export class Skirt {
         TURN.multiplyInPlace(bone.rotationQuaternion ?? Quaternion.Identity());
         JOINT.subtractToRef(TOP, STEP).rotateByQuaternionToRef(BACK, STEP);
         const down = Math.max(1e-3, -STEP.y);
-        // A joint down at the hem may show under it; one higher up is kept well inside the cloth.
-        const low = Math.max(0, Math.min(1, (down / (this.hem.drop * this.length) - HEM_NEAR) / (1 - HEM_NEAR)));
-        const room = KNEE_ROOM - (KNEE_ROOM + FOOT_SHOWS) * low;
+        const room = this.room(down);
         // Ahead or behind, a joint may be held above the top of the skirt: past level.
         const fore = Math.atan2(STEP.z, -STEP.y);
         const side = Math.atan2(STEP.x, down);
@@ -138,7 +138,59 @@ export class Skirt {
         (node.rotationQuaternion ??= new Quaternion()),
       );
     });
+    this.tuck(hips);
   }
+
+  // Radians of cloth kept clear round a joint `down` metres under the top of the skirt: one down at
+  // the hem may show under it (less than none), one higher up is kept well inside.
+  private room(down: number): number {
+    const low = Math.max(0, Math.min(1, (down / (this.hem.drop * this.length) - HEM_NEAR) / (1 - HEM_NEAR)));
+    return KNEE_ROOM - (KNEE_ROOM + FOOT_SHOWS) * low;
+  }
+
+  // Turns each thigh, then its shin, as little as brings the knee and the ankle inside the skirt
+  // as it hangs this frame. TOP, FRAME and BACK are the skirt's, as `update` leaves them.
+  private tuck(hips: Quaternion): void {
+    const front = this.fore + Math.atan(Math.tan(this.ahead) * this.deep);
+    const back = this.fore - Math.atan(Math.tan(this.behind) * this.deep);
+    const reach = Math.atan(Math.tan(this.across) * this.wide);
+    for (const [thigh, shin, foot] of this.legs) {
+      thigh.position.rotateByQuaternionToRef(hips, JOINT).addInPlace(this.hips.position);
+      PARENT.copyFrom(hips);
+      for (const [bone, child] of [
+        [thigh, shin],
+        [shin, foot],
+      ] as const) {
+        const local = (bone.rotationQuaternion ??= new Quaternion());
+        PARENT.multiplyToRef(local, TURN);
+        child.position.rotateByQuaternionToRef(TURN, RUN);
+        JOINT.addToRef(RUN, STEP).subtractInPlace(TOP).rotateByQuaternionToRef(BACK, STEP);
+        const room = this.room(Math.max(1e-3, -STEP.y));
+        const fore = Math.atan2(STEP.z, -STEP.y);
+        const held = within(fore, back + room, front - room);
+        const far = Math.hypot(STEP.y, STEP.z);
+        const y = -far * Math.cos(held);
+        const side = Math.atan2(STEP.x, Math.max(1e-3, -y));
+        const kept = within(side, this.aside - reach + room, this.aside + reach - room);
+        if (held !== fore || kept !== side) {
+          STEP.set(Math.tan(kept) * Math.max(1e-3, -y), y, far * Math.sin(held));
+          STEP.rotateByQuaternionToRef(FRAME, STEP).addInPlace(TOP).subtractInPlace(JOINT);
+          const length = RUN.length();
+          Quaternion.FromUnitVectorsToRef(RUN.scaleInPlace(1 / length), STEP.normalize(), BENT);
+          BENT.multiplyToRef(TURN, TURN);
+          PARENT.conjugateToRef(local).multiplyInPlace(TURN);
+          STEP.scaleToRef(length, RUN);
+        }
+        JOINT.addInPlace(RUN);
+        PARENT.copyFrom(TURN);
+      }
+    }
+  }
+}
+
+// `value` held between `low` and `high`, or midway between them where they have crossed.
+function within(value: number, low: number, high: number): number {
+  return low > high ? (low + high) / 2 : Math.max(low, Math.min(high, value));
 }
 
 // How far a skirt's hem is carried, and how many times its own reach it spreads, to hold everything
@@ -314,6 +366,7 @@ export class Tail {
 
 const TOP = new Vector3();
 const JOINT = new Vector3();
+const RUN = new Vector3();
 const STEP = new Vector3();
 const WAS = new Vector3();
 const ROOT = new Vector3();
@@ -326,6 +379,8 @@ const HEADBALL = new Vector3();
 const BALL = new Vector3();
 const SCALE = new Vector3();
 const TURN = new Quaternion();
+const PARENT = new Quaternion();
+const BENT = new Quaternion();
 const FRAME = new Quaternion();
 const FACING = new Quaternion();
 const UPRIGHT = Quaternion.Identity();
