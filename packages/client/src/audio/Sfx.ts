@@ -105,6 +105,7 @@ export type SoundId =
   | 'spongebob-kill-1'
   | 'spongebob-kill-2'
   | 'patrick-kill-1'
+  | 'patrick-kill-2'
   | 'krabs-kill-1'
   | 'krabs-kill-2'
   | 'krabs-kill-3'
@@ -123,6 +124,7 @@ export type SoundId =
   | 'daisy-enter'
   | 'patrick-enter'
   | 'spongebob-enter'
+  | 'spongebob-enter-2'
   | 'krabs-enter'
   | 'krabs-enter-2'
   | 'sahur-enter'
@@ -267,6 +269,7 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'spongebob-kill-1': { file: 'spongebob-kill-1.mp3', half: 6, reach: 30, volume: 0.2 },
   'spongebob-kill-2': { file: 'spongebob-kill-2.mp3', half: 6, reach: 30, volume: 0.2 },
   'patrick-kill-1': { file: 'patrick-kill-1.mp3', half: 6, reach: 30, volume: 0.2 },
+  'patrick-kill-2': { file: 'patrick-kill-2.mp3', half: 6, reach: 30, volume: 0.2 },
   'krabs-kill-1': { file: 'krabs-kill-1.mp3', half: 6, reach: 30, volume: 0.2 },
   'krabs-kill-2': { file: 'krabs-kill-2.mp3', half: 6, reach: 30, volume: 0.2 },
   'krabs-kill-3': { file: 'krabs-kill-3.mp3', half: 6, reach: 30, volume: 0.2 },
@@ -281,6 +284,7 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'daisy-enter': { file: 'daisy-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'patrick-enter': { file: 'patrick-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'spongebob-enter': { file: 'spongebob-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
+  'spongebob-enter-2': { file: 'spongebob-enter-2.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'krabs-enter': { file: 'krabs-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'krabs-enter-2': { file: 'krabs-enter-2.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'sahur-enter': { file: 'sahur-enter.mp3', half: 6, reach: 30, volume: 0.2, fade: 0.3, lazy: true }, // the whole chant, 17 s: it's the joke

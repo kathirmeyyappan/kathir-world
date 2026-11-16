@@ -81,7 +81,7 @@ export const VOICES: Record<AvatarId, Voice> = {
     twirl: 'pound-twirl-heavy',
   },
   spongebob: {
-    enter: ['spongebob-enter'],
+    enter: ['spongebob-enter', 'spongebob-enter-2'],
     hurt: ['spongebob-hurt'],
     kill: ['spongebob-kill-1', 'spongebob-kill-2'],
     ...BIKINI_BOTTOM,
@@ -89,7 +89,7 @@ export const VOICES: Record<AvatarId, Voice> = {
   patrick: {
     enter: ['patrick-enter'],
     hurt: ['patrick-hurt-1', 'patrick-hurt-2'],
-    kill: ['patrick-kill-1'],
+    kill: ['patrick-kill-1', 'patrick-kill-2'],
     ...BIKINI_BOTTOM,
   },
   krabs: {
