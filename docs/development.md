@@ -105,6 +105,6 @@ Rooms also start with bots: the first person in brings the line-up from
 same way with `caller: 'room'`.
 
 Deploy the bots app separately: `modal deploy modal-bots/app.py`, with the `kathir-world-bots-config`
-Secret holding `WORLD_LOBBY_URL` (`./deploy.sh` deploys both apps and rebuilds the bots' map). The contract for writing a bot is in `CLAUDE.md` and `AGENTS.md`.
+Secret holding `WORLD_LOBBY_URL` (`./deploy.sh` deploys both apps and rebuilds the bots' map). The contract for writing a bot is in `CLAUDE.md`.
 
 ![how a bot gets into a room](bot-flow.png)
