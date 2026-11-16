@@ -135,7 +135,18 @@ export interface JointedModel extends SkinnedModel<JointedBone> {
 
 // The clips only a look with the move has.
 type Moves =
-  'leap' | 'pound' | 'pounded' | 'double' | 'doubleFall' | 'triple' | 'crouch' | 'crawl' | 'backflip' | 'float' | 'die';
+  | 'leap'
+  | 'pound'
+  | 'pounded'
+  | 'double'
+  | 'doubleFall'
+  | 'triple'
+  | 'crouch'
+  | 'crawl'
+  | 'backflip'
+  | 'float'
+  | 'die'
+  | 'fallen';
 
 // How a character moves: its clips, and the few numbers round them.
 export interface Style {
@@ -165,6 +176,7 @@ export interface Style {
     // Dying where it stands, played once and held at its end, where it lies. A body without one
     // goes over in the walker's leap and lies as `dead` has it.
     die?: RawClip;
+    fallen?: RawClip; // and of a fall, in `die`'s place: on its back where it landed
   };
   flutter?: number; // strides a second its legs run on at in the air: a scuttle
   landSpeed: number; // m/s of fall that lands all the way into the landing's crouch
@@ -321,6 +333,7 @@ export class JointedAvatar extends WalkerAvatar {
       backflip: raw.backflip ? clip(raw.backflip) : null,
       float: raw.float ? clip(raw.float) : null,
       die: raw.die ? clip(raw.die) : null,
+      fallen: raw.fallen ? clip(raw.fallen) : null,
     };
     const chain = chainOf(kind);
     const third = jumpVelocityOf(kind) * Math.sqrt((chain?.rise ?? 1) ** 2);
@@ -524,7 +537,7 @@ export class JointedAvatar extends WalkerAvatar {
   }
 
   protected override lie(): void {
-    const { die } = this.clips;
+    const die = (this.crashed && this.clips.fallen) || this.clips.die;
     if (!die) {
       super.lie();
       this.rig.apply(this.style.dead);
@@ -536,6 +549,7 @@ export class JointedAvatar extends WalkerAvatar {
     sample(this.third, die, this.gone / die.seconds, false);
     blend(this.out, this.out, this.third, smooth(this.gone / DIE_IN));
     this.rig.play(this.out, 0, 0, 0, 0, 0);
+    this.rig.rest(this.figure.lie.height);
   }
 
   // With something in its hand, the weapon arm, straight, along the look.
@@ -718,6 +732,13 @@ class Rig {
       head.rotationQuaternion!.multiplyInPlace(A);
     }
     this.grip(grip);
+  }
+
+  // Keeps the hips at least `height` over the floor: a clip that lies down was drawn on a slighter
+  // body, and would put a deeper one's back through it.
+  rest(height: number): void {
+    const hips = this.bones[0];
+    if (hips.position.y < height) hips.position.y = height;
   }
 
   // Both hands closed `grip` of the way to fists: turned only when that has changed.

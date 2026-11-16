@@ -88,6 +88,8 @@ CLIPS = {
     "backflip": Clip("4 - Backflip", 0, 32),
     # Dying where it stands: reeling, then over onto its back, where its last frame leaves it.
     "die": Clip("50 - Dying fall over", 0, 94, 2),
+    # And of a fall: flat on its back where it landed, its head coming up and dropping.
+    "fallen": Clip("3 - Dying on back", 0, 62, 2),
 }
 
 
