@@ -51,6 +51,14 @@ space` is the kind to keep). Don't narrate the change or answer the request that
 
 ## Client loading
 
+Weigh performance in every change, and put the player's experience first. Loading less is only
+a win where nobody can tell: a line that goes missing, a sound that comes in late enough to be
+heard as late, or anything that pops in where the player is looking costs more than the kilobytes
+it saved. So fetch ahead, not at the last moment: send for a thing as soon as it becomes likely
+(a look's lines when it's first seen worn, the next region before it's in view), keep on the
+path everyone pays what has to be there the instant it's wanted, and when a saving and a smooth
+experience pull apart, take the smooth one and tell Kathir what it costs.
+
 What a client fetches without the player asking for it, every player pays for, on a phone's
 connection and memory as much as a desktop's. Joining the world today fetches about 1.8 MB of code
 (gzipped), 8 MB of assets and 1.1 MB of sounds. Know which of these a change adds to, and keep
