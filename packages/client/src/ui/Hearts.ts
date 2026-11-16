@@ -82,9 +82,12 @@ export class Hearts {
     return this.target;
   }
 
-  // The bar for `life`'s hearts in its rows, full when that changes (a new look).
-  setLife(life: LifeSpec): void {
+  // The bar for `life`'s hearts in its rows, drawn at `count` without animating when that changes
+  // (a new look, which may keep a share of the last one's life).
+  setLife(life: LifeSpec, count = life.hearts): void {
     if (life.hearts === this.max && life.sprite === this.sprite) return;
+    for (const timer of this.fills) clearTimeout(timer);
+    this.fills = [];
     const art = SPRITES[life.sprite];
     this.root.replaceChildren();
     this.root.style.setProperty('--heart-row', String(life.row));
@@ -101,8 +104,14 @@ export class Hearts {
       this.root.append(heart);
       this.hearts.push(heart);
     }
-    this.max = this.shown = this.target = life.hearts;
+    this.max = life.hearts;
     this.sprite = life.sprite;
+    const n = Math.max(0, Math.min(this.max, count));
+    this.hearts.forEach((heart, i) => {
+      heart.classList.toggle('half', n < i + 1 && n >= i + 0.5);
+      heart.classList.toggle('lost', n < i + 0.5);
+    });
+    this.shown = this.target = n;
   }
 
   // A loss shows at once; hearts coming back fill one at a time, FILL_MS apart. Only the bar
