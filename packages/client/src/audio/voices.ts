@@ -95,6 +95,7 @@ export const VOICES: Record<AvatarId, Voice> = {
   krabs: { enter: [], ...BIKINI_BOTTOM },
   squidward: {
     enter: ['squidward-enter-1', 'squidward-enter-2'],
+    hurt: ['squidward-hurt-1', 'squidward-hurt-2', 'squidward-hurt-3'],
     kill: ['squidward-kill-1', 'squidward-kill-2'],
     ...BIKINI_BOTTOM,
   },

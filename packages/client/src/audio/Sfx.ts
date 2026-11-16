@@ -90,6 +90,9 @@ export type SoundId =
   | 'spongebob-hurt'
   | 'patrick-hurt-1'
   | 'patrick-hurt-2'
+  | 'squidward-hurt-1'
+  | 'squidward-hurt-2'
+  | 'squidward-hurt-3'
   | 'luigi-kill-1'
   | 'luigi-kill-2'
   | 'wario-kill-1'
@@ -246,6 +249,9 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'spongebob-hurt': { file: 'spongebob-hurt.mp3', half: 6, reach: 30, volume: 0.25 },
   'patrick-hurt-1': { file: 'patrick-hurt-1.mp3', half: 6, reach: 30, volume: 0.25 },
   'patrick-hurt-2': { file: 'patrick-hurt-2.mp3', half: 6, reach: 30, volume: 0.25 },
+  'squidward-hurt-1': { file: 'squidward-hurt-1.mp3', half: 6, reach: 30, volume: 0.25 },
+  'squidward-hurt-2': { file: 'squidward-hurt-2.mp3', half: 6, reach: 30, volume: 0.25 },
+  'squidward-hurt-3': { file: 'squidward-hurt-3.mp3', half: 6, reach: 30, volume: 0.25 },
   'mario-kill-1': { file: 'mario-kill-1.mp3', half: 6, reach: 30, volume: 0.2 },
   'mario-kill-2': { file: 'mario-kill-2.mp3', half: 6, reach: 30, volume: 0.2 },
   'mario-enter': { file: 'mario-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
