@@ -73,10 +73,11 @@ export interface Figure {
   head?: TransformNode; // a head on a neck: turns to the look on a ladder
   legs?: Leg[];
   armL?: Arm; // swings against the legs, and reaches up the rungs on a ladder
-  // Holds the item, which hangs on the grip at the hand, aimed along the look: by its own middle
-  // there, or `hold` from it in the grip's frame (x to the right, y back along the barrel, z up),
-  // for a fist that closes round the item's handle. With `roll` the arm is turned that many radians
-  // about its own length while it aims: a claw whose pincers close on a handle from its sides.
+  // Holds the item by its handle, aimed along the look: the handle's middle is at the grip, in the
+  // middle of the hand, or `hold` from it in the grip's frame (x to the right, y back along the
+  // barrel, z up) where the hand is too thick for the item's body to clear it from there. With
+  // `roll` the arm is turned that many radians about its own length while it aims: a hand turned
+  // thumb up, or a claw whose pincers close on a handle from its sides.
   armR: Arm & { grip: TransformNode; hold?: Vector3; roll?: number };
   rock?: TransformNode; // what rocks to each side with the stride: the base unless given
   back: { node: TransformNode; at: Vector3 }; // where a tank and the gear hang

@@ -13,4 +13,6 @@ export const MIKE: BodySpec = {
   armSwing: 0.45,
   bob: 0.03,
   follow: 0.35,
+  // The handle stands in his cupped palm, the item's body on his fingers.
+  hold: [-0.03, -0.08, -0.05],
 };

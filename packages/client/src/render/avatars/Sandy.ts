@@ -21,9 +21,9 @@ const TAIL_SWAY_MS = 1400;
 // Lying on her back: radians the legs and arms drop toward the ground.
 const DEAD_LEGS = 1.0;
 const DEAD_ARMS = 1.2;
-// Where a held item's own origin (the top of its handle) goes from the end of her arm, in the
-// grip's frame: back into her glove, the handle's middle in it.
-const HOLD = new Vector3(0, 0.1, 0.06);
+// Where an item's handle goes from the end of her arm, in the grip's frame: back into her glove,
+// low enough that the item's body lies on top of it.
+const HOLD = new Vector3(0, 0.05, 0.02);
 const GLASS_ALPHA = 0.16; // how much of the helmet's glass shows: a sheen, the head plain through it
 const GLASS_SEGMENTS = 14;
 

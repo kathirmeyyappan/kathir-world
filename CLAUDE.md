@@ -657,12 +657,13 @@ holds it) to the look, and the grip at its hand turned so the barrel runs that w
 Audit every look in every state, up close: standing, walking, each weapon held and aimed up and
 down, firing, hit, dying, dead, on a ladder with and without an item, and any move of its own. A
 sheet of the whole body hides what's wrong at a hand, so look at the hand itself from the front,
-the side, behind and above for each weapon: the item has to be held as that hand can hold it (in a
-fist, pinched in the mouth of a claw, lying on a hand with nothing to close) and never run through
-the hand or sit hidden inside it. What a look needs for that is its builder's to say: `hold` moves
-the item from the grip, `roll` turns the weapon arm about its length as it aims (a claw's pincers
-closing on a handle from its sides), a `Body`'s `palm` moves the grip from the model's hand (out to
-a claw's mouth), and `itemScale` draws the items to the body's size. When something every look
+the side, behind and above for each weapon: a weapon is held by its handle (`HANDLE` in
+`render/Weapons.ts`, whose middle `HeldItems` puts at the hand's grip), so the handle is in the hand
+as that hand can hold one (in a fist, among curled fingers, pinched at the tips of a claw, against
+a palm) and the weapon's body lies over the hand or ahead of it, never through the hand or hidden
+inside it. What a look needs for that is its builder's to say: `hold` moves the handle from the
+grip, `roll` turns the weapon arm about its length as it aims (a hand turned thumb up, a claw's
+pincers closing on a handle from its sides), and `itemScale` draws the items to the body's size. When something every look
 shares changes (the walker, a weapon's shape, a rig), audit every look it reaches, not the one the
 change was made for.
 

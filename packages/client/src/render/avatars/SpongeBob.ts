@@ -13,4 +13,7 @@ export const SPONGEBOB: BodySpec = {
   armsDown: 0.6,
   bob: 0.03,
   follow: 0.3,
+  // His fingers curl: with the hand turned thumb up they hang round the handle, out in his palm.
+  roll: Math.PI / 2,
+  hold: [0, -0.05, 0],
 };

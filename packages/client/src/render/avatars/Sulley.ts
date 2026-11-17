@@ -13,6 +13,9 @@ import type { Figure } from './Walker';
 const LEG_SWING = 0.7; // radians each way at a full-speed walk
 const AIR_LEGS = 0.3;
 const ARM_SWING = 0.3;
+// Where an item's handle goes from the middle of his hand, in the grip's frame: against the palm,
+// which faces inward, up under the thumb, the item's body over the thumb.
+const HOLD = new Vector3(-0.17, -0.07, 0.12);
 const ROLL = 0.06; // radians the chest rolls side to side with each stride
 const BOB = 0.04; // metres the body rises mid-stride
 const HEAD_FOLLOW = 0.5; // how much of the look's pitch the head takes
@@ -57,7 +60,7 @@ export function buildSulley(engine: Engine, id: string, base: TransformNode): Fi
       { node: skin.node('legR'), side: -1 },
     ],
     armL: { node: skin.node('armL'), reach: new Vector3(-reach.x, reach.y, reach.z) },
-    armR: { node: armR, grip, reach },
+    armR: { node: armR, grip, reach, hold: HOLD },
     rock: chest,
     back: { node: chest, at: skin.offset('chest', SULLEY_MODEL.back) },
     materials: [skin.material],

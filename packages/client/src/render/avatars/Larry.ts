@@ -24,6 +24,9 @@ const ITEM_SCALE = { weapons: 1.7, packs: 1.5 };
 // A quarter turn of the claw as it aims: its pincers, one over the other at rest, close on a
 // handle from either side.
 const CLAW_ROLL = Math.PI / 2;
+// Where an item's handle goes from there, in the grip's frame: out at the pincers' tips, which
+// pinch the back of it, the item's body ahead of the claw and over it.
+const HOLD = new Vector3(-0.1, -0.16, 0.04);
 
 type Bone = keyof typeof LARRY_MODEL.bones;
 const PARENTS: Record<Bone, Bone | null> = {
@@ -58,7 +61,7 @@ export function buildLarry(engine: Engine, id: string, base: TransformNode): Fig
       { node: skin.node('legR'), side: -1 },
     ],
     armL: { node: skin.node('armL'), reach: new Vector3(-reach.x, reach.y, reach.z) },
-    armR: { node: armR, grip, reach, roll: CLAW_ROLL },
+    armR: { node: armR, grip, reach, roll: CLAW_ROLL, hold: HOLD },
     back: { node: body, at: skin.offset('body', LARRY_MODEL.back) },
     materials: [skin.material],
     shadow: 1.5,

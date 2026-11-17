@@ -3,13 +3,13 @@
 // while the player is firing (render/Jet.ts); and the gear they wear (render/Gear.ts) on the back,
 // with the tank behind it when they have both. Shared by every avatar type so a new item is added
 // here once.
-import { TransformNode, Vector3, type Mesh } from '@babylonjs/core';
+import { Quaternion, TransformNode, Vector3, type Mesh } from '@babylonjs/core';
 import { ITEMS, ITEM_IDS, type AvatarId, type ItemId } from '@world/shared';
 import type { RemotePlayer } from '../../net/Interpolation';
 import type { Engine } from '../Engine';
 import { WornGear } from '../Gear';
 import { coneAngle, createJet, type Jet } from '../Jet';
-import { buildFlash, buildTank, buildWeapon, FLASH_SECONDS, holdRoll, weaponPalette } from '../Weapons';
+import { buildFlash, buildTank, buildWeapon, FLASH_SECONDS, HANDLE, holdRoll, weaponPalette } from '../Weapons';
 
 export class HeldItems {
   private readonly weapons = new Map<ItemId, TransformNode>();
@@ -23,17 +23,20 @@ export class HeldItems {
   private lastNow = performance.now();
   private readonly weaponScale: number;
   private readonly packScale: number;
+  private readonly hold: Vector3;
 
   // `hand` points the barrel along its local -y when raised (see the avatars), so the shapes,
   // built barrel-along-+z, are turned 90 degrees inside it, and rolled about the barrel as `avatar`
-  // holds each. `scale` is how big the weapons and the packs (the tanks and gear on the back) are
-  // drawn on this body, for one much smaller or bigger than the shapes were drawn for.
+  // holds each. A weapon is held by its handle: the handle's middle is at `hold` in the hand's
+  // frame, whatever the weapon's size and roll. `scale` is how big the weapons and the packs (the
+  // tanks and gear on the back) are drawn on this body, for one much smaller or bigger than the
+  // shapes were drawn for.
   constructor(
     engine: Engine,
     name: string,
     avatar: AvatarId,
     hand: TransformNode,
-    handOffset: Vector3,
+    hold: Vector3,
     back: TransformNode,
     backOffset: Vector3,
     scale: { weapons: number; packs: number } = { weapons: 1, packs: 1 },
@@ -42,12 +45,12 @@ export class HeldItems {
     const pal = weaponPalette(scene, `${name}-weapon`);
     this.weaponScale = scale.weapons;
     this.packScale = scale.packs;
+    this.hold = hold.clone();
     for (const item of ITEM_IDS) {
       const node = new TransformNode(`${name}-${item}`, scene);
       node.parent = hand;
-      node.position.copyFrom(handOffset);
       node.rotation.set(Math.PI / 2, 0, holdRoll(avatar, item));
-      node.scaling.setAll(this.weaponScale);
+      this.size(node, this.weaponScale);
       const muzzle = buildWeapon(scene, `${name}-${item}`, item, node, pal);
       if (!muzzle) {
         node.dispose();
@@ -78,7 +81,15 @@ export class HeldItems {
   // size reads as a toy. A hold weapon keeps its size, its jet drawn from the nozzle at the item's range.
   scaleWeapons(factor: number): void {
     for (const [item, node] of this.weapons)
-      if (ITEMS[item].actions.shoot?.mode === 'tap') node.scaling.setAll(factor * this.weaponScale);
+      if (ITEMS[item].actions.shoot?.mode === 'tap') this.size(node, factor * this.weaponScale);
+  }
+
+  // Draws a weapon `scale` times its size, its handle's middle staying where the hand holds it.
+  private size(node: TransformNode, scale: number): void {
+    node.scaling.setAll(scale);
+    const { x, y, z } = node.rotation;
+    HANDLE.scaleToRef(-scale, node.position).applyRotationQuaternionInPlace(Quaternion.FromEulerAngles(x, y, z));
+    node.position.addInPlace(this.hold);
   }
 
   update({ item, firing, gear, thrusting }: Pick<RemotePlayer, 'item' | 'firing' | 'gear' | 'thrusting'>): void {

@@ -27,10 +27,8 @@ export interface BodySpec extends Pick<
   // Draw the inside of the model too: for one made of open shells, where a gap (under a chin, inside
   // a collar) looks into the back of another part rather than out the other side.
   doubleSided?: boolean;
-  // How its hand holds an item, where the model's `hand` alone doesn't do: `palm` moves the grip
-  // from there (metres, in the model's frame: to a claw's mouth, out past its middle), and `hold`
-  // and `roll` are the weapon arm's (Figure.armR).
-  palm?: readonly [number, number, number];
+  // How its hand holds an item, where the handle's middle at the model's `hand` doesn't do: the
+  // weapon arm's `hold` and `roll` (Figure.armR).
   hold?: readonly [number, number, number];
   roll?: number;
 }
@@ -41,7 +39,7 @@ const DEAD_LEGS = 1.0;
 const DEAD_ARMS = 1.2;
 
 export function bodyBuilder(spec: BodySpec): Build {
-  const { kind, model, follow, doubleSided, palm, hold, roll, ...walk } = spec;
+  const { kind, model, follow, doubleSided, hold, roll, ...walk } = spec;
   return (engine, id, base) => {
     const skin = new SkinnedBody(engine, `${kind}-${id}`, model, kind, PARENTS, base);
     const body = skin.node('body');
@@ -54,7 +52,6 @@ export function bodyBuilder(spec: BodySpec): Build {
     const grip = new TransformNode(`avatar-grip-${id}`, engine.scene);
     grip.parent = armR;
     grip.position.copyFrom(skin.offset('armR', model.hand));
-    if (palm) grip.position.addInPlaceFromFloats(...palm);
     const reach = grip.position.normalizeToNew();
     return {
       ...walk,
