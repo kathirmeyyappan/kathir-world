@@ -17,5 +17,10 @@ export const KRABS: BodySpec = {
   bob: 0.015,
   sway: 0.06,
   follow: 0.3,
+  // His claw is two lobes with a notch between them, which opens downward as the model holds it:
+  // aiming, the claw is turned over, and an item's handle stands in the notch, against the front
+  // lobe, with its body lying over that lobe's tip.
+  roll: Math.PI,
+  hold: [-0.05, 0.03, 0.31],
   doubleSided: true, // the shirt and shell are open shells: under the chin you look into the collar
 };

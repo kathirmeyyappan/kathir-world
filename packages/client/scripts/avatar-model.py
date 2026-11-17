@@ -342,7 +342,7 @@ MODELS = {
             ("tail", "jt_tail1"),
         ),
         ("body",),
-        ("jt_clawUp_R", "jt_clawDw_R", "jt_clawUpEnd_R", "jt_clawDwEnd_R"),
+        ("jt_clawUpEnd_R", "jt_clawDwEnd_R"),  # between the tips of its pincers
         budget=4000,
         open_shells_too=True,
         texture_size=256,

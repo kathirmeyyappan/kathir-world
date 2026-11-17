@@ -28,6 +28,9 @@ const HOLD_ROLL: Partial<Record<AvatarId, Partial<Record<ItemId, number>>>> = {
 export function holdRoll(avatar: AvatarId, item: ItemId): number {
   return HOLD_ROLL[avatar]?.[item] ?? 0;
 }
+// The middle of every weapon's handle in its shape's frame (x right, y up, z along the barrel):
+// what a hand closes round, with the weapon's body lying over the top of it.
+export const HANDLE = new Vector3(0, -0.06, 0.02);
 const SCALE = 0.75; // the viewmodel's size, drawn under the camera
 export const FLASH_SECONDS = 0.06;
 const RECOIL_HALF_LIFE = 0.05;
@@ -79,7 +82,7 @@ export function buildWeapon(
     case 'gun':
       part('slide', 0.07, 0.07, 0.3, pal.metal, 0, 0.03, 0.15);
       part('barrel', 0.035, 0.035, 0.08, pal.metal, 0, 0.035, 0.33);
-      part('grip', 0.06, 0.13, 0.07, pal.grip, 0, -0.06, 0.02);
+      part('grip', 0.06, 0.13, 0.07, pal.grip, HANDLE.x, HANDLE.y, HANDLE.z);
       part('trigger', 0.03, 0.04, 0.03, pal.metal, 0, -0.02, 0.1);
       return new Vector3(0, 0.035, 0.38);
     case 'sniper':
@@ -87,7 +90,7 @@ export function buildWeapon(
       part('barrel', 0.035, 0.035, 0.45, pal.metal, 0, 0.045, 0.65);
       part('scope', 0.05, 0.05, 0.22, pal.metal, 0, 0.11, 0.18);
       part('stock', 0.06, 0.1, 0.22, pal.grip, 0, -0.01, -0.15);
-      part('grip', 0.06, 0.12, 0.06, pal.grip, 0, -0.07, 0.02);
+      part('grip', 0.06, 0.13, 0.06, pal.grip, HANDLE.x, HANDLE.y, HANDLE.z);
       return new Vector3(0, 0.045, 0.9);
     case 'flamethrower':
     case 'ice-blower': {
@@ -99,7 +102,7 @@ export function buildWeapon(
       part('nozzle', 0.13, 0.13, 0.1, tank, 0, 0.03, 0.42);
       if (id === 'flamethrower') part('pilot', 0.05, 0.05, 0.04, pal.grip, 0, 0.03, 0.49);
       else part('collar', 0.12, 0.12, 0.07, tank, 0, 0.03, 0.2);
-      part('grip', 0.06, 0.13, 0.07, pal.grip, 0, -0.06, 0.02);
+      part('grip', 0.06, 0.13, 0.07, pal.grip, HANDLE.x, HANDLE.y, HANDLE.z);
       part('hose1', 0.05, 0.05, 0.16, pal.hose, 0, 0.03, -0.1);
       part('hose2', 0.05, 0.14, 0.05, pal.hose, 0, -0.03, -0.2);
       return new Vector3(0, 0.03, 0.5);

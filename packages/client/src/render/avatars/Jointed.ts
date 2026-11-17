@@ -239,9 +239,6 @@ const FINGER_CURL = 1.7;
 const THUMB_FOLD = 0.6;
 const THUMB_CURL = 1.3;
 const FIST = 0.05; // metres a fist's middle is from the palm's, on the palm's side
-// Where a held item's own origin (the top of its handle) goes from the fist's middle, in the grip's
-// frame: the handle's middle in the fist, so the barrel runs over the top of the hand.
-const HOLD = new Vector3(0, 0.02, 0.06);
 const FLIP_SHARE = 0.9; // the share of a triple jump's flight on the flat its somersault takes
 const POUND_IN = 0.07; // seconds a ground pound takes to pull the body into its turn
 const GETS_UP = 0.5; // the share of a ground pound's landing after which it's on its feet, and eases into what it does next
@@ -672,7 +669,7 @@ class Rig {
         )
       : null;
     this.figure = {
-      armR: { node: armR, grip, hold: HOLD, reach: at('handR').subtract(at('armR')).normalize() },
+      armR: { node: armR, grip, reach: at('handR').subtract(at('armR')).normalize() },
       back: { node: chest, at: skin.offset('chest', model.back) },
       materials: [skin.material],
       shadow: spec.shadow,

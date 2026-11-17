@@ -27,6 +27,10 @@ export interface BodySpec extends Pick<
   // Draw the inside of the model too: for one made of open shells, where a gap (under a chin, inside
   // a collar) looks into the back of another part rather than out the other side.
   doubleSided?: boolean;
+  // How its hand holds an item, where the handle's middle at the model's `hand` doesn't do: the
+  // weapon arm's `hold` and `roll` (Figure.armR).
+  hold?: readonly [number, number, number];
+  roll?: number;
 }
 
 const AIR_LEGS = 0.4; // radians the legs are held apart in the air
@@ -35,7 +39,7 @@ const DEAD_LEGS = 1.0;
 const DEAD_ARMS = 1.2;
 
 export function bodyBuilder(spec: BodySpec): Build {
-  const { kind, model, follow, doubleSided, ...walk } = spec;
+  const { kind, model, follow, doubleSided, hold, roll, ...walk } = spec;
   return (engine, id, base) => {
     const skin = new SkinnedBody(engine, `${kind}-${id}`, model, kind, PARENTS, base);
     const body = skin.node('body');
@@ -57,7 +61,7 @@ export function bodyBuilder(spec: BodySpec): Build {
         { node: skin.node('legR'), side: -1 },
       ],
       armL: { node: skin.node('armL'), reach: new Vector3(-reach.x, reach.y, reach.z) },
-      armR: { node: armR, grip, reach },
+      armR: { node: armR, grip, reach, hold: hold && new Vector3(...hold), roll },
       back: { node: body, at: skin.offset('body', model.back) },
       materials: [skin.material],
       airLegs: AIR_LEGS,

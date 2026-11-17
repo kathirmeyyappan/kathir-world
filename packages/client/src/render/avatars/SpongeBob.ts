@@ -13,4 +13,8 @@ export const SPONGEBOB: BodySpec = {
   armsDown: 0.6,
   bob: 0.03,
   follow: 0.3,
+  // His hand is open, palm down as the model holds it: aiming, it's turned thumb up, and an item's
+  // handle lies against the palm with its body beside the thumb.
+  roll: -Math.PI / 2,
+  hold: [-0.06, -0.04, 0.03],
 };

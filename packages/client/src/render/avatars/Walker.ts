@@ -73,10 +73,12 @@ export interface Figure {
   head?: TransformNode; // a head on a neck: turns to the look on a ladder
   legs?: Leg[];
   armL?: Arm; // swings against the legs, and reaches up the rungs on a ladder
-  // Holds the item, which hangs on the grip at the hand, aimed along the look: by its own middle
-  // there, or `hold` from it in the grip's frame (x to the right, y back along the barrel, z up),
-  // for a fist that closes round the item's handle.
-  armR: Arm & { grip: TransformNode; hold?: Vector3 };
+  // Holds the item by its handle, aimed along the look: the handle's middle is at the grip, in the
+  // middle of the hand, or `hold` from it in the grip's frame (x to the right, y back along the
+  // barrel, z up) where the hand is too thick for the item's body to clear it from there. With
+  // `roll` the arm is turned that many radians about its own length while it aims: a hand turned
+  // thumb up, or a claw whose pincers close on a handle from its sides.
+  armR: Arm & { grip: TransformNode; hold?: Vector3; roll?: number };
   rock?: TransformNode; // what rocks to each side with the stride: the base unless given
   back: { node: TransformNode; at: Vector3 }; // where a tank and the gear hang
   materials: StandardMaterial[]; // the skin, flashed by a hit
@@ -301,7 +303,7 @@ export class WalkerAvatar implements Avatar {
   // tipped with the look or rolling with the stride, so the look is taken into that frame first.
   // Nothing is allocated: this runs for every armed body every frame.
   protected aim(p: RemotePlayer): void {
-    const { node, grip } = this.figure.armR;
+    const { node, grip, roll } = this.figure.armR;
     const turn = clamp(wrap(p.yaw - this.root.rotation.y), ARM_TURN);
     AHEAD.set(Math.sin(turn) * Math.cos(p.pitch), -Math.sin(p.pitch), Math.cos(turn) * Math.cos(p.pitch));
     UP.set(0, 1, 0);
@@ -310,6 +312,7 @@ export class WalkerAvatar implements Avatar {
     UP.applyRotationQuaternionInPlace(UNDO);
     const swung = (node.rotationQuaternion ??= new Quaternion());
     Quaternion.FromUnitVectorsToRef(this.aimFrom, AHEAD, swung);
+    if (roll) swung.multiplyInPlace(Quaternion.RotationAxisToRef(this.aimFrom, roll, NODE));
     // The grip's frame: x to the right, -y along the barrel, +z up its top; less the arm's own turn
     // (a quaternion product applies its right factor first).
     Vector3.CrossToRef(UP, AHEAD, RIGHT);
