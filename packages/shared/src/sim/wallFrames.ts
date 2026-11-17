@@ -15,6 +15,7 @@ const UNDER = 0.5; // metres a stair's steps keep above a frame they pass over: 
 
 // A round room frames can hang in: the floor inside a roundWall.
 export interface RoundRoom {
+  interior: string; // the interior it is (sim/interiors.ts), drawn only while it could be seen
   x: number;
   z: number;
   floor: number; // height of its floor

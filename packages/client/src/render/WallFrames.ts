@@ -1,13 +1,15 @@
 // Frames on the tower's walls (sim/wallFrames.ts): each a picture or a live widget, drawn sharp by
 // the browser through a hole in the scene (CrispPanels), on a wood border set a little further
 // back, and for one played like an old screen its bands and static a little further forward
-// (OldScreen), all following the wall round segment by segment. The picture's mesh is pickable as
-// `frame-<n>`, for the hover line; the rest isn't.
+// (OldScreen), all following the wall round segment by segment, and drawn only while the room it
+// hangs in could be seen (Interiors.ts). The picture's mesh is pickable as `frame-<n>`, for the
+// hover line; the rest isn't.
 import { Color3, Mesh, StandardMaterial, Vector3, VertexData, type Camera } from '@babylonjs/core';
 import { layoutWallFrame, OFF_WALL, type FramePanel, type WallFrame } from '@world/shared';
 import { WIDGETS } from '../widgets';
 import { CrispPanels } from './CrispPanels';
 import type { Engine } from './Engine';
+import type { Interiors } from './Interiors';
 import { OldScreen } from './OldScreen';
 
 const BORDER = 0.48; // metres of wood showing round every picture
@@ -27,7 +29,7 @@ export class WallFrames {
   private readonly crisp: CrispPanels;
   private readonly oldScreen: OldScreen;
 
-  constructor(engine: Engine, frames: readonly WallFrame[]) {
+  constructor(engine: Engine, frames: readonly WallFrame[], interiors: Interiors) {
     const scene = engine.scene;
     this.crisp = new CrispPanels(engine);
     this.oldScreen = new OldScreen(scene);
@@ -63,6 +65,10 @@ export class WallFrames {
       );
       border.material = wood;
       border.isPickable = false;
+      interiors.add(frame.room.interior, (seen) => {
+        mesh.setEnabled(seen);
+        border.setEnabled(seen);
+      });
       const { x, z } = picture.centre;
       this.byMesh.set(mesh.name, { frame, above: new Vector3(x, picture.top + BORDER + LINE_GAP, z), scroll });
     });

@@ -344,7 +344,10 @@ sees a mesh: the content stands those as `hidden` structures (`content/pineapple
 the solid shell round the rooms) and the renderer skips them, so what you bump into is the
 generator's to keep true to the models. `render/models/Models.ts` fetches each part listed in
 `render/models/pineappleParts.ts` (generated too) and hangs it where the content's placement says,
-a door's on a node at its pin.
+a door's on a node at its pin. The rooms are written a part per floor (`interior-ground`,
+`-upstairs`, `-library`, each triangle the floor's whose storey its middle is in), and each inside
+part carries its `floor` (see Interiors below); the profile's `doorways` through the shell name the
+door each holds.
 
 `krusty-krab-model.py` makes the Krusty Krab from one Sketchfab GLB of 4.2 million triangles (176
 MB) by rebuilding rather than thinning it, since the model's bevelled meshes don't thin: anything
@@ -378,6 +381,26 @@ sends `InputFrame.use`; the Room checks the look reaches that door, swings it, a
 plays over `DOOR_SWING_SECONDS`). Bots' map leaves doors out, so they walk as if every door stood
 open. A Room keeps its own `Structures` for this; the client's `WORLD_STRUCTURES` is its page's.
 
+### Interiors
+
+What's inside a building that only its openings show is an interior (`sim/interiors.ts`): a
+floor of the pineapple's rooms, or a storey of a keep (the tower's four, a building's one). A
+building lists its own (`InteriorBuilding`, gathered in `content/interiors.ts`): the upright
+cylinder a camera is inside it within, and each interior's openings (a flat rectangle facing out:
+`wallOpening` for a gap in a round wall, `roofOpening` for a hole facing up, each reaching
+`MARGIN` past the gap, with the sim door that shuts it, if one does) and the others it `shows`
+through it (a stair's hole, a net ceiling). The client draws an interior only while it could be
+seen (`render/Interiors.ts`): all of a building's from inside it, and from outside, one with an
+opening in view, the camera on its outer side and its door open or swinging, with what it shows.
+Nothing waits on distance, so a scope through a door sees in as a look up close does. Whatever is
+drawn as part of one registers with `Interiors.add`: a model's part by its `floor` (interior
+`<model>:<floor>`), a wall frame by its room's (`RoundRoom.interior`, a keep's storeys named
+`<name>:<floor>`). A keep's stair and floors aren't split from its walls (about 13k triangles
+across the tower's four storeys), and the Krusty Krab has none: its glazed front shows the dining
+room from anywhere before it. A shut door's outline is a pixel either way of its edge, where what's
+behind it shows, so there the culling isn't pixel-exact. Check a new opening or interior by
+rendering viewpoints all round it with `Interiors.everything` on and off and comparing them.
+
 ### Wall frames
 
 Murals hung inside a round room (the tower's floors) are listed per floor in
@@ -397,7 +420,8 @@ a test hangs every listed frame, so a bad one fails CI. Only the client draws th
 structures, so the bot map doesn't change. The browser draws each frame's picture at full
 resolution (and without the scene's tone mapping) in a layer under the 3D view, one slice per wall
 panel, seen through a hole the frame's mesh cuts in the depth buffer (`render/CrispPanels.ts`), so
-it stays sharp while walls and players still cover it.
+it stays sharp while walls and players still cover it. A frame is drawn, and its widget fed, only
+while its room could be seen (see Interiors).
 
 A widget is a copy of one at widgets.kathirm.com that the client draws itself
 (`packages/client/src/widgets/`): it fetches the same data the web widget does and paints the same

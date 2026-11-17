@@ -12,7 +12,8 @@ import type { Region } from '../sim/regions';
 import type { RoundRoom } from '../sim/wallFrames';
 import type { Disc } from '../sim/world';
 import { keep } from './keep';
-import { PINEAPPLE_FOOTPRINT, PINEAPPLE_HOUSE, PINEAPPLE_LEVELS } from './pineapple';
+import type { InteriorBuilding } from '../sim/interiors';
+import { PINEAPPLE_FOOTPRINT, PINEAPPLE_HOUSE, PINEAPPLE_INTERIORS, PINEAPPLE_LEVELS } from './pineapple';
 
 // What stands on each building's grounds, Building 1 first: the house, or a keep standing the
 // tower floor numbered (0 the ground floor, 1 the first), or a bare keep (null: the ground floor's
@@ -23,7 +24,15 @@ const KEEPS = BUILDING_GROUNDS.map(({ x, z }, n) => {
   const plan = BUILDING_PLAN[n];
   return plan === 'house'
     ? null
-    : keep({ x, z, entrance: Math.atan2(-z, -x), floors: [plan ?? 0], roofExit: true, ladders: true });
+    : keep({
+        name: `building-${n + 1}`,
+        x,
+        z,
+        entrance: Math.atan2(-z, -x),
+        floors: [plan ?? 0],
+        roofExit: true,
+        ladders: true,
+      });
 });
 
 export const BUILDINGS: Structure[] = KEEPS.flatMap((k) => k?.structures ?? PINEAPPLE_HOUSE);
@@ -44,6 +53,10 @@ export const BUILDING_ROOMS: { floor: number; room: RoundRoom }[] = KEEPS.flatMa
 export const BUILDING_LEVELS: Region[] = KEEPS.flatMap((k) => k?.levels ?? PINEAPPLE_LEVELS);
 // The keeps standing on the grounds, Building 2 first (the house left out): each one's footprint
 // (its wall's outer face) and levels, for what a bot does indoors.
-export const STANDING_KEEPS: { footprint: Disc; levels: Region[] }[] = KEEPS.flatMap((k) => (k ? [k] : []));
+export const STANDING_KEEPS: { footprint: Disc; levels: Region[] }[] = KEEPS.flatMap((k) =>
+  k ? [{ footprint: k.footprint, levels: k.levels }] : [],
+);
+// Each building's interiors (sim/interiors.ts), Building 1 first.
+export const BUILDING_INTERIORS: InteriorBuilding[] = KEEPS.map((k) => k?.building ?? PINEAPPLE_INTERIORS);
 // The grounds with a keep's roof on them, for the staircases up to the terrace.
 export const KEEP_GROUNDS: Disc[] = BUILDING_GROUNDS.filter((_, n) => KEEPS[n]);

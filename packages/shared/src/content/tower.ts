@@ -15,7 +15,7 @@ import { DECK, TERRACE_RING, WALKWAY } from './terrace';
 
 const X = ANNEX.x;
 const Z = ANNEX.z;
-const TOWER = keep({ x: X, z: Z, entrance: deg(180), floors: [0, 1, 2, 3] }); // west, toward the main disc
+const TOWER = keep({ name: 'tower', x: X, z: Z, entrance: deg(180), floors: [0, 1, 2, 3] }); // west, toward the main disc
 const TOP = 3 * STOREY; // the top floor, where the sky bridge leaves
 const BRIDGE_DOOR = deg(180); // the top floor's main door, onto the bridge
 const BALCONY = 3; // metres of balcony outside the wall
@@ -108,6 +108,7 @@ export const SKY_BRIDGE_FOOTPRINT: Bridge = {
 
 // The four floors as rooms to hang frames in (sim/wallFrames.ts), ground floor first.
 export const TUNG_TUNG_TOWER_ROOMS: RoundRoom[] = TOWER.rooms;
+export const TUNG_TUNG_TOWER_INTERIORS = TOWER.building;
 
 // The middle of each floor's top, ground floor first: where to stand something on floor n.
 export const TUNG_TUNG_TOWER_FLOORS: Vec3[] = TOWER.rooms.map(({ floor }) => ({ x: X, y: floor, z: Z }));

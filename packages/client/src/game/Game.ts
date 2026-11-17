@@ -10,6 +10,7 @@ import {
   TICK_DT,
   INPUT_WAIT_TICKS,
   WALL_FRAMES,
+  INTERIOR_BUILDINGS,
   WORLD_SHAPE,
   DOOR_REACH,
   lookVector,
@@ -62,6 +63,7 @@ import { createAvatar, wantLook, type Avatar } from '../render/avatars';
 import { CubeMesh } from '../render/CubeMesh';
 import { Engine } from '../render/Engine';
 import { Environment } from '../render/Environment';
+import { Interiors } from '../render/Interiors';
 import { FrostLayer } from '../render/Frost';
 import { Loader } from '../render/Loader';
 import { Models } from '../render/models/Models';
@@ -212,6 +214,7 @@ export class Game {
   private readonly bubble = new Bubble();
   private readonly frameBubble = new Bubble('plain'); // a frame's line, over the frame
   private readonly wallFrames: WallFrames;
+  private readonly interiors: Interiors;
   private readonly minimap = new Minimap();
   private readonly death = new Death();
   private readonly hearts = new Hearts();
@@ -266,8 +269,9 @@ export class Game {
     this.environment = new Environment(this.engine, WORLD_SHAPE, WORLD_STRUCTURES.top);
     buildStructures(this.engine, WORLD_STRUCTURES.list, this.loader);
     this.frost = new FrostLayer(this.engine, WORLD_STRUCTURES.list);
-    this.models = new Models(this.engine, this.loader);
-    this.wallFrames = new WallFrames(this.engine, WALL_FRAMES);
+    this.interiors = new Interiors(INTERIOR_BUILDINGS, (door) => this.models.ajar(door));
+    this.models = new Models(this.engine, this.loader, this.interiors);
+    this.wallFrames = new WallFrames(this.engine, WALL_FRAMES, this.interiors);
     this.camera = new UniversalCamera('camera', new Vector3(0, 1.7, 0), this.engine.scene);
     this.camera.minZ = NEAR;
     this.camera.fov = VIEWS.walker.fov;
@@ -1005,6 +1009,7 @@ export class Game {
     this.environment.setVisibility(this.scoped ? SCOPED_FOG_SCALE : 1);
     this.environment.update(dt, eye);
     this.frost.update(dt, this.camera.position);
+    this.interiors.update(this.camera);
     this.wallFrames.update(this.camera);
     const held = this.held;
     if (!held) this.setScoped(false);
