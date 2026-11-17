@@ -6,7 +6,7 @@
 // `hand` is the right palm, `back` where the tank hangs, `lie` how high the hips lie when it is on its back.
 export const LARRY_MODEL = {
   height: 3.65,
-  hand: [2.3618, 2.0054, -0.1537],
+  hand: [2.6945, 1.9634, -0.1537],
   back: [0.0, 1.9505, -0.772],
   lie: 1.2356,
   bones: {

@@ -19,6 +19,8 @@ const TAIL_SWAY = 0.12; // radians each way, in time with his steps
 // Lying on his back: radians the legs and arms drop toward the ground.
 const DEAD_LEGS = 1.0;
 const DEAD_ARMS = 1.2;
+// The guns and packs were made for a person, a little over half his height.
+const ITEM_SCALE = { weapons: 1.7, packs: 1.5 };
 
 type Bone = keyof typeof LARRY_MODEL.bones;
 const PARENTS: Record<Bone, Bone | null> = {
@@ -57,6 +59,7 @@ export function buildLarry(engine: Engine, id: string, base: TransformNode): Fig
     back: { node: body, at: skin.offset('body', LARRY_MODEL.back) },
     materials: [skin.material],
     shadow: 1.5,
+    itemScale: ITEM_SCALE,
     legSwing: LEG_SWING,
     airLegs: AIR_LEGS,
     armSwing: ARM_SWING,
