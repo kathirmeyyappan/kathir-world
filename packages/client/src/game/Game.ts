@@ -784,9 +784,9 @@ export class Game {
       this.sfx.soon(said.sound, said.at, undefined, id);
       return true;
     }
-    if (this.sfx.play(said.sound, said.at, { delay })) return true;
+    if (this.sfx.play(said.sound, said.at, { delay, by: id })) return true;
     // A kill line not here yet (lazy in SOUNDS, sent for in wantVoice) is played as it arrives.
-    if (line === 'kill') this.sfx.soon(said.sound, said.at);
+    if (line === 'kill') this.sfx.soon(said.sound, said.at, undefined, id);
     return line === 'kill';
   }
 
@@ -824,7 +824,7 @@ export class Game {
     const now = performance.now();
     if (now < (this.criedOut.get(id) ?? 0)) return false;
     const said = this.line(id, 'hurt');
-    if (!said || !this.sfx.play(said.sound, said.at)) return false;
+    if (!said || !this.sfx.play(said.sound, said.at, { by: id })) return false;
     this.criedOut.set(id, now + Math.max(CRY_GAP_MS, this.sfx.seconds(said.sound) * 1000));
     return true;
   }

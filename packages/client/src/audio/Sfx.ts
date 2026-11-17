@@ -664,7 +664,7 @@ export class Sfx {
   // A one-shot, at a spot in the world, or with no spot, the local player's own. `delay` holds it
   // back (seconds); `along`, a direction, sweeps it past `at` that way while it plays; `level`
   // scales its volume; `rate` its speed and pitch together (2 is an octave up and half as long);
-  // `by` names who says it, whose last line said this way stops for it (`hush`).
+  // `by` names who says it, whose last line said this way stops as this one starts (`hush`).
   // False if it couldn't play yet: no sound until the page is clicked, or the recording still on
   // its way.
   play(
@@ -673,10 +673,12 @@ export class Sfx {
     o: { delay?: number; along?: Vec3; level?: number; rate?: number; by?: string } = {},
   ): boolean {
     if (!this.ctx) return false;
-    if (o.by !== undefined) this.hush(o.by);
-    if (at && falloff(distance(at, this.heard), SOUNDS[id]) < SILENT) return true;
-    const buffer = this.buffer(id);
-    if (!buffer) return false;
+    // A line out of earshot is still said, and cuts its speaker's last; one not here yet isn't.
+    const far = at !== null && falloff(distance(at, this.heard), SOUNDS[id]) < SILENT;
+    const buffer = far ? null : this.buffer(id);
+    if (!far && !buffer) return false;
+    if (o.by !== undefined) this.hush(o.by, o.delay);
+    if (!buffer) return true;
     const t = this.ctx.currentTime + (o.delay ?? 0);
     const spec = SOUNDS[id];
     const voice = this.voice(id, at, 0);
@@ -708,14 +710,14 @@ export class Sfx {
     return true;
   }
 
-  // Stops what `by` is saying (a one-shot played with `by`), quickly enough not to click, and
-  // lets go of any line of theirs still on its way (`soon`).
-  hush(by: string): void {
+  // Stops what `by` is saying (a one-shot played with `by`), `delay` seconds from now, quickly
+  // enough not to click, and lets go of any line of theirs still on its way (`soon`).
+  hush(by: string, delay = 0): void {
     this.hushes.set(by, (this.hushes.get(by) ?? 0) + 1);
     const line = this.lines.get(by);
     if (!line || !this.ctx) return;
     this.lines.delete(by);
-    const t = this.ctx.currentTime;
+    const t = this.ctx.currentTime + delay;
     line.gain.cancelScheduledValues(t);
     line.gain.setValueAtTime(line.gain.value, t);
     line.gain.linearRampToValueAtTime(0, t + FADE);
