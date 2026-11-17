@@ -81,10 +81,12 @@ anything that can wait off the path everyone pays:
 - A look's files (its model, 15 to 60 KB of code on foot and 260 to 300 KB a dragon, and its
   atlases, about 100 KB on foot and 600 KB a dragon) are fetched the first time someone is seen
   wearing it, as a skin's command is pointed at or sent, or as it's picked on the home screen
-  (`LOOKS` and `wantLook` in `render/avatars/index.ts`), so a look's cost is paid only by the
-  clients that meet it. Until a look on foot is here the player keeps the body they had (the
-  standard body where that was a dragon, or for someone first seen in it); a dragon rises and roars
-  at once and its body fills in as it lands.
+  (`LOOKS` and `wantLook` in `render/avatars/index.ts`), and every look on foot is fetched behind
+  them, one at a time while the page is idle and the world's own loading is done (`trickleLooks`,
+  about 1.9 MB in all), so a switch is seamless. Until a look on foot is here the player keeps the
+  body they had, or has none drawn (where that was a dragon, or for someone first seen in it):
+  never a look they aren't wearing. A dragon rises and roars at once and its body fills in as it
+  lands.
 - A sound is fetched by everyone up front unless it's `lazy` in `SOUNDS` (`Sfx.soon`, `Sfx.want`).
   Every look's voice is lazy: an intro is fetched as it's said within earshot, and a look's jumps,
   long jumps, hurts and kills (with its death for its own player) as it's first seen worn

@@ -147,9 +147,9 @@ function readyMaker(engine: Engine, kind: AvatarId): Make | null {
 }
 
 // A player's body as `p` wears it. `was`, the body they wore until now, is disposed of here: at once
-// if the new look can be drawn, or else kept standing in for it until it can (the standard body
-// standing in where it can't: a dragon becoming a walker, or a body first seen in its look), so a
-// player is never drawn in a look they aren't wearing for longer than it takes to arrive.
+// if the new look can be drawn, or else kept standing in for it until it can, so a player is never
+// drawn in a look they aren't wearing. With no body on foot to keep (a dragon becoming a walker, or a
+// body first seen in its look) nothing is drawn until it arrives; `trickleLooks` makes that rare.
 export function createAvatar(
   engine: Engine,
   p: { id: string; color: string; avatar: AvatarId },
@@ -162,21 +162,45 @@ export function createAvatar(
   }
   const keep = was && AVATARS[was.kind].class === 'walker' ? was : null;
   if (was !== keep) was?.dispose();
-  return new Pending(engine, p, keep ?? walker(buildStandard)(engine, p.id, 'standard', p.color));
+  return new Pending(engine, p, keep);
 }
 
-// A look on foot on its way: what stands in for it, until it arrives and takes its place.
-// Everything the Game does to the body goes to whichever is there, and what lasts (the weapons'
-// scale) is carried over to the arrival.
+const TRICKLE_WAIT_MS = 2000; // the longest a look waits for the page to idle before it's fetched
+
+// Every look on foot's files, fetched one look at a time whenever the page has nothing better to do
+// and `free` says the game isn't loading anything of its own, so any switch, and anyone first seen,
+// is drawn in its look at once. Dragons are left to be fetched as they're wanted: they rise out of
+// the ground as their model arrives.
+export function trickleLooks(engine: Engine, free: () => boolean): void {
+  // A page that never idles (a slow device drawing flat out) still gets them, a look a few seconds.
+  const idle = (): Promise<void> =>
+    new Promise((done) =>
+      window.requestIdleCallback
+        ? window.requestIdleCallback(() => done(), { timeout: TRICKLE_WAIT_MS })
+        : setTimeout(done, TRICKLE_WAIT_MS),
+    );
+  const kinds = (Object.keys(LOOKS) as AvatarId[]).filter((kind) => AVATARS[kind].class === 'walker');
+  void (async () => {
+    for (const kind of kinds) {
+      do await idle();
+      while (!free());
+      await wantLook(engine, kind).catch(() => {});
+    }
+  })();
+}
+
+// A look on foot on its way: the body it had standing in for it, or none, until it arrives and
+// takes its place. Everything the Game does to the body goes to whichever is there, and what lasts
+// (the weapons' scale) is carried over to the arrival.
 class Pending implements Avatar {
   readonly id: string;
   readonly kind: AvatarId;
-  private body: Avatar;
+  private body: Avatar | null;
   private arrived = false;
   private gone = false;
   private weapons = 1;
 
-  constructor(engine: Engine, p: { id: string; color: string; avatar: AvatarId }, standIn: Avatar) {
+  constructor(engine: Engine, p: { id: string; color: string; avatar: AvatarId }, standIn: Avatar | null) {
     this.id = p.id;
     this.kind = p.avatar;
     this.body = standIn;
@@ -186,7 +210,7 @@ class Pending implements Avatar {
         const body = make(engine, p.id, p.avatar, p.color);
         body.scaleWeapons(this.weapons);
         body.hide(); // until the next update places it
-        this.body.dispose();
+        this.body?.dispose();
         this.body = body;
         this.arrived = true;
       })
@@ -195,33 +219,33 @@ class Pending implements Avatar {
 
   // The stand-in's colour isn't the look's: a change of colour while it's on its way is the same look.
   get color(): string | undefined {
-    return this.arrived ? this.body.color : undefined;
+    return this.arrived ? this.body?.color : undefined;
   }
 
   update(p: RemotePlayer, step: number): void {
-    this.body.update(p, step);
+    this.body?.update(p, step);
   }
   flash(): void {
-    this.body.flash();
+    this.body?.flash();
   }
   fire(): void {
-    this.body.fire();
+    this.body?.fire();
   }
   scaleWeapons(factor: number): void {
     this.weapons = factor;
-    this.body.scaleWeapons(factor);
+    this.body?.scaleWeapons(factor);
   }
   hide(): void {
-    this.body.hide();
+    this.body?.hide();
   }
   dispose(): void {
     this.gone = true;
-    this.body.dispose();
+    this.body?.dispose();
   }
   corpse(): Vector3 | null {
-    return this.body.corpse();
+    return this.body?.corpse() ?? null;
   }
   act(action: ItemAction): void {
-    this.body.act?.(action);
+    this.body?.act?.(action);
   }
 }

@@ -16,6 +16,11 @@ export class Loader {
   private readonly pending: Loadable[] = [];
   private fetching = 0;
 
+  // Nothing waiting and nothing on its way.
+  get idle(): boolean {
+    return this.pending.length === 0 && this.fetching === 0;
+  }
+
   add(item: Loadable): void {
     this.pending.push(item);
   }
