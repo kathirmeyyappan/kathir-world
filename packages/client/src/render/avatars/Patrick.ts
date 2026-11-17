@@ -14,4 +14,6 @@ export const PATRICK: BodySpec = {
   armsDown: 0.6,
   bob: 0.04,
   follow: 0.35,
+  // His arm ends in a point with no hand on it: an item lies against the inside of it.
+  hold: [-0.14, 0, 0.06],
 };

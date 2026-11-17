@@ -21,6 +21,9 @@ const DEAD_LEGS = 1.0;
 const DEAD_ARMS = 1.2;
 // The guns and packs were made for a person, a little over half his height.
 const ITEM_SCALE = { weapons: 1.7, packs: 1.5 };
+// A quarter turn of the claw as it aims: its pincers, one over the other at rest, close on a
+// handle from either side.
+const CLAW_ROLL = Math.PI / 2;
 
 type Bone = keyof typeof LARRY_MODEL.bones;
 const PARENTS: Record<Bone, Bone | null> = {
@@ -55,7 +58,7 @@ export function buildLarry(engine: Engine, id: string, base: TransformNode): Fig
       { node: skin.node('legR'), side: -1 },
     ],
     armL: { node: skin.node('armL'), reach: new Vector3(-reach.x, reach.y, reach.z) },
-    armR: { node: armR, grip, reach },
+    armR: { node: armR, grip, reach, roll: CLAW_ROLL },
     back: { node: body, at: skin.offset('body', LARRY_MODEL.back) },
     materials: [skin.material],
     shadow: 1.5,

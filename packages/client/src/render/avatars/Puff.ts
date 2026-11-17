@@ -18,6 +18,9 @@ const HEAD_FOLLOW = 0.5; // how much of the look's pitch the head takes
 // Lying on her back: radians the legs and arms drop toward the ground.
 const DEAD_LEGS = 0.6;
 const DEAD_ARMS = 0.9;
+// Where a held item's own origin (the top of its handle) goes from the tip of her fin, in the
+// grip's frame: a fin is a flat blade with nothing to close round a handle, so the item stands on it.
+const HOLD = new Vector3(0, 0.1, 0.16);
 const LIES = 0.85; // metres her middle lies off the ground: on the back of her body, the skirt's rim crushed under it
 
 type Bone = keyof typeof PUFF_MODEL.bones;
@@ -50,7 +53,7 @@ export function buildPuff(engine: Engine, id: string, base: TransformNode): Figu
       { node: skin.node('legR'), side: -1 },
     ],
     armL: { node: skin.node('armL'), reach: new Vector3(-reach.x, reach.y, reach.z) },
-    armR: { node: armR, grip, reach },
+    armR: { node: armR, grip, reach, hold: HOLD },
     back: { node: body, at: skin.offset('body', PUFF_MODEL.back) },
     materials: [skin.material],
     shadow: 1.9,

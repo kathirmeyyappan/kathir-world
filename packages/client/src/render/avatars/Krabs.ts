@@ -17,5 +17,9 @@ export const KRABS: BodySpec = {
   bob: 0.015,
   sway: 0.06,
   follow: 0.3,
+  // An item is pinched in the mouth of his claw, out at its pincers' tips, the claw turned a
+  // quarter so they close on its handle from either side.
+  palm: [0.29, -0.04, 0],
+  roll: Math.PI / 2,
   doubleSided: true, // the shirt and shell are open shells: under the chin you look into the collar
 };

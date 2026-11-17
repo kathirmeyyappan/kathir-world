@@ -21,6 +21,9 @@ const TAIL_SWAY_MS = 1400;
 // Lying on her back: radians the legs and arms drop toward the ground.
 const DEAD_LEGS = 1.0;
 const DEAD_ARMS = 1.2;
+// Where a held item's own origin (the top of its handle) goes from the end of her arm, in the
+// grip's frame: back into her glove, the handle's middle in it.
+const HOLD = new Vector3(0, 0.1, 0.06);
 const GLASS_ALPHA = 0.16; // how much of the helmet's glass shows: a sheen, the head plain through it
 const GLASS_SEGMENTS = 14;
 
@@ -75,7 +78,7 @@ export function buildSandy(engine: Engine, id: string, base: TransformNode): Fig
       { node: skin.node('legR'), side: -1 },
     ],
     armL: { node: skin.node('armL'), reach: new Vector3(-reach.x, reach.y, reach.z) },
-    armR: { node: armR, grip, reach },
+    armR: { node: armR, grip, reach, hold: HOLD },
     back: { node: body, at: skin.offset('body', SANDY_MODEL.back) },
     materials: [skin.material],
     shadow: 1.55,

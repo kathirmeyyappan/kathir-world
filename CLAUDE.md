@@ -654,6 +654,18 @@ hang (`armsDown`) and where the palm is (`model.hand`), and a held gun has to si
 its barrel along the look: the weapon arm is turned from its `reach` (shoulder to hand as the model
 holds it) to the look, and the grip at its hand turned so the barrel runs that way.
 
+Audit every look in every state, up close: standing, walking, each weapon held and aimed up and
+down, firing, hit, dying, dead, on a ladder with and without an item, and any move of its own. A
+sheet of the whole body hides what's wrong at a hand, so look at the hand itself from the front,
+the side, behind and above for each weapon: the item has to be held as that hand can hold it (in a
+fist, pinched in the mouth of a claw, lying on a hand with nothing to close) and never run through
+the hand or sit hidden inside it. What a look needs for that is its builder's to say: `hold` moves
+the item from the grip, `roll` turns the weapon arm about its length as it aims (a claw's pincers
+closing on a handle from its sides), a `Body`'s `palm` moves the grip from the model's hand (out to
+a claw's mouth), and `itemScale` draws the items to the body's size. When something every look
+shares changes (the walker, a weapon's shape, a rig), audit every look it reaches, not the one the
+change was made for.
+
 ## Player classes
 
 A class is what kind of body a player has (`packages/shared/src/sim/classes.ts`): every avatar names
