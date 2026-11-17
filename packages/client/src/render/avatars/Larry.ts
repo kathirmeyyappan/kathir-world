@@ -21,12 +21,12 @@ const DEAD_LEGS = 1.0;
 const DEAD_ARMS = 1.2;
 // The guns and packs were made for a person, a little over half his height.
 const ITEM_SCALE = { weapons: 1.7, packs: 1.5 };
-// A quarter turn of the claw as it aims: its pincers, one over the other at rest, close on a
-// handle from either side.
+// A quarter turn of the claw as it aims: its small pincer, under the big one at rest, comes round
+// to the outside, and the slot between the two stands upright for a handle.
 const CLAW_ROLL = Math.PI / 2;
-// Where an item's handle goes from there, in the grip's frame: out at the pincers' tips, which
-// pinch the back of it, the item's body ahead of the claw and over it.
-const HOLD = new Vector3(-0.1, -0.16, 0.04);
+// Where an item's handle goes from the model's hand, in the grip's frame: back into that slot,
+// the item's body running forward along the big pincer's flank, over the small one.
+const HOLD = new Vector3(0.13, 0.27, 0.03);
 
 type Bone = keyof typeof LARRY_MODEL.bones;
 const PARENTS: Record<Bone, Bone | null> = {

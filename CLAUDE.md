@@ -659,8 +659,8 @@ down, firing, hit, dying, dead, on a ladder with and without an item, and any mo
 sheet of the whole body hides what's wrong at a hand, so look at the hand itself from the front,
 the side, behind and above for each weapon: a weapon is held by its handle (`HANDLE` in
 `render/Weapons.ts`, whose middle `HeldItems` puts at the hand's grip), so the handle is in the hand
-as that hand can hold one (in a fist, among curled fingers, pinched at the tips of a claw, against
-a palm) and the weapon's body lies over the hand or ahead of it, never through the hand or hidden
+as that hand can hold one (in a fist, in the gap between a claw's pincers, against the palm of a
+hand that can't close) and the weapon's body lies over the hand or ahead of it, never through the hand or hidden
 inside it. What a look needs for that is its builder's to say: `hold` moves the handle from the
 grip, `roll` turns the weapon arm about its length as it aims (a hand turned thumb up, a claw's
 pincers closing on a handle from its sides), and `itemScale` draws the items to the body's size. When something every look
