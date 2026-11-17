@@ -54,7 +54,9 @@ import {
   type Photo,
   type Place,
 } from './content';
+import { audition } from '../audio/Sfx';
 import { botDiagram } from './botDiagrams';
+import { linesOf, type Line } from './sounds';
 import { cubeThing, gearThing, itemThing, pickupThing } from './things';
 import {
   abilityStats,
@@ -77,6 +79,7 @@ interface Pick {
   entry: Entry;
   stats: () => Stat[];
   abilities?: () => { title: string; stats: Stat[] }[]; // what it can do that the rest can't, each under its own heading
+  lines?: Line[]; // what it says in its own voice, each a button that plays it
   view: { body: Shown } | { thing: Thing } | null;
 }
 
@@ -98,6 +101,7 @@ function characters(): Section[] {
     stats: () => characterStats(id),
     abilities: () => abilityStats(id).map((a) => ({ title: ABILITIES[a.id], stats: a.stats })),
     view: { body: shown(id) },
+    lines: linesOf(id),
   });
   return [
     { title: 'Characters', picks: listed.filter((id) => AVATARS[id].class === 'walker').map(pick) },
@@ -207,6 +211,18 @@ function subTabs(tabs: { title: string; body: HTMLElement }[], first = 0): HTMLE
   return box;
 }
 
+// A button per line a character says, each playing it in place of the last.
+function soundboard(lines: Line[]): HTMLElement[] {
+  if (!lines.length) return [];
+  const board = el('div', 'soundboard');
+  for (const line of lines) {
+    const b = el('button', '', `▶ ${line.label}`);
+    b.addEventListener('click', () => audition(line.id));
+    board.append(b);
+  }
+  return [el('h3', 'ability', 'Voice'), board];
+}
+
 // A list to pick from beside one thing shown in full, its 3D view (where it has one) kept across picks.
 class Catalog {
   readonly el = el('div', 'catalog');
@@ -262,10 +278,12 @@ class Catalog {
     this.viewBox.classList.toggle('none', !pick.view);
     const { entry } = pick;
     const abilities = pick.abilities?.() ?? [];
+    audition(null);
     this.text.replaceChildren(
       el('h2', '', entry.title),
       ...(entry.summary ? [el('p', 'summary', entry.summary)] : []),
       statTable(pick.stats()),
+      ...soundboard(pick.lines ?? []),
       ...(abilities.length ? [el('hr', 'rule')] : []),
       ...abilities.flatMap((a) => [el('h3', 'ability', `Special ability: ${a.title}`), statTable(a.stats)]),
       ...facts(entry.facts),
