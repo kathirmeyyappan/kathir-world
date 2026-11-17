@@ -69,6 +69,29 @@ h3.ability {
   font-size: 11px;
 }
 
+/* A character's voice lines, a button each. */
+.soundboard {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.soundboard button {
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  background: var(--cell);
+  color: var(--text);
+}
+
+.soundboard button:hover {
+  border-color: var(--second);
+}
+
+.soundboard button:active {
+  background: var(--second);
+  color: var(--panel);
+}
+
 /* Between what every entry has and what only some do: a character's own moves. */
 .rule {
   margin: 36px 0 30px;
