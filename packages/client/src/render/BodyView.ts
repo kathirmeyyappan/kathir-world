@@ -225,15 +225,12 @@ export class BodyView {
   }
 
   // The avatar as `shown` is, made afresh when the look or the colour changes, with the stage to
-  // suit it.
+  // suit it. The body shown until then stands in while a new look's files arrive.
   private body3d(engine: Engine, shown: Shown): Avatar {
     const old = this.avatar;
-    if (old && (old.kind !== shown.avatar || (old.color !== undefined && old.color !== shown.color))) {
-      old.dispose();
-      this.avatar = null;
-    }
-    if (this.avatar) return this.avatar;
-    this.avatar = createAvatar(engine, { id: 'preview', color: shown.color, avatar: shown.avatar });
+    const stale = old && (old.kind !== shown.avatar || (old.color !== undefined && old.color !== shown.color));
+    if (old && !stale) return old;
+    this.avatar = createAvatar(engine, { id: 'preview', color: shown.color, avatar: shown.avatar }, old);
     this.setStage(engine, stageOf(shown.avatar));
     if (AVATARS[shown.avatar].class === 'asian-dragon') this.spine = restingSpine(shown.avatar, this.stage!.centre);
     return this.avatar;
