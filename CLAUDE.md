@@ -82,9 +82,9 @@ anything that can wait off the path everyone pays:
   atlases, about 100 KB on foot and 600 KB a dragon) are fetched the first time someone is seen
   wearing it, as a skin's command is pointed at or sent, or as it's picked on the home screen
   (`LOOKS` and `wantLook` in `render/avatars/index.ts`), so a look's cost is paid only by the
-  clients that meet it. Until a look on foot is here the player keeps the body they had (the
-  standard body where that was a dragon, or for someone first seen in it); a dragon rises and roars
-  at once and its body fills in as it lands.
+  clients that meet it. Until a look on foot is here the player keeps the body they had, or has none
+  drawn (where that was a dragon, or for someone first seen in it), never a look they aren't
+  wearing; a dragon rises and roars at once and its body fills in as it lands.
 - A sound is fetched by everyone up front unless it's `lazy` in `SOUNDS` (`Sfx.soon`, `Sfx.want`).
   Every look's voice is lazy: an intro is fetched as it's said within earshot, and a look's jumps,
   long jumps, hurts and kills (with its death for its own player) as it's first seen worn
