@@ -40,6 +40,7 @@ import {
   type Structure,
 } from '../sim/structures';
 import { doorPieces, type DoorSpec } from '../sim/doors';
+import { roofOpening, wallOpening, type InteriorBuilding } from '../sim/interiors';
 import { BUILDING_GROUNDS } from '../sim/outline';
 import type { Region } from '../sim/regions';
 import type { Disc } from '../sim/world';
@@ -109,6 +110,48 @@ export const PINEAPPLE_LEVELS: Region[] = [
   { kind: 'disc', ...placed(14, -4), r: 1.5, y: DUNE_HEIGHT + levels.hall },
   { kind: 'disc', x: X, z: Z, r: 4.5, y: DUNE_HEIGHT + levels.library },
 ];
+
+// The rooms as interiors (sim/interiors.ts), a floor each, as the model's parts are split
+// (render/models/pineappleParts.ts, `floor`): the ground floor seen through the front door and the
+// back and side doors, upstairs through the hall's door, and the library from over the deck, down
+// the attic stair's hole. The ground floor's net ceilings show the underside of upstairs, the
+// hall's show the library's floor, and the stairwell joins those two both ways. From anywhere
+// inside the shell's widest round, all of them.
+const shellDoor = (door: string, b: number, width: number, bottom: number, top: number) => {
+  const r = skin((bottom + top) / 2);
+  return wallOpening(X, Z, r, bearing(b), width / r, DUNE_HEIGHT + bottom, DUNE_HEIGHT + top, door);
+};
+export const PINEAPPLE_INTERIORS: InteriorBuilding = {
+  x: X,
+  z: Z,
+  r: PINEAPPLE_FOOTPRINT.r,
+  bottom: 0,
+  top: DUNE_HEIGHT + SHAPE.attic.deck.y,
+  interiors: [
+    {
+      id: 'pineapple:ground',
+      openings: [
+        shellDoor('front', 0, SHAPE.doorway.width, 0, SHAPE.doorway.height),
+        ...SHAPE.doorways
+          .filter((d) => d.door !== 'hall')
+          .map((d) => shellDoor(d.door, d.bearing, d.width, d.bottom, d.top)),
+      ],
+      shows: ['pineapple:upstairs'],
+    },
+    {
+      id: 'pineapple:upstairs',
+      openings: SHAPE.doorways
+        .filter((d) => d.door === 'hall')
+        .map((d) => shellDoor(d.door, d.bearing, d.width, d.bottom, d.top)),
+      shows: ['pineapple:library'],
+    },
+    {
+      id: 'pineapple:library',
+      openings: [roofOpening(X, Z, SHAPE.attic.deck.r, DUNE_HEIGHT + SHAPE.attic.deck.y)],
+      shows: ['pineapple:upstairs'],
+    },
+  ],
+};
 
 // The hollow top of the shell, from the hatch's sill up: the brick lobby outside the hatch, at the
 // sill's height, between a wall just inside the hatch's tube's end and the gallery's outer wall

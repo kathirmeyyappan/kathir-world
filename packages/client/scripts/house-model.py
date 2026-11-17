@@ -146,6 +146,27 @@ def door_face(bearing: float, floor: float, doorway: tuple[float, float] = insid
     return Face(bearing, 1.8, 3.2, floor, floor + 4.0, floor + 6.5, (doorway[0] / 2, doorway[1]))
 
 
+# The rooms' floors, each its own part so the client draws only those that could be seen: the
+# ground floor's rooms, the bedroom and the hall round it, and the library. A triangle is the
+# floor's whose storey its middle is in, the storeys parting halfway between one's ceiling and the
+# next one's floor.
+FLOORS = ("ground", "upstairs", "library")
+# The doors hung in the doorways through the shell (profile `doorways`): seen from outside, shut,
+# so drawn with the outside.
+SHELL_DOORS = ("back", "hall", "side")
+
+
+def floor_at(interior: inside.Interior, y: float) -> str:
+    levels = interior.levels
+    if y < (levels["ceiling"] + levels["hall"]) / 2:
+        return "ground"
+    return "upstairs" if y < (levels["hallCeiling"] + levels["library"]) / 2 else "library"
+
+
+def floor_of(interior: inside.Interior, tri: tuple[Triangle, int]) -> str:
+    return floor_at(interior, float(np.mean([p[1] for p, _ in tri[0]])))
+
+
 def main(outside: str, rooms: str) -> None:
     doc, blob = read_glb(Path(outside).read_bytes())
     house = load_mesh(doc, blob, "Circle.001_0")
@@ -297,9 +318,10 @@ def main(outside: str, rooms: str) -> None:
     emit_part(MODELS_OUT / "door-front.bin", door_part, swatch_uv)
     emit_part(MODELS_OUT / "flowers.bin", flowers, {})
     emit_part(MODELS_OUT / "path.bin", path, {})
-    rooms = MeshBuilder()
-    rooms.add(inside.in_atlas(interior.tris, places))
-    emit_part(MODELS_OUT / "interior.bin", rooms, {})
+    for floor in FLOORS:
+        rooms = MeshBuilder()
+        rooms.add(inside.in_atlas([t for t in interior.tris if floor_of(interior, t) == floor], places))
+        emit_part(MODELS_OUT / f"interior-{floor}.bin", rooms, {})
     for d in interior.doors:
         panel = MeshBuilder()
         if d.texture == "interior":
@@ -321,7 +343,7 @@ def main(outside: str, rooms: str) -> None:
     paint_rim().save(MODELS_OUT / "hatch-rim.png", optimize=True)
     paint_hatch_door().save(MODELS_OUT / "hatch-door.png", optimize=True)
     boxes = inside.voxel_boxes(interior.solid + [t for t, _ in through.tris])
-    emit_parts_list(interior.doors)
+    emit_parts_list(interior)
     emit_profile(profile, [front_door, *interior.doors], interior, stones)
     emit_boxes(boxes)
     subprocess.run(
@@ -1160,22 +1182,37 @@ def paint_door(w: int = 96, h: int = 160) -> Image.Image:
     return img
 
 
-def emit_parts_list(doors: list[inside.Door]) -> None:
+def emit_parts_list(interior: inside.Interior) -> None:
     """The client's list of the house's parts: each one's mesh, texture, whether that texture
     repeats or is an atlas with clear pixels, whether it's lit by the sun (the outside) or shows as
-    painted (the rooms), whether only its outside is drawn, and the door it hangs on."""
+    painted (the rooms), whether only its outside is drawn, the door it hangs on, and the floor of
+    the rooms it belongs to (drawn only while that floor could be seen; none for the outside, the
+    doors in the shell's doorways among it)."""
     parts = [
-        ("skin", "skin", True, False, False, None, None, True),
-        ("passage", "steel", True, False, False, None, None, False),
-        ("trim", "trim", False, False, False, None, None, False),
-        ("flowers", "flowers", False, False, False, FLOWER_OPACITY, None, False),
-        ("path", "path", False, False, False, None, None, False),
-        ("door-front", "door", False, False, False, None, "front", False),
-        ("interior", "interior", False, True, True, None, None, False),
-        ("hatch", "slide", True, False, True, None, None, False),
-        ("slide-floor", "slide-floor", True, False, True, None, None, False),
-        ("hatch-rim", "hatch-rim", True, False, True, None, None, False),
-        *((f"door-{d.id}", d.texture, False, d.texture == "interior", True, None, d.id, False) for d in doors),
+        ("skin", "skin", True, False, False, None, None, True, None),
+        ("passage", "steel", True, False, False, None, None, False, None),
+        ("trim", "trim", False, False, False, None, None, False, None),
+        ("flowers", "flowers", False, False, False, FLOWER_OPACITY, None, False, None),
+        ("path", "path", False, False, False, None, None, False, None),
+        ("door-front", "door", False, False, False, None, "front", False, None),
+        *((f"interior-{floor}", "interior", False, True, True, None, None, False, floor) for floor in FLOORS),
+        ("hatch", "slide", True, False, True, None, None, False, "library"),
+        ("slide-floor", "slide-floor", True, False, True, None, None, False, "library"),
+        ("hatch-rim", "hatch-rim", True, False, True, None, None, False, "library"),
+        *(
+            (
+                f"door-{d.id}",
+                d.texture,
+                False,
+                d.texture == "interior",
+                True,
+                None,
+                d.id,
+                False,
+                None if d.id in SHELL_DOORS else floor_at(interior, d.y),
+            )
+            for d in interior.doors
+        ),
     ]
     lines = [
         "// Generated by scripts/house-model.py; don't edit. The pineapple house's parts: each one's mesh",
@@ -1183,7 +1220,9 @@ def emit_parts_list(doors: list[inside.Door]) -> None:
         "// whether the texture repeats (coordinates run past 1) or is an atlas, whether it has clear pixels,",
         "// whether it's drawn as painted rather than lit (the rooms, which the sun never reaches), how solid",
         "// it's drawn if it's see-through, whether only its outside is drawn (the skin, sealed all round,",
-        "// so nothing looks at its inside), and the door it hangs on, if it swings (content/pineappleProfile.ts).",
+        "// so nothing looks at its inside), the door it hangs on, if it swings (content/pineappleProfile.ts),",
+        "// and the floor of the rooms it belongs to, drawn only while that floor could be seen (none for",
+        "// the outside, the doors in the shell's doorways among it; content/pineapple.ts).",
         "export interface PineapplePart {",
         "  name: string;",
         "  texture: string;",
@@ -1193,15 +1232,17 @@ def emit_parts_list(doors: list[inside.Door]) -> None:
         "  opacity?: number;",
         "  oneSided?: boolean;",
         "  door?: string;",
+        "  floor?: string;",
         "}",
         "",
         "export const PINEAPPLE_PARTS: readonly PineapplePart[] = [",
     ]
-    for name, texture, wrap, alpha, unlit, opacity, door, one_sided in parts:
+    for name, texture, wrap, alpha, unlit, opacity, door, one_sided, floor in parts:
         extra = (
             (f", opacity: {opacity}" if opacity is not None else "")
             + (", oneSided: true" if one_sided else "")
             + (f", door: '{door}'" if door else "")
+            + (f", floor: '{floor}'" if floor else "")
         )
         flags = f"wrap: {str(wrap).lower()}, alpha: {str(alpha).lower()}, unlit: {str(unlit).lower()}"
         lines.append(f"  {{ name: '{name}', texture: '{texture}', {flags}{extra} }},")
@@ -1326,9 +1367,9 @@ def emit_profile(
         )
         + "],",
         "  doorways: [",
-        f"    {{ bearing: {num(bearing(inside.BACK_BEARING))}, width: {num(inside.DOORWAY[0] + 0.6)}, bottom: 0, top: {num(inside.DOORWAY[1] + 0.4)} }},",
-        f"    {{ bearing: {num(bearing(inside.HALL_BEARING))}, width: {num(inside.DOORWAY[0] + 0.6)}, bottom: {num(levels['hall'])}, top: {num(levels['hall'] + inside.DOORWAY[1] + 0.4)} }},",
-        f"    {{ bearing: {num(bearing(inside.SIDE_BEARING))}, width: {num(inside.SIDE_DOORWAY[0] + 0.6)}, bottom: 0, top: {num(inside.SIDE_DOORWAY[1] + 0.4)} }},",
+        f"    {{ door: 'back', bearing: {num(bearing(inside.BACK_BEARING))}, width: {num(inside.DOORWAY[0] + 0.6)}, bottom: 0, top: {num(inside.DOORWAY[1] + 0.4)} }},",
+        f"    {{ door: 'hall', bearing: {num(bearing(inside.HALL_BEARING))}, width: {num(inside.DOORWAY[0] + 0.6)}, bottom: {num(levels['hall'])}, top: {num(levels['hall'] + inside.DOORWAY[1] + 0.4)} }},",
+        f"    {{ door: 'side', bearing: {num(bearing(inside.SIDE_BEARING))}, width: {num(inside.SIDE_DOORWAY[0] + 0.6)}, bottom: 0, top: {num(inside.SIDE_DOORWAY[1] + 0.4)} }},",
         "  ],",
         "  doors: [",
         *(

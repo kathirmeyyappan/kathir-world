@@ -9,8 +9,8 @@
 // pictures are plain canvases the page has already drawn, so moving them each frame is only the
 // browser placing a texture; they're repainted only when their source changes.
 //
-// Only a panel in view and within CRISP_RANGE is shown this way (and whoever drew it told it's
-// seen). Further off, a picture is a few dozen pixels across, and every shown panel is a layer the
+// Only a panel in view and within CRISP_RANGE, its mask drawn (not switched off with a room that
+// can't be seen, Interiors.ts), is shown this way (and whoever drew it told it's seen). Further off, a picture is a few dozen pixels across, and every shown panel is a layer the
 // browser composites on every frame, seen through a wall or not; there its mesh draws the picture
 // as an ordinary texture in the scene, as still as the source was when it went. Over the last FADE
 // metres in, that texture fades out over the crisp picture rather than swapping in a frame: drawn
@@ -166,7 +166,7 @@ export class CrispPanels {
     for (const frame of this.shown) {
       const far = Vector3.Distance(camera.globalPosition, frame.mask.getBoundingInfo().boundingSphere.centerWorld);
       this.masks.set(frame.mask, far);
-      const visible = far < CRISP_RANGE && frame.mask.isInFrustum(frustum);
+      const visible = frame.mask.isEnabled() && far < CRISP_RANGE && frame.mask.isInFrustum(frustum);
       if (visible !== frame.visible) {
         frame.visible = visible;
         for (const { box } of frame.panels) box.style.visibility = visible ? '' : 'hidden';

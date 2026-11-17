@@ -5,7 +5,9 @@
 // (content/pineapple.ts, content/krustyKrab.ts). The sim never sees these meshes; it collides with
 // the structures the content hides inside them, so what you bump into is theirs to keep true to the
 // models. Each door hangs on a node at its pin and swings to the state the Room tells us
-// (sim/doors.ts) over DOOR_SWING_SECONDS; a door of two leaves has a node for each.
+// (sim/doors.ts) over DOOR_SWING_SECONDS; a door of two leaves has a node for each. A part of a
+// floor of rooms is drawn only while that floor could be seen (Interiors.ts): its interior is
+// `<model>:<floor>`.
 import { Color3, Mesh, StandardMaterial, Texture, TransformNode, VertexData, type Scene } from '@babylonjs/core';
 import {
   DOOR_SWING_SECONDS,
@@ -16,6 +18,7 @@ import {
   PINEAPPLE_PROFILE,
 } from '@world/shared';
 import type { Engine } from '../Engine';
+import type { Interiors } from '../Interiors';
 import type { Loader } from '../Loader';
 import { KRUSTY_KRAB_PARTS } from './krustyKrabParts';
 import { PINEAPPLE_PARTS } from './pineappleParts';
@@ -26,7 +29,8 @@ const UV_UNIT = 4096; // texture coordinate units to the repeat in the mesh file
 // One part of a model, as the scripts list them: its mesh (<name>.bin in the model's folder), its
 // texture (<texture>.png beside it), whether the texture repeats or is an atlas, whether it has
 // clear pixels, whether it's drawn as painted rather than lit, how solid it's drawn if it's
-// see-through, whether only its outside is drawn, and the hinge it hangs on, if it swings.
+// see-through, whether only its outside is drawn, the hinge it hangs on, if it swings, and the
+// floor of rooms it's part of, if it's inside.
 interface Part {
   name: string;
   texture: string;
@@ -36,6 +40,7 @@ interface Part {
   opacity?: number;
   oneSided?: boolean;
   door?: string;
+  floor?: string;
 }
 
 // A model: its folder under /assets/models, where it stands, its parts, and its hinges, each
@@ -78,7 +83,7 @@ export class Models {
   // Each of the sim's doors: its hinges, whether it stands open, and when it last began to swing.
   private readonly doors = new Map<string, { hinges: Hinge[]; open: boolean; at: number }>();
 
-  constructor(engine: Engine, loader: Loader) {
+  constructor(engine: Engine, loader: Loader, interiors: Interiors) {
     const scene = engine.scene;
     for (const model of MODELS) {
       const root = new TransformNode(`model-${model.name}`, scene);
@@ -99,7 +104,10 @@ export class Models {
         loader.add({
           x: model.placement.x,
           z: model.placement.z,
-          load: () => fetchPart(scene, model.name, part, parent),
+          load: async () => {
+            const mesh = await fetchPart(scene, model.name, part, parent);
+            if (part.floor) interiors.add(`${model.name}:${part.floor}`, (seen) => mesh.setEnabled(seen));
+          },
         });
       }
     }
@@ -116,6 +124,12 @@ export class Models {
     door.open = open;
     const begun = 1 - Math.sqrt(open ? 1 - at : at);
     door.at = swing ? now - begun * DOOR_SWING_SECONDS * 1000 : -Infinity;
+  }
+
+  // Whether a door stands open or is swinging, either way: shut, it hides what's behind it.
+  ajar(id: string): boolean {
+    const door = this.doors.get(id);
+    return !!door && swung(door, performance.now()) > 0;
   }
 
   update(): void {
@@ -138,7 +152,7 @@ function swung(door: { open: boolean; at: number }, now: number): number {
 // centimetres (Int16), texture coordinates (Uint16, UV_UNIT to the repeat), triangles (Uint16),
 // unit normals (Int8). Drawn both sides (the leaves and the rooms' walls are single sheets) unless
 // the part says nothing looks at its inside.
-async function fetchPart(scene: Scene, model: string, part: Part, parent: TransformNode): Promise<void> {
+async function fetchPart(scene: Scene, model: string, part: Part, parent: TransformNode): Promise<Mesh> {
   const buffer = await (await fetch(`/assets/models/${model}/${part.name}.bin`)).arrayBuffer();
   const [vertices, triangles] = new Uint32Array(buffer, 0, 2);
   let at = 8;
@@ -189,4 +203,5 @@ async function fetchPart(scene: Scene, model: string, part: Part, parent: Transf
   mesh.material = material;
   mesh.parent = parent;
   mesh.isPickable = false;
+  return mesh;
 }
