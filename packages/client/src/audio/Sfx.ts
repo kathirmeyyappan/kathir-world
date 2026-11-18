@@ -20,6 +20,13 @@ import {
   type Vec3,
 } from '@world/shared';
 
+// Safari's Audio Session API (iOS 17 and on), not yet in TypeScript's DOM types.
+declare global {
+  interface Navigator {
+    audioSession?: { type: 'auto' | 'playback' | 'transient' | 'transient-solo' | 'ambient' | 'play-and-record' };
+  }
+}
+
 export type Channel = 'music' | 'effects';
 
 export type SoundId =
@@ -593,6 +600,9 @@ export class Sfx {
   constructor() {
     const unlock = () => {
       if (!this.ctx) {
+        // iOS otherwise files a page's sound with alerts, silenced by the ring switch; the game's
+        // sound is media, like a video's, which plays whatever the switch says.
+        if (navigator.audioSession) navigator.audioSession.type = 'playback';
         const ctx = new AudioContext();
         this.ctx = ctx;
         const limiter = new DynamicsCompressorNode(ctx, {
