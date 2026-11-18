@@ -10,7 +10,9 @@ import {
   FAN_SIDES,
   FLOOR_BRIDGE,
   KRUSTY_KRAB_GROUNDS,
+  KRUSTY_KRAB_ROAD,
   MAIN_DISC,
+  ROAD_PLATEAU,
 } from './outline';
 import type { Rng } from './rng';
 import type { Vec3 } from './types';
@@ -45,7 +47,17 @@ export interface Sector {
 
 export type WorldPart = Disc | Bridge | Sector;
 
-export { ANNEX, BUILDING_FAN, BUILDING_GROUNDS, FAN_SIDES, FLOOR_BRIDGE, KRUSTY_KRAB_GROUNDS, MAIN_DISC };
+export {
+  ANNEX,
+  BUILDING_FAN,
+  BUILDING_GROUNDS,
+  FAN_SIDES,
+  FLOOR_BRIDGE,
+  KRUSTY_KRAB_GROUNDS,
+  KRUSTY_KRAB_ROAD,
+  MAIN_DISC,
+  ROAD_PLATEAU,
+};
 // The main disc first: it's the cubes' home (sim/cubes.ts).
 export const WORLD_SHAPE: WorldPart[] = [
   MAIN_DISC,
@@ -53,6 +65,8 @@ export const WORLD_SHAPE: WorldPart[] = [
   FLOOR_BRIDGE,
   ...BUILDING_GROUNDS,
   KRUSTY_KRAB_GROUNDS,
+  KRUSTY_KRAB_ROAD,
+  ROAD_PLATEAU,
   BUILDING_FAN,
   ...FAN_SIDES,
 ];
