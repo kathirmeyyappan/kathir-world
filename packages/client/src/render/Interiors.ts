@@ -9,16 +9,15 @@
 //
 // Wanted, which loads it for good: from inside its building or within NEAR of it, whatever's in view
 // (so a door swung open in front of you shows the rooms already there), and while it's seen through
-// an opening within SIGHT, or through a scope, SCOPED times that with the opening in the scope's
-// circle (or within GRACE of it, so one at its edge comes a moment before it's in). Further off
-// without one, a doorway is all but fog. These distances are set against the rest of the client's
+// an opening within SIGHT, or through a scope within SCOPED_SIGHT with the opening in the scope's
+// circle (or within GRACE of it, so one at its edge comes a moment before it's in): as far as the
+// fog lets anything be seen either way, so no doorway shows clearly with nothing behind it. These
+// distances are set against the rest of the client's
 // (CLAUDE.md, Client loading): audit them together.
 import { Axis, BoundingBox, Frustum, Vector3, type Camera, type Plane } from '@babylonjs/core';
-import type { InteriorBuilding, Opening } from '@world/shared';
+import { SCOPED_SIGHT, SIGHT, type InteriorBuilding, type Opening } from '@world/shared';
 
 const NEAR = 25; // metres from a building's round within which all its interiors are wanted
-const SIGHT = 125; // metres to an opening within which what's seen through it is wanted
-const SCOPED = 3; // how many times SIGHT a scope wants through an opening
 const GRACE = 0.05; // radians round the scope's circle an opening is wanted from
 
 interface Watched {
@@ -81,7 +80,7 @@ export class Interiors {
     // matrix brings its global position up to date too).
     const planes = Frustum.GetPlanes(camera.getViewMatrix(true).multiply(camera.getProjectionMatrix(true)));
     const at = camera.globalPosition;
-    const sight = scope === null ? SIGHT : SIGHT * SCOPED;
+    const sight = scope === null ? SIGHT : SCOPED_SIGHT;
     const look = camera.getDirection(Axis.Z);
     const seen = new Set<string>();
     const wanted = new Set<string>();
