@@ -1358,8 +1358,8 @@ body {
 /* The moves a look has of its own (Hud.setMoveHint): a stack of cells at the top, under the hearts
    and whatever else stands there (Hud.ts), out of the way of the body in the middle of the view.
    The look's name is the first cell and each move has a row of its own under it, ruled apart as
-   the key legend's cells are (#instructions). In the HUD's blue. It lives 20 s from the look being
-   taken: steady for 15, then ticking dim and back every half second, then gone. */
+   the key legend's cells are (#instructions). In the HUD's blue. It lives 15 s from the look being
+   taken: steady for 10, then ticking dim and back every half second, then gone. */
 #move-hint {
   top: 84px;
   bottom: auto;
@@ -1368,7 +1368,7 @@ body {
   max-width: calc(100vw - 440px);
   font-size: 16px;
   border-color: rgba(100, 181, 246, 0.6);
-  animation: move-hint-life 20s step-end forwards;
+  animation: move-hint-life 15s step-end forwards;
   text-align: center;
 }
 #move-hint .title,
@@ -1393,18 +1393,18 @@ body {
 }
 @keyframes move-hint-life {
   0%,
-  77.5%,
-  82.5%,
-  87.5%,
-  92.5%,
-  97.5% {
+  70%,
+  76.667%,
+  83.333%,
+  90%,
+  96.667% {
     opacity: 1;
   }
-  75%,
+  66.667%,
+  73.333%,
   80%,
-  85%,
-  90%,
-  95% {
+  86.667%,
+  93.333% {
     opacity: 0.35;
   }
   100% {
@@ -2161,8 +2161,15 @@ body {
   #command-hint.on {
     pointer-events: auto;
   }
+  /* See-through enough to keep the world under it in view. */
+  #move-hint {
+    filter: opacity(0.7);
+  }
   #move-hint .clear {
     display: block;
+    padding: 8px 12px 9px;
+    font-size: 15px;
+    color: rgba(255, 255, 255, 0.6);
   }
   /* A move's words break across lines where the screen is narrower than they are. */
   #move-hint .moves div {

@@ -144,7 +144,7 @@ const LIGHT_DRAGON_SIZE = 1.15;
 const COLGERA_SIZE = 1.15;
 
 // The moves Super Mario 64's Mario has, which every look of his family starts from: a row spreads
-// these, sets its own over them (Wario's heavier pound) and adds what is its alone (Peach's float).
+// these, sets its own over them (Wario's and Waluigi's heavier pound) and adds what is its alone (Peach's float).
 const SM64_MOVES = {
   leap: { rise: 0.5, speed: 1.25, float: 0.5, grip: 6 }, // at twice its walk, a quarter over its run, and half its jump's height
   // The twirl as long as its clip (Jointed.ts); the knock a hop back, a third of a second off the ground.
@@ -152,6 +152,9 @@ const SM64_MOVES = {
   chain: { jumps: 3, gap: 0.3, rise: 1.2 }, // a jump, a double and a triple
   crouch: { crawl: 0.3, flip: 1.5 },
 } satisfies Partial<Moves>;
+
+// Wario's and Waluigi's pound: heavier than the brothers', it lands harder and wider.
+const HEAVY_POUND: Pound = { ...SM64_MOVES.pound, damage: 2.5, reach: 4 };
 
 const LOOKS = {
   standard: {
@@ -204,7 +207,7 @@ const LOOKS = {
     walk: 6.5,
     jump: 1.3,
     ...SM64_MOVES,
-    pound: { ...SM64_MOVES.pound, damage: 2.5, reach: 4 }, // heavier than the brothers', it lands harder and wider
+    pound: HEAVY_POUND,
   },
   waluigi: {
     id: 'waluigi',
@@ -218,6 +221,7 @@ const LOOKS = {
     walk: 8,
     jump: 1.5,
     ...SM64_MOVES,
+    pound: HEAVY_POUND,
   },
   peach: {
     id: 'peach',

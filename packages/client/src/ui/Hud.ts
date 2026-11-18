@@ -19,7 +19,7 @@ const HISTORY_LINES = 50;
 // What a kill by a look's own move is said to be with (the kill's `item` on the wire): a strike is
 // Tung Tung Tung Sahur's bat, the one strike there is.
 const MOVE_KILLS = { pound: 'ground pound', strike: 'bat' };
-const MOVE_HINT_MS = 20_000; // how long the move hint is up: its animation's length (#move-hint)
+const MOVE_HINT_MS = 15_000; // how long the move hint is up: its animation's length (#move-hint)
 const HINT_GAP = 8; // CSS pixels between the move hint and what it stacks against
 // The layout where the item hint is at the top of the screen, under the touch buttons (styles.css).
 const COARSE = window.matchMedia('(pointer: coarse)');
