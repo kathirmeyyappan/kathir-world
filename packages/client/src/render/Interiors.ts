@@ -9,19 +9,23 @@
 //
 // Wanted, which loads it for good: from inside its building or within NEAR of it, whatever's in view
 // (so a door swung open in front of you shows the rooms already there), and while it's seen through
-// an opening within SIGHT, SCOPED times that through a scope. Further off without one, a doorway
-// is all but fog; with one, SIGHT is past the far side of the world.
-import { BoundingBox, Frustum, Vector3, type Camera, type Plane } from '@babylonjs/core';
+// an opening within SIGHT, or through a scope, SCOPED times that with the opening in the scope's
+// circle (or within GRACE of it, so one at its edge comes a moment before it's in). Further off
+// without one, a doorway is all but fog. These distances are set against the rest of the client's
+// (CLAUDE.md, Client loading): audit them together.
+import { Axis, BoundingBox, Frustum, Vector3, type Camera, type Plane } from '@babylonjs/core';
 import type { InteriorBuilding, Opening } from '@world/shared';
 
 const NEAR = 25; // metres from a building's round within which all its interiors are wanted
 const SIGHT = 125; // metres to an opening within which what's seen through it is wanted
 const SCOPED = 3; // how many times SIGHT a scope wants through an opening
+const GRACE = 0.05; // radians round the scope's circle an opening is wanted from
 
 interface Watched {
   opening: Opening;
   box: BoundingBox;
   centre: Vector3;
+  radius: number; // from the centre to a corner
   out: Vector3;
 }
 
@@ -70,13 +74,15 @@ export class Interiors {
     else if (state.wanted) this.load(id, registered);
   }
 
-  // Once a frame, with the camera placed for it.
-  update(camera: Camera, scoped: boolean): void {
+  // Once a frame, with the camera placed for it, and while scoped `scope`, the radians from the look
+  // to the edge of the scope's circle.
+  update(camera: Camera, scope: number | null): void {
     // As the camera stands this frame, not as it stood for the last one drawn (forcing the view
     // matrix brings its global position up to date too).
     const planes = Frustum.GetPlanes(camera.getViewMatrix(true).multiply(camera.getProjectionMatrix(true)));
     const at = camera.globalPosition;
-    const sight = scoped ? SIGHT * SCOPED : SIGHT;
+    const sight = scope === null ? SIGHT : SIGHT * SCOPED;
+    const look = camera.getDirection(Axis.Z);
     const seen = new Set<string>();
     const wanted = new Set<string>();
     for (const b of this.buildings) {
@@ -87,7 +93,8 @@ export class Interiors {
       for (const { id, shows } of b.interiors)
         for (const w of this.openings.get(id)!) {
           if (!this.through(w, at, planes)) continue;
-          const near = Vector3.Distance(at, w.centre) <= sight;
+          const near =
+            Vector3.Distance(at, w.centre) <= sight && (scope === null || offLook(w, at, look) <= scope + GRACE);
           for (const each of [id, ...shows]) {
             seen.add(each);
             if (near) wanted.add(each);
@@ -132,8 +139,18 @@ function watch(opening: Opening): Watched {
     opening,
     box: new BoundingBox(min, max),
     centre: Vector3.Center(min, max),
+    radius: Vector3.Distance(min, max) / 2,
     out: new Vector3(opening.out.x, opening.out.y, opening.out.z),
   };
+}
+
+// Radians from the look to the nearest of an opening as seen from `at` (0 once the look is on it).
+function offLook(w: Watched, at: Vector3, look: Vector3): number {
+  const to = w.centre.subtract(at);
+  const far = to.length();
+  if (far <= w.radius) return 0;
+  const angle = Math.acos(Math.min(1, Vector3.Dot(to, look) / far));
+  return Math.max(0, angle - Math.asin(w.radius / far));
 }
 
 // Metres from a point to a building's upright cylinder: 0 inside it.
