@@ -71,6 +71,7 @@ export interface Figure {
   color?: string; // the player's colour it is painted in, when it is
   tilt?: { node: TransformNode; follow: number }; // what tips with the look's pitch, by that share of it: a head on a neck, or a trunk the face is on
   head?: TransformNode; // a head on a neck: turns to the look on a ladder
+  headless?: boolean; // nothing above the body to turn to the look, so standing still the body turns to it
   legs?: Leg[];
   armL?: Arm; // swings against the legs, and reaches up the rungs on a ladder
   // Holds the item by its handle, aimed along the look: the handle's middle is at the grip, in the
@@ -177,7 +178,8 @@ export class WalkerAvatar implements Avatar {
   // On the ground or in the air: the legs swing with the stride and the arms against them, the
   // body rising and rocking with it, the weapon arm pointed along the look while holding an item.
   // Empty-handed the body turns to face the way it's going and stays facing that way when it stops,
-  // the head turning to the look; with something to aim it faces its look, which gives the aim away.
+  // the head turning to the look (a headless body turns to it whole); with something to aim it faces
+  // its look, which gives the aim away.
   protected walk(p: RemotePlayer, feetY: number, step: number, dt: number): Pose {
     const f = this.figure;
     this.held = null;
@@ -185,7 +187,8 @@ export class WalkerAvatar implements Avatar {
     this.root.position.set(p.x, feetY, p.z);
     const armed = p.item !== null;
     const going = Math.hypot(this.velX, this.velZ) > MOVING;
-    const want = p.dead ? this.facing : armed ? p.yaw : going ? Math.atan2(this.velX, this.velZ) : this.facing;
+    const standing = f.headless ? p.yaw : this.facing;
+    const want = p.dead ? this.facing : armed ? p.yaw : going ? Math.atan2(this.velX, this.velZ) : standing;
     this.turn = wrap(want - this.facing) * (1 - Math.exp((-3 * dt) / (armed ? EASE_AIM : EASE_TURN)));
     this.facing = wrap(this.facing + this.turn);
     this.root.rotation.set(0, this.facing, 0);

@@ -224,6 +224,7 @@ export const BOT_DIAGRAM_TEXT: Record<BotId, string> = {
     'A circle bot seen from above: it strafes round the nearest player facing them, and when something is in the way finds a way round it to the ring further on.',
   stalker:
     'A stalker bot seen from above: it stands still and turns to face the nearest person as they walk past, ignoring bots and anyone further off.',
+  observer: 'An observer bot seen from above: it stands where it lands, facing one way, as a person walks past.',
 };
 
 export const BOT_EXAMPLES: Record<BotId, [string, string]> = {
@@ -235,5 +236,6 @@ export const BOT_EXAMPLES: Record<BotId, [string, string]> = {
     '/circle-bot --skin tung',
     'spawns a circle bot named circle-bot with the Tung Tung Tung Sahur skin, for the default time.',
   ],
-  stalker: ['/stalker-bot -t 60 -n watcher', 'spawns a stalker bot named watcher for 60s.'],
+  stalker: ['/stalker-bot -t 60 -n watcher', 'spawns a stalker bot named watcher for 60s, as Tung Tung Tung Sahur.'],
+  observer: ['/observer-bot -s patrick', 'spawns an observer bot as Patrick, for the default time.'],
 };

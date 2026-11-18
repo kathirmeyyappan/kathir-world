@@ -34,6 +34,7 @@ import {
   dragonShape,
   PINEAPPLE_DOOR,
   PINEAPPLE_PLACEMENT,
+  botRequest,
   defaultBotsFor,
   type BotRequest,
   type InputFrame,
@@ -783,14 +784,9 @@ test("the first person in brings the room's default bots; nobody else does", asy
   const a = link();
   room.join('alice', a, { room: 'global' });
   await Promise.resolve();
-  const expected = defaultBotsFor('global').map(({ bot, seconds, ...placement }) => ({
-    bot,
-    room: 'global',
-    seconds,
-    caller: 'room',
-    ...placement,
-    worker: 'dumb',
-  }));
+  const expected = defaultBotsFor('global').map(({ bot, seconds, targets, ...placement }) =>
+    botRequest({ bot, room: 'global', seconds, caller: 'room', ...placement }, targets),
+  );
   // The circle bots' looks are the room's own draw: two different ones from the list.
   const looks = spawned.filter((r) => r.bot === 'circle').map((r) => r.avatar);
   assert.ok(

@@ -5,7 +5,7 @@ import { once } from 'node:events';
 import { createServer } from 'node:http';
 import { test } from 'node:test';
 import WebSocket from 'ws';
-import { defaultBotsFor, type BotRequest, type ServerMessage } from '@world/shared';
+import { botRequest, defaultBotsFor, type BotRequest, type ServerMessage } from '@world/shared';
 
 async function startServer(port: number, env: Record<string, string> = {}) {
   const proc = spawn(process.execPath, ['--import', 'tsx', new URL('../src/index.ts', import.meta.url).pathname], {
@@ -97,9 +97,9 @@ test('/circle-bot -t 60 posts the room request to the bot sidecar', async () => 
     const said = await a.next((m) => m.t === 'system' && m.text.includes('called'));
     assert.equal(said.t === 'system' && said.text, 'kathir called circle-bot for 60s');
     // the first person in brings the room's default bots (sim/defaultBots.ts), then the call
-    const defaults = defaultBotsFor('late-night').map(({ bot, seconds, ...placement }) => ({
+    const defaults = defaultBotsFor('late-night').map(({ bot, seconds, targets, ...placement }) => ({
       url: '/bots/dumb',
-      body: { bot, room: 'late-night', seconds, caller: 'room', ...placement, worker: 'dumb' },
+      body: botRequest({ bot, room: 'late-night', seconds, caller: 'room', ...placement }, targets),
     }));
     for (let i = 0; i < 50 && received.length <= defaults.length; i++) await new Promise((r) => setTimeout(r, 20));
     // The circle bots' looks are the room's own random draw, so compare without them.

@@ -53,6 +53,21 @@ function stalker(d: Diagram): void {
   d.label([other[0], other[1] + 34], ['bots never count,', 'however close'], { note: true, anchor: 'middle' });
 }
 
+// Stands where it lands, facing the way it came in, whoever goes by.
+function observer(d: Diagram): void {
+  const me: Pt = [230, 180];
+  const was: Pt = [400, 70];
+  const now: Pt = [430, 250];
+  d.path('M 360 22 C 450 80, 470 180, 430 250 S 390 320, 360 344', 'move', { arrow: true, faint: true });
+  d.line(me, [330, 180], 'look');
+  d.person(was, true);
+  d.person(now);
+  d.subject(me, 0);
+  d.label([me[0], me[1] + 40], ['never moves or turns'], { anchor: 'middle' });
+  d.label([458, 256], ['anyone going by']);
+  d.label([458, 278], ['not watched'], { note: true });
+}
+
 // Watches whoever it can see; shoots the close ones (or anyone, once it's been hit); hides to reload.
 function sniper(d: Diagram): void {
   const me: Pt = [170, 186];
@@ -89,7 +104,7 @@ function sniper(d: Diagram): void {
   d.label([420, 262], ['nobody in sight a while,', 'or hurt: moves to', 'another floor'], { note: true });
 }
 
-const DRAW: Record<BotId, (d: Diagram) => void> = { circle, stalker, sniper };
+const DRAW: Record<BotId, (d: Diagram) => void> = { circle, stalker, observer, sniper };
 
 export function botDiagram(bot: BotId, alt: string): HTMLElement {
   const d = new Diagram(`dg-${bot}`);

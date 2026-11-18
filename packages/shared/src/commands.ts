@@ -4,10 +4,9 @@
 import { avatarForCommand, type AvatarId } from './sim/avatars';
 import {
   BOT_DEFAULT_SECONDS,
-  BOT_FLAGS,
   BOT_MAX_SECONDS,
-  BOTS,
   botFlagFor,
+  botFlags,
   botIdFor,
   type BotFlag,
   type BotId,
@@ -70,7 +69,7 @@ export interface BotCallArgs {
 }
 
 // "/sniper-bot -t 60 -n hunter -s tung --target kat bob": the flags in BOT_FLAGS (short or long
-// form), in any order, each at most once, and only those the bot's worker takes. Anything else (a
+// form), in any order, each at most once, and only those the bot takes (botFlags). Anything else (a
 // bare word, an unknown or repeated flag, a flag with no value or a bad one) makes it null, and the
 // room answers with the usage line.
 function botCommand(bot: BotId, args: string[]): Command {
@@ -79,7 +78,7 @@ function botCommand(bot: BotId, args: string[]): Command {
   const given = new Set<BotFlag>();
   for (let i = 0; i < args.length; i++) {
     const flag = botFlagFor(args[i]);
-    if (flag === null || given.has(flag) || !BOT_FLAGS[flag].workers.includes(BOTS[bot].worker)) return bad;
+    if (flag === null || given.has(flag) || !botFlags(bot).includes(flag)) return bad;
     given.add(flag);
     const value = (): string | null => (i + 1 < args.length && !args[i + 1].startsWith('-') ? args[++i] : null);
     switch (flag) {

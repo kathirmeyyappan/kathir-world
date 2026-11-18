@@ -152,6 +152,7 @@ export function buildSahur(engine: Engine, id: string, base: TransformNode): Fig
     back: { node: log, at: new Vector3(0, 2 - foot[1], -0.4) },
     materials: [skin, batMat],
     shadow: 1.3,
+    headless: true, // the face is on the log
     legSwing: 0.32, // stiff legs swing from the hip
     airLegs: 0.15,
     armSwing: ARM_SWING,
