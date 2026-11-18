@@ -148,7 +148,8 @@ export function topUv(s: Structure, wx: number, wz: number, { tile, worldTop } =
 // A piece's vertices where it stands in the world: built in its own frame, its underside at local
 // 0 (`lift` is how far its frame's middle stands over that), then turned by its yaw (Babylon's
 // turn about y is the sim's yaw) and moved to its spot.
-function placed(s: Structure): VertexData {
+// A piece as it stands in the world, painted and shaded as the world's merged meshes are.
+export function placed(s: Structure): VertexData {
   const { data, lift } = build(s, mappingOf(s));
   const turn = Matrix.RotationY(s.yaw ?? 0);
   return data.transform(turn.multiply(Matrix.Translation(s.x, lift + (s.y ?? 0), s.z)));
