@@ -26,6 +26,9 @@ from common.navigation import Route
 from common.world import Region, load_world_map
 
 ROOT = Path(__file__).resolve().parents[2]
+# Seconds a test waits for the next message from the server, which sends 30 a second: long enough
+# for a shared CI runner that stalls a few seconds under load, so only a hung server fails.
+RECEIVE_TIMEOUT = 10
 
 
 def free_port() -> int:
@@ -115,7 +118,7 @@ def test_connects_and_decodes_real_room_server(room_server: str) -> None:
             assert me.bot, "the server flags us as a bot from the join URL"
 
             while True:
-                message = await asyncio.wait_for(connection.receive(), timeout=2)
+                message = await asyncio.wait_for(connection.receive(), timeout=RECEIVE_TIMEOUT)
                 if isinstance(message, Snapshot):
                     assert message.tick > connection.welcome.tick
                     assert any(player.id == connection.id for player in message.players)
@@ -172,7 +175,7 @@ def test_circle_bot_orbits_the_only_other_player(room_server: str) -> None:
         )
         try:
             while not circle.done():
-                message = await asyncio.wait_for(target.receive(), timeout=2)
+                message = await asyncio.wait_for(target.receive(), timeout=RECEIVE_TIMEOUT)
                 if isinstance(message, Snapshot):
                     player = next(
                         (player for player in message.players if player.name == "circle-bot"),
@@ -213,7 +216,7 @@ def test_stalker_stands_where_it_asks_as_tung_watches_the_person_and_dies_to_kil
         started = time.monotonic()
         try:
             while True:
-                message = await asyncio.wait_for(person.receive(), timeout=2)
+                message = await asyncio.wait_for(person.receive(), timeout=RECEIVE_TIMEOUT)
                 if not isinstance(message, Snapshot):
                     continue
                 me = next(p for p in message.players if p.id == person.id)
@@ -299,7 +302,7 @@ def test_sniper_fires_at_a_person_in_sight_then_waits_out_its_cooldown(
         tick = person.welcome.tick
         try:
             while not sniper.done():
-                message = await asyncio.wait_for(person.receive(), timeout=2)
+                message = await asyncio.wait_for(person.receive(), timeout=RECEIVE_TIMEOUT)
                 if isinstance(message, Snapshot):
                     tick = message.tick
                 elif isinstance(message, Event) and message.t == "shot" and message.data["id"] != person.id:
