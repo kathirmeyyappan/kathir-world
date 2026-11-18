@@ -369,11 +369,17 @@ needs of it: a new model is a script, its files, and a row in `MODELS` there.
 
 Nothing is fetched at startup. `render/Loader.ts` streams the world in: anything heavy that stands
 somewhere (a region's structure meshes to build, a model part to fetch) registers with where it is,
-and each frame the nearest thing not yet begun is begun, so the player is in the world at once and
-it fills in round them nearest first, the far side within a second or two. Nothing outside waits on
+and the nearest things not yet begun are begun first, so the player is in the world at once and it
+fills in round them nearest first, the far side within a second or two. Nothing outside waits on
 distance (a scope sees the far side as sharp as the near); the loader only sets the order. What's
-inside a building waits until it's wanted (see Interiors). Register
-a new model or any big build with it rather than loading it in the constructor.
+inside a building waits until it's wanted (see Interiors). No frame waits on loading: each thing's
+load is a job, a generator that yields between pieces of its work (a region yields after every
+piece it places) or yields a fetch to wait on (`yield* wait(promise)`), and each frame the loader
+steps the jobs that are ready only until `BUDGET_MS` of it is spent, the rest carrying on the next.
+A region is built as plain vertex data (`VertexData`, each piece placed where it stands and all of
+them joined) and only then made one mesh, so nothing is made and thrown away per piece. Register a
+new model or any big build with the loader as a job that yields, rather than loading it in the
+constructor or in one go.
 
 A door (`sim/doors.ts`) is a slab on a hinge, shut or swung open, kept by the Room for everyone:
 `doorPieces` makes its two hidden structures (where it stands shut, where it stands open), each
