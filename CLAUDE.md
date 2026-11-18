@@ -130,7 +130,7 @@ was settled. As they stand:
 | Distance | Unscoped | Scoped | What it decides |
 | --- | --- | --- | --- |
 | `NEAR` | 25 m | 25 m | an interior wanted whatever's in view |
-| `SIGHT`, `SCOPED_SIGHT` | 125 m | 560 m | the fog nine tenths thick (`BASE_FOG_DENSITY` and `SCOPED_FOG_SCALE` are worked out from them); an interior wanted through an open opening in view (scoped, within the scope's circle and a little round it); the sniper's range |
+| `SIGHT`, `SCOPED_SIGHT` | 125 m | 560 m | the fog nine tenths thick (`BASE_FOG_DENSITY` and `SCOPED_FOG_SCALE` are worked out from them); an interior wanted through an open opening in view (scoped, within the scope's circle and a little round it) |
 | `CRISP_RANGE` | 45 m | 45 m | a wall frame's picture drawn crisp rather than as a texture |
 | `LET_GO`, `FORGET` | 200 m, 30 s | same | an interior let go, neither seen nor wanted for `FORGET`; past every unscoped fetch, so no line flaps |
 | `REACH`, `SLACK` (`Shells.ts`) | 600 m, 700 m | same | a model landmark's full detail wanted, and let go; past where a scope sees, so no swap and no rooms inside a shell are seen |
