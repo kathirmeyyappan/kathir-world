@@ -1,7 +1,7 @@
-// The map in the menu's PLAY tab: the HUD minimap's view (MapCanvas.ts; NEAR or WORLD, the same
-// toggle, P too) drawn in the preview's window, with a wheel or a pinch to zoom it, about the point
+// The map in the menu's PLAY tab: the HUD minimap's view (MapCanvas.ts; CLOSE, WIDE or WORLD, the
+// same toggle, P too) drawn in the preview's window, with a wheel or a pinch to zoom it, about the point
 // under the pointer, and a drag to slide it about. A change of view starts the framing afresh.
-import { MapCanvas, coordsOf, type MinimapView } from '../MapCanvas';
+import { MINIMAP_VIEWS, MapCanvas, coordsOf, type MinimapView } from '../MapCanvas';
 import { MapControls } from '../mapControls';
 import type { Minimap } from '../Minimap';
 
@@ -18,7 +18,7 @@ export class MenuMap {
     this.el.className = 'view map';
     this.view = minimap.view;
     this.toggle.className = 'toggle';
-    for (const view of ['near', 'world'] as const) {
+    for (const view of MINIMAP_VIEWS) {
       const button = Object.assign(document.createElement('button'), { textContent: view.toUpperCase() });
       button.dataset.view = view;
       button.addEventListener('click', () => minimap.setView(view));
