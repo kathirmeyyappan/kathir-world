@@ -220,7 +220,7 @@ def test_stalker_stands_where_it_asks_watches_the_person_and_dies_to_kill_bots(r
                 bot = next((p for p in message.players if p.name == "stalker-bot"), None)
                 if bot is None:
                     continue
-                assert (bot.pos.x, bot.pos.y, bot.pos.z) == pytest.approx((112, 21.7, 0)), "on floor 1"
+                assert (bot.pos.x, bot.pos.y, bot.pos.z) == pytest.approx((112, 21.7, 0), abs=0.5), "on floor 1"
                 assert bot.avatar == "elizabeth"
                 facing = math.atan2(me.pos.x - bot.pos.x, me.pos.z - bot.pos.z)
                 if abs(math.remainder(bot.yaw - facing, math.tau)) < 1e-6:

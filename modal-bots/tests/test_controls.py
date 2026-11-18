@@ -71,6 +71,20 @@ def test_controls_build_frames_and_reset_one_shot_inputs() -> None:
     assert second["actions"] == ["scope"]
 
 
+def test_a_step_walks_ahead_for_one_frame() -> None:
+    connection = FakeConnection()
+    controls = Controls(connection)  # type: ignore[arg-type]
+    controls.move(right=1)
+    controls.step()
+
+    asyncio.run(controls.send_input())
+    asyncio.run(controls.send_input())
+
+    first, second = (sent["f"] for sent in connection.sent)
+    assert (first["mx"], first["my"]) == (0, 1)
+    assert (second["mx"], second["my"]) == (1, 0), "back to what move holds"
+
+
 def test_chat_and_commands_hide_wire_messages() -> None:
     connection = FakeConnection()
     controls = Controls(connection)  # type: ignore[arg-type]

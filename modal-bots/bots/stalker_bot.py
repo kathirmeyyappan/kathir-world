@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import math
 import time
 from contextlib import suppress
 from typing import Any
@@ -19,6 +20,11 @@ from common import (
     run_input_loop,
 )
 from common.deployment import validate_duration
+
+# Radians the look may swing from the way the body was last turned before the bot steps to turn it
+# again: a standing body is drawn facing the way it last went, so each step creeps it about a
+# quarter metre toward whoever it watches.
+TURN_STEP = 0.35
 
 
 async def run_stalker_bot(
@@ -48,6 +54,7 @@ async def run_stalker_bot(
     inputs = asyncio.create_task(run_input_loop(controls, stop))
     completed = False
     watching: str | None = None
+    turned: float | None = None  # the yaw the body was last stepped round to
     observed_until = connected_at
 
     log_message(name, "joined room", player_id=connection.id, room=connection.room)
@@ -76,6 +83,9 @@ async def run_stalker_bot(
                 target = state.nearest_player(people_only=True)
                 if target:
                     controls.look_at(me.pos, target.pos)
+                    if turned is None or abs(math.remainder(controls.yaw - turned, math.tau)) > TURN_STEP:
+                        controls.step()
+                        turned = controls.yaw
                 if (target.id if target else None) != watching:
                     watching = target.id if target else None
                     log_message(name, "watching", target=watching)

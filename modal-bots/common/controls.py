@@ -26,6 +26,7 @@ class Controls:
         self.pitch = me.pitch
         self.reading: str | None = None
         self._jump = False
+        self._step = False
         self._shoot = False
         self._shoot_once = False
         self._shot_look: tuple[float, float] | None = None
@@ -73,6 +74,11 @@ class Controls:
     def jump(self) -> None:
         self._jump = True
 
+    def step(self) -> None:
+        """One frame walking ahead along the look, whatever ``move`` holds: a standing body is drawn
+        facing the way it last went, so a step is what turns it to its look."""
+        self._step = True
+
     def shoot(self, held: bool = True) -> None:
         self._shoot = held
 
@@ -116,8 +122,8 @@ class Controls:
         yaw, pitch = self._shot_look or (self.yaw, self.pitch)
         frame = {
             "seq": self.seq,
-            "mx": self.right,
-            "my": self.forward,
+            "mx": 0 if self._step else self.right,
+            "my": 1 if self._step else self.forward,
             "yaw": yaw,
             "pitch": pitch,
             "jump": self._jump,
@@ -129,6 +135,7 @@ class Controls:
             frame["view"] = self.connection.view_tick
         await self.connection.send({"t": "input", "f": frame})
         self._jump = False
+        self._step = False
         self._shoot_once = False
         self._shot_look = None
 
