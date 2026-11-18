@@ -1,6 +1,6 @@
 // Static scenery: shader-drawn grid floor, a kerb along the world's edge with the ground past it
-// OUTSIDE_HEIGHT below, gradient sky with stars, and a boundary wall that only shows up when you
-// get close, at whatever height you're at. All of it follows the world shape. Sky billboards live in
+// OUTSIDE_HEIGHT below, gradient sky with stars, and the boundary, a wall round the world's reach
+// that only shows up when you get close, at whatever height you're at. All of it follows the world shape. Sky billboards live in
 // SkyObject.ts.
 import {
   Color3,
@@ -32,7 +32,6 @@ import {
 } from './shaders';
 
 const WALL_REVEAL_DISTANCE = 16;
-const WALL_ABOVE = 16; // the boundary reaches this far above the tallest structure (or the floor)
 const SKY_WALL_TOP = 500; // metres: the sky's edge reaches as high as a dragon is likely to fly
 const WALL_STEP = 0.8; // metres between ribbon samples along the outline
 
@@ -60,13 +59,10 @@ export class Environment {
   private readonly span: number;
   private readonly shape: readonly WorldPart[];
   private time = 0;
-  private groundWall!: Mesh; // the outline a walker is kept inside, set in createWalls
-  private skyWall!: Mesh; // the circle round all of it a dragon is kept inside
 
   constructor(
     private readonly engine: Engine,
     private readonly ground: Ground,
-    private readonly ceiling = 0, // the top of the tallest structure
   ) {
     ENVIRONMENTS.set(engine.scene, this);
     this.shape = ground.parts;
@@ -81,13 +77,6 @@ export class Environment {
     this.createGround();
     this.createSky();
     this.createWalls();
-  }
-
-  // Shows the boundary that applies to the viewer's class: the world's outline on foot, the circle
-  // of its reach as a dragon.
-  setBounds(bounds: 'ground' | 'sky'): void {
-    this.groundWall.setEnabled(bounds === 'ground');
-    this.skyWall.setEnabled(bounds === 'sky');
   }
 
   // The floor inside the world's edge, the ground past it, and the kerb along it: one shader, the
@@ -305,7 +294,7 @@ export class Environment {
     this.materials.push(mat);
   }
 
-  // The two boundaries, one shown at a time (setBounds), on one material.
+  // The one boundary: the circle round the whole world's reach (Ground.keepWithin).
   private createWalls(): void {
     const scene = this.engine.scene;
     const mat = new ShaderMaterial('wallMat', scene, 'worldWall', {
@@ -318,9 +307,7 @@ export class Environment {
     mat.backFaceCulling = false;
     mat.disableDepthWrite = true;
     this.materials.push(mat);
-    this.groundWall = this.createWall('wall', this.shape, this.ceiling + WALL_ABOVE, mat);
-    this.skyWall = this.createWall('sky-wall', [{ kind: 'disc', x: 0, z: 0, r: this.ground.reach }], SKY_WALL_TOP, mat);
-    this.skyWall.setEnabled(false);
+    this.createWall('sky-wall', [{ kind: 'disc', x: 0, z: 0, r: this.ground.reach }], SKY_WALL_TOP, mat);
   }
 
   // A vertical ribbon along a shape's outline, `top` metres tall.

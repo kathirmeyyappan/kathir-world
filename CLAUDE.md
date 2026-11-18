@@ -218,8 +218,14 @@ wire: server and client both build the world from that file.
   disc's middle out to the keeps' from the first building's bearing round to the last's, its two
   straight sides held 10 m out, parallel to those bearings, by a strip of floor along each (`FAN_SIDES`),
   so the bridge to the tower is the only corridor and everything between the buildings is open floor. A part is a disc,
-  a straight `bridge` or a pie-slice `sector`. Players are
-  clamped 1 m inside it no matter what, so keep structures inside too.
+  a straight `bridge` or a pie-slice `sector`. The ground is a solid slab: its top the floor, its
+  sides a drop of `OUTSIDE_HEIGHT` (10 m) to the ground past the edge, all three of them solid to
+  bodies and to rays (`Structures` stands bodies on it, holds a body below the floor off the drop's
+  face as a wall, and stops shots and sprays on it). Nothing keeps a walker on the floor: one walks
+  off the edge, falls down the drop, and dies the moment it's down on the ground past it (a `fell`,
+  `room.ts` `land`), with nothing dropped where it lies. The one barrier is a circle round the
+  world's reach (`Ground.keepWithin`, the red wall shown as you come near it), the same for a
+  walker and a dragon. Keep structures inside the outline.
   Along the edge runs a bold kerb (`KERB_WIDTH` across inside it, `KERB_HEIGHT` up, its top lit),
   rounded where two parts' edges meet, whose outer face drops to the ground past the edge, with a
   toe as bold along its foot (both rims of the drop lit grey, the kerb's top green, so the border
@@ -227,10 +233,12 @@ wire: server and client both build the world from that file.
   (`render/Environment.ts`), so where you can't go reads from afar; the grid carries on down that
   drop, each face gridded across the two axes its normal lies furthest from (`surfaceGridLine`, so
   one family of lines runs over any surface, terrain included). The floor and that ground both end under the
-  kerb, so every edge in sight is real geometry rather than a shader's cut. A walker never leaves
-  the floor (it's flat, and players never reach the kerb); a dragon can fly down into the drop,
-  where the floor's rim is a wall it climbs before coming back in (`dragon.ts`), and a walker it
-  turns back into there comes up onto the floor at the edge. The camera follows it down.
+  kerb, so every edge in sight is real geometry rather than a shader's cut. The kerb is only drawn:
+  the sim's floor is flat to the edge, and a foot sinks its 8 cm into it unseen. A dragon can fly
+  down into the drop, where the floor's rim is a wall it climbs before coming back in
+  (`dragon.ts`), and a walker it turns back into there, or anywhere out over the void, falls where
+  it is. The camera follows it down. A bot's map stands its nodes a metre inside the edge, and the
+  circle bot, which strafes rather than following the map, looks for floor ahead before it steps.
 - Size things to the player: eyes at 1.7 m, head at 2.0 m, radius 0.35 m, steps up to 0.5 m climb on
   their own, and a running jump at the standard jump power lands on tops up to about 1.9 m (make
   anything meant to stop a jump 2.1 m or taller; Sulley's 1.2 rises 1.92 m, and may get over it). Doorways at least 1.2 m wide and 2.2 m tall; ramps no steeper than about 30°;
@@ -1224,7 +1232,8 @@ protocol.
 - Falls hurt by landing speed: slower than a 15 m drop from rest is free, as fast as an 80 m drop
   takes every heart, and damage rises linearly between, in half hearts (a jetpack that brakes the
   fall lands slower). That arrives as a `hit` with `shooter: None`, and a fatal fall as a `fell`
-  event rather than `kill`.
+  event rather than `kill`. Landing on the ground past the world's edge is a `fell` whatever the
+  height: a bot that walks off the floor dies, so keep routes on the map.
 - Snapshots reveal players globally, and shots pass through cubes; only structures block them. Perfect aim
   can therefore be much stronger than a human player. Fairness constraints such as field of view,
   reaction delay, aim error, and respawn delay belong in bot policy, not in connection code.

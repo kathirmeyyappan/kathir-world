@@ -274,7 +274,7 @@ export class Game {
   ) {
     const canvas = canvasEl;
     this.engine = new Engine(canvas, true);
-    this.environment = new Environment(this.engine, WORLD_GROUND, WORLD_STRUCTURES.top);
+    this.environment = new Environment(this.engine, WORLD_GROUND);
     buildStructures(this.engine, WORLD_STRUCTURES.list, this.loader);
     this.frost = new FrostLayer(this.engine, WORLD_STRUCTURES.list);
     this.interiors = new Interiors(INTERIOR_BUILDINGS, (door) => this.models.ajar(door));
@@ -958,7 +958,6 @@ export class Game {
     if (cls !== this.classId) {
       if (cls === 'asian-dragon') this.view.set('third');
       this.mobile.setClass(cls);
-      this.environment.setBounds(cls === 'asian-dragon' ? 'sky' : 'ground');
       this.classId = cls;
     }
     this.hud.setKeys(legendOf(self));

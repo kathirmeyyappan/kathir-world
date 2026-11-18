@@ -119,8 +119,8 @@ float worldDistance(vec2 p) {
 // itself.
 export const STEP_GAP = 0.02;
 // The kerb along the edge (render/Environment.ts): metres across, inside the edge, and up. The floor
-// and the ground past the edge each stop halfway across under it, so neither's cut edge shows. It
-// lies inside the margin players are kept in by (PLAYER_PADDING), so no foot reaches it.
+// and the ground past the edge each stop halfway across under it, so neither's cut edge shows. It's
+// only drawn: the sim's floor is flat to the edge, and a foot sinks its 8 cm into it unseen.
 export const KERB_WIDTH = 0.5;
 export const KERB_HEIGHT = 0.08;
 

@@ -21,7 +21,6 @@ import {
   EYE_HEIGHT,
   GRAVITY,
   LEAP_REST,
-  PLAYER_PADDING,
   PLAYER_RADIUS,
   RUN_MULTIPLIER,
   SCOPED_SPEED_MULTIPLIER,
@@ -47,12 +46,7 @@ export const WALKER: ClassSpec = {
   actions: {},
   actionTicks: 0,
   fits: () => true,
-  // Inside the outline and never under the floor: a dragon down in the drop past the edge comes back
-  // up onto it.
-  confine: (p, ground) => {
-    ground.clamp(p.pos, PLAYER_PADDING);
-    p.pos.y = Math.max(p.pos.y, EYE_HEIGHT);
-  },
+  confine: (p, ground) => ground.keepWithin(p.pos, PLAYER_RADIUS),
   enter() {},
   exit(p) {
     p.climb = null;
@@ -251,7 +245,7 @@ export function stepWalker(p: PlayerState, input: InputFrame | null, dt: number,
     const fromZ = p.pos.z;
     const body = { head: p.pos.y + CAPSULE_TOP, reach: feetNow + STEP_UP, radius: PLAYER_RADIUS };
     structures.move(p.pos, p.vx * dt, p.vz * dt, body);
-    structures.ground.clamp(p.pos, PLAYER_PADDING);
+    structures.ground.keepWithin(p.pos, PLAYER_RADIUS);
     // Walking keeps a standing player on the ground: up a step or ramp, down a gentle drop.
     if (standing) {
       const ground = structures.groundAt(p.pos.x, p.pos.z, feetNow + STEP_UP);

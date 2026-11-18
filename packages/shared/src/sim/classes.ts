@@ -53,10 +53,9 @@ export interface ClassSpec {
   // Whether a body of this class, in the look `avatar`, can be where `pos` (an eye point) is, for
   // a switch into it.
   fits(avatar: AvatarId, pos: Vec3, structures: Structures): boolean;
-  // Keeps `p` where a body of this class may be: a walker inside the world's outline, a dragon's
-  // head within its reach. The class's own step applies it as the body moves; a switch into the
-  // class applies it at once, at the same height (but never under the floor), so a dragon over the
-  // void lands a walker on the nearest edge rather than leaving them falling outside.
+  // Keeps `p` within the world's reach (Ground.keepWithin), the one barrier, its body's width short
+  // of it. The class's own step applies it as the body moves; a switch into the class applies it at
+  // once, where the body is: a dragon over the void turned walker falls into the drop.
   confine(p: PlayerState, ground: Ground): void;
   // Make and clear the class's own state on `p` as a player switches in and out of it.
   enter(p: PlayerState): void;
