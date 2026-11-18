@@ -2,7 +2,7 @@
 // guide's buttons name them: one per take, numbered where a line has more than one.
 import type { AvatarId } from '@world/shared';
 import { voiceOf, type SoundId } from '../audio/Sfx';
-import { VOICES } from '../audio/voices';
+import { twirlOf, VOICES } from '../audio/voices';
 
 export interface Line {
   label: string;
@@ -20,11 +20,12 @@ function takes(name: string, ids: readonly SoundId[] | undefined): Line[] {
 export function linesOf(avatar: AvatarId): Line[] {
   const voice = VOICES[avatar];
   const dragon = voiceOf(avatar);
+  const twirl = twirlOf(avatar);
   return [
     ...takes('Intro', voice.enter),
     ...(voice.jump ?? []).map((id, i) => ({ label: JUMPS[i] ?? `Jump ${i + 1}`, id })),
     ...takes('Long jump', voice.leap),
-    ...takes('Ground pound', voice.twirl && [voice.twirl]),
+    ...takes('Ground pound', twirl ? [twirl] : undefined),
     ...takes('Hurt', voice.hurt),
     ...takes('Kill', voice.kill),
     ...takes('Death', voice.death),

@@ -51,7 +51,7 @@ import {
 } from '@world/shared';
 import { Footsteps } from '../audio/Footsteps';
 import { ITEM_SOUNDS, heard, loopsOf, PLACE_THEMES, Sfx, voiceOf, type SoundId } from '../audio/Sfx';
-import { take, VOICES } from '../audio/voices';
+import { take, twirlOf, VOICES } from '../audio/voices';
 import { InputManager } from '../input/InputManager';
 import { MobileActions, type MobileActionState } from '../input/MobileActions';
 import { MobileControls } from '../input/MobileControls';
@@ -758,8 +758,8 @@ export class Game {
     if (stage === was) return;
     this.pounds.set(id, stage);
     const mine = id === this.myId;
-    if (stage === 'twirl')
-      this.sfx.play(VOICES[avatar].twirl ?? 'pound-twirl', mine ? null : at, { level: mine ? OWN_MOVE : 1 });
+    const twirl = twirlOf(avatar);
+    if (stage === 'twirl' && twirl) this.sfx.play(twirl, mine ? null : at, { level: mine ? OWN_MOVE : 1 });
     const pound = poundOf(avatar);
     const reach = pound && poundPower(pound, height).reach;
     if (stage === 'land' && reach) poundRing(this.engine, new Vector3(at.x, at.y - EYE_HEIGHT, at.z), reach);
