@@ -217,7 +217,7 @@ function soundboard(lines: Line[]): HTMLElement[] {
   const board = el('div', 'soundboard');
   for (const line of lines) {
     const b = el('button', '', `▶ ${line.label}`);
-    b.addEventListener('click', () => audition(line.id));
+    b.addEventListener('click', () => audition(line.id, line.rate));
     board.append(b);
   }
   return [el('h3', 'ability', 'Sounds'), board];

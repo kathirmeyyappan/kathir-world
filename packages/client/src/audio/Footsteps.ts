@@ -18,7 +18,7 @@ import {
 } from '@world/shared';
 import { GAITS } from '../render/avatars/gaits';
 import type { Sfx, SoundId } from './Sfx';
-import { take, VOICES } from './voices';
+import { shimmerOf, take, VOICES } from './voices';
 
 // What a step on each kind of surface sounds like: a different one each step.
 const FOOTFALLS: Record<Footfall, SoundId[]> = {
@@ -139,8 +139,9 @@ export class Footsteps {
       w.grounded = p.grounded;
       if (across > JUMPED || Math.abs(down) > JUMPED) continue;
       // A float shimmers for as long as it lasts.
-      w.shimmer = p.floating ? (w.shimmer ?? Math.random() * SHIMMER_FROM) : null;
-      if (w.shimmer !== null) loops.push({ key: p.id, id: 'float-sparkle', at, elapsed: w.shimmer });
+      const shimmer = p.floating ? shimmerOf(p.avatar) : null;
+      w.shimmer = shimmer ? (w.shimmer ?? Math.random() * SHIMMER_FROM) : null;
+      if (shimmer && w.shimmer !== null) loops.push({ key: p.id, id: shimmer, at, elapsed: w.shimmer });
 
       if (!p.grounded) {
         if (wasGrounded) {

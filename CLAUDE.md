@@ -945,7 +945,13 @@ them with), framed by its measured size. Its numbers are worked out in `guide/st
 registries the game runs on, never typed in, and its words are `guide/content.ts`, keyed by the
 registries' ids, so a new skin, item, gear or pickup doesn't build until it has an entry there:
 plain statements of what each thing is (Kathir writes anything more, and the fun facts), no numbers.
-The World tab opens on the world's map (`MapCanvas`, to drag about and zoom, `ui/mapControls.ts` as
+A character's SOUNDS are a button for every sound it makes that not every look makes alike
+(`guide/sounds.ts` `linesOf`): what it says (`VOICES`), the sounds of the moves it has, its own
+footsteps (`GAITS`) and a dragon's roars, rise and theme, leaving out what every look makes the same
+(the swoosh, the thuds, the hurt sound). A move's sound is a function of the look in
+`audio/voices.ts` (`twirlOf`, `swingOf`, `shimmerOf`) that the game plays and the guide lists, never
+a literal where it's played, so a look can't make a sound the guide doesn't show: a new look's or
+move's sound goes through one of those, or a new one, and into `linesOf`. The World tab opens on the world's map (`MapCanvas`, to drag about and zoom, `ui/mapControls.ts` as
 the menu's map is). Its photos are in `public/assets/guide/places/`, taken in the game offline with the
 boundary wall hidden, each with a `-thumb` for its gallery.
 
