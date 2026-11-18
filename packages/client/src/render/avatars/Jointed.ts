@@ -484,6 +484,11 @@ export class JointedAvatar extends WalkerAvatar {
     return walked;
   }
 
+  // Its head is the rig's, turned to the look (`walk`) as far as any head turns.
+  protected override headReach(): number {
+    return HEAD_LIMIT;
+  }
+
   // On a ladder, where the walker has put the body: each fist and foot on a rung of it, going up
   // in turn as the body climbs past, the hips in close and over the foot that bears them.
   protected override climb(p: RemotePlayer, feetY: number, dt: number): Pose {

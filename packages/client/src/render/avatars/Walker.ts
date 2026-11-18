@@ -25,6 +25,11 @@ const HEAD_GIVES_UP = 2.4;
 const HEAD_FADE = 0.8;
 const EASE_TURN = 0.12; // seconds a body takes to come round to face the way it's going
 const EASE_AIM = 0.06; // and to face its look, with something in its hand to aim
+// Radians the look may stray from the way a standing body faces before the body comes round to it:
+// as far as its head turns, or for a body with no head to turn, a little way, so it still shows
+// where it looks without spinning at every flick. Once round within SQUARED of the look, it stops.
+const HEADLESS_REACH = 0.35;
+const SQUARED = 0.05;
 export const MOVING = 0.4; // m/s across the floor that is going somewhere: under it the body keeps the way it had
 // Metres that is moving: a player's own body drifts by less on every frame, as its prediction's
 // correction dies away, and that isn't a step of the sim.
@@ -119,6 +124,7 @@ export class WalkerAvatar implements Avatar {
   private swing = 0; // radians the body has still to turn round the ladder after a swap
   protected facing = 0; // the way the body faces, radians in the world: the root's yaw
   protected turn = 0; // radians the body came round by this frame, on foot
+  private squaring = false; // whether a standing body is coming round to its look (HEADLESS_REACH)
   protected velX = 0; // m/s across the floor, in the world, as it last moved
   protected velZ = 0;
   protected sinking = false; // whether it last moved down
@@ -177,7 +183,8 @@ export class WalkerAvatar implements Avatar {
   // On the ground or in the air: the legs swing with the stride and the arms against them, the
   // body rising and rocking with it, the weapon arm pointed along the look while holding an item.
   // Empty-handed the body turns to face the way it's going and stays facing that way when it stops,
-  // the head turning to the look; with something to aim it faces its look, which gives the aim away.
+  // the head turning to the look until the look goes further round than the head can, when the body
+  // comes round to it; with something to aim it faces its look, which gives the aim away.
   protected walk(p: RemotePlayer, feetY: number, step: number, dt: number): Pose {
     const f = this.figure;
     this.held = null;
@@ -185,7 +192,17 @@ export class WalkerAvatar implements Avatar {
     this.root.position.set(p.x, feetY, p.z);
     const armed = p.item !== null;
     const going = Math.hypot(this.velX, this.velZ) > MOVING;
-    const want = p.dead ? this.facing : armed ? p.yaw : going ? Math.atan2(this.velX, this.velZ) : this.facing;
+    const astray = Math.abs(wrap(p.yaw - this.facing));
+    if (p.dead || armed || going) this.squaring = false;
+    else if (astray > this.headReach()) this.squaring = true;
+    else if (astray < SQUARED) this.squaring = false;
+    const want = p.dead
+      ? this.facing
+      : armed || this.squaring
+        ? p.yaw
+        : going
+          ? Math.atan2(this.velX, this.velZ)
+          : this.facing;
     this.turn = wrap(want - this.facing) * (1 - Math.exp((-3 * dt) / (armed ? EASE_AIM : EASE_TURN)));
     this.facing = wrap(this.facing + this.turn);
     this.root.rotation.set(0, this.facing, 0);
@@ -321,6 +338,11 @@ export class WalkerAvatar implements Avatar {
     Quaternion.FromRotationMatrixToRef(Matrix.FromXYZAxesToRef(RIGHT, AHEAD.negateToRef(DOWN_BARREL), TOP, AXES), HAND);
     swung.conjugateToRef(UNDO);
     UNDO.multiplyToRef(HAND, (grip.rotationQuaternion ??= new Quaternion()));
+  }
+
+  // Radians its head turns from the way the body faces to follow the look.
+  protected headReach(): number {
+    return this.figure.head ? HEAD_LIMIT : HEADLESS_REACH;
   }
 
   // How the body has moved since it last did: its speed across the floor, and whether it went up
