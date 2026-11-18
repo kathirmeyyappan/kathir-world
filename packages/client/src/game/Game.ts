@@ -51,7 +51,7 @@ import {
 } from '@world/shared';
 import { Footsteps } from '../audio/Footsteps';
 import { ITEM_SOUNDS, heard, loopsOf, PLACE_THEMES, Sfx, voiceOf, type SoundId } from '../audio/Sfx';
-import { take, VOICES } from '../audio/voices';
+import { swingOf, take, twirlOf, VOICES } from '../audio/voices';
 import { InputManager } from '../input/InputManager';
 import { MobileActions, type MobileActionState } from '../input/MobileActions';
 import { MobileControls } from '../input/MobileControls';
@@ -141,7 +141,6 @@ const OWN_WEAPON_SCALE = 2.2; // your own guns, seen from the boom: at true size
 const ECHO_DELAY = 0.5;
 const ECHO_LEVEL = 0.3;
 const GLOAT_DELAY = 0.4; // seconds after a kill that the killer's own line for one starts, clear of the shot
-const STRIKE_RATE = 0.7; // how fast the jump's swoosh is played for a strike's swing: slower and lower, a heavy bat's
 const OWN_MOVE = 0.6; // the share of its volume the player's own ground pound turns over at, as their own steps do (Footsteps.ts)
 const DEATH_SOUND_DELAY = 0.5; // seconds from dying to the look's death sound: the hurt sound or cry of the last hit, played out
 const CRY_GAP_MS = 600; // a player's cries at being hit come no closer together than this, however short the cry
@@ -758,8 +757,8 @@ export class Game {
     if (stage === was) return;
     this.pounds.set(id, stage);
     const mine = id === this.myId;
-    if (stage === 'twirl')
-      this.sfx.play(VOICES[avatar].twirl ?? 'pound-twirl', mine ? null : at, { level: mine ? OWN_MOVE : 1 });
+    const twirl = twirlOf(avatar);
+    if (stage === 'twirl' && twirl) this.sfx.play(twirl, mine ? null : at, { level: mine ? OWN_MOVE : 1 });
     const pound = poundOf(avatar);
     const reach = pound && poundPower(pound, height).reach;
     if (stage === 'land' && reach) poundRing(this.engine, new Vector3(at.x, at.y - EYE_HEIGHT, at.z), reach);
@@ -767,13 +766,14 @@ export class Game {
 
   // A player's strike (sim/avatars.ts `Strike`), `strike` being how far into one they are and `at`
   // their eye point: its swing is heard as it starts.
-  private striking(id: string, strike: number | null, at: Vec3): void {
+  private striking(id: string, avatar: AvatarId, strike: number | null, at: Vec3): void {
     const was = this.strikes.get(id);
     if (strike === null) this.strikes.delete(id);
     else this.strikes.set(id, strike);
     if (strike === null || (was !== undefined && strike >= was)) return;
+    const swing = swingOf(avatar);
     const mine = id === this.myId;
-    this.sfx.play('jump', mine ? null : at, { level: mine ? OWN_MOVE : 1, rate: STRIKE_RATE });
+    if (swing) this.sfx.play(swing.sound, mine ? null : at, { level: mine ? OWN_MOVE : 1, rate: swing.rate });
   }
 
   // One of a player's lines in their own voice (voices.ts), `delay` seconds from now, from where
@@ -1094,10 +1094,10 @@ export class Game {
       self.pos,
       self.pound ? self.pound.from - self.pos.y : 0,
     );
-    this.striking(this.myId, self.strike, self.pos);
+    this.striking(this.myId, self.avatar, self.strike, self.pos);
     for (const rp of sampled.players) {
       this.pounding(rp.id, rp.avatar, rp.pound, { x: rp.x, y: rp.y, z: rp.z }, rp.poundHeight);
-      this.striking(rp.id, rp.strike, { x: rp.x, y: rp.y, z: rp.z });
+      this.striking(rp.id, rp.avatar, rp.strike, { x: rp.x, y: rp.y, z: rp.z });
     }
     const readers = new Map<string, number>();
     const seen = new Set<string>();

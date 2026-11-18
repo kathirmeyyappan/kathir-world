@@ -69,7 +69,7 @@ h3.ability {
   font-size: 11px;
 }
 
-/* A character's voice lines, a button each. */
+/* A character's sounds, a button each. */
 .soundboard {
   display: flex;
   flex-wrap: wrap;

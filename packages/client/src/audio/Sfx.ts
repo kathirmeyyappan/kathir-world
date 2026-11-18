@@ -878,14 +878,18 @@ export class Sfx {
 let auditioned: HTMLAudioElement | null = null; // the sound last played off the game, stopped for the next
 
 // A sound by itself, where there's no game to play it in (the home screen): fetched as it's played,
-// at its own volume, in place of the last one played this way (null only stops that one), and not
-// at all with effects muted. It starts on a person's own click, which is what lets a page make sound.
-export function audition(id: SoundId | null): void {
+// at its own volume and at `rate` (speed and pitch together, as `play` takes it), in place of the
+// last one played this way (null only stops that one), and not at all with effects muted. It starts on a person's own click, which is what lets a page make sound.
+export function audition(id: SoundId | null, rate = 1): void {
   auditioned?.pause();
   auditioned = null;
   if (!id || loadMuted().has('effects')) return;
   const spec = SOUNDS[id];
-  auditioned = Object.assign(new Audio(`/assets/sounds/${spec.file}`), { volume: spec.volume });
+  auditioned = Object.assign(new Audio(`/assets/sounds/${spec.file}`), {
+    volume: spec.volume,
+    playbackRate: rate,
+    preservesPitch: false,
+  });
   void auditioned.play().catch(() => {});
 }
 

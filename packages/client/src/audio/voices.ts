@@ -2,7 +2,7 @@
 // expected to have (none, until its recording is added); the rest only some have: a jump, a long
 // jump, a hit, a kill and dying. Each line but the jump is a list of takes, one picked each time.
 // Anything a row leaves out is the sound every body makes there.
-import type { AvatarId } from '@world/shared';
+import { floatOf, poundOf, strikeOf, type AvatarId } from '@world/shared';
 import type { SoundId } from './Sfx';
 
 export interface Voice {
@@ -141,6 +141,29 @@ export const VOICES: Record<AvatarId, Voice> = {
   'light-dragon': { enter: [] },
   colgera: { enter: [] },
 };
+
+// The sounds of moves only some looks have, beside what they say: what the game plays for each
+// (Game.ts, Footsteps.ts) and what the guide lists under a look's sounds (guide/sounds.ts).
+export interface MoveSound {
+  sound: SoundId;
+  rate: number; // speed and pitch together, 1 as recorded
+}
+
+// A strike's swing (sim/avatars.ts `Strike`): the jump's swoosh slower and lower, a heavy bat's.
+export function swingOf(avatar: AvatarId): MoveSound | null {
+  return strikeOf(avatar) ? { sound: 'jump', rate: 0.7 } : null;
+}
+
+// A float's shimmer (sim/avatars.ts `Float`), looped for as long as the float lasts.
+export function shimmerOf(avatar: AvatarId): SoundId | null {
+  return floatOf(avatar) ? 'float-sparkle' : null;
+}
+
+// The whirl of a look's ground pound turning over: its own, or the one every look makes; null for a
+// look that can't pound.
+export function twirlOf(avatar: AvatarId): SoundId | null {
+  return poundOf(avatar) ? (VOICES[avatar].twirl ?? 'pound-twirl') : null;
+}
 
 // One of a line's takes, any of them.
 export function take(takes: SoundId[] | undefined): SoundId | undefined {
