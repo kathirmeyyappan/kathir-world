@@ -128,6 +128,9 @@ const BOB_EASE = 0.15; // seconds the bob takes to come and go with the walk
 const CUBE_SELECT_RANGE = 25; // cubes only from close by, so a far one isn't opened by accident
 const FRAME_RANGE = 40; // metres from a frame you can read its line: the tower's width, wall to wall
 const SCOPED_FOV = 0.3;
+// The scope's clear circle across the shorter side of the screen (35vmin either way, `#scope` in
+// styles.css); everything outside it is black.
+const SCOPE_CIRCLE = 0.7;
 const SCOPED_FOG_SCALE = 0.05; // thin the fog while scoped so the sniper can see across the world
 const HIP_KICK = 0.02;
 const SCOPED_KICK = 0.035;
@@ -536,6 +539,11 @@ export class Game {
     const cls = this.prediction ? classOf(this.prediction.state.avatar) : null;
     const fov = (cls ? VIEWS[cls.id].fov : VIEWS.walker.fov) * Math.pow(this.stature ?? 1, -FOV_SHRINK);
     return screenFov(fov, this.aspect());
+  }
+
+  // Radians from the look to the scope's circle's edge.
+  private scopeCone(): number {
+    return Math.atan(SCOPE_CIRCLE * Math.tan(SCOPED_FOV / 2) * Math.min(1, this.aspect()));
   }
 
   private aspect(): number {
@@ -1009,7 +1017,7 @@ export class Game {
     this.environment.setVisibility(this.scoped ? SCOPED_FOG_SCALE : 1);
     this.environment.update(dt, eye);
     this.frost.update(dt, this.camera.position);
-    this.interiors.update(this.camera, this.scoped);
+    this.interiors.update(this.camera, this.scoped ? this.scopeCone() : null);
     this.wallFrames.update(this.camera);
     const held = this.held;
     if (!held) this.setScoped(false);

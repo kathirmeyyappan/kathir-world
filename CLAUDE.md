@@ -113,9 +113,31 @@ before:
   reloads it from the browser's cache, decoded and uploaded through the loader's budget, so it
   costs no frame.
 - **Draw far landmarks as shells** once the world is wider than a scope sees in (`SIGHT` times
-  `SCOPED`, 375 m; it's about 250 m across): a landmark past that is a low-detail shell that keeps
+  `SCOPED`, 375 m; it's about 250 m across): a landmark past 450 m is a low-detail shell that keeps
   its outline against the sky, its full detail loaded as one comes within reach. Not before: within
   a scope's reach a swap is seen.
+
+The distances that decide what's fetched, drawn and let go are one system, and each is set
+against the others, scoped and unscoped alike. Whenever one changes or a new one is added, audit
+it against all of them for an order that would read as wrong in play (rooms fetched inside a
+shell, something let go while it's still in view, a fetch and a let-go on either side of one
+line, a door the scope shows clearly with nothing behind it) and say in the PR how each clash
+was settled. As they stand:
+
+| Distance | Unscoped | Scoped | What it decides |
+| --- | --- | --- | --- |
+| `NEAR` | 25 m | 25 m | an interior wanted whatever's in view |
+| `SIGHT` (× `SCOPED`, 3) | 125 m | 375 m | an interior wanted through an open opening in view (scoped, within the scope's circle and a little round it) |
+| Fog, 90% thick | about 126 m | about 560 m | what can be seen at all (`SCOPED_FOG_SCALE` follows the scope's real zoom, about 4.5×) |
+| `CRISP_RANGE` | 45 m | 45 m | a wall frame's picture drawn crisp rather than as a texture |
+| Letting interiors go | 200 m, unseen 30 s | same | once built; past every unscoped fetch, so no line flaps |
+| Far landmark shells | 450 m | 450 m | once built; past every interior fetch, so no rooms load inside a shell |
+
+Known and accepted: scoped, a doorway between 375 m and the fog's 560 m shows empty until you
+come nearer (12 to 17 px tall on a 900 px screen), and an interior a scope fetched past 200 m is let
+go 30 s after it's last seen and fetched again from the browser's cache if it's scoped again.
+`SCOPED` is the one scoped multiple for fetching detail; anything new that reaches further
+through a scope reads it rather than keeping its own.
 
 ## World geometry
 
