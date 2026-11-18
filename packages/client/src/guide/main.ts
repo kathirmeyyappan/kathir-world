@@ -79,7 +79,7 @@ interface Pick {
   entry: Entry;
   stats: () => Stat[];
   abilities?: () => { title: string; stats: Stat[] }[]; // what it can do that the rest can't, each under its own heading
-  lines?: Line[]; // what it says in its own voice, each a button that plays it
+  lines?: Line[]; // its sounds (voice lines and its moves' own), each a button that plays it
   view: { body: Shown } | { thing: Thing } | null;
 }
 
@@ -220,7 +220,7 @@ function soundboard(lines: Line[]): HTMLElement[] {
     b.addEventListener('click', () => audition(line.id));
     board.append(b);
   }
-  return [el('h3', 'ability', 'Voice'), board];
+  return [el('h3', 'ability', 'Sounds'), board];
 }
 
 // A list to pick from beside one thing shown in full, its 3D view (where it has one) kept across picks.

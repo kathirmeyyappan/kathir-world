@@ -1,4 +1,4 @@
-// Every line a character says in its own voice (VOICES, or a dragon's DRAGON_VOICES), as the
+// Every sound a character makes as its own (VOICES, its ground pound's whirl, or a dragon's DRAGON_VOICES), as the
 // guide's buttons name them: one per take, numbered where a line has more than one.
 import type { AvatarId } from '@world/shared';
 import { voiceOf, type SoundId } from '../audio/Sfx';
