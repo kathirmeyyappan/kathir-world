@@ -558,7 +558,7 @@ function botPage(id: BotId): HTMLElement {
   example.append(el('code', '', cmd), el('span', '', what));
   page.append(
     head,
-    botDiagram(id, BOT_DIAGRAM_TEXT[id]),
+    ...botDiagram(id, BOT_DIAGRAM_TEXT[id] ?? ''),
     el('p', 'summary', sentence(bot.blurb)),
     statTable(botFlagRows(id, BOT_FLAG_TEXT)),
     el('h3', '', 'For example'),

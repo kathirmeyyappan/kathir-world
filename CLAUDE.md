@@ -950,8 +950,8 @@ The World tab opens on the world's map (`MapCanvas`, to drag about and zoom, `ui
 the menu's map is). Its photos are in `public/assets/guide/places/`, taken in the game offline with the
 boundary wall hidden, each with a `-thumb` for its gallery.
 
-A diagram in the guide (each bot's page has one, `guide/botDiagrams.ts`, keyed by `BotId` so a new
-bot doesn't build without one) shows what something does, seen from above, and is built from the
+A diagram in the guide (each bot's page has one but the observer's, `guide/botDiagrams.ts`, keyed
+by `BotId` so a new bot doesn't build until it has one or a null) shows what something does, seen from above, and is built from the
 marks of `guide/diagram.ts` alone (`Diagram`: the subject, people, other bots, walls, rings, the
 strokes `move`, `detour`, `look`, `turn` and `shot`, a crosshair and labels) on its 640 × 360
 canvas, coloured by the `.diagram` rules in `guide.css`. Never colour or size a mark inline or add
