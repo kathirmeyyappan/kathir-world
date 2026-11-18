@@ -156,6 +156,19 @@ export class CrispPanels {
     return repaint;
   }
 
+  // Takes back everything `add` made for `mask`'s frame, leaving the mesh bare.
+  remove(mask: AbstractMesh): void {
+    const i = this.shown.findIndex((f) => f.mask === mask);
+    if (i < 0) return;
+    const [frame] = this.shown.splice(i, 1);
+    for (const { box } of frame.panels) box.remove();
+    frame.screen?.setEnabled(false);
+    frame.hole.dispose();
+    frame.still.dispose(false, true);
+    this.masks.delete(mask);
+    mask.material = null;
+  }
+
   // Put every panel where `camera` sees its mesh, and hide the ones out of view or far off.
   update(camera: Camera): void {
     // CSS's perspective puts the eye this many pixels in front of the screen.

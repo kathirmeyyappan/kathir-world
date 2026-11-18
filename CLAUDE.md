@@ -79,7 +79,8 @@ anything that can wait off the path everyone pays:
 - Anything heavy that stands somewhere (a model's parts, a region's meshes) registers with
   `render/Loader.ts` and arrives nearest first. What's inside a building (the pineapple's rooms,
   about 1.3 MB; a storey's pictures) is fetched only once it's wanted: within 25 m, or seen through
-  an open door within 125 m, 560 m scoped (`render/Interiors.ts`).
+  an open door within 125 m, 560 m scoped, and let go again once it's 200 m off and neither seen
+  nor wanted for 30 s (`render/Interiors.ts`).
 - A look's files (its model, 15 to 60 KB of code on foot and 260 to 300 KB a dragon, and its
   atlases, about 100 KB on foot and 600 KB a dragon) are fetched the first time someone is seen
   wearing it, as a skin's command is pointed at or sent, or as it's picked on the home screen
@@ -102,16 +103,13 @@ when something paid by everyone grows with each thing added. That pattern is the
 of hand, and the fix is to fetch each thing the first time someone meets it, as a look's body and
 voice are.
 
-Nothing loaded is ever let go (a death's reload is the only reset), and nothing outside a building
-waits on distance. Two changes wait on the world growing; make them when their sign shows, not
-before:
+An interior is let go past 200 m once it's been neither seen nor wanted for 30 s, well past
+`SIGHT` (125 m) where it's wanted unscoped, so walking back and forth across one line can't load
+and unload it over and over; coming back fetches it again from the browser's cache, through the
+loader's budget, and one part is begun or let go a frame at most, so neither costs a frame. Nothing
+else loaded is ever let go (a death's reload is the only reset), and nothing outside a building
+waits on distance. One change waits on the world growing; make it when its sign shows, not before:
 
-- **Let interiors go** once players regularly end up far from places they've been, or phones run
-  short of memory (a device pinned off a pixel size for crashing, `Picture`, is the sign): an
-  interior is unloaded past 200 m and unseen for 30 s, well past `SIGHT` (125 m) where it's wanted,
-  so walking back and forth across one line can't load and unload it over and over. Coming back
-  reloads it from the browser's cache, decoded and uploaded through the loader's budget, so it
-  costs no frame.
 - **Draw far landmarks as shells** once a model landmark can be further from where someone stands
   than a scope sees (`SCOPED_SIGHT`, 560 m; with the road out from the Krusty Krab the world is
   about 510 m across, and no model landmark is past 430 m from anywhere): a landmark past that is a
@@ -130,7 +128,7 @@ was settled. As they stand:
 | `NEAR` | 25 m | 25 m | an interior wanted whatever's in view |
 | `SIGHT`, `SCOPED_SIGHT` | 125 m | 560 m | the fog nine tenths thick (`BASE_FOG_DENSITY` and `SCOPED_FOG_SCALE` are worked out from them); an interior wanted through an open opening in view (scoped, within the scope's circle and a little round it); the sniper's range |
 | `CRISP_RANGE` | 45 m | 45 m | a wall frame's picture drawn crisp rather than as a texture |
-| Letting interiors go | 200 m, unseen 30 s | same | once built; past every unscoped fetch, so no line flaps |
+| `LET_GO`, `FORGET` | 200 m, 30 s | same | an interior let go, neither seen nor wanted for `FORGET`; past every unscoped fetch, so no line flaps |
 | Far landmark shells | past 560 m | same | once built; past where a scope sees, so no swap and no rooms inside a shell are seen |
 
 Known and accepted: an interior a scope fetched past 200 m is let go 30 s after it's last seen and
@@ -437,16 +435,21 @@ cylinder a camera is inside it within, and each interior's openings (a flat rect
 `wallOpening` for a gap in a round wall, `roofOpening` for a hole facing up, each reaching
 `MARGIN` past the gap, with the sim door that shuts it, if one does) and the others it `shows`
 through it (a stair's hole, a net ceiling). The client (`render/Interiors.ts`) loads an interior
-the first time it's wanted and draws it only while it could be seen. Seen: all of a building's from
+while it's wanted, draws it only while it could be seen, and lets it go once it's far off and long
+out of mind. Seen: all of a building's from
 inside it, and from outside, one with an opening in view, the camera on its outer side and its door
-open or swinging, with what it shows; once loaded, seeing waits on no distance. Wanted, for good:
+open or swinging, with what it shows; once loaded, seeing waits on no distance. Wanted:
 from inside its building or within `NEAR` (25 m) of its round whatever's in view, so a door swung
 open in front of you shows rooms already there, and while it's seen through an opening within
-`SIGHT` (125 m, where a doorway is all but fog), `SCOPED_SIGHT` (560 m) through a scope. Whatever is
-part of one registers with `Interiors.add`, with a `load` begun when it's first wanted (none for
-what's there from the start) and a `show`: a model's part by its `floor` (interior
+`SIGHT` (125 m, where a doorway is all but fog), `SCOPED_SIGHT` (560 m) through a scope. Let go:
+loaded, more than `LET_GO` (200 m) from its building, and neither seen nor wanted for `FORGET` (30
+s). Whatever is part of one registers with `Interiors.add`, with a `load` begun whenever it's
+wanted and not here and an `unload` that lets all of it go (neither for what's there from the
+start), and a `show`: a model's part by its `floor` (interior
 `<model>:<floor>`), fetched through the loader then, and a wall frame by its room's
-(`RoundRoom.interior`, a keep's storeys named `<name>:<floor>`), its picture fetched then. The doors
+(`RoundRoom.interior`, a keep's storeys named `<name>:<floor>`), its picture fetched then; let go,
+a part's mesh is disposed with its material and texture, and a picture's panels are taken back
+(`CrispPanels.remove`). The doors
 in the pineapple's shell are drawn from outside with the outside, so they're painted from an atlas
 of their own (`doors.png`), the rooms' (`interior.png`) waiting with the rooms. A keep's stair and floors aren't split from its walls (about 13k triangles
 across the tower's four storeys), and the Krusty Krab has none: its glazed front shows the dining
