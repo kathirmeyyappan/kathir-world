@@ -15,6 +15,8 @@ import {
   forgetRoom,
   joinRoom,
   rememberRoom,
+  NAME_KEY,
+  SKIN_KEY,
   rememberedRoom,
   warmLobby,
   type JoinMode,
@@ -31,8 +33,6 @@ export interface HomeResult {
   name: string;
 }
 
-const NAME_KEY = 'world.name';
-const SKIN_KEY = 'world.skin';
 // The dropdown's first choice: the standard body in a named color drawn afresh each time the page
 // loads, so that people who keep it don't all join alike. The choice is kept, never the color.
 const STANDARD = 'standard';
