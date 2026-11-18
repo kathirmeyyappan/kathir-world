@@ -21,6 +21,7 @@
 // loading): audit them together.
 import { Axis, BoundingBox, Frustum, Vector3, type Camera, type Plane } from '@babylonjs/core';
 import { SCOPED_SIGHT, SIGHT, type InteriorBuilding, type Opening } from '@world/shared';
+import { Held, type Part } from './Held';
 
 const NEAR = 25; // metres from a building's round within which all its interiors are wanted
 const GRACE = 0.05; // radians round the scope's circle an opening is wanted from
@@ -35,19 +36,6 @@ interface Watched {
   out: Vector3;
 }
 
-// Something drawn as part of an interior: `load` fetches and builds it, begun whenever the interior
-// is wanted and it isn't here, and `unload` lets all of it go again (a part that's there from the
-// start has neither); `show` is told whether to draw it, once it's loaded and whenever that changes.
-export interface InteriorPart {
-  load?: () => Promise<void>;
-  unload?: () => void;
-  show: (on: boolean) => void;
-}
-
-interface Registered extends InteriorPart {
-  status: 'gone' | 'loading' | 'here';
-}
-
 interface State {
   building: InteriorBuilding;
   seen: boolean;
@@ -60,7 +48,7 @@ export class Interiors {
   private readonly openings = new Map<string, Watched[]>();
   // Each building's upright cylinder as a box: none of its openings is in view unless this is.
   private readonly boxes = new Map<InteriorBuilding, BoundingBox>();
-  private readonly parts = new Map<string, Registered[]>();
+  private readonly parts = new Map<string, Held[]>();
   private readonly states = new Map<string, State>();
 
   // `ajar` says whether a sim door is open, or still swinging: shut, its opening shows nothing.
@@ -80,12 +68,13 @@ export class Interiors {
     }
   }
 
-  add(id: string, part: InteriorPart): void {
+  // Something drawn as part of the interior `id`: wanted, let go and shown with it.
+  add(id: string, part: Part): void {
     const state = this.states.get(id);
     if (!state) throw new Error(`no interior ${id}`);
-    const registered: Registered = { ...part, status: part.load ? 'gone' : 'here' };
-    this.parts.set(id, [...(this.parts.get(id) ?? []), registered]);
-    if (registered.status === 'here') registered.show(state.seen);
+    const held = new Held(part, id);
+    this.parts.set(id, [...(this.parts.get(id) ?? []), held]);
+    held.show(state.seen);
   }
 
   // Once a frame, with the camera placed for it, and while scoped `scope`, the radians from the look
@@ -126,40 +115,21 @@ export class Interiors {
       if (is || wanted.has(id)) state.keptAt = now;
       if (wanted.has(id)) {
         const gone = parts.find((p) => p.status === 'gone');
-        if (gone) begin ??= () => this.load(id, gone);
+        if (gone) begin ??= () => gone.want();
       } else if (
         now - state.keptAt > FORGET * 1000 &&
         fromBuilding(state.building, at) > LET_GO &&
         parts.every((p) => p.status !== 'loading')
       ) {
-        const here = parts.find((p) => p.unload && p.status === 'here');
-        if (here) letGo ??= () => this.unload(here);
+        const here = parts.find((p) => p.canLetGo);
+        if (here) letGo ??= () => here.letGo();
       }
       if (is === state.seen) continue;
       state.seen = is;
-      for (const part of parts) if (part.status === 'here') part.show(is);
+      for (const part of parts) part.show(is);
     }
     begin?.();
     letGo?.();
-  }
-
-  private load(id: string, part: Registered): void {
-    part.status = 'loading';
-    part.load!()
-      .then(() => {
-        part.status = 'here';
-        part.show(this.states.get(id)!.seen);
-      })
-      .catch((e: unknown) => {
-        part.status = 'gone'; // tried again the next time it's wanted
-        console.error(`loading ${id}`, e);
-      });
-  }
-
-  private unload(part: Registered): void {
-    part.show(false);
-    part.unload!();
-    part.status = 'gone';
   }
 
   private through(w: Watched, at: Vector3, planes: Plane[]): boolean {
