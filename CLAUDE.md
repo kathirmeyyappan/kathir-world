@@ -102,6 +102,21 @@ when something paid by everyone grows with each thing added. That pattern is the
 of hand, and the fix is to fetch each thing the first time someone meets it, as a look's body and
 voice are.
 
+Nothing loaded is ever let go (a death's reload is the only reset), and nothing outside a building
+waits on distance. Two changes wait on the world growing; make them when their sign shows, not
+before:
+
+- **Let interiors go** once players regularly end up far from places they've been, or phones run
+  short of memory (a device pinned off a pixel size for crashing, `Picture`, is the sign): an
+  interior is unloaded past 200 m and unseen for 30 s, well past `SIGHT` (125 m) where it's wanted,
+  so walking back and forth across one line can't load and unload it over and over. Coming back
+  reloads it from the browser's cache, decoded and uploaded through the loader's budget, so it
+  costs no frame.
+- **Draw far landmarks as shells** once the world is wider than a scope sees in (`SIGHT` times
+  `SCOPED`, 375 m; it's about 250 m across): a landmark past that is a low-detail shell that keeps
+  its outline against the sky, its full detail loaded as one comes within reach. Not before: within
+  a scope's reach a swap is seen.
+
 ## World geometry
 
 Buildings, walls, platforms, ramps and terrain are structures: plain data listed in
@@ -369,11 +384,17 @@ needs of it: a new model is a script, its files, and a row in `MODELS` there.
 
 Nothing is fetched at startup. `render/Loader.ts` streams the world in: anything heavy that stands
 somewhere (a region's structure meshes to build, a model part to fetch) registers with where it is,
-and each frame the nearest thing not yet begun is begun, so the player is in the world at once and
-it fills in round them nearest first, the far side within a second or two. Nothing outside waits on
+and the nearest things not yet begun are begun first, so the player is in the world at once and it
+fills in round them nearest first, the far side within a second or two. Nothing outside waits on
 distance (a scope sees the far side as sharp as the near); the loader only sets the order. What's
-inside a building waits until it's wanted (see Interiors). Register
-a new model or any big build with it rather than loading it in the constructor.
+inside a building waits until it's wanted (see Interiors). No frame waits on loading: each thing's
+load is a job, a generator that yields between pieces of its work (a region yields after every
+piece it places) or yields a fetch to wait on (`yield* wait(promise)`), and each frame the loader
+steps the jobs that are ready only until `BUDGET_MS` of it is spent, the rest carrying on the next.
+A region is built as plain vertex data (`VertexData`, each piece placed where it stands and all of
+them joined) and only then made one mesh, so nothing is made and thrown away per piece. Register a
+new model or any big build with the loader as a job that yields, rather than loading it in the
+constructor or in one go.
 
 A door (`sim/doors.ts`) is a slab on a hinge, shut or swung open, kept by the Room for everyone:
 `doorPieces` makes its two hidden structures (where it stands shut, where it stands open), each

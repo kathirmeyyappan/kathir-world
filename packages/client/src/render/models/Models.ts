@@ -19,7 +19,7 @@ import {
 } from '@world/shared';
 import type { Engine } from '../Engine';
 import type { Interiors } from '../Interiors';
-import type { Loader } from '../Loader';
+import { wait, type Loader } from '../Loader';
 import { KRUSTY_KRAB_PARTS } from './krustyKrabParts';
 import { PINEAPPLE_PARTS } from './pineappleParts';
 
@@ -109,11 +109,14 @@ export class Models {
             loader.add({
               x,
               z,
-              load: () =>
-                fetchPart(scene, model.name, part, parent).then((m) => {
-                  mesh = m;
+              load: function* () {
+                try {
+                  mesh = yield* fetchPart(scene, model.name, part, parent);
                   done();
-                }, fail),
+                } catch (e: unknown) {
+                  fail(e);
+                }
+              },
             }),
           );
         if (part.floor) interiors.add(`${model.name}:${part.floor}`, { load, show: (on) => mesh?.setEnabled(on) });
@@ -161,8 +164,14 @@ function swung(door: { open: boolean; at: number }, now: number): number {
 // centimetres (Int16), texture coordinates (Uint16, UV_UNIT to the repeat), triangles (Uint16),
 // unit normals (Int8). Drawn both sides (the leaves and the rooms' walls are single sheets) unless
 // the part says nothing looks at its inside.
-async function fetchPart(scene: Scene, model: string, part: Part, parent: TransformNode): Promise<Mesh> {
-  const buffer = await (await fetch(`/assets/models/${model}/${part.name}.bin`)).arrayBuffer();
+function* fetchPart(
+  scene: Scene,
+  model: string,
+  part: Part,
+  parent: TransformNode,
+): Generator<Promise<unknown> | void, Mesh, unknown> {
+  const url = `/assets/models/${model}/${part.name}.bin`;
+  const buffer = yield* wait(fetch(url).then((r) => r.arrayBuffer()));
   const [vertices, triangles] = new Uint32Array(buffer, 0, 2);
   let at = 8;
   const positions = new Int16Array(buffer, at, vertices * 3);
@@ -173,10 +182,10 @@ async function fetchPart(scene: Scene, model: string, part: Part, parent: Transf
   at += triangles * 6;
   const normals = new Int8Array(buffer, at, vertices * 3);
   const data = new VertexData();
-  data.positions = Array.from(positions, (cm) => cm / 100);
-  data.uvs = Array.from(uvs, (u) => u / UV_UNIT);
-  data.indices = Array.from(indices);
-  data.normals = Array.from(normals, (n) => n / 127);
+  data.positions = Float32Array.from(positions, (cm) => cm / 100);
+  data.uvs = Float32Array.from(uvs, (u) => u / UV_UNIT);
+  data.indices = indices;
+  data.normals = Float32Array.from(normals, (n) => n / 127);
   const mesh = new Mesh(`model-${model}-${part.name}`, scene);
   data.applyToMesh(mesh);
   const image = new Texture(
