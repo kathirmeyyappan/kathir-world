@@ -131,7 +131,9 @@ const SCOPED_FOV = 0.3;
 // The scope's clear circle across the shorter side of the screen (35vmin either way, `#scope` in
 // styles.css); everything outside it is black.
 const SCOPE_CIRCLE = 0.7;
-const SCOPED_FOG_SCALE = 0.05; // thin the fog while scoped so the sniper can see across the world
+// Thins the fog while scoped so the sniper can see across the world. One of the client's loading and
+// drawing distances, set against the rest (CLAUDE.md, Client loading): change them together.
+const SCOPED_FOG_SCALE = 0.05;
 const HIP_KICK = 0.02;
 const SCOPED_KICK = 0.035;
 const KICK_HALF_LIFE = 0.06;

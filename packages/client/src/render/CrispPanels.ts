@@ -35,7 +35,9 @@ import type { FramePanel } from '@world/shared';
 import type { Engine } from './Engine';
 
 const CSS_PX_PER_M = 100; // the scale view space is put into before CSS's perspective divide
-const CRISP_RANGE = 45; // metres: a round room's width, and a little past where a frame's line reads
+// Metres: a round room's width, and a little past where a frame's line reads. One of the client's
+// loading and drawing distances, set against the rest (CLAUDE.md, Client loading).
+const CRISP_RANGE = 45;
 const FADE = 10; // metres inside CRISP_RANGE over which the still picture gives way to the crisp one
 
 interface Panel {
