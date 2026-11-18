@@ -3,7 +3,7 @@
 // Gear (sim/gear.ts) is the other kind of item, worn in its own slot beside the weapon. Adding a weapon means adding a row here, a shape in the client's Weapons.ts (a hold weapon
 // with an element gets a tank and a jet in that element's colours too), a sound in the client's
 // ITEM_SOUNDS, and nothing on the wire: every item action travels inside the input frame.
-import { CHILL_SECONDS, SCOPED_SIGHT, TICK_RATE } from './constants';
+import { CHILL_SECONDS, TICK_RATE } from './constants';
 import { HEADSHOT_MULTIPLIER } from './health';
 
 export type ItemId = 'gun' | 'sniper' | 'flamethrower' | 'ice-blower' | 'firebreath' | 'frostbreath';
@@ -82,7 +82,7 @@ export const ITEMS: Record<ItemId, ItemSpec> = {
   sniper: {
     id: 'sniper',
     name: 'sniper',
-    range: SCOPED_SIGHT, // as far as a scope can see anyone
+    range: 1000, // past what a scope sees through the fog (SCOPED_SIGHT): a shot into it still lands
     damage: 4,
     cooldownTicks: 30,
     actions: { shoot: { key: null, mode: 'tap' }, scope: { key: 'KeyF', mode: 'toggle' } },
