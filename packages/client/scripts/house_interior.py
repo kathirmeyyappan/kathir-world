@@ -2065,14 +2065,16 @@ def split_repeats(tri: Triangle) -> list[Triangle]:
 
 
 def pack_atlas(
-    interior: Interior, quantize: int = QUANTIZE
+    interior: Interior, quantize: int = QUANTIZE, only: set[int] | None = None
 ) -> tuple[Image.Image, dict[int, tuple[float, float, float, float]]]:
-    """One image of every texture the rooms use, each at its own size with its edge repeated
-    TEXTURE_PAD round it, brought down to `quantize` colours (no dither, so shading goes flat like
-    the world's painted textures), the netting's black made clear; and where each material's
-    repeat lies in it (left, top, width, height, as fractions)."""
+    """One image of every texture the rooms use (or the materials `only` names), each at its own
+    size with its edge repeated TEXTURE_PAD round it, brought down to `quantize` colours (no dither,
+    so shading goes flat like the world's painted textures), the netting's black made clear; and
+    where each material's repeat lies in it (left, top, width, height, as fractions)."""
     cells: list[tuple[int, Image.Image]] = []
     for m, name in enumerate(interior.materials):
+        if only is not None and m not in only:
+            continue
         image = interior.images[m]
         if image is None:
             image = Image.new("RGB", (8, 8), SWATCHES[name])

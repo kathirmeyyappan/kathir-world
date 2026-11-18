@@ -77,7 +77,9 @@ anything that can wait off the path everyone pays:
 - Code is one chunk (1.15 MB gzipped), mostly the engine. A dynamic `import()` takes something out
   of it, as every look's model is (below).
 - Anything heavy that stands somewhere (a model's parts, a region's meshes) registers with
-  `render/Loader.ts` and arrives nearest first.
+  `render/Loader.ts` and arrives nearest first. What's inside a building (the pineapple's rooms,
+  about 1.3 MB; a storey's pictures) is fetched only once it's wanted: within 25 m, or seen through
+  an open door within 125 m, three times that scoped (`render/Interiors.ts`).
 - A look's files (its model, 15 to 60 KB of code on foot and 260 to 300 KB a dragon, and its
   atlases, about 100 KB on foot and 600 KB a dragon) are fetched the first time someone is seen
   wearing it, as a skin's command is pointed at or sent, or as it's picked on the home screen
@@ -368,8 +370,9 @@ needs of it: a new model is a script, its files, and a row in `MODELS` there.
 Nothing is fetched at startup. `render/Loader.ts` streams the world in: anything heavy that stands
 somewhere (a region's structure meshes to build, a model part to fetch) registers with where it is,
 and each frame the nearest thing not yet begun is begun, so the player is in the world at once and
-it fills in round them nearest first, the far side within a second or two. Nothing waits on
-distance (a scope sees the far side as sharp as the near); the loader only sets the order. Register
+it fills in round them nearest first, the far side within a second or two. Nothing outside waits on
+distance (a scope sees the far side as sharp as the near); the loader only sets the order. What's
+inside a building waits until it's wanted (see Interiors). Register
 a new model or any big build with it rather than loading it in the constructor.
 
 A door (`sim/doors.ts`) is a slab on a hinge, shut or swung open, kept by the Room for everyone:
@@ -389,13 +392,19 @@ building lists its own (`InteriorBuilding`, gathered in `content/interiors.ts`):
 cylinder a camera is inside it within, and each interior's openings (a flat rectangle facing out:
 `wallOpening` for a gap in a round wall, `roofOpening` for a hole facing up, each reaching
 `MARGIN` past the gap, with the sim door that shuts it, if one does) and the others it `shows`
-through it (a stair's hole, a net ceiling). The client draws an interior only while it could be
-seen (`render/Interiors.ts`): all of a building's from inside it, and from outside, one with an
-opening in view, the camera on its outer side and its door open or swinging, with what it shows.
-Nothing waits on distance, so a scope through a door sees in as a look up close does. Whatever is
-drawn as part of one registers with `Interiors.add`: a model's part by its `floor` (interior
-`<model>:<floor>`), a wall frame by its room's (`RoundRoom.interior`, a keep's storeys named
-`<name>:<floor>`). A keep's stair and floors aren't split from its walls (about 13k triangles
+through it (a stair's hole, a net ceiling). The client (`render/Interiors.ts`) loads an interior
+the first time it's wanted and draws it only while it could be seen. Seen: all of a building's from
+inside it, and from outside, one with an opening in view, the camera on its outer side and its door
+open or swinging, with what it shows; once loaded, seeing waits on no distance. Wanted, for good:
+from inside its building or within `NEAR` (25 m) of its round whatever's in view, so a door swung
+open in front of you shows rooms already there, and while it's seen through an opening within
+`SIGHT` (125 m, where a doorway is all but fog), `SCOPED` (3) times that through a scope. Whatever is
+part of one registers with `Interiors.add`, with a `load` begun when it's first wanted (none for
+what's there from the start) and a `show`: a model's part by its `floor` (interior
+`<model>:<floor>`), fetched through the loader then, and a wall frame by its room's
+(`RoundRoom.interior`, a keep's storeys named `<name>:<floor>`), its picture fetched then. The doors
+in the pineapple's shell are drawn from outside with the outside, so they're painted from an atlas
+of their own (`doors.png`), the rooms' (`interior.png`) waiting with the rooms. A keep's stair and floors aren't split from its walls (about 13k triangles
 across the tower's four storeys), and the Krusty Krab has none: its glazed front shows the dining
 room from anywhere before it. A shut door's outline is a pixel either way of its edge, where what's
 behind it shows, so there the culling isn't pixel-exact. Check a new opening or interior by

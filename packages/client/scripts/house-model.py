@@ -322,11 +322,22 @@ def main(outside: str, rooms: str) -> None:
         rooms = MeshBuilder()
         rooms.add(inside.in_atlas([t for t in interior.tris if floor_of(interior, t) == floor], places))
         emit_part(MODELS_OUT / f"interior-{floor}.bin", rooms, {})
+    # The doors in the shell's doorways are drawn from outside, with the outside, so they take their
+    # paint from an atlas of their own: the rooms' is fetched only when the rooms are wanted.
+    shell_materials = {
+        inside.material(interior, m)
+        for d in interior.doors
+        if d.id in SHELL_DOORS and d.texture == "interior"
+        for m in [d.material, *(m for _, m in d.trim)]
+    }
+    doors_atlas, door_places = inside.pack_atlas(interior, only=shell_materials)
+    doors_atlas.save(MODELS_OUT / "doors.png", optimize=True)
     for d in interior.doors:
         panel = MeshBuilder()
         if d.texture == "interior":
-            panel.add(inside.in_atlas([(t, inside.material(interior, d.material)) for t in d.mesh], places))
-            panel.add(inside.in_atlas([(t, inside.material(interior, m)) for t, m in d.trim], places))
+            at = door_places if d.id in SHELL_DOORS else places
+            panel.add(inside.in_atlas([(t, inside.material(interior, d.material)) for t in d.mesh], at))
+            panel.add(inside.in_atlas([(t, inside.material(interior, m)) for t, m in d.trim], at))
         else:
             panel.add(d.mesh)
         emit_part(MODELS_OUT / f"door-{d.id}.bin", panel, {})
@@ -1202,7 +1213,7 @@ def emit_parts_list(interior: inside.Interior) -> None:
         *(
             (
                 f"door-{d.id}",
-                d.texture,
+                "doors" if d.id in SHELL_DOORS and d.texture == "interior" else d.texture,
                 False,
                 d.texture == "interior",
                 True,

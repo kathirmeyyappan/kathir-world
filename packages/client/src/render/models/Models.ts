@@ -6,8 +6,8 @@
 // the structures the content hides inside them, so what you bump into is theirs to keep true to the
 // models. Each door hangs on a node at its pin and swings to the state the Room tells us
 // (sim/doors.ts) over DOOR_SWING_SECONDS; a door of two leaves has a node for each. A part of a
-// floor of rooms is drawn only while that floor could be seen (Interiors.ts): its interior is
-// `<model>:<floor>`.
+// floor of rooms is fetched when that floor is first wanted and drawn only while it could be seen
+// (Interiors.ts): its interior is `<model>:<floor>`.
 import { Color3, Mesh, StandardMaterial, Texture, TransformNode, VertexData, type Scene } from '@babylonjs/core';
 import {
   DOOR_SWING_SECONDS,
@@ -101,14 +101,23 @@ export class Models {
       }
       for (const part of model.parts) {
         const parent = part.door ? hinges.get(part.door)! : root;
-        loader.add({
-          x: model.placement.x,
-          z: model.placement.z,
-          load: async () => {
-            const mesh = await fetchPart(scene, model.name, part, parent);
-            if (part.floor) interiors.add(`${model.name}:${part.floor}`, (seen) => mesh.setEnabled(seen));
-          },
-        });
+        const { x, z } = model.placement;
+        // A part inside is fetched when its floor is first wanted, through the loader all the same.
+        let mesh: Mesh | null = null;
+        const load = () =>
+          new Promise<void>((done, fail) =>
+            loader.add({
+              x,
+              z,
+              load: () =>
+                fetchPart(scene, model.name, part, parent).then((m) => {
+                  mesh = m;
+                  done();
+                }, fail),
+            }),
+          );
+        if (part.floor) interiors.add(`${model.name}:${part.floor}`, { load, show: (on) => mesh?.setEnabled(on) });
+        else void load();
       }
     }
   }
