@@ -24,7 +24,7 @@ import { EYE_HEIGHT, TICK_RATE } from './constants';
 import { lookDirection } from './look';
 import type { ItemSpec } from './items';
 import type { InputFrame, PlayerState, Vec3 } from './types';
-import { OUTSIDE_HEIGHT, WORLD_SHAPE, worldDistance, worldReach, type WorldPart } from './world';
+import { OUTSIDE_HEIGHT, type Ground } from './ground';
 
 export const MIN_ALTITUDE = 5; // metres the head keeps above whatever is under it
 export const HEAD_YAW = 0.5; // radians the head can turn round from the way the neck runs
@@ -143,7 +143,7 @@ export const DRAGON: ClassSpec = {
   },
   actionTicks: ROAR_SECONDS * TICK_RATE,
   fits,
-  confine: (p, shape) => clampToSky(p.pos, shape, dragonShape(p.avatar).headRadius),
+  confine: (p, ground) => clampToSky(p.pos, ground, dragonShape(p.avatar).headRadius),
   enter(p) {
     p.dragon = createDragon(p.pos, dragonShape(p.avatar));
   },
@@ -175,13 +175,7 @@ function fits(avatar: AvatarId, pos: Vec3, structures: Structures): boolean {
   return true;
 }
 
-export function stepDragon(
-  p: PlayerState,
-  input: InputFrame | null,
-  dt: number,
-  shape: WorldPart[],
-  structures: Structures,
-): number {
+export function stepDragon(p: PlayerState, input: InputFrame | null, dt: number, structures: Structures): number {
   const body = dragonShape(p.avatar);
   const d = p.dragon ?? (p.dragon = createDragon(p.pos, body));
   if (p.dead) {
@@ -191,7 +185,7 @@ export function stepDragon(
   // Nothing moves without a frame: a tick the server runs while a frame is late would carry the
   // head on where the rider's own prediction, which steps once per frame, did not.
   if (!input) return 0;
-  if (d.risen) fly(p, d, body, input, dt, shape, structures);
+  if (d.risen) fly(p, d, body, input, dt, structures);
   else emerge(p, d, body, dt, structures);
   return 0;
 }
@@ -218,7 +212,6 @@ function fly(
   body: DragonShape,
   input: InputFrame,
   dt: number,
-  shape: WorldPart[],
   structures: Structures,
 ): void {
   const head = p.pos;
@@ -231,7 +224,7 @@ function fly(
   const step = d.speed * dt;
   const from = { ...head };
   const r = body.headRadius;
-  const ground = groundUnder(head, r, structures, shape);
+  const ground = groundUnder(head, r, structures);
   // Up or down first, stopped under any underside and MIN_ALTITUDE over whatever is below (a dive
   // stops there; where the ground rises, the head climbs at CLIMB_SPEED); then across, pushed out
   // of walls, and back where it was if that still leaves the head in one (a doorway's jambs, a
@@ -242,11 +235,11 @@ function fly(
   const floor = ground + MIN_ALTITUDE;
   if (head.y < floor) head.y = Math.min(floor, Math.max(head.y, from.y) + CLIMB_SPEED * dt);
   structures.move(head, dir.x * step, dir.z * step, headBody(head.y, r));
-  clampToSky(head, shape, r);
+  clampToSky(head, structures.ground, r);
   // Down in the drop past the edge, the floor's rim is a wall the head climbs at CLIMB_SPEED, held
   // off it, until it's MIN_ALTITUDE over the floor and can come in.
-  const inward = from.y < MIN_ALTITUDE ? worldDistance(head.x, head.z, shape) : Infinity;
-  if (inward < r && inward < worldDistance(from.x, from.z, shape)) {
+  const inward = from.y < MIN_ALTITUDE ? structures.ground.edge(head.x, head.z) : Infinity;
+  if (inward < r && inward < structures.ground.edge(from.x, from.z)) {
     head.x = from.x;
     head.z = from.z;
     head.y = Math.min(MIN_ALTITUDE, Math.max(head.y, from.y) + CLIMB_SPEED * dt);
@@ -261,18 +254,18 @@ function fly(
 
 // The ground under (x, z) for a dragon whose underside reaches up to `reach`: the structures' (or
 // the floor) inside the world's edge, and past it the ground drawn OUTSIDE_HEIGHT down.
-function groundAt(x: number, z: number, reach: number, structures: Structures, shape = WORLD_SHAPE): number {
-  return worldDistance(x, z, shape) > 0 ? OUTSIDE_HEIGHT : structures.groundAt(x, z, reach);
+function groundAt(x: number, z: number, reach: number, structures: Structures): number {
+  return structures.ground.inside(x, z) ? structures.groundAt(x, z, reach) : OUTSIDE_HEIGHT;
 }
 
 // The highest ground under any of the head: read at its centre and round its edge, so a merlon or
 // a step at the edge lifts the head over itself before the head reaches it.
-function groundUnder(head: Vec3, r: number, structures: Structures, shape: WorldPart[]): number {
+function groundUnder(head: Vec3, r: number, structures: Structures): number {
   // Well inside the edge, all of it is over the structures' ground; only near it is the drop asked about.
   const under =
-    worldDistance(head.x, head.z, shape) < -r
+    structures.ground.edge(head.x, head.z) < -r
       ? (x: number, z: number) => structures.groundAt(x, z, head.y)
-      : (x: number, z: number) => groundAt(x, z, head.y, structures, shape);
+      : (x: number, z: number) => groundAt(x, z, head.y, structures);
   let ground = under(head.x, head.z);
   for (let i = 0; i < GROUND_SAMPLES; i++) {
     const a = (i / GROUND_SAMPLES) * 2 * Math.PI;
@@ -282,8 +275,8 @@ function groundUnder(head: Vec3, r: number, structures: Structures, shape: World
 }
 
 // Keeps a head of radius `r` within the world's reach.
-function clampToSky(head: Vec3, shape: WorldPart[], r: number): void {
-  const reach = worldReach(shape) - r;
+function clampToSky(head: Vec3, ground: Ground, r: number): void {
+  const reach = ground.reach - r;
   const out = Math.hypot(head.x, head.z);
   if (out > reach) {
     head.x *= reach / out;

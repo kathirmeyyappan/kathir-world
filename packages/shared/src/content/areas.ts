@@ -4,7 +4,8 @@
 // (the terrace, the sky bridge) is the terrace. The open floor between the buildings, the floor
 // bridge and the paths are in no area, and keep the last name.
 import type { Vec3 } from '../sim/types';
-import { ANNEX, BUILDING_GROUNDS, KRUSTY_KRAB_GROUNDS, MAIN_DISC, partDistance, type WorldPart } from '../sim/world';
+import { partDistance, type WorldPart } from '../sim/ground';
+import { ANNEX, BUILDING_GROUNDS, KRUSTY_KRAB_GROUNDS, MAIN_DISC } from '../sim/outline';
 import { BUILDING_NAMES } from './buildings';
 
 export interface Area {

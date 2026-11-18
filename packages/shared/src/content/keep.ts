@@ -22,7 +22,7 @@ import {
 import { roofOpening, wallOpening, type InteriorBuilding } from '../sim/interiors';
 import type { Region } from '../sim/regions';
 import type { RoundRoom } from '../sim/wallFrames';
-import type { Disc } from '../sim/world';
+import type { Disc } from '../sim/ground';
 
 export const deg = (d: number) => (d * Math.PI) / 180; // angles run from +x toward +z
 export const OUTER = 20; // outside face of the wall

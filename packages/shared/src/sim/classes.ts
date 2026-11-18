@@ -9,7 +9,7 @@ import { DRAGON } from './dragon';
 import type { ActionSpec, ItemAction, ItemSpec } from './items';
 import type { InputFrame, PlayerState, Vec3 } from './types';
 import { WALKER } from './walker';
-import type { WorldPart } from './world';
+import type { Ground } from './ground';
 
 export type PlayerClass = 'walker' | 'asian-dragon';
 
@@ -57,13 +57,13 @@ export interface ClassSpec {
   // head within its reach. The class's own step applies it as the body moves; a switch into the
   // class applies it at once, at the same height (but never under the floor), so a dragon over the
   // void lands a walker on the nearest edge rather than leaving them falling outside.
-  confine(p: PlayerState, shape: WorldPart[]): void;
+  confine(p: PlayerState, ground: Ground): void;
   // Make and clear the class's own state on `p` as a player switches in and out of it.
   enter(p: PlayerState): void;
   exit(p: PlayerState): void;
   // Moves `p` for one tick of `dt` seconds on `input` (null when no frame arrived), its look and
   // item already applied. Returns how fast it was falling if it landed, m/s downward, else 0.
-  step(p: PlayerState, input: InputFrame | null, dt: number, shape: WorldPart[], structures: Structures): number;
+  step(p: PlayerState, input: InputFrame | null, dt: number, structures: Structures): number;
   // The way a shot from `p` goes: a walker's look; a dragon's breath leaves the way its head points.
   aim(p: Shooter): Vec3;
   hitShape(p: Target): HitShape;

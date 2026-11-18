@@ -3,7 +3,7 @@
 // spawns somewhere picks its spot from one, so reshaping a place is one edit.
 import type { Rng } from './rng';
 import type { Vec3 } from './types';
-import { randomPointInDisc, type Disc } from './world';
+import type { Disc } from './ground';
 
 // A rectangle `w` wide along x and `d` deep along z, centred on (x, z).
 export interface Rect {
@@ -28,6 +28,14 @@ export type Region = (Disc | Ring | Rect) & { y: number };
 // Radians round a ring that one stretch of a drift may cover: a straight line between two points
 // that close together, both well out from the hole, passes clear of it.
 const RING_TURN = 0.8;
+
+// A random point at least `margin` inside the disc, uniform over it.
+export function randomPointInDisc(disc: Disc, margin: number, rng: Rng): { x: number; z: number } {
+  const r = Math.max(0, disc.r - margin);
+  const a = rng() * Math.PI * 2;
+  const d = Math.sqrt(rng()) * r;
+  return { x: disc.x + Math.cos(a) * d, z: disc.z + Math.sin(a) * d };
+}
 
 // A random point at least `margin` inside the region, uniform over it, on its floor.
 export function randomPointInRegion(region: Region, margin: number, rng: Rng): Vec3 {

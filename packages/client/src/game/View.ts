@@ -14,7 +14,6 @@ import {
   MAX_PITCH,
   OUTSIDE_HEIGHT,
   reach,
-  worldDistance,
   type AvatarId,
   type AvatarsOf,
   type PlayerClass,
@@ -156,7 +155,7 @@ export class View {
     const along = Math.max(0, Math.min(span * out, structures.raycast(eyes, dir, span) - SKIN));
     const x = eyes.x + dir.x * along;
     const z = eyes.z + dir.z * along;
-    const ground = worldDistance(x, z) > 0 ? OUTSIDE_HEIGHT : 0; // past the edge, down in the drop after a dragon
+    const ground = structures.ground.inside(x, z) ? 0 : OUTSIDE_HEIGHT; // past the edge, down in the drop after a dragon
     camera.position.set(x, Math.max(ground + FLOOR, eyes.y + dir.y * along - dip * (1 - out)), z);
   }
 

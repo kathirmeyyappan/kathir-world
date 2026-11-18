@@ -42,7 +42,7 @@ import { defaultBotsFor } from './sim/defaultBots';
 import { GEAR, createGear, gearHelp, type GearId } from './sim/gear';
 import { ITEMS, createItem, itemHelp, type Element, type ItemAction, type ItemId, type ItemSpec } from './sim/items';
 import { createCubes, stepCubes } from './sim/cubes';
-import { randomPointInRegion } from './sim/regions';
+import { randomPointInDisc, randomPointInRegion } from './sim/regions';
 import { createPickups, dropPickup, stepPickups, takePickups, type PickupArea, type PickupField } from './sim/pickups';
 import { becomeAvatar, createPlayer, stepPlayer } from './sim/player';
 import { throwWalker } from './sim/walker';
@@ -52,7 +52,6 @@ import { Structures } from './sim/collision';
 import { STRUCTURES } from './content/structures';
 import { DOOR_DEBOUNCE_SECONDS, DOOR_REACH, lookVector } from './sim/doors';
 import { CAPSULE_TOP } from './sim/health';
-import { WORLD_SHAPE, clampToWorld, randomPointInDisc, worldDistance, type WorldPart } from './sim/world';
 
 // Shared has no DOM or Node lib; both runtimes provide these.
 declare function setInterval(cb: () => void, ms: number): unknown;
@@ -100,7 +99,6 @@ export type BotSpawner = (request: BotRequest) => Promise<void>;
 
 export interface RoomOptions {
   seed?: number;
-  worldShape?: WorldPart[];
   structures?: Structures;
   onEmpty?: () => void;
   log?: (msg: string) => void;
@@ -116,7 +114,6 @@ function aClass(avatar: AvatarId): string {
 
 export class Room {
   readonly id: string;
-  readonly worldShape: WorldPart[];
   readonly structures: Structures;
   tick = 0;
 
@@ -135,10 +132,9 @@ export class Room {
 
   constructor(id: string, opts: RoomOptions = {}) {
     this.id = id;
-    this.worldShape = opts.worldShape ?? WORLD_SHAPE;
     this.structures = opts.structures ?? new Structures(STRUCTURES); // its own: doors swing per room
     this.rng = createRng(opts.seed ?? (Math.random() * 2 ** 32) >>> 0);
-    this.cubes = createCubes(CUBE_IDS, this.worldShape, this.rng);
+    this.cubes = createCubes(CUBE_IDS, this.rng);
     this.pickups = createPickups(opts.pickupAreas ?? PICKUP_AREAS, this.rng);
     this.onEmpty = opts.onEmpty;
     this.log = opts.log ?? (() => {});
@@ -281,7 +277,7 @@ export class Room {
     this.seats.delete(id);
     if (seat.state.dead)
       for (const at of classOf(seat.state.avatar).lies(seat.state, this.structures)) {
-        clampToWorld(at, PLAYER_PADDING, this.worldShape);
+        this.structures.ground.clamp(at, PLAYER_PADDING);
         dropPickup(this.pickups, CORPSE_DROP, at, this.rng);
       }
     this.broadcast({ t: 'leave', id, name: seat.state.name });
@@ -389,7 +385,7 @@ export class Room {
   // What a spray lands on (sim/frost.ts): an ice one frosts it, for good, and a fire one melts it.
   // Everyone hears of every cell that turned, the oldest frost melting to make room past MAX_FROST.
   private spray(me: PlayerState, halfAngle: number, range: number, element: Element): void {
-    const floor = (x: number, z: number) => worldDistance(x, z, this.worldShape) < 0;
+    const floor = (x: number, z: number) => this.structures.ground.inside(x, z);
     const dir = classOf(me.avatar).aim(me);
     const ice = element === 'ice';
     const changed = sprayFrost(this.structures, floor, eyeOf(me), dir, halfAngle, range, this.tick, ice);
@@ -494,7 +490,7 @@ export class Room {
   // One step of a seat's player, on `frame` or with none, and what comes of it.
   private advance(seat: Seat, frame: InputFrame | null): void {
     const struck = seat.state.strike;
-    this.land(seat, stepPlayer(seat.state, frame, TICK_DT, this.worldShape, this.structures));
+    this.land(seat, stepPlayer(seat.state, frame, TICK_DT, this.structures));
     this.strike(seat, struck);
   }
 
@@ -525,7 +521,7 @@ export class Room {
       }
       seat.queue.splice(0, n);
     }
-    stepCubes(this.cubes, TICK_DT, this.worldShape, this.rng);
+    stepCubes(this.cubes, TICK_DT, this.rng);
     stepPickups(this.pickups, TICK_DT, this.rng);
     for (const p of this.players) takePickups(this.pickups, p, EYE_HEIGHT);
     this.tick++;
@@ -623,7 +619,7 @@ export class Room {
     if (!rising) return;
     const feet = me.pos.y - EYE_HEIGHT;
     if (Math.abs(feet) < 0.01) {
-      const floor = (x: number, z: number) => worldDistance(x, z, this.worldShape) < 0;
+      const floor = (x: number, z: number) => this.structures.ground.inside(x, z);
       const on = frostDisc(this.structures, floor, me.pos.x, me.pos.z, rising.ice);
       const off = this.structures.frost.trim();
       if (on.length || off.length) this.broadcast({ t: 'frost', on, off });
@@ -749,7 +745,7 @@ export class Room {
   // those feet: a spot asked for on a floor lands on it, and one in the air falls from there.
   private placedSpawn(feet: Vec3): Vec3 {
     const p = { ...feet };
-    clampToWorld(p, PLAYER_PADDING, this.worldShape);
+    this.structures.ground.clamp(p, PLAYER_PADDING);
     return { x: p.x, y: this.standAt(p.x, p.z, feet.y) + EYE_HEIGHT, z: p.z };
   }
 
@@ -788,7 +784,7 @@ export class Room {
     const around = { kind: 'disc' as const, x: near.x, z: near.z, r: CALLED_BOT_RANGE };
     for (let i = 0; i < 20; i++) {
       const p = randomPointInDisc(around, 0, this.rng);
-      if (worldDistance(p.x, p.z, this.worldShape) <= -SPAWN_WALL_MARGIN) return p;
+      if (this.structures.ground.edge(p.x, p.z) <= -SPAWN_WALL_MARGIN) return p;
     }
     return { x: near.x, z: near.z };
   }

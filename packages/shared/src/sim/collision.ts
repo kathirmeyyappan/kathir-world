@@ -1,11 +1,13 @@
-// The sim's view of the structures (structures.ts): where a player can stand, what stops them,
-// what they bump their head on, and what a shot can't pass. Pure, so the Room and the client's
+// The sim's view of the structures (structures.ts) on the ground (ground.ts): where a player can
+// stand, what stops them, what they bump their head on, and what a shot can't pass. Pure, so the Room and the client's
 // prediction get identical answers. With no structures every query answers as the bare floor
 // does: ground 0, no ceiling, nothing in the way. A door's pieces (doors.ts) stand or not as the
 // door is swung, and frost (frost.ts) lies on faces or not as it's sprayed and melted: those two
 // are what changes after building, so a Room keeps its own.
 import { LADDER_GAP, LADDER_REACH, PLAYER_RADIUS } from './constants';
 import { FLOOR, Frost, cellOf, faceCoords, type Face } from './frost';
+import type { Ground } from './ground';
+import { WORLD_GROUND } from './outline';
 import { ladderRun, surfaceOf, validateStructure, type Ladder, type Structure } from './structures';
 import { surfaceOfStructure, type SurfaceId } from './surfaces';
 import type { Vec3 } from './types';
@@ -86,7 +88,10 @@ export class Structures {
   private readonly lowBand: number; // the grid's lowest and highest height bands with anything in them
   private readonly highBand: number;
 
-  constructor(readonly list: readonly Structure[]) {
+  constructor(
+    readonly list: readonly Structure[],
+    readonly ground: Ground = WORLD_GROUND,
+  ) {
     list.forEach((s, i) => validateStructure(s, String(i)));
     this.placed = list.map((s) => {
       const yaw = s.yaw ?? 0;
@@ -144,7 +149,7 @@ export class Structures {
 
   // The highest surface under (x, z) that is no higher than `reach`, or 0 for the floor.
   groundAt(x: number, z: number, reach: number): number {
-    return this.ground(x, z, reach).y;
+    return this.under(x, z, reach).y;
   }
 
   // What's underfoot at (x, z) for feet that reach up to `reach`: the ground there (groundAt), the
@@ -152,7 +157,7 @@ export class Structures {
   // included) under the spot or, with `radius`, under any of a body that wide round it: a foot on
   // ice slips, so a hole in the frost smaller than a body doesn't catch.
   footing(x: number, z: number, reach: number, radius = 0): Footing {
-    const { y, piece, lx, lz } = this.ground(x, z, reach);
+    const { y, piece, lx, lz } = this.under(x, z, reach);
     const probes = radius > 0 ? PROBES.length : 1;
     let frosted = false;
     for (let k = 0; k < probes && !frosted; k++)
@@ -184,7 +189,7 @@ export class Structures {
   // The highest top under (x, z) that is no higher than `reach`, which piece it is (null for the
   // floor, at 0) and where on it: down the height bands from the one `reach` is in, until the
   // bands left all lie under the best so far.
-  private ground(x: number, z: number, reach: number): { y: number; piece: number | null; lx: number; lz: number } {
+  private under(x: number, z: number, reach: number): { y: number; piece: number | null; lx: number; lz: number } {
     const best = { y: 0, piece: null as number | null, lx: 0, lz: 0 };
     for (let b = Math.min(band(reach), this.highBand); b >= this.lowBand; b--) {
       for (const i of this.nearIndices(x, z, x, z, b * CELL, b * CELL)) {
