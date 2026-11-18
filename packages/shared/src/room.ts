@@ -329,7 +329,7 @@ export class Room {
     const name = cleanName(raw);
     if (!name || name === me.name) return;
     if (this.tick - seat.lastRenameTick < RENAME_SECONDS * TICK_RATE) {
-      seat.link.send({ t: 'system', text: 'you can rename again in a few seconds' });
+      this.refuse(seat, 'you can rename again in a few seconds');
       return;
     }
     seat.lastRenameTick = this.tick;
@@ -556,12 +556,16 @@ export class Room {
     return this.cubes.map((c) => ({ id: c.id, x: c.pos.x, y: c.pos.y, z: c.pos.z, rx: c.rot.x, ry: c.rot.y }));
   }
 
+  // Tells `seat` alone that what it asked for can't be done, and why.
+  private refuse(seat: Seat, text: string): void {
+    seat.link.send({ t: 'refused', text });
+  }
+
   private runCommand(seat: Seat, command: Command): void {
     const me = seat.state;
-    const tell = (text: string) => seat.link.send({ t: 'system', text });
     switch (command.name) {
       case 'speedy':
-        if (!classOf(me.avatar).kit) return tell(`not as ${aClass(me.avatar)}`);
+        if (!classOf(me.avatar).kit) return this.refuse(seat, `not as ${aClass(me.avatar)}`);
         me.boost = SPEEDY_SECONDS;
         this.broadcast({ t: 'system', text: `${me.name} increased their movement speed for ${SPEEDY_SECONDS}s` });
         return;
@@ -569,7 +573,7 @@ export class Room {
         this.equip(seat, command.item);
         return;
       case 'wear':
-        if (!classOf(me.avatar).kit) return tell(`not as ${aClass(me.avatar)}`);
+        if (!classOf(me.avatar).kit) return this.refuse(seat, `not as ${aClass(me.avatar)}`);
         this.wear(seat, command.gear);
         return;
       case 'unequip':
@@ -592,7 +596,7 @@ export class Room {
         this.killBots(seat);
         return;
       case 'unknown':
-        seat.link.send({ t: 'system', text: `unknown command /${command.raw}` });
+        this.refuse(seat, `unknown command /${command.raw}`);
         return;
     }
   }
@@ -602,7 +606,7 @@ export class Room {
   private become(seat: Seat, avatar: AvatarId, again = false): boolean {
     const why = this.cantBecome(seat.state, avatar, again);
     if (why) {
-      seat.link.send({ t: 'system', text: why });
+      this.refuse(seat, why);
       return false;
     }
     becomeAvatar(seat.state, avatar);
@@ -658,15 +662,14 @@ export class Room {
   private callBot(seat: Seat, id: BotId, call: BotCallArgs | null): void {
     const me = seat.state;
     const bot = BOTS[id];
-    const tell = (text: string) => seat.link.send({ t: 'system', text });
-    if (call === null) return tell(`usage: /${bot.playerName} ${botArguments(id)}`);
+    if (call === null) return this.refuse(seat, `usage: /${bot.playerName} ${botArguments(id)}`);
     const { seconds, targets } = call;
     const name = call.botName === null ? undefined : sanitizeName(call.botName);
-    if (me.bot) return tell("bots can't call bots");
-    if (!this.spawnBot || !this.publicName) return tell("bots can't be called in this room");
-    if (this.seats.size >= MAX_PLAYERS) return tell('this room is full');
-    if (this.botCount >= MAX_BOTS) return tell('this room has enough bots');
-    if (call.avatar && !classOf(call.avatar).bots) return tell(`bots can't be ${aClass(call.avatar)}`);
+    if (me.bot) return this.refuse(seat, "bots can't call bots");
+    if (!this.spawnBot || !this.publicName) return this.refuse(seat, "bots can't be called in this room");
+    if (this.seats.size >= MAX_PLAYERS) return this.refuse(seat, 'this room is full');
+    if (this.botCount >= MAX_BOTS) return this.refuse(seat, 'this room has enough bots');
+    if (call.avatar && !classOf(call.avatar).bots) return this.refuse(seat, `bots can't be ${aClass(call.avatar)}`);
 
     const who = name === undefined ? bot.playerName : `${name} (${bot.playerName})`;
     const after = targets.length > 0 ? ` after ${targets.join(', ')}` : '';
@@ -680,17 +683,16 @@ export class Room {
     );
     this.spawnBot(req).catch((err: unknown) => {
       this.log(`bot ${id} for ${this.id}: ${err instanceof Error ? err.message : String(err)}`);
-      tell(`couldn't call ${bot.playerName}`);
+      this.refuse(seat, `couldn't call ${bot.playerName}`);
     });
   }
 
   // "/kill-bots": every living bot drops dead where it stands, as if shot, so each lies as a corpse
   // and is dropped like any other; a bot's run ends when the room closes its connection. People only.
   private killBots(seat: Seat): void {
-    const tell = (text: string) => seat.link.send({ t: 'system', text });
-    if (seat.state.bot) return tell("bots can't kill bots");
+    if (seat.state.bot) return this.refuse(seat, "bots can't kill bots");
     const bots = [...this.seats.values()].filter((s) => s.state.bot && !s.state.dead);
-    if (bots.length === 0) return tell('no bots here');
+    if (bots.length === 0) return this.refuse(seat, 'no bots here');
     for (const bot of bots) {
       bot.state.hearts = 0;
       bot.state.dead = true;
@@ -712,8 +714,7 @@ export class Room {
     const me = seat.state;
     const held = me.item;
     if (held?.locked) {
-      if (held.id === id) this.broadcast({ t: 'system', text: `${me.name} already has a ${id}` });
-      else seat.link.send({ t: 'system', text: `you can't put down your ${held.id}` });
+      this.refuse(seat, held.id === id ? `you already have a ${id}` : `you can't put down your ${held.id}`);
       return;
     }
     const spec = ITEMS[id];
@@ -734,7 +735,7 @@ export class Room {
     const held = me.item && !me.item.locked ? me.item.id : null;
     const worn = me.gear?.id ?? null;
     if (!held && !worn) {
-      seat.link.send({ t: 'system', text: 'nothing to unequip' });
+      this.refuse(seat, 'nothing to unequip');
       return;
     }
     if (held) me.item = null;

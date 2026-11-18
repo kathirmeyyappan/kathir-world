@@ -194,7 +194,7 @@ test('a rename is announced, shows in the next snapshot, and waits RENAME_SECOND
   assert.ok(snap.t === 'snap' && snap.players.find((p) => p.id === ida)?.name === 'ali');
 
   room.receive(ida, { t: 'rename', name: 'al' });
-  assert.deepEqual(a.inbox.at(-1), { t: 'system', text: 'you can rename again in a few seconds' });
+  assert.deepEqual(a.inbox.at(-1), { t: 'refused', text: 'you can rename again in a few seconds' });
   assert.equal(alice().name, 'ali', 'too soon');
 
   for (let i = 0; i < RENAME_SECONDS * TICK_RATE; i++) room.step();
@@ -259,8 +259,8 @@ test('/speedy and /s boost the sender and tell everyone in grey', () => {
   assert.ok(!b.inbox.some((m) => m.t === 'chat'), 'the command itself is not broadcast as chat');
 
   room.receive(ida, { t: 'chat', text: '/fly' });
-  assert.deepEqual(a.inbox.at(-1), { t: 'system', text: 'unknown command /fly' });
-  assert.notDeepEqual(b.inbox.at(-1), { t: 'system', text: 'unknown command /fly' }, 'only the sender is told');
+  assert.deepEqual(a.inbox.at(-1), { t: 'refused', text: 'unknown command /fly' });
+  assert.notDeepEqual(b.inbox.at(-1), { t: 'refused', text: 'unknown command /fly' }, 'only the sender is told');
 });
 
 test('/gun then shoot: the server resolves the hit, kills the target, and the dead stop moving', () => {
@@ -521,12 +521,12 @@ test('looks: /elizabeth is for good, and /red recolours', () => {
   assert.equal(bob.avatar, 'elizabeth', 'no timer: still elizabeth two minutes later');
   assert.equal(bob.item, null, 'looks change nothing else');
   room.receive(idb, { t: 'chat', text: '/elizabeth' });
-  assert.deepEqual(b.inbox.at(-1), { t: 'system', text: "you're already elizabeth" });
+  assert.deepEqual(b.inbox.at(-1), { t: 'refused', text: "you're already elizabeth" });
   room.receive(idb, { t: 'chat', text: '/standard' });
   assert.equal(bob.avatar, 'standard', 'and back by choice');
 
   room.receive(idb, { t: 'chat', text: '/sahur' });
-  assert.deepEqual(b.inbox.at(-1), { t: 'system', text: 'unknown command /sahur' }, 'a look goes by its command');
+  assert.deepEqual(b.inbox.at(-1), { t: 'refused', text: 'unknown command /sahur' }, 'a look goes by its command');
   room.receive(idb, { t: 'chat', text: '/tung' });
   assert.equal(bob.avatar, 'sahur');
 
@@ -537,7 +537,7 @@ test('looks: /elizabeth is for good, and /red recolours', () => {
   room.receive(ida, { t: 'chat', text: '/red' });
   assert.equal(ann.avatar, 'standard', 'a look chosen on joining is changed like any other');
   room.receive(idb, { t: 'chat', text: '/constructor' });
-  assert.deepEqual(b.inbox.at(-1), { t: 'system', text: 'unknown command /constructor' });
+  assert.deepEqual(b.inbox.at(-1), { t: 'refused', text: 'unknown command /constructor' });
 });
 
 test('headshots do 2.5x: a gun takes 5 hearts, a scoped sniper to the head is a one-shot kill', () => {
@@ -751,14 +751,14 @@ test('/kill-bots drops every living bot where it stands, people only', () => {
     return { id, l, closed: () => closed };
   });
   room.receive(bots[0].id, { t: 'chat', text: '/kill-bots' });
-  assert.deepEqual(bots[0].l.inbox.at(-1), { t: 'system', text: "bots can't kill bots" });
+  assert.deepEqual(bots[0].l.inbox.at(-1), { t: 'refused', text: "bots can't kill bots" });
 
   room.receive(ida, { t: 'chat', text: '/kill-bots' });
   assert.ok(room.players.filter((p) => p.bot).every((p) => p.dead && p.hearts === 0));
   assert.ok(!room.players.find((p) => p.id === ida)!.dead);
   assert.deepEqual(a.inbox.at(-1), { t: 'system', text: 'alice killed circle-bot x2' });
   room.receive(ida, { t: 'chat', text: '/kill-bots' });
-  assert.deepEqual(a.inbox.at(-1), { t: 'system', text: 'no bots here' });
+  assert.deepEqual(a.inbox.at(-1), { t: 'refused', text: 'no bots here' });
 
   for (let i = 0; i <= 5 * TICK_RATE; i++) room.step();
   assert.equal(room.playerCount, 1, 'corpses are dropped like any bot corpse');
@@ -867,14 +867,14 @@ test('/circle-bot asks the host to start a bot in this room; people only, defaul
   ])
     room.receive(ida, { t: 'chat', text });
   assert.equal(spawned.length, 5, 'no bare words, bad or missing values, wrong flags or repeats');
-  assert.deepEqual(a.inbox.at(-1), { t: 'system', text: 'usage: /circle-bot -t [seconds] -n [name] -s [skin]' });
+  assert.deepEqual(a.inbox.at(-1), { t: 'refused', text: 'usage: /circle-bot -t [seconds] -n [name] -s [skin]' });
 
   room.receive(idb, { t: 'chat', text: '/circle-bot' });
-  assert.deepEqual(b.inbox.at(-1), { t: 'system', text: "bots can't call bots" });
+  assert.deepEqual(b.inbox.at(-1), { t: 'refused', text: "bots can't call bots" });
 
   while (room.botCount < MAX_BOTS) room.join('bot', link(), { bot: true });
   room.receive(ida, { t: 'chat', text: '/stalker-bot' });
-  assert.deepEqual(a.inbox.at(-1), { t: 'system', text: 'this room has enough bots' });
+  assert.deepEqual(a.inbox.at(-1), { t: 'refused', text: 'this room has enough bots' });
   assert.equal(spawned.length, 5);
   assert.equal(room.join('late-bot', link(), { bot: true }), null);
   assert.ok(room.join('carol', link()));
@@ -890,13 +890,13 @@ test('/circle-bot asks the host to start a bot in this room; people only, defaul
   const idc = room2.join('carol', c, { room: 'x' })!;
   room2.receive(idc, { t: 'chat', text: '/circle-bot' });
   await new Promise((r) => setTimeout(r, 0));
-  assert.deepEqual(c.inbox.at(-1), { t: 'system', text: "couldn't call circle-bot" });
+  assert.deepEqual(c.inbox.at(-1), { t: 'refused', text: "couldn't call circle-bot" });
 
   const d = link();
   const room3 = new Room('sess-3', { seed: 1 });
   const idd = room3.join('dave', d, { room: 'x' })!;
   room3.receive(idd, { t: 'chat', text: '/circle-bot' });
-  assert.deepEqual(d.inbox.at(-1), { t: 'system', text: "bots can't be called in this room" });
+  assert.deepEqual(d.inbox.at(-1), { t: 'refused', text: "bots can't be called in this room" });
 });
 
 test('a bot corpse lingers for 5 s while a browser gets the full death screen', () => {
@@ -1039,13 +1039,13 @@ test('/light-dragon: 40 hearts, full, breath for good and no kit, 1.5 hearts bac
   assert.equal(alice.boost, 0);
   assert.ok(a.inbox.some((m) => m.t === 'system' && m.text === 'alice is now light-dragon'));
   room.receive(ida, { t: 'chat', text: '/gun' });
-  assert.deepEqual(a.inbox.at(-1), { t: 'system', text: "you can't put down your firebreath" });
+  assert.deepEqual(a.inbox.at(-1), { t: 'refused', text: "you can't put down your firebreath" });
   room.receive(ida, { t: 'chat', text: '/jetpack' });
-  assert.deepEqual(a.inbox.at(-1), { t: 'system', text: 'not as an asian-dragon' });
+  assert.deepEqual(a.inbox.at(-1), { t: 'refused', text: 'not as an asian-dragon' });
   room.receive(ida, { t: 'chat', text: '/speedy' });
-  assert.deepEqual(a.inbox.at(-1), { t: 'system', text: 'not as an asian-dragon' });
+  assert.deepEqual(a.inbox.at(-1), { t: 'refused', text: 'not as an asian-dragon' });
   room.receive(ida, { t: 'chat', text: '/light-dragon' });
-  assert.deepEqual(a.inbox.at(-1), { t: 'system', text: "you're already light-dragon" });
+  assert.deepEqual(a.inbox.at(-1), { t: 'refused', text: "you're already light-dragon" });
 
   // Nothing can hit it while it's rising: a sniper's shots at its head pass through until it's risen.
   const b = link();
@@ -1091,7 +1091,7 @@ test('/light-dragon: 40 hearts, full, breath for good and no kit, 1.5 hearts bac
   assert.equal(room.join('circle-bot', bot, { bot: true, avatar: 'light-dragon' }), null);
   assert.deepEqual(bot.inbox.at(-1), { t: 'error', message: "bots can't be an asian-dragon" });
   room.receive(ida, { t: 'chat', text: '/circle-bot -s light-dragon' });
-  assert.deepEqual(a.inbox.at(-1), { t: 'system', text: "bots can't be an asian-dragon" });
+  assert.deepEqual(a.inbox.at(-1), { t: 'refused', text: "bots can't be an asian-dragon" });
 
   // Shot dead by a sniper at its head, level with it (the body hangs under the head, in the way of
   // a shot from the ground): it drops to the ground and lies there, long after alice has gone, then
@@ -1105,7 +1105,7 @@ test('/light-dragon: 40 hearts, full, breath for good and no kit, 1.5 hearts bac
   bob.vy = 0;
   assert.ok(b.inbox.some((m) => m.t === 'kill' && m.victim === ida && m.headshot));
   room.receive(ida, { t: 'chat', text: '/standard' });
-  assert.deepEqual(a.inbox.at(-1), { t: 'system', text: "not while you're dead" });
+  assert.deepEqual(a.inbox.at(-1), { t: 'refused', text: "not while you're dead" });
   for (let i = 0; i < 9 * TICK_RATE; i++) room.step();
   assert.equal(alice.pos.y, dragonShape('light-dragon').underside.head, 'the head came to rest on the ground');
   room.leave(ida);

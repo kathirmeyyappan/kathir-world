@@ -649,6 +649,9 @@ export class Game {
       case 'system':
         this.hud.system(m.text);
         return;
+      case 'refused':
+        this.hud.refuse(m.text);
+        return;
       case 'shot':
         if (m.id !== this.myId) this.pendingShots.push({ shooter: m.id, hitMe: false });
         return;

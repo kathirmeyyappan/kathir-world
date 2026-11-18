@@ -46,6 +46,7 @@ export type ServerMessage =
   | { t: 'leave'; id: string; name: string }
   | { t: 'chat'; id: string; name: string; color: string; text: string }
   | { t: 'system'; text: string } // greyed-out line: command results, notices
+  | { t: 'refused'; text: string } // what this player asked for can't be done, and why
   | { t: 'shot'; id: string } // someone fired a tap weapon; clients play the effect
   | { t: 'action'; id: string; action: ItemAction } // someone did one of their class's actions (a dragon's roar); clients play it
   | { t: 'door'; id: string; open: boolean; by: string } // someone swung a door; clients swing theirs
