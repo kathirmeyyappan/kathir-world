@@ -198,7 +198,7 @@ def test_circle_bot_orbits_the_only_other_player(room_server: str) -> None:
     )
 
 
-def test_stalker_stands_where_it_asks_watches_the_person_and_dies_to_kill_bots(room_server: str) -> None:
+def test_stalker_stands_where_it_asks_as_tung_watches_the_person_and_dies_to_kill_bots(room_server: str) -> None:
     async def scenario() -> tuple[dict[str, object], float]:
         person = await seat_person(room_server, "python-stalker")
         stalker = asyncio.create_task(
@@ -221,7 +221,7 @@ def test_stalker_stands_where_it_asks_watches_the_person_and_dies_to_kill_bots(r
                 if bot is None:
                     continue
                 assert (bot.pos.x, bot.pos.y, bot.pos.z) == pytest.approx((112, 21.7, 0)), "on floor 1"
-                assert bot.avatar == "elizabeth"
+                assert bot.avatar == "sahur", "whatever it was asked to wear"
                 facing = math.atan2(me.pos.x - bot.pos.x, me.pos.z - bot.pos.z)
                 if abs(math.remainder(bot.yaw - facing, math.tau)) < 1e-6:
                     break

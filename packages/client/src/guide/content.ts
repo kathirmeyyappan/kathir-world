@@ -216,8 +216,8 @@ export const BOT_FLAG_TEXT: Record<BotFlag, string> = {
   target: 'who it goes after: the words up to the next flag, each any part of a name',
 };
 
-// What each bot's diagram shows, for a screen reader.
-export const BOT_DIAGRAM_TEXT: Record<BotId, string> = {
+// What each bot's diagram shows, for a screen reader (botDiagrams.ts).
+export const BOT_DIAGRAM_TEXT: Partial<Record<BotId, string>> = {
   sniper:
     'The sniper seen from above: it shoots a person close by, keeps one further off in its sights, can’t see one behind a wall, and ducks behind cover to reload.',
   circle:
@@ -235,5 +235,6 @@ export const BOT_EXAMPLES: Record<BotId, [string, string]> = {
     '/circle-bot --skin tung',
     'spawns a circle bot named circle-bot with the Tung Tung Tung Sahur skin, for the default time.',
   ],
-  stalker: ['/stalker-bot -t 60 -n watcher', 'spawns a stalker bot named watcher for 60s.'],
+  stalker: ['/stalker-bot -t 60 -n watcher', 'spawns a stalker bot named watcher for 60s, as Tung Tung Tung Sahur.'],
+  observer: ['/observer-bot -s patrick', 'spawns an observer bot as Patrick, for the default time.'],
 };

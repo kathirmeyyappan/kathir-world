@@ -554,8 +554,9 @@ with the look, a head, the legs, the free arm, the weapon arm with its grip and 
 in the model) and the numbers its walk takes (swings, bob, sway, how it lies dead), and
 `WalkerAvatar` poses every figure the same way: standing, walking, aiming what it holds, falling,
 climbing a ladder and lying dead. Empty-handed the body turns to face the way it's going (the look
-only turns its head) and stays facing that way when it stops; with something to aim it faces its
-look, so the aim shows. It watches how it moves from where it's drawn, which for a player's own
+only turns its head) and stays facing that way when it stops, unless it's `headless` (Tung Tung
+Tung Sahur, his face on the log), when standing still it turns whole to the look; with something to
+aim it faces its look, so the aim shows. It watches how it moves from where it's drawn, which for a player's own
 body is a sim tick at a time, on whichever frames the ticks fall, with a hair of drift on every
 frame between as its prediction's correction dies away. So nothing is read from a speed taken
 frame to frame (it comes out zero and double by turns, and a pose hung on it flickers): the
@@ -949,8 +950,8 @@ The World tab opens on the world's map (`MapCanvas`, to drag about and zoom, `ui
 the menu's map is). Its photos are in `public/assets/guide/places/`, taken in the game offline with the
 boundary wall hidden, each with a `-thumb` for its gallery.
 
-A diagram in the guide (each bot's page has one, `guide/botDiagrams.ts`, keyed by `BotId` so a new
-bot doesn't build without one) shows what something does, seen from above, and is built from the
+A diagram in the guide (each bot's page has one but the observer's, `guide/botDiagrams.ts`, keyed
+by `BotId` so a new bot doesn't build until it has one or a null) shows what something does, seen from above, and is built from the
 marks of `guide/diagram.ts` alone (`Diagram`: the subject, people, other bots, walls, rings, the
 strokes `move`, `detour`, `look`, `turn` and `shot`, a crosshair and labels) on its 640 × 360
 canvas, coloured by the `.diagram` rules in `guide.css`. Never colour or size a mark inline or add
@@ -1221,7 +1222,7 @@ Use an isolated room such as `bot-smoke`, not `global`, for automated or manual 
 
 ### Calling bots from chat
 
-`/circle-bot`, `/stalker-bot` and `/sniper-bot` start a bot in the caller's room, within 50 m
+`/circle-bot`, `/stalker-bot`, `/observer-bot` and `/sniper-bot` start a bot in the caller's room, within 50 m
 of them across the floor and at their height: on whatever is there within a step, or in the air to
 fall from, never inside a wall. The sniper ignores the spot and starts indoors, in the tower or a keep. The `-bot` is optional where the bare word
 isn't already a command (`/circle`, but `/sniper` is the rifle). Flags go in any order, each at most once, and each has a long form too
@@ -1231,7 +1232,7 @@ isn't already a command (`/circle`, but `/sniper` is the rifle). Flags go in any
 | --- | --- | --- |
 | `-t [seconds]` | all | how long it stays: 300 unless given, up to 3500 |
 | `-n [name]` | all | what it plays as, instead of `<bot>-bot` |
-| `-s [skin]` | all | how it looks: any skin's chat command (`elizabeth`, `tung`) |
+| `-s [skin]` | all but the stalker | how it looks: any skin's chat command (`elizabeth`, `tung`) |
 | `--target [name substrings]` | combat | who it goes after: the words up to the next flag, each any part of a name |
 
 So `/sniper-bot -t 120 -n hunter -s tung --target kat bob`. A bare word, an unknown or repeated
@@ -1251,8 +1252,10 @@ Python process runs. The sidecar spawns the worker's function (`BOTS_FUNCTIONS` 
 `infra/config.py`: `run_dumb_bot` or `run_combat_bot`, each looked up once) with `{bot, room,
 seconds}`, the request's `name` and placement (`spawn`, `avatar`) and, for a combat bot, `targets`,
 using the container's own Modal credentials; Node never holds a token. A bot called from chat
-therefore needs a row in `bots.ts` as well as its Python module; one without a row (the observer) is
-started only with `modal run`.
+therefore needs a row in `bots.ts` as well as its Python module; one without a row is started only
+with `modal run`. A row's `look` is the one look that bot always wears (the stalker is always Tung
+Tung Tung Sahur, the one body that shows where it looks standing still): `botRequest` dresses it so
+and it takes no `-s`, and its Python module wears that look whatever it's given.
 
 Rooms also start with bots: the first person to join brings the line-up from
 `packages/shared/src/sim/defaultBots.ts` (`defaultBotsFor(room, rng)`: two circle bots anywhere, each in a different look drawn from `CIRCLE_LOOKS`, and a

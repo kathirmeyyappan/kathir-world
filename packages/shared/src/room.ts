@@ -659,7 +659,7 @@ export class Room {
     const me = seat.state;
     const bot = BOTS[id];
     const tell = (text: string) => seat.link.send({ t: 'system', text });
-    if (call === null) return tell(`usage: /${bot.playerName} ${botArguments(bot.worker)}`);
+    if (call === null) return tell(`usage: /${bot.playerName} ${botArguments(id)}`);
     const { seconds, targets } = call;
     const name = call.botName === null ? undefined : sanitizeName(call.botName);
     if (me.bot) return tell("bots can't call bots");

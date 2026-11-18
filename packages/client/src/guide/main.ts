@@ -552,15 +552,15 @@ function botPage(id: BotId): HTMLElement {
   const bot = BOTS[id];
   const page = el('div');
   const head = el('h2', 'command', `/${bot.playerName}`);
-  head.append(el('span', 'args', ` ${botArguments(bot.worker)}`));
+  head.append(el('span', 'args', ` ${botArguments(id)}`));
   const [cmd, what] = BOT_EXAMPLES[id];
   const example = el('p', 'example');
   example.append(el('code', '', cmd), el('span', '', what));
   page.append(
     head,
-    botDiagram(id, BOT_DIAGRAM_TEXT[id]),
+    ...botDiagram(id, BOT_DIAGRAM_TEXT[id] ?? ''),
     el('p', 'summary', sentence(bot.blurb)),
-    statTable(botFlagRows(bot.worker, BOT_FLAG_TEXT)),
+    statTable(botFlagRows(id, BOT_FLAG_TEXT)),
     el('h3', '', 'For example'),
     example,
   );

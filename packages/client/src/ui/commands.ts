@@ -50,7 +50,7 @@ export function commandGroups(): Group[] {
         ...BOT_IDS.map((id): Row => ({
           label: `/${BOTS[id].playerName}`,
           note: BOTS[id].blurb,
-          args: nobreak(botArguments(BOTS[id].worker)),
+          args: nobreak(botArguments(id)),
           tap: `/${BOTS[id].playerName} `,
           needsArgs: true,
         })),
