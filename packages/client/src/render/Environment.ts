@@ -97,17 +97,23 @@ export class Environment {
         const box = { minX: cx * CHUNK, maxX: (cx + 1) * CHUNK, minZ: cz * CHUNK, maxZ: (cz + 1) * CHUNK };
         if (this.ground.partsIn(box).length === 0) continue;
         const ground = this.ground;
+        let mesh: Mesh | null = null;
         loader.add({
           x: (cx + 0.5) * CHUNK,
           z: (cz + 0.5) * CHUNK,
+          r: (CHUNK * Math.SQRT2) / 2,
           load: function* () {
             const data = yield* floorChunk(ground, cx, cz);
             if (!data) return;
-            const mesh = new Mesh(`slab-${cx},${cz}`, scene);
+            mesh = new Mesh(`slab-${cx},${cz}`, scene);
             data.applyToMesh(mesh);
             mesh.isPickable = false;
             mesh.material = slabMat;
             mesh.freezeWorldMatrix();
+          },
+          unload: () => {
+            mesh?.dispose();
+            mesh = null;
           },
         });
       }

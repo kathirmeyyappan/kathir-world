@@ -108,17 +108,20 @@ An interior is let go past 200 m once it's been neither seen nor wanted for 30 s
 and unload it over and over; coming back fetches it again from the browser's cache, through the
 loader's budget, and one part is begun or let go a frame at most, so neither costs a frame.
 
-A landmark drawn from a model (the pineapple, the Krusty Krab) is drawn in full within 600 m of its
-edge and as a shell past that (`render/Shells.ts`): a mesh of a few thousand triangles in its own
-colours, made at once from the shape the content already has and kept for good, that keeps its
-outline against the sky. Its full detail (the model's outside parts) is wanted within 600 m and let
-go past 700 m, all of it at once in the shell's place once every part is here, so the two never
-overlap and the shell stands in while it's on its way. 600 m is past `SCOPED_SIGHT`, so a scope
-never sees the swap; with the road the world is about 510 m across and no model landmark is past
-430 m from anywhere, so today every one is always drawn in full once it's here. A landmark of
-structures (the keeps, the tower, the terrace) is its own shell: a region's merged boxes cost no
-more far off than a stand-in would. Nothing else loaded is ever let go (a death's reload is the
-only reset), and nothing else waits on distance.
+Everything else heavy that stands somewhere streams by distance through the loader
+(`render/Loader.ts`): a chunk of the ground's slab, a region's structure meshes, a model's parts
+outside. Each is wanted within `REACH` (600 m) of the player, nearest first, and let go past 700 m
+(`SLACK` further out, so walking back and forth across one line can't load and unload it over and
+over), one a frame at most, coming back through the loader's budget as it comes back within reach:
+built again from the content for a slab chunk or a region, fetched again from the browser's cache
+for a model's part. 600 m is past `SCOPED_SIGHT`, so a scope never sees anything go. A landmark
+drawn from a model (the pineapple, the Krusty Krab) has a shell (`render/models/Models.ts`): a mesh
+of a few thousand triangles in its own colours, made at once from the shape the content already
+has and kept for good, that keeps its outline against the sky wherever its parts aren't all here,
+and they're drawn only once every one of them is, all at once in the shell's place, so the two
+never overlap. A landmark of structures (the keeps, the tower, the terrace) has none: past 700 m
+it's lost in the fog. With the road the world is about 510 m across, so today everything is always
+loaded once it's in.
 
 The distances that decide what's fetched, drawn and let go are one system, and each is set
 against the others, scoped and unscoped alike. Whenever one changes or a new one is added, audit
@@ -133,7 +136,7 @@ was settled. As they stand:
 | `SIGHT`, `SCOPED_SIGHT` | 125 m | 560 m | the fog nine tenths thick (`BASE_FOG_DENSITY` and `SCOPED_FOG_SCALE` are worked out from them); an interior wanted through an open opening in view (scoped, within the scope's circle and a little round it) |
 | `CRISP_RANGE` | 45 m | 45 m | a wall frame's picture drawn crisp rather than as a texture |
 | `LET_GO`, `FORGET` | 200 m, 30 s | same | an interior let go, neither seen nor wanted for `FORGET`; past every unscoped fetch, so no line flaps |
-| `REACH`, `SLACK` (`Shells.ts`) | 600 m, 700 m | same | a model landmark's full detail wanted, and let go; past where a scope sees, so no swap and no rooms inside a shell are seen |
+| `REACH`, `SLACK` (`Loader.ts`) | 600 m, 700 m | same | what stands somewhere (a slab chunk, a region, a model's parts) wanted, and let go; past where a scope sees, so nothing is seen go and no rooms inside a shell are seen |
 
 Known and accepted: an interior a scope fetched past 200 m is let go 30 s after it's last seen and
 fetched again from the browser's cache if it's scoped again. `SIGHT` and `SCOPED_SIGHT`
@@ -427,10 +430,10 @@ Nothing is fetched at startup. `render/Loader.ts` streams the world in: anything
 somewhere (a region's structure meshes to build, a chunk of the ground's slab, a model part to
 fetch) registers with where it is,
 and the nearest things not yet begun are begun first, so the player is in the world at once and it
-fills in round them nearest first, the far side within a second or two. Nothing outside waits on
-distance short of a shell's (a scope sees the far side as sharp as the near); the loader only sets
-the order. What's inside a building waits until it's wanted (see Interiors), and a model
-landmark's full detail past 600 m waits for its shell to be left behind (see Client loading). No frame waits on loading: each thing's
+fills in round them nearest first, the far side within a second or two. Within `REACH` (600 m)
+nothing outside waits on distance (a scope sees the far side as sharp as the near) and the loader
+only sets the order; past it, things are let go and wait to come back within reach (see Client
+loading). What's inside a building waits until it's wanted (see Interiors). No frame waits on loading: each thing's
 load is a job, a generator that yields between pieces of its work (a region yields after every
 piece it places) or yields a fetch to wait on (`yield* wait(promise)`), and each frame the loader
 steps the jobs that are ready only until `BUDGET_MS` of it is spent, the rest carrying on the next.
@@ -544,15 +547,16 @@ and put the answers in it.
   openings, the doors that shut them, what each `shows`, and that its parts register with
   `Interiors.add` with a `load` and an `unload`, so it's fetched when wanted and let go far off.
   Render viewpoints all round it with `Interiors.everything` on and off and compare them.
-- **Far off:** a model landmark has a shell in its `MODELS` row (see Models and doors); a structure
-  landmark is its own. Look at the shell beside the full model from the same spot (lower
-  `Shells.reach` to see it close), from the front, the side and above.
+- **Far off:** whatever of it stands somewhere registers with the loader with an `unload`, so it's
+  let go past 700 m and comes back within 600 m; a model landmark has a shell in its `MODELS` row
+  (see Models and doors). Look at the shell beside the full model from the same spot (lower the
+  loader's `reach` to see it close), from the front, the side and above.
 - **The distance table:** where it sits against every distance in Client loading, scoped and
   unscoped: nothing of it let go while it can be seen, no fetch and let-go either side of one line,
   no doorway a scope shows clearly with nothing behind it, no rooms inside a shell. Any new
   distance goes in the table.
 - **Cost:** triangles, meshes and textures it adds near and far, and the client's per-frame cost
-  of whatever watches it (`Interiors.update`, `Shells.update`), measured, with the numbers in the
+  of whatever watches it (`Interiors.update`, `Loader.update`), measured, with the numbers in the
   PR.
 
 ### Checking a change

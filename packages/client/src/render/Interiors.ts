@@ -21,7 +21,6 @@
 // loading): audit them together.
 import { Axis, BoundingBox, Frustum, Vector3, type Camera, type Plane } from '@babylonjs/core';
 import { SCOPED_SIGHT, SIGHT, type InteriorBuilding, type Opening } from '@world/shared';
-import { Held, type Part } from './Held';
 
 const NEAR = 25; // metres from a building's round within which all its interiors are wanted
 const GRACE = 0.05; // radians round the scope's circle an opening is wanted from
@@ -40,6 +39,60 @@ interface State {
   building: InteriorBuilding;
   seen: boolean;
   keptAt: number; // performance.now() when last seen or wanted
+}
+
+// Something drawn as part of an interior, wanted, let go and shown with it.
+export interface InteriorPart {
+  // Fetches and builds it, begun whenever it's wanted and isn't here; none for a part that's there
+  // from the start.
+  load?: () => Promise<void>;
+  // Lets all of it go again; none for a part that's never let go.
+  unload?: () => void;
+  // Whether to draw it, told once it's here and whenever that changes.
+  show: (on: boolean) => void;
+}
+
+// Where a part has got to, so a want while it's on its way or a let-go before it's here does nothing.
+class Held {
+  status: 'gone' | 'loading' | 'here';
+  private shown = false;
+
+  constructor(
+    private readonly part: InteriorPart,
+    private readonly name: string, // for the console, if a load fails
+  ) {
+    this.status = part.load ? 'gone' : 'here';
+  }
+
+  get canLetGo(): boolean {
+    return this.status === 'here' && !!this.part.unload;
+  }
+
+  want(): void {
+    if (this.status !== 'gone') return;
+    this.status = 'loading';
+    this.part.load!()
+      .then(() => {
+        this.status = 'here';
+        this.part.show(this.shown);
+      })
+      .catch((e: unknown) => {
+        this.status = 'gone'; // tried again the next time it's wanted
+        console.error(`loading ${this.name}`, e);
+      });
+  }
+
+  letGo(): void {
+    if (!this.canLetGo) return;
+    this.part.show(false);
+    this.part.unload!();
+    this.status = 'gone';
+  }
+
+  show(on: boolean): void {
+    this.shown = on;
+    if (this.status === 'here') this.part.show(on);
+  }
 }
 
 export class Interiors {
@@ -69,7 +122,7 @@ export class Interiors {
   }
 
   // Something drawn as part of the interior `id`: wanted, let go and shown with it.
-  add(id: string, part: Part): void {
+  add(id: string, part: InteriorPart): void {
     const state = this.states.get(id);
     if (!state) throw new Error(`no interior ${id}`);
     const held = new Held(part, id);

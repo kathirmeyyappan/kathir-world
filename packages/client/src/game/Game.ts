@@ -69,7 +69,6 @@ import { Interiors } from '../render/Interiors';
 import { FrostLayer } from '../render/Frost';
 import { Loader } from '../render/Loader';
 import { Models } from '../render/models/Models';
-import { Shells } from '../render/Shells';
 import { buildStructures } from '../render/Structures';
 import { Pickups } from '../render/Pickups';
 import { poof } from '../render/Poof';
@@ -178,7 +177,6 @@ export class Game {
   private readonly environment: Environment;
   private readonly loader = new Loader(); // streams the world in round the player
   private readonly models: Models;
-  private readonly shells = new Shells();
   private readonly frost: FrostLayer; // the ice sprayed over the world's surfaces (sim/frost.ts)
   private hoveredDoor: string | null = null; // the door under the crosshair within reach (sim/doors.ts)
   private introduced = false; // the look the player came in as has said its intro
@@ -278,7 +276,7 @@ export class Game {
     buildStructures(this.engine, WORLD_STRUCTURES.list, this.loader);
     this.frost = new FrostLayer(this.engine, WORLD_STRUCTURES.list);
     this.interiors = new Interiors(INTERIOR_BUILDINGS, (door) => this.models.ajar(door));
-    this.models = new Models(this.engine, this.loader, this.interiors, this.shells);
+    this.models = new Models(this.engine, this.loader, this.interiors);
     this.wallFrames = new WallFrames(this.engine, WALL_FRAMES, this.interiors);
     this.camera = new UniversalCamera('camera', new Vector3(0, 1.7, 0), this.engine.scene);
     this.camera.minZ = NEAR;
@@ -1026,7 +1024,6 @@ export class Game {
     this.environment.update(dt, eye);
     this.frost.update(dt, this.camera.position);
     this.interiors.update(this.camera, this.scoped ? this.scopeCone() : null);
-    this.shells.update(this.camera.globalPosition);
     this.wallFrames.update(this.camera);
     const held = this.held;
     if (!held) this.setScoped(false);
