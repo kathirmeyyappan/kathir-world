@@ -79,7 +79,7 @@ anything that can wait off the path everyone pays:
 - Anything heavy that stands somewhere (a model's parts, a region's meshes) registers with
   `render/Loader.ts` and arrives nearest first. What's inside a building (the pineapple's rooms,
   about 1.3 MB; a storey's pictures) is fetched only once it's wanted: within 25 m, or seen through
-  an open door within 125 m, three times that scoped (`render/Interiors.ts`).
+  an open door within 125 m, 560 m scoped (`render/Interiors.ts`).
 - A look's files (its model, 15 to 60 KB of code on foot and 260 to 300 KB a dragon, and its
   atlases, about 100 KB on foot and 600 KB a dragon) are fetched the first time someone is seen
   wearing it, as a skin's command is pointed at or sent, or as it's picked on the home screen
@@ -112,8 +112,8 @@ before:
   so walking back and forth across one line can't load and unload it over and over. Coming back
   reloads it from the browser's cache, decoded and uploaded through the loader's budget, so it
   costs no frame.
-- **Draw far landmarks as shells** once the world is wider than a scope sees in (`SIGHT` times
-  `SCOPED`, 375 m; it's about 250 m across): a landmark past 450 m is a low-detail shell that keeps
+- **Draw far landmarks as shells** once a model landmark can be further from where someone stands
+  than a scope sees (`SCOPED_SIGHT`, 560 m): a landmark past that is a low-detail shell that keeps
   its outline against the sky, its full detail loaded as one comes within reach. Not before: within
   a scope's reach a swap is seen.
 
@@ -127,17 +127,15 @@ was settled. As they stand:
 | Distance | Unscoped | Scoped | What it decides |
 | --- | --- | --- | --- |
 | `NEAR` | 25 m | 25 m | an interior wanted whatever's in view |
-| `SIGHT` (× `SCOPED`, 3) | 125 m | 375 m | an interior wanted through an open opening in view (scoped, within the scope's circle and a little round it) |
-| Fog, 90% thick | about 126 m | about 560 m | what can be seen at all (`SCOPED_FOG_SCALE` follows the scope's real zoom, about 4.5×) |
+| `SIGHT`, `SCOPED_SIGHT` | 125 m | 560 m | the fog nine tenths thick (`BASE_FOG_DENSITY` and `SCOPED_FOG_SCALE` are worked out from them); an interior wanted through an open opening in view (scoped, within the scope's circle and a little round it); the sniper's range |
 | `CRISP_RANGE` | 45 m | 45 m | a wall frame's picture drawn crisp rather than as a texture |
 | Letting interiors go | 200 m, unseen 30 s | same | once built; past every unscoped fetch, so no line flaps |
-| Far landmark shells | 450 m | 450 m | once built; past every interior fetch, so no rooms load inside a shell |
+| Far landmark shells | past 560 m | same | once built; past where a scope sees, so no swap and no rooms inside a shell are seen |
 
-Known and accepted: scoped, a doorway between 375 m and the fog's 560 m shows empty until you
-come nearer (12 to 17 px tall on a 900 px screen), and an interior a scope fetched past 200 m is let
-go 30 s after it's last seen and fetched again from the browser's cache if it's scoped again.
-`SCOPED` is the one scoped multiple for fetching detail; anything new that reaches further
-through a scope reads it rather than keeping its own.
+Known and accepted: an interior a scope fetched past 200 m is let go 30 s after it's last seen and
+fetched again from the browser's cache if it's scoped again. `SIGHT` and `SCOPED_SIGHT`
+(`sim/constants.ts`) are the one measure of how far anyone sees; anything new that reaches as far as
+the eye does reads them rather than keeping its own.
 
 ## World geometry
 
@@ -441,7 +439,7 @@ inside it, and from outside, one with an opening in view, the camera on its oute
 open or swinging, with what it shows; once loaded, seeing waits on no distance. Wanted, for good:
 from inside its building or within `NEAR` (25 m) of its round whatever's in view, so a door swung
 open in front of you shows rooms already there, and while it's seen through an opening within
-`SIGHT` (125 m, where a doorway is all but fog), `SCOPED` (3) times that through a scope. Whatever is
+`SIGHT` (125 m, where a doorway is all but fog), `SCOPED_SIGHT` (560 m) through a scope. Whatever is
 part of one registers with `Interiors.add`, with a `load` begun when it's first wanted (none for
 what's there from the start) and a `show`: a model's part by its `floor` (interior
 `<model>:<floor>`), fetched through the loader then, and a wall frame by its room's

@@ -48,6 +48,8 @@ import {
   eyeOf,
   statureOf,
   walkSpeedOf,
+  SCOPED_SIGHT,
+  SIGHT,
 } from '@world/shared';
 import { Footsteps } from '../audio/Footsteps';
 import { ITEM_SOUNDS, heard, loopsOf, PLACE_THEMES, Sfx, voiceOf, type SoundId } from '../audio/Sfx';
@@ -131,9 +133,9 @@ const SCOPED_FOV = 0.3;
 // The scope's clear circle across the shorter side of the screen (35vmin either way, `#scope` in
 // styles.css); everything outside it is black.
 const SCOPE_CIRCLE = 0.7;
-// Thins the fog while scoped so the sniper can see across the world. One of the client's loading and
-// drawing distances, set against the rest (CLAUDE.md, Client loading): change them together.
-const SCOPED_FOG_SCALE = 0.05;
+// The fog's density is scaled by the root of this: thinned while scoped to be as thick at
+// SCOPED_SIGHT as it is at SIGHT unscoped.
+const SCOPED_FOG_SCALE = (SIGHT / SCOPED_SIGHT) ** 2;
 const HIP_KICK = 0.02;
 const SCOPED_KICK = 0.035;
 const KICK_HALF_LIFE = 0.06;

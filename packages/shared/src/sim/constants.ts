@@ -11,6 +11,11 @@ export const STEP_UP = 0.5;
 export const STEP_DOWN = 0.5;
 
 export const EYE_HEIGHT = 1.7;
+// Metres off at which the fog has hidden nine tenths of anything, as a player sees and through a
+// scope: what's fetched to be seen (interiors), the fog itself, and the sniper's reach are all set
+// by these (CLAUDE.md, Client loading).
+export const SIGHT = 125;
+export const SCOPED_SIGHT = 560;
 // The standard body's walk, m/s, and a jump's rise at a jump power of 1, metres: each look on foot
 // walks at its own speed and jumps with its own power (avatars.ts `walk`, `jump`).
 export const MOVE_SPEED = 8;

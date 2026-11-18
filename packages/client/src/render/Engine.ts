@@ -14,6 +14,7 @@ import {
   Vector3,
   type AbstractMesh,
 } from '@babylonjs/core';
+import { SIGHT } from '@world/shared';
 import { Picture } from './Picture';
 
 // A frame due this close to the display's next tick is drawn on it rather than the one after: the
@@ -25,7 +26,8 @@ const MAX_TICK_MS = 100; // a gap longer than this is a hitch or a sleeping tab,
 const TICK_SAMPLES = 61; // gaps the tick is the median of: a second at 60 Hz
 
 export const FOG_COLOR = new Color3(0.02, 0.02, 0.05);
-export const BASE_FOG_DENSITY = 0.012; // EXP2: players fade out past ~50 m
+// EXP2, nine tenths thick at SIGHT: exp(-(density × SIGHT)²) is a tenth.
+export const BASE_FOG_DENSITY = Math.sqrt(Math.LN10) / SIGHT;
 
 export class Engine {
   readonly engine: BabylonEngine;
