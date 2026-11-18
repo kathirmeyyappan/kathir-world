@@ -6,8 +6,8 @@
 // the structures the content hides inside them, so what you bump into is theirs to keep true to the
 // models. Each door hangs on a node at its pin and swings to the state the Room tells us
 // (sim/doors.ts) over DOOR_SWING_SECONDS; a door of two leaves has a node for each. A part of a
-// floor of rooms is fetched when that floor is first wanted and drawn only while it could be seen
-// (Interiors.ts): its interior is `<model>:<floor>`.
+// floor of rooms is fetched while that floor is wanted, drawn only while it could be seen, and let
+// go once it's far off and long unseen (Interiors.ts): its interior is `<model>:<floor>`.
 import { Color3, Mesh, StandardMaterial, Texture, TransformNode, VertexData, type Scene } from '@babylonjs/core';
 import {
   DOOR_SWING_SECONDS,
@@ -102,7 +102,7 @@ export class Models {
       for (const part of model.parts) {
         const parent = part.door ? hinges.get(part.door)! : root;
         const { x, z } = model.placement;
-        // A part inside is fetched when its floor is first wanted, through the loader all the same.
+        // A part inside is fetched when its floor is wanted, through the loader all the same.
         let mesh: Mesh | null = null;
         const load = () =>
           new Promise<void>((done, fail) =>
@@ -119,7 +119,16 @@ export class Models {
               },
             }),
           );
-        if (part.floor) interiors.add(`${model.name}:${part.floor}`, { load, show: (on) => mesh?.setEnabled(on) });
+        if (part.floor)
+          interiors.add(`${model.name}:${part.floor}`, {
+            load,
+            // Its material and texture with it; the texture's image stays in the browser's cache.
+            unload: () => {
+              mesh?.dispose(false, true);
+              mesh = null;
+            },
+            show: (on) => mesh?.setEnabled(on),
+          });
         else void load();
       }
     }

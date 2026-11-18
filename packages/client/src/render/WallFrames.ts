@@ -1,8 +1,8 @@
 // Frames on the tower's walls (sim/wallFrames.ts): each a picture or a live widget, drawn sharp by
 // the browser through a hole in the scene (CrispPanels), on a wood border set a little further
 // back, and for one played like an old screen its bands and static a little further forward
-// (OldScreen), all following the wall round segment by segment, a picture fetched when the room it
-// hangs in is first wanted and drawn only while that room could be seen (Interiors.ts). The picture's mesh is pickable as `frame-<n>`, for the
+// (OldScreen), all following the wall round segment by segment, a picture fetched while the room it
+// hangs in is wanted, drawn only while that room could be seen and let go with it (Interiors.ts). The picture's mesh is pickable as `frame-<n>`, for the
 // hover line; the rest isn't.
 import { Color3, Mesh, StandardMaterial, Vector3, VertexData, type Camera } from '@babylonjs/core';
 import { layoutWallFrame, OFF_WALL, type FramePanel, type WallFrame } from '@world/shared';
@@ -48,8 +48,9 @@ export class WallFrames {
       }
       const { show } = frame;
       let scroll: HungFrame['scroll'];
-      // A picture is fetched when its room is first wanted; a widget fetches only while it's shown.
+      // A picture is fetched while its room is wanted; a widget fetches only while it's shown.
       let load: (() => Promise<void>) | undefined;
+      let unload: (() => void) | undefined;
       if (show.kind === 'image') {
         load = () =>
           new Promise((done, fail) => {
@@ -59,6 +60,7 @@ export class WallFrames {
             img.src = show.src;
             this.crisp.add(mesh, picture.panels, img, { screen });
           });
+        unload = () => this.crisp.remove(mesh);
       } else {
         const widget = WIDGETS[show.widget](show.aspect);
         widget.onPaint = this.crisp.add(mesh, picture.panels, widget.canvas, { onShown: widget.setShown, screen });
@@ -76,6 +78,7 @@ export class WallFrames {
       border.setEnabled(false);
       interiors.add(frame.room.interior, {
         load,
+        unload,
         show: (on) => {
           mesh.setEnabled(on);
           border.setEnabled(on);
