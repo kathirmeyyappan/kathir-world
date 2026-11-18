@@ -113,9 +113,8 @@ before:
   reloads it from the browser's cache, decoded and uploaded through the loader's budget, so it
   costs no frame.
 - **Draw far landmarks as shells** once the world is wider than a scope sees in (`SIGHT` times
-  `SCOPED`, 375 m; the main world is about 250 m across, and the road out from the Krusty Krab takes it to about 510
-m): a landmark past 450 m is a low-detail shell that keeps
-  its outline against the sky, its full detail loaded as one comes within reach. Not before: within
+  `SCOPED`, 375 m; with the road out from the Krusty Krab the world is about 510 m across): a
+  landmark past 450 m is a low-detail shell that keeps its outline against the sky, its full detail loaded as one comes within reach. Not before: within
   a scope's reach a swap is seen.
 
 The distances that decide what's fetched, drawn and let go are one system, and each is set
