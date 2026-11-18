@@ -102,6 +102,21 @@ when something paid by everyone grows with each thing added. That pattern is the
 of hand, and the fix is to fetch each thing the first time someone meets it, as a look's body and
 voice are.
 
+Nothing loaded is ever let go (a death's reload is the only reset), and nothing outside a building
+waits on distance. Two changes wait on the world growing; make them when their sign shows, not
+before:
+
+- **Let interiors go** once players regularly end up far from places they've been, or phones run
+  short of memory (a device pinned off a pixel size for crashing, `Picture`, is the sign): an
+  interior is unloaded past 200 m and unseen for 30 s, well past `SIGHT` (125 m) where it's wanted,
+  so walking back and forth across one line can't load and unload it over and over. Coming back
+  reloads it from the browser's cache, decoded and uploaded through the loader's budget, so it
+  costs no frame.
+- **Draw far landmarks as shells** once the world is wider than a scope sees in (`SIGHT` times
+  `SCOPED`, 375 m; it's about 250 m across): a landmark past that is a low-detail shell that keeps
+  its outline against the sky, its full detail loaded as one comes within reach. Not before: within
+  a scope's reach a swap is seen.
+
 ## World geometry
 
 Buildings, walls, platforms, ramps and terrain are structures: plain data listed in
