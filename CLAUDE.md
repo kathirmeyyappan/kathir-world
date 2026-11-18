@@ -210,7 +210,8 @@ wire: server and client both build the world from that file.
   annex's size round the main disc at 70°, 125°, 235° and 290°, the keeps' 100 m out and SpongeBob's house's further out, at 124 m, on much wider grounds, r 52, so its dune and the sand round it sits on
   the floor with room round it), the Krusty Krab's grounds between Buildings 2 and 3 (r 32 at 180°,
   100 m out, so the five sites are 55° apart), a road 10 m wide straight out from behind it, 200 m
-past its grounds, to a plateau r 20 at its end (`KRUSTY_KRAB_ROAD`, `ROAD_PLATEAU`), and the fan between them all, a slice of the main
+  past its grounds, to a plateau r 20 at its end (`KRUSTY_KRAB_ROAD`, `ROAD_PLATEAU`), and the fan
+  between them all, a slice of the main
   disc's middle out to the keeps' from the first building's bearing round to the last's, its two
   straight sides held 10 m out, parallel to those bearings, by a strip of floor along each (`FAN_SIDES`),
   so the bridge to the tower is the only corridor and everything between the buildings is open floor. A part is a disc,
@@ -883,9 +884,9 @@ out toward its edge (a dragon hovering over it, its head weaving and its body tr
 would keep it), holding what the player holds and as the player is (`Me`: frosted over, a
 dragon's crystals shot out), so every skin's own idle motion runs there too; the view turns on
 its own and under a drag, from above or below (the floor fades out as the view comes down to its
-level). The map (`menu/Map.ts`) is the HUD minimap's view, CLOSE, WIDE or WORLD (the first two centred
-on you and turning with you, 32 m and 100 m out to the nearer edge; P steps one wider, and from
-WORLD back to CLOSE), drawn by the same
+level). The map (`menu/Map.ts`) is the HUD minimap's view, CLOSE, WIDE or WORLD (the first two
+centred on you and turning with you, 32 m and 100 m out to the nearer edge; P steps one wider, and
+from WORLD back to CLOSE), drawn by the same
 renderer (`ui/MapCanvas.ts`, which draws a `MinimapFrame` onto any canvas at the size it has; the
 HUD's `Minimap` is a panel round one, and keeps the view and the latest frame for the menu's),
 with the same toggle (P too), a wheel or a pinch to zoom it and a drag to slide it; on touch,
