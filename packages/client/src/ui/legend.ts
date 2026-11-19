@@ -32,7 +32,8 @@ const BOARDS: Record<PlayerClass, (p: PlayerState) => LegendCell[]> = {
   'asian-dragon': () => [cell(['W'], 'fly forward'), cell(['A', 'S', 'D'], 'roar')],
 };
 
-const DRIVING: LegendCell[] = [
+// A driver's keys, whatever the body.
+export const DRIVING: LegendCell[] = [
   cell(['W'], 'gas'),
   cell(['S'], 'brake'),
   cell(['A', 'D'], 'steer'),

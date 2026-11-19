@@ -43,7 +43,7 @@ const partsIn = perScene(() => new Map<KartId, Promise<Parts>>());
 const paintsIn = perScene(() => new Map<string, Promise<{ body: StandardMaterial; emblem: StandardMaterial }>>());
 
 export class KartMesh {
-  private readonly root: TransformNode; // where it stands, turned its way
+  readonly root: TransformNode; // where it stands, turned its way
   private readonly tilt: TransformNode; // tipped with the ground under its tires
   private readonly twirl: TransformNode; // turned round under its driver through a trick
   private readonly model: KartModel;
@@ -120,9 +120,12 @@ export class KartMesh {
     );
   }
 
+  // Lets it go, and its stand-in's material with it: its parts' materials and paint are the scene's,
+  // kept for every kart of its model and paint.
   dispose(): void {
     this.disposed = true;
-    this.root.dispose(false, true);
+    this.standIn?.dispose(false, true);
+    this.root.dispose();
   }
 
   // Eases the body toward the tilt of the ground under its tires: nose up or down by the ground
@@ -158,7 +161,7 @@ export class KartMesh {
 
   private build(p: Parts, materials: { body: StandardMaterial; emblem: StandardMaterial }): void {
     if (this.disposed) return;
-    this.standIn?.dispose();
+    this.standIn?.dispose(false, true);
     this.standIn = null;
     const piece = (mesh: Mesh, name: string, parent: TransformNode) => {
       const made = mesh.clone(`kart-${this.id}-${name}`, parent);

@@ -50,6 +50,9 @@ export interface Shown {
 export interface Thing {
   key: string; // which thing it is: another key builds afresh
   build(engine: Engine, parent: TransformNode): (t: number) => void;
+  // It draws with the scene's materials, kept for whatever else draws with them (a kart's paint), so
+  // they outlive it; otherwise what it draws with is its own, let go with it.
+  shared?: boolean;
 }
 
 const PIXELS = 1.5; // CSS pixels per rendered one: the world's grid on a mouse device, whatever the picture is set to
@@ -100,7 +103,8 @@ export class BodyView {
   private engine: Engine | null = null;
   private camera: ArcRotateCamera | null = null;
   private avatar: Avatar | null = null;
-  private thing: { key: string; node: TransformNode; move: (t: number) => void; born: number } | null = null;
+  private thing: { key: string; node: TransformNode; move: (t: number) => void; born: number; shared: boolean } | null =
+    null;
   private stage: (Stage & { floor: Mesh }) | null = null;
   private spine: number[] = []; // a dragon's, trailing its head (sim/dragon.ts DragonState)
   private dragging = false;
@@ -134,7 +138,7 @@ export class BodyView {
       if (this.thing?.key !== thing.key) {
         this.dropThing();
         const node = new TransformNode(`thing-${thing.key}`, engine.scene);
-        this.thing = { key: thing.key, node, move: thing.build(engine, node), born: now };
+        this.thing = { key: thing.key, node, move: thing.build(engine, node), born: now, shared: !!thing.shared };
         this.thing.move(0);
         const { min, max } = node.getHierarchyBoundingVectors();
         const across = Vector3.Distance(min, max);
@@ -147,7 +151,7 @@ export class BodyView {
   }
 
   private dropThing(): void {
-    this.thing?.node.dispose(false, true);
+    this.thing?.node.dispose(false, !this.thing.shared);
     this.thing = null;
   }
 

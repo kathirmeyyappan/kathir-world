@@ -43,10 +43,10 @@ export function commandGroups(): Group[] {
       rows: [
         ...items.map((id) => command(id, ITEMS[id].blurb)),
         ...GEAR_IDS.map((id) => command(id, GEAR[id].blurb)),
-        ...KART_IDS.map((id) => command(KARTS[id].command, KARTS[id].blurb)),
         command('unequip', 'put away your weapon and gear'),
       ],
     },
+    { title: 'drop kart', rows: KART_IDS.map((id) => command(KARTS[id].command, KARTS[id].blurb)) },
     {
       title: 'bot commands',
       rows: [

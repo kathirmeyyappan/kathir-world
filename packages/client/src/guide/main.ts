@@ -17,6 +17,7 @@ import {
   GEAR_IDS,
   ITEMS,
   ITEM_IDS,
+  KART_IDS,
   KRUSTY_KRAB_FLOOR,
   KRUSTY_KRAB_GROUNDS,
   KRUSTY_KRAB_PROFILE,
@@ -45,6 +46,7 @@ import {
   CONTROLS,
   GEAR_TEXT,
   INTRO,
+  KART_TEXT,
   PICKUP_TEXT,
   PLACES,
   RESUME_CUBE,
@@ -57,13 +59,15 @@ import {
 import { audition } from '../audio/Sfx';
 import { botDiagram } from './botDiagrams';
 import { linesOf, type Line } from './sounds';
-import { cubeThing, gearThing, itemThing, pickupThing } from './things';
+import { cubeThing, gearThing, itemThing, kartThing, pickupThing } from './things';
 import {
   abilityStats,
   botFlagRows,
   characterStats,
   gearStats,
   itemStats,
+  kartMoves,
+  kartStats,
   num,
   pickupStats,
   speedyStats,
@@ -78,7 +82,8 @@ interface Pick {
   id: string;
   entry: Entry;
   stats: () => Stat[];
-  abilities?: () => { title: string; stats: Stat[] }[]; // what it can do that the rest can't, each under its own heading
+  // More of its numbers, each table under a heading: a character's special abilities, a kart's moves.
+  more?: () => { title: string; stats: Stat[] }[];
   lines?: Line[]; // its sounds (voice lines and its moves' own), each a button that plays it
   view: { body: Shown } | { thing: Thing } | null;
 }
@@ -99,7 +104,7 @@ function characters(): Section[] {
     id,
     entry: CHARACTERS[id],
     stats: () => characterStats(id),
-    abilities: () => abilityStats(id).map((a) => ({ title: ABILITIES[a.id], stats: a.stats })),
+    more: () => abilityStats(id).map((a) => ({ title: `Special ability: ${ABILITIES[a.id]}`, stats: a.stats })),
     view: { body: shown(id) },
     lines: linesOf(id),
   });
@@ -109,9 +114,10 @@ function characters(): Section[] {
   ];
 }
 
-// The items as the commands card groups them: what you equip, each floating on its own; a dragon's
-// breath, which is its dragon's mouth and so has nothing to show alone; what floats about the world
-// (hearts, and the résumé cubes); and the speed boost, which is just a command.
+// The items as the commands card groups them: what you equip, each floating on its own; the karts
+// you drop, each standing empty; a dragon's breath, which is its dragon's mouth and so has nothing to
+// show alone; what floats about the world (hearts, and the résumé cubes); and the speed boost, which
+// is just a command.
 function items(): Section[] {
   const own = ITEM_IDS.filter((id) => ITEMS[id].own);
   const item = (id: (typeof ITEM_IDS)[number]): Pick => ({
@@ -138,6 +144,16 @@ function items(): Section[] {
           view: { thing: gearThing(id) },
         })),
       ],
+    },
+    {
+      title: 'Karts',
+      picks: KART_IDS.map((id): Pick => ({
+        id: `${id}-kart`,
+        entry: KART_TEXT[id],
+        stats: () => kartStats(id),
+        more: () => kartMoves(id),
+        view: { thing: kartThing(id) },
+      })),
     },
     { title: 'Dragon breath', picks: own.map(item) },
     {
@@ -277,15 +293,15 @@ class Catalog {
     });
     this.viewBox.classList.toggle('none', !pick.view);
     const { entry } = pick;
-    const abilities = pick.abilities?.() ?? [];
+    const more = pick.more?.() ?? [];
     audition(null);
     this.text.replaceChildren(
       el('h2', '', entry.title),
       ...(entry.summary ? [el('p', 'summary', entry.summary)] : []),
       statTable(pick.stats()),
       ...soundboard(pick.lines ?? []),
-      ...(abilities.length ? [el('hr', 'rule')] : []),
-      ...abilities.flatMap((a) => [el('h3', 'ability', `Special ability: ${a.title}`), statTable(a.stats)]),
+      ...(more.length ? [el('hr', 'rule')] : []),
+      ...more.flatMap((m) => [el('h3', 'ability', m.title), statTable(m.stats)]),
       ...facts(entry.facts),
     );
     this.view.resize();
