@@ -1,9 +1,9 @@
 // Driving a kart, as the player sees it (sim/vehicles/): every kart drawn, the one they drive from
-// its prediction and the rest from the snapshots, with its seat for its driver's body to sit in;
+// its prediction and the rest from the snapshots, with its seat for its driver's body to sit in,
+// and flashed at a knock that costs it wrenches;
 // the kart under the crosshair, which a click gets them into; the look carried round with the kart
 // they drive and, once the mouse has been let be a moment, settled back behind it; and the keys
 // that drive it besides the movement keys: the drift held on Space, and E to get out.
-import type { Scene } from '@babylonjs/core';
 import {
   KART_REACH,
   kartAt,
@@ -14,6 +14,7 @@ import {
   type Vec3,
 } from '@world/shared';
 import type { InputManager } from '../input/InputManager';
+import type { Engine } from '../render/Engine';
 import { KartMesh } from '../render/vehicles/KartMesh';
 import type { Seat } from '../render/vehicles/Seat';
 
@@ -22,23 +23,33 @@ const SETTLE_RATE = 3; // per second: how fast it settles
 const SETTLED_PITCH = 0.12; // radians down the settled look is, over the kart's nose
 
 export class Driving {
-  private readonly drawn = new Map<string, KartMesh>();
+  onKnock: ((at: Vec3) => void) | null = null; // a kart there lost wrenches to a knock: for what's heard of it
+  private readonly drawn = new Map<string, { mesh: KartMesh; wrenches: number }>(); // each kart drawn, and its wrenches as last seen
   private kartYaw: number | null = null; // the yaw of the kart they drive, as last followed
   private left: { yaw: number; pitch: number } | null = null; // the look as it was last left
   private still = 0; // seconds the look has been let be
 
-  constructor(private readonly scene: Scene) {}
+  constructor(private readonly engine: Engine) {}
 
-  // Draws `karts` as they are this frame, and lets go of any that are gone.
+  // Draws `karts` as they are this frame, each flashed if it has lost wrenches since the last, and
+  // lets go of any that are gone.
   draw(karts: Kart[], dt: number): void {
     const here = new Set<string>();
     for (const k of karts) {
       here.add(k.id);
-      let mesh = this.drawn.get(k.id);
-      if (!mesh) this.drawn.set(k.id, (mesh = new KartMesh(this.scene, k.id, k.kart, k.paint)));
-      mesh.update(k, dt);
+      let kart = this.drawn.get(k.id);
+      if (!kart) {
+        kart = { mesh: new KartMesh(this.engine, k.id, k.kart, k.paint), wrenches: k.wrenches };
+        this.drawn.set(k.id, kart);
+      }
+      kart.mesh.update(k, dt);
+      if (k.wrenches < kart.wrenches) {
+        kart.mesh.flash();
+        this.onKnock?.(k.pos);
+      }
+      kart.wrenches = k.wrenches;
     }
-    for (const [id, mesh] of this.drawn)
+    for (const [id, { mesh }] of this.drawn)
       if (!here.has(id)) {
         mesh.dispose();
         this.drawn.delete(id);
@@ -47,7 +58,7 @@ export class Driving {
 
   // The seat of the kart `id` as it was last drawn, for its driver's body to sit in.
   seatOf(id: string): Seat | null {
-    return this.drawn.get(id)?.seat ?? null;
+    return this.drawn.get(id)?.mesh.seat ?? null;
   }
 
   // The kart a click from `eye` along unit `dir` gets into: the nearest of `karts` within

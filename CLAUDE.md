@@ -996,13 +996,22 @@ size, each centred along the kart on its axle's hub with its outer face flush wi
 on the edge of its wells, all four on the ground), the steering wheel's middle,
 the axis it turns round and the grips a driver's hands take on it (a wheel's rim or a handlebar's
 ends alike), the seat, where a driver's feet rest (against the pedals, or as far forward under the
-nose as a foot fits), and each driver's paint. A paint is two colours and an emblem: the body is
+nose as a foot fits), where its exhaust pipes end and the way they point, and each driver's paint. A paint is two colours and an emblem: the body is
 one picture with its two painted colours left white and a second saying where they go, painted on
 the client in whichever colours (`paintOf`: the dropper's own, for the Mario family, else Mario's).
 The script prints the box the sim drives it as, for its row in `KARTS`. `render/vehicles/KartMesh.ts`
 draws one: its tires rolled by how far it went and the front pair steered, its steering wheel
 turned, the body tipped to the ground under its tires, all at its size, eased there; its files are
-sent for ahead (see Client loading), and it's drawn once they're here. `game/Driving.ts` is
+sent for ahead (see Client loading), and it's drawn once they're here. Its body is sprung over its
+tires, so a hop reads as one: kicked up off them as it begins, the tires hanging under it in the
+air, driven down onto them as it lands, and leaning into the turn through the hop and, less, the
+drift. What it gives off is `render/vehicles/KartEffects.ts`, each made the first time the kart
+needs it: sparks from under its back tires in the colour of the spark its drift has got to (blue,
+yellow, purple, with a burst as each is reached), kept in the kart's own frame so they stay at its
+tires at any speed, and flames from its exhaust pipes through a boost. A knock that costs it
+wrenches flashes it grey and is heard (`Driving.onKnock`), and one blowing up (`boom`) is a blast
+(`render/Blast.ts`: a flash, fire, smoke and bits) and its sound; both sounds (`KART_SOUNDS`) are
+sent for as the first kart is seen. `game/Driving.ts` is
 the rest of driving on the client: every kart drawn, the driven one where its driver's prediction
 has it (`Prediction` rides it as the Room does, rewinding and replaying it with them); the kart
 under the crosshair, which a click gets in (the same prompt and `use` as a door's); the look

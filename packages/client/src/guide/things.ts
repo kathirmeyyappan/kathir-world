@@ -128,7 +128,7 @@ export function kartThing(id: KartId): Thing {
     shared: true,
     bounds: { min: new Vector3(-width / 2, 0, -length / 2), max: new Vector3(width / 2, height, length / 2) },
     build(engine, parent) {
-      const mesh = new KartMesh(engine.scene, `guide-${id}`, id, 'mario');
+      const mesh = new KartMesh(engine, `guide-${id}`, id, 'mario');
       mesh.root.parent = parent;
       parent.onDisposeObservable.add(() => mesh.dispose());
       const kart: Kart = {

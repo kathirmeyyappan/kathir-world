@@ -17,8 +17,8 @@ simplified to what reads at a kart's size; and their textures, the body's once w
 painted colours left white (`body.png`) and where they go (`paint.png`, red the first and green
 the second), so the client paints it in any driver's colours from one picture. And it writes
 render/vehicles/<id>KartModel.ts: what the client needs to put it together and drive it (where
-each tire stands, the wheel's middle, the axis it turns round and the grips on it, the seat and
-where a driver's right foot rests) and
+each tire stands, the wheel's middle, the axis it turns round and the grips on it, the seat,
+where a driver's right foot rests, and where its exhaust pipes end and the way they point) and
 each driver's paint, and prints the box the sim drives it as, for its row in KARTS
 (sim/vehicles/karts.ts).
 
@@ -54,6 +54,7 @@ TIRE_KEEP = 0.5  # of a tire's triangles kept: a tread's bevels are lost at its 
 PAINT_DIFFERS = 24  # 0-255: a pixel some driver's albedo has this far from another's is painted
 FEET_APART = 0.19  # metres each foot rests out from the middle line: on its pedal, where there are pedals
 FOOT_ROOM = 0.25  # metres over the floor a foot needs: the feet go forward as far as that's clear
+EXHAUST_RIM = 0.03  # metres from a pipe's end its rim's corners are within
 
 # The drivers whose own paint and emblem a kart they drop wears (their albedo's and emblem's
 # names); anyone else's wears the first's.
@@ -262,6 +263,7 @@ def main(kart_id: str, body_dir: Path, tire_dir: Path) -> None:
     grips = [middle - across * radius, middle + across * radius]
     seat = seat_of(body_pos, rest)
     feet = feet_of(body_pos, rest, middle)
+    exhausts = exhausts_of(body_pos, seat)
 
     emit_part(out / "body.bin", triangles(body_pos * ROOM, body_uv, rest), {})
     emit_part(out / "steer.bin", triangles((body_pos - middle) * ROOM, body_uv, wheel), {})
@@ -305,6 +307,9 @@ def main(kart_id: str, body_dir: Path, tire_dir: Path) -> None:
         "  tires: [",
         *[f"    {{ at: {game(at)}, front: {'true' if front else 'false'} }}," for at, front in tires],
         "  ],",
+        "  exhausts: [",
+        *[f"    {{ at: {game(at)}, way: {way(out)} }}," for at, out in exhausts],
+        "  ],",
         "  paints: {",
         *[f"    {d}: {{ colours: ['{c1}', '{c2}'], emblem: '{d}' }}," for d, (c1, c2) in colours.items()],
         "  },",
@@ -341,6 +346,28 @@ def axle_hubs(pos: np.ndarray) -> dict[tuple[str, int], np.ndarray]:
             found[(end, side)] = (float(size[1]), face)
     assert len(found) == 4, f"found {len(found)} axle hubs, not 4"
     return {k: v for k, (_, v) in found.items()}
+
+
+def exhausts_of(pos: np.ndarray, seat: np.ndarray) -> list[tuple[np.ndarray, np.ndarray]]:
+    """Where each of the body's exhaust pipes ends and the unit way it points out of it: each side
+    of the middle line, the longest piece that's all behind the `seat`; its end the middle of the
+    corners within EXHAUST_RIM of its rear end, its way its long axis, out the back."""
+    found: dict[int, tuple[float, np.ndarray, np.ndarray]] = {}
+    for tris in pieces(pos):
+        p = pos[np.repeat(tris * 3, 3) + np.tile([0, 1, 2], len(tris))]
+        lo, hi = p.min(axis=0), p.max(axis=0)
+        if hi[2] > seat[2] or lo[0] < 0 < hi[0]:
+            continue
+        middle = p.mean(axis=0)
+        axis = np.linalg.svd(p - middle, full_matrices=False)[2][0]
+        axis = axis if axis[2] < 0 else -axis
+        along = (p - middle) @ axis
+        length = float(along.max() - along.min())
+        side = 1 if middle[0] > 0 else -1
+        if side not in found or length > found[side][0]:
+            found[side] = (length, p[along > along.max() - EXHAUST_RIM].mean(axis=0), axis)
+    assert len(found) == 2, f"found {len(found)} exhaust pipes, not 2"
+    return [found[side][1:] for side in (-1, 1)]
 
 
 def seat_of(pos: np.ndarray, which: np.ndarray) -> np.ndarray:

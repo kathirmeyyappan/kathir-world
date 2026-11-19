@@ -55,14 +55,12 @@ const FLASH_ACROSS = 7; // metres the light spreads to
 const SPARKLES = 4; // pink ones among the shards, bigger and slower, for the glint of the core
 const SPARKLE_SIZE = 0.75;
 
-let light: DynamicTexture | null = null; // the flash's soft glow, drawn once
-
 // A crystal shattering, seen from under it: a soft flash of light where it was, and its shards
 // popping out, then fluttering down, spinning and twinkling, fading as they fall, a few pink
 // sparkles of the core among them; gone in a couple of seconds.
 export function shards(engine: Engine, at: Vector3): void {
   const flash = new ParticleSystem('shatter-flash', 3, engine.scene);
-  flash.particleTexture = light ??= lightTexture(engine);
+  flash.particleTexture = lightTexture(engine);
   flash.blendMode = ParticleSystem.BLENDMODE_ADD;
   flash.emitter = at.clone();
   flash.minEmitPower = flash.maxEmitPower = 0;
@@ -124,7 +122,25 @@ export function shards(engine: Engine, at: Vector3): void {
   sparkles.start();
 }
 
-// A soft disc of light for the flash.
+// A soft disc of white fading out to its edge, `pixels` across: a puff of mist or smoke, or a glow,
+// under a particle system's colours. The system's own, disposed with it.
+export function softDisc(engine: Engine, pixels = 32): DynamicTexture {
+  const texture = new DynamicTexture('soft-disc', pixels, engine.scene, false, Texture.BILINEAR_SAMPLINGMODE);
+  texture.hasAlpha = true;
+  const ctx = texture.getContext() as CanvasRenderingContext2D;
+  const mid = pixels / 2;
+  const fade = ctx.createRadialGradient(mid, mid, 0, mid, mid, mid);
+  fade.addColorStop(0, 'rgba(255, 255, 255, 1)');
+  fade.addColorStop(0.5, 'rgba(255, 255, 255, 0.35)');
+  fade.addColorStop(1, 'rgba(255, 255, 255, 0)');
+  ctx.clearRect(0, 0, pixels, pixels);
+  ctx.fillStyle = fade;
+  ctx.fillRect(0, 0, pixels, pixels);
+  texture.update();
+  return texture;
+}
+
+// A soft disc of light for a shatter's flash, the faintest pink: its system's own, disposed with it.
 function lightTexture(engine: Engine): DynamicTexture {
   const size = 64;
   const texture = new DynamicTexture('shatter-light', size, engine.scene, false, Texture.BILINEAR_SAMPLINGMODE);

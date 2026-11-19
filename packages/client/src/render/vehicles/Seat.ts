@@ -49,20 +49,23 @@ export class Seat {
   }
 
   // Puts it in `kart`, whose ground under its middle is at `pos` (KartMesh's root), turned by `turn`
-  // there and drawn `size` times its model's size; its steering wheel turned by `steer` about its
-  // own middle; going `speed` along it, and through `trick`, as the kart draws it.
+  // there and drawn `size` times its model's size, its body riding `lift` metres (at that model's
+  // size) over its rest on its tires; its steering wheel turned by `steer` about its own middle;
+  // going `speed` along it, and through `trick`, as the kart draws it.
   place(
     kart: KartState,
     pos: Vector3,
     turn: Quaternion,
     size: number,
+    lift: number,
     steer: Quaternion,
     speed: number,
     trick: Seat['trick'],
   ): void {
     const m = this.model;
     this.turn.copyFrom(turn);
-    m.from.scaleToRef(size, this.at).rotateByQuaternionToRef(turn, this.at).addInPlace(pos);
+    this.at.copyFrom(m.from).addInPlaceFromFloats(0, lift, 0).scaleInPlace(size);
+    this.at.rotateByQuaternionToRef(turn, this.at).addInPlace(pos);
     this.yaw = kart.yaw;
     this.wheel = kart.wheel;
     this.speed = speed;
