@@ -1,7 +1,7 @@
 // Every sound a character makes that not every look makes alike, as the guide's buttons name them:
 // one per take, numbered where a line has more than one. That is all it says (VOICES), the sounds
 // of the moves it has (voices.ts `MoveSound` and the rest, the same the game plays), footsteps of
-// its own (GAITS), and a dragon's roars, rise and theme (DRAGON_VOICES). What every look makes the
+// its own (GAITS), a dragon's roars and rise (DRAGON_VOICES), and its theme. What every look makes the
 // same (the jump's swoosh, the thuds of a step, the hurt sound) is left out. A new look's sound,
 // or a new move's, is listed here too.
 import type { AvatarId } from '@world/shared';
@@ -57,8 +57,8 @@ export function linesOf(avatar: AvatarId): Line[] {
           ]),
           { label: 'Rise', id: dragon.cry.near },
           ...(dragon.cry.far ? [{ label: 'Rise (far)', id: dragon.cry.far }] : []),
-          { label: 'Theme', id: dragon.theme },
         ]
       : []),
+    ...takes('Theme', voice.theme ? [voice.theme.sound] : undefined),
   ];
 }
