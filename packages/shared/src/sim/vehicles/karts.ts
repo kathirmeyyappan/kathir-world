@@ -1,0 +1,37 @@
+// Every kart there is, a row each: what it's called, the command that drops one, its stats and
+// the box it drives as. How every kart drives by them is kart.ts. A new kart is a row here and its
+// model in the client.
+
+export type KartId = 'standard';
+
+export interface KartSpec {
+  name: string;
+  command: string; // `/<command>` drops one in front of you
+  blurb: string;
+  speed: number; // m/s flat out on the gas: S, which a mini-turbo raises by half
+  acceleration: number; // seconds from standing to `speed`
+  handling: number; // metres across the circle it turns at `speed` with the wheel full over
+  weight: number; // how hard it shoves a kart it bumps, and how little it's shoved: the standard's 1
+  miniTurboTime: number; // seconds of drifting to a blue spark: twice it yellow, three times purple
+  wrenches: number; // its health: what a wall, a kart or a shot takes off it, and at none it explodes
+  // The box it drives as, in metres: its width and length on the ground and its height from the
+  // ground up, the middle of its underside its position.
+  body: { width: number; length: number; height: number };
+}
+
+export const KARTS: Record<KartId, KartSpec> = {
+  standard: {
+    name: 'Standard Kart',
+    command: 'kart',
+    blurb: 'a go-kart to drive, drift and run people over in',
+    speed: 20,
+    acceleration: 2.5,
+    handling: 30,
+    weight: 1,
+    miniTurboTime: 0.8,
+    wrenches: 5,
+    body: { width: 1.6, length: 2.6, height: 0.9 },
+  },
+};
+
+export const KART_IDS = Object.keys(KARTS) as KartId[];

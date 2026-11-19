@@ -927,6 +927,27 @@ the middle of each link carrying the pieces hung on it (the script prints the sh
 The helpers the model scripts share (reading a GLB, decimating, packing an atlas) are in
 `scripts/glb.py`.
 
+## Karts
+
+Karts are their own module, apart from players' classes: `sim/vehicles/` in the shared package.
+A kart is a row in `KARTS` (`karts.ts`): its name and command, and its stats, each a number in
+the units it's felt in: `speed` (S, m/s flat out on the gas), `acceleration` (seconds from
+standing to S), `handling` (metres across the circle it turns at S with the wheel full over),
+`weight` (who shoves whom in a bump), `miniTurboTime` (seconds of drifting to a blue spark,
+smaller better) and `wrenches` (its health), with the box it drives as. Traction isn't a stat:
+it's one constant for every kart, and only an icy footing's grip is less. `stepKart` (`kart.ts`)
+is how every kart drives, a pure step of its `KartState` by its driver's `KartControls` (gas or
+brake, the wheel, the drift key) that the Room runs and the driver's client predicts with: the gas
+and the brake along it (the brake backing it up once it stops), a turn as tight at any speed,
+the wheels taking back what slides across, rolling up anything within a kerb's height and
+flying off a ramp's lip, and walls in the way, which it meets as two circles, at its nose and its
+tail, so a corner hit turns it; it reports how fast it ran into what it hit and how fast it came
+down when it lands. A drift is Space: a press hops it, and landing with the key held and the
+wheel over at speed it drifts that way, tighter or wider by the wheel, a spark blue, yellow and
+purple at one, two and three `miniTurboTime`s of it on the ground; let go on a spark, it's a
+mini-turbo, its top speed raised by half over `TURBO.rise`, held for `TURBO.holds` by the spark
+and let down over `TURBO.fall`.
+
 ## Weapons
 
 A weapon is a row in `ITEMS` (`packages/shared/src/sim/items.ts`: range, damage, cooldown, its
