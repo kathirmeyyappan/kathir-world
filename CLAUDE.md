@@ -1015,7 +1015,11 @@ and E to get out (`KART_ACTIONS`). A driver is watched along `KART_BOOM`, their 
 kart's keys and the hint bar says how to get out, and on touch the pad steers alone, GAS (red) and
 BRAKE hold W and S, the jump button (grey) drifts and OUT gets out.
 Their kart's wrenches are a row of pixel wrenches under their hearts (`Hearts` with the `wrench`
-sprite). A tick the Room steps a driver's kart with no frame (theirs is late) is taken on the keys
+sprite), and on a mouse device a gauge under those (`ui/KartGauge.ts`) says how fast the kart is
+going along its nose and how fast that's changing (`Prediction.kartPace`: a tick taken ahead on
+the keys held, so it's the kart's acceleration now, not a difference between frames); what else
+stands under the hearts (the area's title, the condition's banner) stands under them both
+(`--under-hearts`). A tick the Room steps a driver's kart with no frame (theirs is late) is taken on the keys
 of their last, ahead of the frame it stood in for, which is then taken for its keys alone
 (`Garage.drive`): a kart steps once for each of its driver's frames, as their client predicted,
 however late they come. Past `AHEAD_TICKS` of that its keys are let go and it rolls to a stop. A kart's meshes and its paint's materials are made once per scene and

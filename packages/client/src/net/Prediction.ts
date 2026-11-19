@@ -6,6 +6,7 @@ import {
   TICK_DT,
   clonePlayer,
   controlsOf,
+  forwardSpeed,
   ride,
   stepKart,
   stepPlayer,
@@ -15,6 +16,12 @@ import {
   type PlayerState,
   type Structures,
 } from '@world/shared';
+
+// How a kart is going: m/s along its nose, and the m/s² that's changing by.
+export interface KartPace {
+  speed: number;
+  accel: number;
+}
 
 export class Prediction {
   state: PlayerState;
@@ -46,10 +53,25 @@ export class Prediction {
   // rather than thirty times a second. Only where it is and how it's turned run on: what it's doing
   // (a hop, a drift, a trick, a boost) changes on its tick.
   kartBetween(into: number): KartState | null {
+    const on = this.kartAfter(into);
+    return this.kart && on && { ...this.kart, pos: on.pos, yaw: on.yaw, wheel: on.wheel };
+  }
+
+  // How the kart they drive is going: its speed as of its last tick, and how fast the keys of their
+  // last frame are changing it, by a tick taken ahead on them.
+  kartPace(): KartPace | null {
+    const on = this.kartAfter(TICK_DT);
+    if (!this.kart || !on) return null;
+    const speed = forwardSpeed(this.kart);
+    return { speed, accel: (forwardSpeed(on) - speed) / TICK_DT };
+  }
+
+  // The kart they drive `seconds` on from its last tick, on the keys of their last frame.
+  private kartAfter(seconds: number): KartState | null {
     if (!this.kart) return null;
     const on = cloneKart(this.kart);
-    stepKart(on, controlsOf(this.last), into, this.structures);
-    return { ...this.kart, pos: on.pos, yaw: on.yaw, wheel: on.wheel };
+    stepKart(on, controlsOf(this.last), seconds, this.structures);
+    return on;
   }
 
   // Returns how far the corrected position moved, so the caller can smooth the pop. `kart` is the
