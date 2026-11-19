@@ -2,6 +2,7 @@
 
 import asyncio
 from typing import Any
+from urllib.parse import parse_qs, urlparse
 
 import httpx
 import pytest
@@ -76,8 +77,10 @@ def test_join_starts_a_room_only_when_asked(monkeypatch: pytest.MonkeyPatch) -> 
                 created.headers["location"] == f"{LAUNCHER_URL}/?error=room+taken+already+exists&tab=create&code=taken"
             )
             assert started == []
+            # One opened from an app sends no referer, and is still told home is the launcher.
             person = await client.get("/join/late-night", params={"name": "kathir", "mode": "create"})
             assert person.status_code == 302 and "modal_session_token=tok" in person.headers["location"]
+            assert parse_qs(urlparse(person.headers["location"]).query)["home"] == [LAUNCHER_URL]
             assert started == ["late-night"]
 
     asyncio.run(run())

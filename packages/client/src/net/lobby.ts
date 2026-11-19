@@ -21,6 +21,9 @@ if (startParams.get('lobby')) sessionStorage.setItem('world.lobby', startParams.
 const home = startParams.get('home');
 if (home && home !== location.origin) sessionStorage.setItem('world.home', home);
 export const SERVED_BY_ROOM_HOST = sessionStorage.getItem('world.direct') === '1';
+// Home when it's another page: on the room host, the launcher (or dev page) the lobby named. Null on
+// home itself, and in a room host tab that was never told.
+export const HOME = sessionStorage.getItem('world.home');
 
 // localStorage: the name and the skin (a dropdown choice, app/skins.ts) the home screen offers first.
 export const NAME_KEY = 'world.name';
@@ -89,9 +92,12 @@ export function respawn(): void {
   location.reload();
 }
 
-// The launcher the player came from, or this host's own menu when that isn't known.
-export function homeUrl(): string {
-  return sessionStorage.getItem('world.home') || location.pathname;
+// Home, opening on `query` when given (the home screen's own: a refused join's ?error=&tab=&code=),
+// or this host's own menu when home isn't known.
+export function homeUrl(query?: URLSearchParams): string {
+  const url = new URL(HOME ?? location.pathname, location.href);
+  if (query) url.search = query.toString();
+  return url.href;
 }
 
 // Out of the room for good: the tab forgets it, so the home page doesn't rejoin it, and goes home.
