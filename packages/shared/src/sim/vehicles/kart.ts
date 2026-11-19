@@ -255,7 +255,8 @@ function rightOf(yaw: number): { x: number; z: number } {
   return { x: Math.cos(yaw), z: -Math.sin(yaw) };
 }
 
-function forwardSpeed(k: KartState): number {
+// How fast it's going along its nose, m/s: less than nothing backing up.
+export function forwardSpeed(k: KartState): number {
   const f = noseOf(k.yaw);
   return k.vel.x * f.x + k.vel.z * f.z;
 }
