@@ -49,7 +49,7 @@ MK8_METRES = 2.0 / 15.42  # MK8's Mario, 15.42 of its units tall, stood 2 m (joi
 ROOM = 1.1
 OBJ_UNIT = 0.127  # an OBJ rip's units, in MK8's
 BODY_TEXTURE = 512  # px: the body's picture and its paint, each side
-EMBLEM_TEXTURE = 64  # px: an emblem's picture, each side
+EMBLEM_TEXTURE = 64  # px: an emblem's picture on its canvas (`decal`), each side
 TIRE_KEEP = 0.5  # of a tire's triangles kept: a tread's bevels are lost at its size
 PAINT_DIFFERS = 24  # 0-255: a pixel some driver's albedo has this far from another's is painted
 FEET_APART = 0.19  # metres each foot rests out from the middle line: on its pedal, where there are pedals
@@ -180,6 +180,24 @@ def triangles(pos: np.ndarray, uv: np.ndarray, which: np.ndarray | None = None) 
     return mesh
 
 
+def decal(uv: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """A decal's patch reaches past its picture, which MK8 draws on it once; a part's picture
+    repeats (emit_part), and past its edge would show its far edge over again. So the picture is
+    set on a clear canvas as big as the patch reaches (`on_canvas`), and the patch's texture
+    coordinates run 0 to 1 over that. Returns those coordinates, and the canvas: where the
+    picture's corner is on it and its size, both in pictures."""
+    lo, hi = uv.min(axis=0), uv.max(axis=0)
+    picture = np.floor((lo + hi) / 2)  # the repeat the picture is in: the one the patch's middle is in
+    return (uv - lo) / (hi - lo), picture - lo, hi - lo
+
+
+def on_canvas(picture: Image.Image, corner: np.ndarray, size: np.ndarray) -> Image.Image:
+    """`picture` on a clear canvas `size` pictures across and down, its corner `corner` in."""
+    canvas = Image.new("RGBA", tuple(np.round(size * picture.size).astype(int)), (0, 0, 0, 0))
+    canvas.paste(picture, tuple(np.round(corner * picture.size).astype(int)))
+    return canvas
+
+
 def simplified(pos: np.ndarray, uv: np.ndarray, keep: float) -> tuple[np.ndarray, np.ndarray]:
     """A triangle soup thinned to `keep` of its triangles (glb.py `decimate`)."""
     spots, corner = np.unique(np.concatenate([np.round(pos, 5), np.round(uv, 5)], axis=1), axis=0, return_inverse=True)
@@ -267,6 +285,7 @@ def main(kart_id: str, body_dir: Path, tire_dir: Path) -> None:
 
     emit_part(out / "body.bin", triangles(body_pos * ROOM, body_uv, rest), {})
     emit_part(out / "steer.bin", triangles((body_pos - middle) * ROOM, body_uv, wheel), {})
+    emblem_uv, emblem_corner, emblem_canvas = decal(emblem_uv)
     emit_part(out / "emblem.bin", triangles(emblem_pos * ROOM, emblem_uv), {})
     tire_pos, tire_uv = simplified(tire_pos, tire_uv, TIRE_KEEP)
     emit_part(out / "tire.bin", triangles(tire_pos * ROOM, tire_uv), {})
@@ -274,7 +293,9 @@ def main(kart_id: str, body_dir: Path, tire_dir: Path) -> None:
     albedos = {d: Image.open(next(body_dir.glob(f"bodyk_*_{code}_alb.png"))) for d, (code, _) in DRIVERS.items()}
     colours = paint(albedos, out)
     for driver, (_, name) in DRIVERS.items():
-        emblem = Image.open(body_dir / "Emblems" / f"{name}.png").convert("RGBA")
+        emblem = on_canvas(
+            Image.open(body_dir / "Emblems" / f"{name}.png").convert("RGBA"), emblem_corner, emblem_canvas
+        )
         emblem.resize((EMBLEM_TEXTURE,) * 2, Image.Resampling.LANCZOS).save(out / f"emblem-{driver}.png", optimize=True)
     Image.open(tire_dir / f"Tire_{tire_set}_Alb.png").convert("RGB").save(out / "tire.png", optimize=True)
 
