@@ -235,7 +235,7 @@ wire: server and client both build the world from that file.
   sides a drop of `OUTSIDE_HEIGHT` (10 m) to the ground past the edge, all three of them solid to
   bodies and to rays (`Structures` stands bodies on it, holds a body below the floor off the drop's
   face as a wall, and stops shots and sprays on it). Nothing keeps a walker on the floor: one walks
-  off the edge, falls down the drop, and dies the moment it's down on the ground past it (a `fell`,
+  off the edge, falls down the drop, and dies the moment it's down on the ground past it (an `out`,
   `room.ts` `land`), with nothing dropped where it lies. The one barrier is a circle round the
   world's reach (`Ground.keepWithin`, the red wall shown as you come near it), the same for a
   walker and a dragon. Keep structures inside the outline.
@@ -1384,7 +1384,7 @@ protocol.
 - Falls hurt by landing speed: slower than a 15 m drop from rest is free, as fast as an 80 m drop
   takes every heart, and damage rises linearly between, in half hearts (a jetpack that brakes the
   fall lands slower). That arrives as a `hit` with `shooter: None`, and a fatal fall as a `fell`
-  event rather than `kill`. Landing on the ground past the world's edge is a `fell` whatever the
+  event rather than `kill`. Landing on the ground past the world's edge is an `out` whatever the
   height: a bot that walks off the floor dies, so keep routes on the map. A death by one's own
   kart is a `crashed` event.
 - Snapshots reveal players globally, and shots pass through cubes; only structures block them. Perfect aim

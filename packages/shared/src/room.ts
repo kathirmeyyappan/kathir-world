@@ -443,7 +443,7 @@ export class Room {
     victim: PlayerState,
     damage: number,
     by: { shooter: Seat; headshot: boolean; move?: 'pound' | 'strike' | 'kart' | 'explosion' } | null,
-    death: 'fell' | 'crashed' = 'fell',
+    death: 'fell' | 'out' | 'crashed' = 'fell',
   ): void {
     const killed = applyDamage(victim, damage);
     const shooter = by?.shooter.state ?? null;
@@ -475,7 +475,7 @@ export class Room {
     if (damage > 0 && !me.dead) this.damage(me, damage, null);
     // Down on the ground past the edge (ground.ts), a body on foot is done for, whatever the fall.
     if (!me.dead && classOf(me.avatar).id === 'walker' && me.pos.y - EYE_HEIGHT <= OUTSIDE_HEIGHT + 1e-6)
-      this.damage(me, me.hearts, null);
+      this.damage(me, me.hearts, null, 'out');
   }
 
   // A ground pound landing this tick (avatars.ts `Pound`) hurts everyone else on foot within its

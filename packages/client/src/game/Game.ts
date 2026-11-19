@@ -733,6 +733,11 @@ export class Game {
         this.hud.setDead(m.victim);
         if (m.victim === this.myId) this.die('you fell');
         return;
+      case 'out':
+        this.hud.announceOutOfBounds(m.victim);
+        this.hud.setDead(m.victim);
+        if (m.victim === this.myId) this.die('you went out of bounds');
+        return;
       case 'crashed':
         this.hud.announceCrash(m.victim);
         this.hud.setDead(m.victim);

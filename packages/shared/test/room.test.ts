@@ -442,7 +442,7 @@ test('a hard landing hurts like a shot with no shooter, a fatal one is announced
   };
   for (let i = 0; i < TICK_RATE; i++) room.step();
   assert.ok(bob.dead);
-  assert.ok(b.inbox.some((m) => m.t === 'fell' && m.victim === bobId));
+  assert.ok(b.inbox.some((m) => m.t === 'out' && m.victim === bobId));
 });
 
 test('commands and their shortcuts swap items freely, gear goes on beside, items stay, and the gun only reaches 20 m', () => {
