@@ -35,6 +35,7 @@ import { stepGear, thrust } from './gear';
 import { lookDirection } from './look';
 import { SURFACES } from './surfaces';
 import type { InputFrame, PlayerState, Vec3 } from './types';
+import { SEATED } from './vehicles/karts';
 import { WORLD_STRUCTURES } from './world';
 
 export const WALKER: ClassSpec = {
@@ -60,7 +61,11 @@ export const WALKER: ClassSpec = {
   },
   step: stepWalker,
   aim: (p) => lookDirection(p.yaw, p.pitch),
-  hitShape: (p) => ({ kind: 'capsule', eye: p.pos, box: AVATARS[p.avatar].hitbox }),
+  // Sat in a kart, from the seat up.
+  hitShape: (p) => {
+    const box = AVATARS[p.avatar].hitbox;
+    return { kind: 'capsule', eye: p.pos, box: p.riding ? { ...box, top: box.top * SEATED } : box };
+  },
   // Under the feet.
   lies: (p, structures) => [
     { x: p.pos.x, y: structures.groundAt(p.pos.x, p.pos.z, p.pos.y - EYE_HEIGHT + 0.01), z: p.pos.z },

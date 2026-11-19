@@ -47,6 +47,15 @@ export interface KartStep {
 }
 
 export const TURBO = { boost: 1.5, rise: 0.2, holds: [1, 2, 3], fall: 0.5 };
+
+// What a knock does, by how fast the two close on each other square to where they touch, m/s:
+// nothing under `least`, then `at20` at 20 m/s and on in step. In hearts off a player a kart runs
+// into, or wrenches off a kart from a wall, a kart, or the ground it lands on.
+export const IMPACT = { least: 10, at20: 5 };
+
+export function impactDamage(closing: number): number {
+  return closing < IMPACT.least ? 0 : (IMPACT.at20 * closing) / 20;
+}
 export const DRIFT_FROM = 0.4; // of its speed: the least a drift begins or carries on at
 
 // m/s²: how fast the wheels take back a slide sideways, every kart alike: past what turning full

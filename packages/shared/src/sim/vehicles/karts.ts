@@ -15,8 +15,9 @@ export interface KartSpec {
   miniTurboTime: number; // seconds of drifting to a blue spark: twice it yellow, three times purple
   wrenches: number; // its health: what a wall, a kart or a shot takes off it, and at none it explodes
   // The box it drives as, in metres: its width and length on the ground and its height from the
-  // ground up, the middle of its underside its position.
-  body: { width: number; length: number; height: number };
+  // ground up, the middle of its underside its position; and the driver's seat, where the body
+  // sits: up from the underside and forward of its middle.
+  body: { width: number; length: number; height: number; seat: { y: number; z: number } };
 }
 
 export const KARTS: Record<KartId, KartSpec> = {
@@ -30,8 +31,12 @@ export const KARTS: Record<KartId, KartSpec> = {
     weight: 1,
     miniTurboTime: 0.8,
     wrenches: 5,
-    body: { width: 1.6, length: 2.6, height: 0.9 },
+    body: { width: 1.6, length: 2.6, height: 0.9, seat: { y: 0.3, z: -0.2 } },
   },
 };
 
 export const KART_IDS = Object.keys(KARTS) as KartId[];
+
+// Of a body's height, what stands up out of a kart's seat: a driver's hit shape (walker.ts), from
+// the seat up.
+export const SEATED = 0.6;

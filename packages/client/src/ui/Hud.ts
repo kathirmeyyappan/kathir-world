@@ -2,7 +2,7 @@
 // the chat offers the commands it could be the start of (commands.ts), listed above the box with
 // the best nearest it: Up picks from the bottom, Down comes back, Enter or Tab (or a click) puts
 // the pick in the box, where Enter sends it as anything else.
-import { MAX_CHAT_LENGTH, MAX_HEARTS, heartsOf, type AvatarId, type Element, type ItemId } from '@world/shared';
+import { MAX_CHAT_LENGTH, MAX_HEARTS, heartsOf, type AvatarId, type Element, type KillItem } from '@world/shared';
 import { HEART, KNIFE, ROBOT, SKULL, pixelSvg } from './pixelIcons';
 
 import { IS_TOUCH } from '../input/touch';
@@ -430,12 +430,25 @@ export class Hud {
     setTimeout(() => el.remove(), 1600);
   }
 
-  // A kill, worded and coloured like an announcement: "ann killed bob with a sniper headshot".
-  announceKill(shooter: string, victim: string, item: ItemId | keyof typeof MOVE_KILLS, headshot: boolean): void {
+  // A kill, worded and coloured like an announcement: "ann killed bob with a sniper headshot", "ann
+  // ran over bob and killed them".
+  announceKill(shooter: string, victim: string, item: KillItem, headshot: boolean): void {
     const li = document.createElement('li');
     li.className = 'kill';
-    const how = item === 'pound' || item === 'strike' ? MOVE_KILLS[item] : item;
-    li.textContent = `${this.playerName(shooter)} killed ${this.playerName(victim)} with a ${how}${headshot ? ' headshot' : ''}`;
+    const [a, b] = [this.playerName(shooter), this.playerName(victim)];
+    if (item === 'kart') li.textContent = `${a} ran over ${b} and killed them`;
+    else if (item === 'explosion') li.textContent = `${a} blew up ${b}`;
+    else {
+      const how = item === 'pound' || item === 'strike' ? MOVE_KILLS[item] : item;
+      li.textContent = `${a} killed ${b} with a ${how}${headshot ? ' headshot' : ''}`;
+    }
+    this.pushLine(li);
+  }
+
+  announceCrash(victim: string): void {
+    const li = document.createElement('li');
+    li.className = 'kill';
+    li.textContent = `${this.playerName(victim)} drove into a wall and died`;
     this.pushLine(li);
   }
 

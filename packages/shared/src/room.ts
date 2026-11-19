@@ -51,6 +51,7 @@ import type { CubeState, InputFrame, PlayerState, Vec3 } from './sim/types';
 import { Structures } from './sim/collision';
 import { STRUCTURES } from './content/structures';
 import { DOOR_DEBOUNCE_SECONDS, DOOR_REACH, lookVector } from './sim/doors';
+import { Garage } from './sim/vehicles/garage';
 import { CAPSULE_TOP } from './sim/health';
 
 // Shared has no DOM or Node lib; both runtimes provide these.
@@ -115,6 +116,7 @@ function aClass(avatar: AvatarId): string {
 export class Room {
   readonly id: string;
   readonly structures: Structures;
+  readonly garage: Garage; // its karts
   tick = 0;
 
   private readonly seats = new Map<string, Seat>();
@@ -133,6 +135,7 @@ export class Room {
   constructor(id: string, opts: RoomOptions = {}) {
     this.id = id;
     this.structures = opts.structures ?? new Structures(STRUCTURES); // its own: doors swing per room
+    this.garage = new Garage(this.structures);
     this.rng = createRng(opts.seed ?? (Math.random() * 2 ** 32) >>> 0);
     this.cubes = createCubes(CUBE_IDS, this.rng);
     this.pickups = createPickups(opts.pickupAreas ?? PICKUP_AREAS, this.rng);
@@ -232,6 +235,7 @@ export class Room {
       pickups: this.pickupSnapshot(),
       doors: this.structures.doorIds.map((door) => ({ id: door, open: this.structures.isOpen(door) })),
       frost: this.structures.frost.list(),
+      karts: this.garage.list,
     });
     this.broadcast({ t: 'join', p: state }, id);
     this.log(`${state.name} (${id}) joined ${this.id}${state.bot ? ' as a bot' : ''}, ${this.seats.size} online`);
@@ -275,6 +279,7 @@ export class Room {
     const seat = this.seats.get(id);
     if (!seat) return;
     this.seats.delete(id);
+    this.garage.getOut(seat.state);
     if (seat.state.dead)
       // Not past the edge: nobody walks down to the ground there and back.
       for (const at of classOf(seat.state.avatar).lies(seat.state, this.structures))
@@ -339,6 +344,11 @@ export class Room {
   private applyActions(seat: Seat, frame: InputFrame): void {
     const me = seat.state;
     const pressed = (action: ItemAction) => frame.actions.includes(action) && !seat.held.includes(action);
+    if (me.riding) {
+      if (pressed('exit')) this.garage.getOut(me);
+      seat.held = frame.actions;
+      return;
+    }
     const cls = classOf(me.avatar);
     for (const action of Object.keys(cls.actions) as ItemAction[])
       if (pressed(action) && !me.dead && this.tick - seat.lastActTick >= cls.actionTicks) {
@@ -365,14 +375,29 @@ export class Room {
         avatar: p.avatar,
         pos: was?.pos ?? p.pos,
         dragon: was ? was.dragon : p.dragon,
+        riding: p.riding,
         player: p,
       };
     });
+    // A kart takes what reaches it first: a shot that would, stopped short of it, hits nobody
+    // nearer. A spray reaches every kart it takes in, as it does everyone.
+    const eye = eyeOf(me);
+    const aim = cls.aim(me);
+    const cost = damageFor(spec, false);
+    const kart =
+      spec.fire.kind === 'cone'
+        ? null
+        : this.garage.at(eye, aim, Math.min(spec.range, this.structures.raycast(eye, aim, spec.range)));
+    const hits = resolveFire(kart ? { ...spec, range: kart.t } : spec, me, targets, this.structures);
+    if (kart && hits.length === 0) this.garage.shoot(kart.kart.id, cost, me.id);
+    if (spec.fire.kind === 'cone')
+      for (const k of this.garage.within(eye, aim, spec.range, spec.fire.halfAngle))
+        this.garage.shoot(k.id, cost, me.id);
     // Ice chills from the last touch; fire thaws, as it thaws the frost it lands on.
-    for (const hit of resolveFire(spec, me, targets, this.structures)) {
+    for (const hit of hits) {
       const victim = hit.target.player;
-      const cost = damageFor(spec, hit.headshot);
-      const hearts = classOf(victim.avatar).hurt?.(victim, hit.part, cost, spec) ?? cost;
+      const dealt = damageFor(spec, hit.headshot);
+      const hearts = classOf(victim.avatar).hurt?.(victim, hit.part, dealt, spec) ?? dealt;
       if (hearts === 0) continue; // off a dragon's shell: nothing
       if (spec.element === 'ice') victim.chilled = CHILL_SECONDS;
       else if (spec.element === 'fire') victim.chilled = 0;
@@ -392,10 +417,14 @@ export class Room {
     if (on.length || off.length) this.broadcast({ t: 'frost', on, off });
   }
 
-  // A click on a door within reach swings it the other way, for everyone; a second click hard on
-  // the first is the same click.
-  private useDoor(seat: Seat, id: string): void {
+  // A click on something within reach: a kart gets them in it (vehicles/garage.ts), and a door
+  // swings the other way, for everyone, a second click hard on the first being the same click.
+  private use(seat: Seat, id: string): void {
     const me = seat.state;
+    if (this.garage.has(id)) {
+      this.garage.getIn(me, id);
+      return;
+    }
     if (me.dead || !this.structures.doorIds.includes(id)) return;
     if (this.tick - (this.doorSwung.get(id) ?? -Infinity) < DOOR_DEBOUNCE_SECONDS * TICK_RATE) return;
     if (this.structures.doorAt(me.pos, lookVector(me.yaw, me.pitch), DOOR_REACH) !== id) return;
@@ -406,12 +435,14 @@ export class Room {
   }
 
   // Takes hearts off `victim`, for a shot by `by.shooter` (or their `move`: a ground pound, a
-  // strike) or, with no `by`, a fall, and kills them at zero. A death is one structured message;
-  // clients word the announcement.
+  // strike, a kart run into them, a kart blown up beside them) or, with no `by` or by their own
+  // doing, a fall or the crash `death` says, and kills them at zero, out of any kart they drive. A
+  // death is one structured message; clients word the announcement.
   private damage(
     victim: PlayerState,
     damage: number,
-    by: { shooter: Seat; headshot: boolean; move?: 'pound' | 'strike' } | null,
+    by: { shooter: Seat; headshot: boolean; move?: 'pound' | 'strike' | 'kart' | 'explosion' } | null,
+    death: 'fell' | 'crashed' = 'fell',
   ): void {
     const killed = applyDamage(victim, damage);
     const shooter = by?.shooter.state ?? null;
@@ -425,9 +456,10 @@ export class Room {
       hearts: victim.hearts,
     });
     if (!killed) return;
+    this.garage.getOut(victim);
     const seat = this.seats.get(victim.id);
     if (seat) seat.diedTick = this.tick;
-    if (!shooter) return this.broadcast({ t: 'fell', victim: victim.id });
+    if (!shooter || shooter === victim) return this.broadcast({ t: death, victim: victim.id });
     shooter.kills++;
     const item = by?.move ?? shooter.item!.id;
     this.broadcast({ t: 'kill', shooter: shooter.id, victim: victim.id, item, headshot });
@@ -490,6 +522,7 @@ export class Room {
 
   // One step of a seat's player, on `frame` or with none, and what comes of it.
   private advance(seat: Seat, frame: InputFrame | null): void {
+    if (seat.state.riding) return this.garage.drive(seat.state, frame, TICK_DT);
     const struck = seat.state.strike;
     this.land(seat, stepPlayer(seat.state, frame, TICK_DT, this.structures));
     this.strike(seat, struck);
@@ -518,16 +551,31 @@ export class Room {
         this.advance(seat, seat.queue[i]);
         this.applyActions(seat, seat.queue[i]);
         const use = seat.queue[i].use;
-        if (use) this.useDoor(seat, use);
+        if (use) this.use(seat, use);
       }
       seat.queue.splice(0, n);
     }
+    const { blows, booms } = this.garage.step(this.players);
+    for (const blow of blows) {
+      const victim = this.seats.get(blow.victim)?.state;
+      const by = blow.by === null ? undefined : this.seats.get(blow.by);
+      if (victim && !victim.dead)
+        this.damage(victim, blow.hearts, by ? { shooter: by, headshot: false, move: blow.how } : null, 'crashed');
+    }
+    for (const at of booms) this.broadcast({ t: 'boom', at });
     stepCubes(this.cubes, TICK_DT, this.rng);
     stepPickups(this.pickups, TICK_DT, this.rng);
     for (const p of this.players) takePickups(this.pickups, p, EYE_HEIGHT);
     this.tick++;
     const players = this.players;
-    this.broadcast({ t: 'snap', tick: this.tick, players, cubes: this.cubeSnapshot(), pickups: this.pickupSnapshot() });
+    this.broadcast({
+      t: 'snap',
+      tick: this.tick,
+      players,
+      cubes: this.cubeSnapshot(),
+      pickups: this.pickupSnapshot(),
+      karts: this.garage.list,
+    });
     this.history.record(this.tick, players);
   }
 
@@ -560,6 +608,11 @@ export class Room {
 
   private runCommand(seat: Seat, command: Command): void {
     const me = seat.state;
+    // A driver holds the wheel: no kit, and no body that can't sit in a kart, till they get out.
+    const kit = command.name === 'speedy' || command.name === 'equip' || command.name === 'wear';
+    const unseated = command.name === 'avatar' && AVATARS[command.avatar].class !== 'walker';
+    if (me.riding && (kit || command.name === 'unequip' || unseated))
+      return this.refuse(seat, "you're driving: get out first (E)");
     switch (command.name) {
       case 'speedy':
         if (!classOf(me.avatar).kit) return this.refuse(seat, `not as ${aClass(me.avatar)}`);

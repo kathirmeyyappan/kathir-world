@@ -948,6 +948,27 @@ purple at one, two and three `miniTurboTime`s of it on the ground; let go on a s
 mini-turbo, its top speed raised by half over `TURBO.rise`, held for `TURBO.holds` by the spark
 and let down over `TURBO.fall`.
 
+A room's karts are its `Garage` (`garage.ts`), which the Room steps and whose hurts it deals out,
+and every client is sent them (`karts` in `welcome` and `snap`, each a `Kart`: its `KartState`,
+its paint, its wrenches and its driver). One is dropped `DROP_AHEAD` in front of whoever asks,
+short of a wall down to right over them, from `DROP_HEIGHT` up; there are never more karts than
+players, and one left empty `IDLE_SECONDS` is taken away. A click on one within `KART_REACH` gets
+a walker in (the same `use` a door's click is): what they hold and wear is put away till they get
+out with E (the `exit` action), whatever move they were in stops, and they ride in its seat
+(`PlayerState.riding`), their frames driving it (`my` the gas, `mx` the wheel, the `drift`
+action held) and only what stands out of the seat hit by shots (`SEATED`); kit and bodies that
+can't sit are refused till they get out. Everything that hurts is judged by how fast two things
+close square to where they touch (`IMPACT`: nothing under 10 m/s, 5 at 20 and on in step):
+hearts off a player on foot a kart runs into, who is thrown back hard (and 5 off one it comes
+down on), credited to its driver, else whoever last drove or dropped it; and wrenches off a kart
+from a wall, the ground it lands on or another kart (which also part by their `weight`s), and a
+shot's damage from anyone, a shot stopping at a kart nearer than whoever it would have hit. At
+no wrenches it explodes (`boom`): it's gone, its driver is thrown out of it, and everyone on foot
+within `BLAST.reach` with nothing between takes `BLAST.damage` and is thrown away, credited to
+whoever took its last wrench; what wore it down never reaches the driver. A kill by a kart is
+announced as one (`kill` with `item: 'kart'` or `'explosion'`), and a death of one's own doing in
+one as `crashed`.
+
 ## Weapons
 
 A weapon is a row in `ITEMS` (`packages/shared/src/sim/items.ts`: range, damage, cooldown, its
@@ -1295,7 +1316,8 @@ protocol.
   takes every heart, and damage rises linearly between, in half hearts (a jetpack that brakes the
   fall lands slower). That arrives as a `hit` with `shooter: None`, and a fatal fall as a `fell`
   event rather than `kill`. Landing on the ground past the world's edge is a `fell` whatever the
-  height: a bot that walks off the floor dies, so keep routes on the map.
+  height: a bot that walks off the floor dies, so keep routes on the map. A death by one's own
+  kart is a `crashed` event.
 - Snapshots reveal players globally, and shots pass through cubes; only structures block them. Perfect aim
   can therefore be much stronger than a human player. Fairness constraints such as field of view,
   reaction delay, aim error, and respawn delay belong in bot policy, not in connection code.

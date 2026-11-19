@@ -37,6 +37,10 @@ import {
   PINEAPPLE_PLACEMENT,
   botRequest,
   defaultBotsFor,
+  AVATARS,
+  BLAST,
+  KARTS,
+  SEATED,
   type BotRequest,
   type InputFrame,
   type ItemAction,
@@ -1221,4 +1225,125 @@ test('a strike: a windup after the press its blow lands once on whoever on foot 
     ['strike'],
     "a kill by it is the strike's, whatever is in the other hand",
   );
+});
+
+// A room on an empty world with `names` in it, each standing where given, facing +z.
+function kartRoom(...at: Vec3[]): { room: Room; ids: string[]; inboxes: ServerMessage[][] } {
+  const room = new Room('karts', {
+    seed: 1,
+    structures: new Structures([wall({ x: -10, z: 40 }, { x: 10, z: 40 }, 4)]),
+  });
+  const links = at.map(() => link());
+  const ids = at.map((feet, i) => {
+    const id = room.join(`p${i}`, links[i])!;
+    const p = room.players.find((q) => q.id === id)!;
+    p.pos = { x: feet.x, y: feet.y + EYE_HEIGHT, z: feet.z };
+    p.yaw = 0;
+    return id;
+  });
+  return { room, ids, inboxes: links.map((l) => l.inbox) };
+}
+
+// `id` drops a kart, waits for it to land, walks up behind it and clicks it to get in.
+function getIn(room: Room, id: string): string {
+  const me = room.players.find((p) => p.id === id)!;
+  const kart = room.garage.drop(me, 'standard', room.playerCount);
+  assert.ok(typeof kart !== 'string', 'a kart dropped');
+  for (let i = 0; i < TICK_RATE; i++) tick(room);
+  me.pos = { x: kart.pos.x, y: EYE_HEIGHT, z: kart.pos.z - 3 };
+  const pitch = Math.atan2(EYE_HEIGHT - 0.45, 3 - KARTS.standard.body.length / 2 + 0.2);
+  room.receive(id, { t: 'input', f: frame(pitch, [], 0, kart.id) });
+  room.step();
+  assert.equal(me.riding, kart.id, 'in the kart');
+  return kart.id;
+}
+
+function driving(room: Room, id: string, gas: number, actions: ItemAction[] = []): void {
+  room.receive(id, { t: 'input', f: { ...frame(0, actions), my: gas } });
+  room.step();
+}
+
+test('a kart is got into with a click, driven, and got out of with E, what the driver held put away meanwhile', () => {
+  const { room, ids } = kartRoom({ x: 0, y: 0, z: 0 });
+  const [id] = ids;
+  const me = room.players[0];
+  room.receive(id, { t: 'chat', text: '/gun' });
+  const kart = getIn(room, id);
+  assert.equal(me.item, null, 'the gun put away');
+  assert.equal(typeof room.garage.drop(me, 'standard', room.playerCount), 'string', 'no more karts than players');
+  const from = room.garage.list[0].pos.z;
+  for (let i = 0; i < 2 * TICK_RATE; i++) driving(room, id, 1);
+  const k = room.garage.list[0];
+  assert.ok(k.pos.z > from + 10, `driven forward: ${k.pos.z}`);
+  assert.ok(Math.hypot(me.pos.x - k.pos.x, me.pos.z - k.pos.z) < 1, 'sat in it');
+  driving(room, id, 0, ['exit']);
+  const out = room.players[0];
+  assert.equal(out.riding, null);
+  assert.equal(out.item?.id, 'gun', 'the gun handed back');
+  assert.equal(room.garage.list[0].driver, null);
+  assert.ok(Math.hypot(out.pos.x - k.pos.x, out.pos.z - k.pos.z) > KARTS.standard.body.width / 2, 'stood beside it');
+  assert.equal(room.garage.list[0].id, kart);
+});
+
+test('a kart hurts whoever it runs into by how fast they closed, credited to its driver', () => {
+  const { room, ids, inboxes } = kartRoom({ x: 0, y: 0, z: 0 }, { x: 20, y: 0, z: 0 });
+  const [driver, victim] = ids;
+  getIn(room, driver);
+  const k = room.garage.list[0];
+  const bob = room.players.find((p) => p.id === victim)!;
+  bob.pos = { x: k.pos.x, y: EYE_HEIGHT, z: k.pos.z + KARTS.standard.body.length / 2 + 0.6 };
+  k.vel = { x: 0, y: 0, z: 20 };
+  driving(room, driver, 1);
+  const hit = inboxes[0].find((m) => m.t === 'hit' && m.victim === victim);
+  assert.ok(hit && hit.t === 'hit' && hit.shooter === driver, 'hit, by the driver');
+  assert.ok(Math.abs(bob.hearts - (MAX_HEARTS - 5)) < 0.6, `about 5 hearts off at 20 m/s: ${bob.hearts}`);
+  assert.ok(bob.vy > 0, 'thrown');
+});
+
+test("a kart worn out by a wall blows up, hurting its driver and everyone near but not by the wall's knock", () => {
+  const { room, ids, inboxes } = kartRoom({ x: 0, y: 0, z: 0 }, { x: 20, y: 0, z: 0 });
+  const [driver, near] = ids;
+  getIn(room, driver);
+  const k = room.garage.list[0];
+  k.pos.z = 30;
+  k.vel = { x: 0, y: 0, z: 20 };
+  const carol = room.players.find((p) => p.id === near)!;
+  carol.pos = { x: 3, y: EYE_HEIGHT, z: 36 };
+  for (let i = 0; i < 20 && room.garage.list.length; i++) driving(room, driver, 1);
+  assert.equal(room.garage.list.length, 0, 'blown up');
+  assert.ok(inboxes[0].some((m) => m.t === 'boom'));
+  const me = room.players.find((p) => p.id === driver)!;
+  assert.equal(me.riding, null, 'thrown out');
+  assert.equal(me.hearts, MAX_HEARTS - BLAST.damage);
+  assert.equal(carol.hearts, MAX_HEARTS - BLAST.damage);
+});
+
+test('a shot that reaches a kart first wears it, and one over it hits the driver, whose kart rolls on to a stop', () => {
+  const { room, ids } = kartRoom({ x: 0, y: 0, z: 0 }, { x: 0, y: 0, z: 0 });
+  const [driver, shooter] = ids;
+  getIn(room, driver);
+  const k = room.garage.list[0];
+  const me = room.players.find((p) => p.id === shooter)!;
+  me.pos = { x: k.pos.x + 8, y: EYE_HEIGHT, z: k.pos.z };
+  room.receive(shooter, { t: 'chat', text: '/gun' });
+  // Level with the kart's side, below the driver sat over it: 0.45 m up, 8 m off.
+  press(room, shooter, Math.atan2(EYE_HEIGHT - 0.45, 8), false, -Math.PI / 2);
+  assert.equal(room.garage.list[0].wrenches, KARTS.standard.wrenches - ITEMS.gun.damage);
+  const them = room.players.find((p) => p.id === driver)!;
+  assert.equal(them.hearts, MAX_HEARTS);
+  // Shot dead over the kart mid-drift (once the gun can fire again), they're out of it, and it rolls
+  // on with no drift and no mini-turbo, slowing.
+  for (let i = 0; i < ITEMS.gun.cooldownTicks; i++) tick(room);
+  k.vel = { x: -15, y: 0, z: 0 }; // away from the shooter, along the line of the shot
+  k.drift = { way: 1, t: 3 * KARTS.standard.miniTurboTime };
+  them.hearts = 1;
+  const head = them.pos.y - EYE_HEIGHT + AVATARS[them.avatar].hitbox.top * SEATED - 0.1;
+  me.pos = { x: them.pos.x + 8, y: EYE_HEIGHT, z: them.pos.z };
+  press(room, shooter, Math.atan2(EYE_HEIGHT - head, 8), false, -Math.PI / 2);
+  assert.ok(them.dead && them.riding === null, 'dead, and out of it');
+  const kart = room.garage.list[0];
+  assert.equal(kart.turbo, null);
+  const speed = Math.hypot(kart.vel.x, kart.vel.z);
+  for (let i = 0; i < TICK_RATE; i++) tick(room);
+  assert.ok(Math.hypot(kart.vel.x, kart.vel.z) < speed, 'slowing');
 });

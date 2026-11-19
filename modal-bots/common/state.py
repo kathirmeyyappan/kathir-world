@@ -66,7 +66,7 @@ class WorldState:
                 )
         elif message.t == "door":
             self.doors[str(message.data["id"])] = bool(message.data["open"])
-        elif message.t in ("kill", "fell"):
+        elif message.t in ("kill", "fell", "crashed"):
             victim = self.players.get(message.data["victim"])
             if victim is not None:
                 self.players[victim.id] = replace(victim, dead=True)

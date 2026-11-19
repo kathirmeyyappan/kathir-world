@@ -48,6 +48,7 @@ export interface RemotePlayer {
   dead: boolean;
   avatar: AvatarId;
   dragon: DragonState | null; // a dragon's body, its spine drawn between snapshots like the head
+  riding: string | null; // the kart they're driving (sim/vehicles/garage.ts), if any
   bot: boolean;
   // Standing on something (a floor, a stair, a deck): the sim zeroes vy whenever a walker is on the
   // ground, so this is the server's own answer rather than a guess from the drawn height. A dragon
@@ -147,6 +148,7 @@ export class Interpolation {
           head: lerpUnit(a.dragon?.head, b.dragon.head, t),
           spine: lerpSpine(a.dragon?.spine, b.dragon.spine, t),
         },
+        riding: b.riding,
         bot: b.bot,
         grounded: b.vy === 0 && !b.dragon && !b.climb && (!b.pound || b.pound.stage === 'land'),
       });
