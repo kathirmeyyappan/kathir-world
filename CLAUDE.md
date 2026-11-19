@@ -760,7 +760,8 @@ everyone near, never before the last cry has run out nor within `CRY_GAP_MS` of 
 hears it over the hurt sound, which sounds at every hit whatever the look; a spray's hits, fire's
 and ice's, come too fast for a voice and are the hurt sound alone, `Game.sprayed`) and a moment after a kill (`Game.say`); and its `death`,
 which its own player alone hears over the death screen (cut to its ten seconds; the reload ends
-it), `DEATH_SOUND_DELAY` after dying so the hit that killed them sounds first, as any hit does. A
+it), `DEATH_SOUND_DELAY` after dying so the hit that killed them sounds first, as any hit does,
+and over that hit's cry rather than cutting it as a look's other lines cut its last. A
 hurt, a kill and a death are `lazy` too, sent for (`Sfx.want`, `Game.wantVoice`) as a look is
 first seen worn, a death by its own player alone, since they have to be there the moment they're
 said; a hurt or a death that hasn't arrived is left out, and a kill not here yet is played as it
