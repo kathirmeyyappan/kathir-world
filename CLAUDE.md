@@ -1007,9 +1007,11 @@ sent for ahead (see Client loading), and it's drawn once they're here. Its body 
 tires, so a hop reads as one: kicked up off them as it begins, the tires hanging under it in the
 air, driven down onto them as it lands, and leaning into the turn through the hop and, less, the
 drift. What it gives off is `render/vehicles/KartEffects.ts`, each made the first time the kart
-needs it: sparks from under its back tires in the colour of the spark its drift has got to (blue,
-yellow, purple, with a burst as each is reached), kept in the kart's own frame so they stay at its
-tires at any speed, and flames from its exhaust pipes through a boost. A knock that costs it
+needs it: at each back tire, in the colour of the spark its drift has got to (blue, yellow,
+purple), electricity crackling at its base for as long as the spark is held (jagged bolts that
+flicker where they stand, over a glow) and sparks flying out from under it, with a burst of both as
+each spark is reached, all kept in the kart's own frame so they stay at its tires at any speed; and
+flames from its exhaust pipes through a boost. A knock that costs it
 wrenches flashes it grey and is heard (`Driving.onKnock`), and one blowing up (`boom`) is a blast
 (`render/Blast.ts`: a flash, fire, smoke and bits) and its sound; both sounds (`KART_SOUNDS`) are
 sent for as the first kart is seen. `game/Driving.ts` is
