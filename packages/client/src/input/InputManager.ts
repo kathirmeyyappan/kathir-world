@@ -132,7 +132,7 @@ export class InputManager {
   }
 
   // A touch button holding a key down while it's held: the jump button holds Space, for gear used
-  // by holding jump and a kart's drift, and a kart's GAS and BRAKE hold W and S.
+  // by holding jump, and a kart's GAS, BRAKE and DRIFT hold W, S and Space.
   hold(code: string, held: boolean): void {
     if (held && !this.blocked) this.keys.add(code);
     else this.keys.delete(code);
