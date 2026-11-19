@@ -681,9 +681,9 @@ function main(): void {
     ['characters', 'CHARACTERS'],
     ['items', 'ITEMS'],
     ['world', 'WORLD'],
-    ['gallery', 'GALLERY'],
     ['bots', 'BOTS'],
     ['commands', 'COMMANDS'],
+    ['gallery', 'GALLERY'],
   ];
   const nav = el('nav', 'tabs');
   const panels = new Map<string, HTMLElement>();
@@ -696,9 +696,9 @@ function main(): void {
   const lightbox = new Lightbox();
   const { panel: world, map: worldMap } = worldPanel(lightbox);
   panels.set('world', world);
-  panels.set('gallery', galleryPanel(lightbox));
   panels.set('bots', botsPanel());
   panels.set('commands', commandsPanel());
+  panels.set('gallery', galleryPanel(lightbox));
   const buttons = new Map<string, HTMLButtonElement>();
   for (const [id, label] of tabs) {
     const b = el('button', '', label);
