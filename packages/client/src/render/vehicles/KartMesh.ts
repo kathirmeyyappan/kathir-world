@@ -18,7 +18,16 @@ import {
   Vector3,
   type Scene,
 } from '@babylonjs/core';
-import { WORLD_STRUCTURES, noseOf, type AvatarId, type Kart, type KartId } from '@world/shared';
+import {
+  KARTS,
+  WORLD_STRUCTURES,
+  createKart,
+  noseOf,
+  sizeFor,
+  type AvatarId,
+  type Kart,
+  type KartId,
+} from '@world/shared';
 import { smooth } from '../avatars/motion';
 import type { Engine } from '../Engine';
 import { begin, type Fetch } from '../fetchOnce';
@@ -87,6 +96,19 @@ function filesOf(scene: Scene, kart: KartId, look: AvatarId): { parts: Parts; pa
 // from the moment it's there.
 export function wantKart(scene: Scene, kart: KartId, look: AvatarId): void {
   filesOf(scene, kart, look);
+}
+
+// A kart of model `kart` standing still on the ground at the origin, facing +z, in the paint of
+// whoever wears `look` and built to seat them: what a view of one outside the world draws.
+export function parkedKart(id: string, kart: KartId, look: AvatarId): Kart {
+  return {
+    ...createKart(kart, sizeFor(look), { x: 0, y: 0, z: 0 }, 0),
+    grounded: true,
+    id,
+    paint: look,
+    wrenches: KARTS[kart].wrenches,
+    driver: null,
+  };
 }
 
 export class KartMesh {

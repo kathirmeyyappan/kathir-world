@@ -30,6 +30,7 @@ import {
   botArguments,
   type AvatarId,
   type BotId,
+  type KartId,
   type Region,
 } from '@world/shared';
 import { BodyView, type Shown, type Thing } from '../render/BodyView';
@@ -75,9 +76,10 @@ import {
 } from './stats';
 
 const COLOR = '#ff7043'; // the standard body's paint in the views
+const SEATS_IN: KartId = 'standard'; // the kart a character is shown sat in, in their own paint
 
-// One thing a catalog lists: its words, its numbers, and what its view shows: a body, a thing on
-// its own, or nothing.
+// One thing a catalog lists: its words, its numbers, and what its view shows: a body (with the
+// kart it can be shown sat in, if it can sit), a thing on its own, or nothing.
 interface Pick {
   id: string;
   entry: Entry;
@@ -85,7 +87,7 @@ interface Pick {
   // More of its numbers, each table under a heading: a character's special abilities, a kart's moves.
   more?: () => { title: string; stats: Stat[] }[];
   lines?: Line[]; // its sounds (voice lines and its moves' own), each a button that plays it
-  view: { body: Shown } | { thing: Thing } | null;
+  view: { body: Shown; kart?: KartId } | { thing: Thing } | null;
 }
 
 interface Section {
@@ -94,7 +96,7 @@ interface Section {
 }
 
 function shown(avatar: AvatarId): Shown {
-  return { name: '', avatar, color: COLOR, item: null, gear: null, chilled: false, shattered: [] };
+  return { name: '', avatar, color: COLOR, item: null, gear: null, chilled: false, shattered: [], kart: null };
 }
 
 // The skins anyone can wear, the ones only bots can wear left out.
@@ -105,7 +107,7 @@ function characters(): Section[] {
     entry: CHARACTERS[id],
     stats: () => characterStats(id),
     more: () => abilityStats(id).map((a) => ({ title: `Special ability: ${ABILITIES[a.id]}`, stats: a.stats })),
-    view: { body: shown(id) },
+    view: { body: shown(id), kart: AVATARS[id].class === 'walker' ? SEATS_IN : undefined },
     lines: linesOf(id),
   });
   return [
@@ -239,11 +241,15 @@ function soundboard(lines: Line[]): HTMLElement[] {
   return [el('h3', 'ability', 'Sounds'), board];
 }
 
-// A list to pick from beside one thing shown in full, its 3D view (where it has one) kept across picks.
+// A list to pick from beside one thing shown in full, its 3D view (where it has one) kept across
+// picks; with a toggle over the view, for a body that can sit, between standing and sat in its kart,
+// kept across picks too.
 class Catalog {
   readonly el = el('div', 'catalog');
   private readonly view = new BodyView(1 / devicePixelRatio);
   private readonly viewBox = el('div', 'view');
+  private readonly seats = el('div', 'toggle');
+  private seated = false;
   private readonly text = el('div', 'text');
   private readonly list = el('nav', 'picker');
   private readonly buttons = new Map<string, HTMLButtonElement>();
@@ -267,7 +273,13 @@ class Catalog {
       }
     }
     const zoom = matchMedia('(pointer: coarse)').matches ? 'pinch' : 'scroll';
-    this.viewBox.append(this.view.canvas, el('span', 'hint', `drag to turn · ${zoom} to zoom`));
+    for (const seated of [false, true]) {
+      const button = el('button', '', seated ? 'IN KART' : 'ON FOOT');
+      button.addEventListener('click', () => this.seat(seated));
+      this.seats.append(button);
+    }
+    this.seat(false);
+    this.viewBox.append(this.view.canvas, this.seats, el('span', 'hint', `drag to turn · ${zoom} to zoom`));
     const detail = el('article', 'detail');
     detail.append(this.viewBox, this.text);
     this.el.append(list, detail);
@@ -292,6 +304,7 @@ class Catalog {
         this.list.scrollLeft = b.offsetLeft - 8;
     });
     this.viewBox.classList.toggle('none', !pick.view);
+    this.seats.classList.toggle('hidden', !(pick.view && 'body' in pick.view && pick.view.kart));
     const { entry } = pick;
     const more = pick.more?.() ?? [];
     audition(null);
@@ -310,7 +323,13 @@ class Catalog {
   frame(visible: boolean): void {
     const v = this.current.view;
     if (v && 'thing' in v) this.view.syncThing(v.thing, visible);
-    else this.view.sync(v?.body ?? shown('standard'), visible && v !== null);
+    else if (v) this.view.sync({ ...v.body, kart: (this.seated && v.kart) || null }, visible);
+    else this.view.sync(shown('standard'), false);
+  }
+
+  private seat(seated: boolean): void {
+    this.seated = seated;
+    [...this.seats.children].forEach((b, i) => b.classList.toggle('on', i === Number(seated)));
   }
 }
 

@@ -34,6 +34,7 @@ export class Menu {
     gear: null,
     chilled: false,
     shattered: [],
+    kart: null,
   };
   private open = false;
   private shown = 0; // the tab selected

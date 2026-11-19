@@ -1,4 +1,5 @@
-// A body standing on a floor ruled in metres, or a dragon hovering over it, in a canvas of its own:
+// A body standing on a floor ruled in metres (or sat in a kart parked on it), or a dragon hovering
+// over it, in a canvas of its own:
 // the menu's PLAY tab shows the player's own (Preview.ts), the guide every skin and what each item
 // looks like held. It's drawn by the world's own avatar builders, so whatever a skin keeps moving
 // while it stands still (a walker's `extra`, a dragon's wave and wings) moves here as in the world,
@@ -20,20 +21,27 @@ import {
 import {
   AVATARS,
   EYE_HEIGHT,
+  KARTS,
+  SEATED,
   dragonShape,
+  sizeFor,
   type AvatarId,
   type DragonState,
   type GearId,
   type ItemId,
+  type Kart,
+  type KartId,
 } from '@world/shared';
 import type { RemotePlayer } from '../net/Interpolation';
 import { ABOVE_BODY, tagOnScreen } from '../ui/NameTags';
 import { createAvatar, type Avatar } from './avatars';
 import { Engine } from './Engine';
+import { KartMesh, parkedKart } from './vehicles/KartMesh';
+import type { Seat } from './vehicles/Seat';
 
 // The body as it's shown: who, in what look and colour, holding and wearing what, and as it is
 // (frosted over by an ice hit, a dragon's crystals shot out, spraying what it holds, a pack's
-// thrust on).
+// thrust on); and the kart it sits in at the wheel, in that look's paint, where it does.
 export interface Shown {
   name: string;
   avatar: AvatarId;
@@ -42,6 +50,7 @@ export interface Shown {
   gear: GearId | null;
   chilled: boolean;
   shattered: number[];
+  kart: KartId | null;
 }
 
 // A thing on its own over the floor (an item, a heart, a cube), built under the view's node the
@@ -88,6 +97,10 @@ const WEAVE = { x: 0.6, y: 0.45, xSeconds: 7, ySeconds: 4.3 };
 // its size across.
 const THING_VIEW = 1.6;
 const THING_STAGE = 4;
+// A body sat in a kart, by the size of the two together: nearer than a thing on its own, to see
+// how it sits.
+const SEATED_VIEW = 1.25;
+const SEATED_STAGE = 2;
 const BODY_ARC = 25; // metres: the radius of the curve a dragon's body is laid on behind its head
 
 // The floor's square and the rules along its edges (CSS colours): night blue, ruled in the map's
@@ -106,6 +119,7 @@ export class BodyView {
   private engine: Engine | null = null;
   private camera: ArcRotateCamera | null = null;
   private avatar: Avatar | null = null;
+  private kart: { key: string; mesh: KartMesh; state: Kart } | null = null; // the kart the body sits in, parked
   private thing: { key: string; node: TransformNode; move: (t: number) => void; born: number; shared: boolean } | null =
     null;
   private stage: (Stage & { floor: Mesh }) | null = null;
@@ -126,10 +140,11 @@ export class BodyView {
 
   // Once a frame: drawn while `visible`, as `shown` is.
   sync(shown: Shown, visible: boolean): void {
-    this.frame(visible, (engine, now) => {
+    this.frame(visible, (engine, now, dt) => {
       this.dropThing();
       const avatar = this.body3d(engine, shown);
-      avatar.update(this.state(shown, this.stage!, now), 0, null);
+      const seat = this.parked(engine, shown, dt);
+      avatar.update({ ...this.state(shown, this.stage!, now), riding: this.kart?.state.id ?? null }, 0, seat);
     });
   }
 
@@ -138,6 +153,8 @@ export class BodyView {
     this.frame(visible, (engine, now) => {
       this.avatar?.dispose();
       this.avatar = null;
+      this.kart?.mesh.dispose();
+      this.kart = null;
       if (this.thing?.key !== thing.key) {
         this.dropThing();
         const node = new TransformNode(`thing-${thing.key}`, engine.scene);
@@ -158,7 +175,7 @@ export class BodyView {
     this.thing = null;
   }
 
-  private frame(visible: boolean, draw: (engine: Engine, now: number) => void): void {
+  private frame(visible: boolean, draw: (engine: Engine, now: number, dt: number) => void): void {
     if (!visible) {
       this.seen = false;
       return;
@@ -172,7 +189,7 @@ export class BodyView {
     }
     const dt = Math.min(0.1, (now - this.lastNow) / 1000);
     this.lastNow = now;
-    draw(engine, now);
+    draw(engine, now, dt);
     const stage = this.stage!;
     const camera = this.camera!;
     if (!this.dragging && now - this.draggedAt > SPIN_PAUSE_MS) camera.alpha += dt * SPIN;
@@ -241,6 +258,29 @@ export class BodyView {
     this.setStage(engine, stageOf(shown.avatar));
     if (AVATARS[shown.avatar].class === 'asian-dragon') this.spine = restingSpine(shown.avatar, this.stage!.centre);
     return this.avatar;
+  }
+
+  // The kart `shown` sits in, parked in the middle of the stage, drawn `dt` seconds on, with its
+  // seat: made afresh when it or the look whose paint it wears changes, the stage set to suit the
+  // two together, or the body alone once it's out. None for a body that can't sit (a dragon).
+  private parked(engine: Engine, shown: Shown, dt: number): Seat | null {
+    const kart = AVATARS[shown.avatar].class === 'walker' ? shown.kart : null;
+    const key = kart ? `${kart}:${shown.avatar}` : null;
+    if ((this.kart?.key ?? null) !== key) {
+      this.kart?.mesh.dispose();
+      this.kart =
+        kart && key
+          ? {
+              key,
+              mesh: new KartMesh(engine, 'preview', kart, shown.avatar),
+              state: parkedKart('preview', kart, shown.avatar),
+            }
+          : null;
+      this.setStage(engine, kart ? seatedStage(kart, shown.avatar) : stageOf(shown.avatar));
+    }
+    if (!this.kart) return null;
+    this.kart.mesh.update(this.kart.state, dt);
+    return this.kart.mesh.seat;
   }
 
   private setStage(engine: Engine, stage: Stage): void {
@@ -333,6 +373,20 @@ function stageOf(kind: AvatarId): Stage {
   const size =
     top < SMALL_BODY ? top * SMALL_HEADROOM : Math.ceil(Math.max(WALKER_STAGE, top * WALKER_HEADROOM) / CELL) * CELL;
   return { size, centre: new Vector3(0, top / 2, 0), radius: size * WALKER_VIEW };
+}
+
+// The stage for a body wearing `look` sat in a kart of model `kart`: by the box the two fill, the
+// kart's at the size it's built to seat them and what of them stands out of its seat (SEATED).
+function seatedStage(kart: KartId, look: AvatarId): Stage {
+  const { width, length, seat } = KARTS[kart].body;
+  const size = sizeFor(look);
+  const top = seat.y * size + AVATARS[look].hitbox.top * SEATED;
+  const across = Math.hypot(width * size, length * size, top);
+  return {
+    size: Math.ceil((across * SEATED_STAGE) / CELL) * CELL,
+    centre: new Vector3(0, top / 2, 0),
+    radius: across * SEATED_VIEW,
+  };
 }
 
 // The floor: a plain ruled in mint, a CELL to a square, solid over the stage in the middle

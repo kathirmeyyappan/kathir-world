@@ -1091,7 +1091,7 @@ its corner (on touch, the other way round), the two swapping places at a click o
 is, where the world's own avatar builders stand the avatar on a floor ruled in metres that fades
 out toward its edge (a dragon hovering over it, its head weaving and its body trailing as the sim
 would keep it), holding what the player holds and as the player is (`Me`: frosted over, a
-dragon's crystals shot out), so every skin's own idle motion runs there too; the view turns on
+dragon's crystals shot out, sat in the kart they drive), so every skin's own idle motion runs there too; the view turns on
 its own and under a drag, from above or below (the floor fades out as the view comes down to its
 level). The map (`menu/Map.ts`) is the HUD minimap's view, CLOSE, WIDE or WORLD (the first two
 centred on you and turning with you, 32 m and 100 m out to the nearer edge; P steps one wider, and
@@ -1175,7 +1175,9 @@ it's one on foot they could switch to.
 
 The guide (`world.kathirm.com/guide/`, `packages/client/guide/index.html` and `src/guide/`) is a
 second Vite page: every character, item, kart, place, bot and command in tabs. A character stands
-in a `BodyView` (`render/BodyView.ts`, the menu's player view); an item, a heart or a résumé cube
+in a `BodyView` (`render/BodyView.ts`, the menu's player view), or at its ON FOOT / IN KART toggle
+sits in the Standard Kart in their own paint (`Shown.kart`: the view parks a kart on its stage and
+seats the body in it, `parkedKart`; a dragon has no toggle); an item, a heart or a résumé cube
 floats on its own in one, and a kart stands there (`BodyView.syncThing`, built in `guide/things.ts`
 from the shapes the game draws them with; a thing drawn with the scene's shared materials, as a
 kart is, says so, `Thing.shared`, so they outlive it), framed by its measured size, or by the box

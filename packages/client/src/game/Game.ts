@@ -1149,6 +1149,7 @@ export class Game {
       gear: self.gear?.id ?? null,
       chilled: self.chilled > 0,
       shattered: self.dragon?.shattered ?? [],
+      kart: self.riding ? (this.prediction.kart?.kart ?? null) : null,
     });
 
     const stepLoops = this.footsteps.update(
