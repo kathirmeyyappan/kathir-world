@@ -1013,8 +1013,8 @@ flicker where they stand, over a glow) and sparks flying out from under it, with
 each spark is reached, all kept in the kart's own frame so they stay at its tires at any speed; and
 flames from its exhaust pipes through a boost. A knock that costs it
 wrenches flashes it grey and is heard (`Driving.onKnock`), and one blowing up (`boom`) is a blast
-(`render/Blast.ts`: a flash, fire, smoke and bits) and its sound; both sounds (`KART_SOUNDS`) are
-sent for as the first kart is seen. `game/Driving.ts` is
+(`render/Blast.ts`: a flash, fire, smoke and bits) and its sound (what's heard of a kart is said
+further down). `game/Driving.ts` is
 the rest of driving on the client: every kart drawn, the driven one where its driver's prediction
 has it (`Prediction` rides it as the Room does, rewinding and replaying it with them), run on
 between its ticks by a part of a step on the keys of their last frame (`Prediction.kartBetween`),
@@ -1038,6 +1038,18 @@ of their last, ahead of the frame it stood in for, which is then taken for its k
 (`Garage.drive`): a kart steps once for each of its driver's frames, as their client predicted,
 however late they come. Past `AHEAD_TICKS` of that its keys are let go and it rolls to a stop. A kart's meshes and its paint's materials are made once per scene and
 shared by every kart of that model and paint, so a kart let go disposes its own nodes alone.
+
+What's heard of a kart is `KART_SOUNDS` (`audio/Sfx.ts`), every one `lazy` and sent for as the
+first kart is seen. Its engine is two loops crossed over by its revs (`kartLoops`: its speed's share
+of its top speed, and no less than a quarter of how far its pedal is down, `KartState.gas`, so the
+gas is heard the moment it's pressed): the idle, all but unheard except from its seat, and the
+running loop, a steady stretch of an engine played faster and slower by the revs (`setLoops`'
+`rate`) and louder with them. A drift on the ground is its skid, an onset and then a loop, kept
+quiet; a boost beginning is its rush (`Driving.onBoost`), a knock that costs wrenches its crash
+(`Driving.onKnock`), and a kart blowing up its bang. The kart the player drives is heard flat and
+any other from where it is, and only those within earshot are played at all, so a room full of
+karts costs the few that are near. A loop here is cut on exact samples and encoded as a theme's is
+(see Player classes), so it repeats without a gap.
 
 A kart is in every menu a command or a key is: the commands card's `drop kart` group (its
 `command`), the guide's Items tab under Karts (standing empty in Mario's paint, its numbers read

@@ -46,6 +46,7 @@ export interface KartState {
   yaw: number; // the way its nose points: 0 along +z, turning right as it grows, as a look does
   vel: Vec3; // m/s
   wheel: number; // how far over the wheel is, -1 full left to 1 full right: it follows the keys
+  gas: number; // the pedal as its driver last held it: 1 the gas to -1 the brake, 0 let go
   grounded: boolean;
   held: boolean; // the drift key was down last tick, so a press is the tick it goes down
   hop: boolean; // in the hop a press gives, until it lands
@@ -129,6 +130,7 @@ export function createKart(kart: KartId, size: number, pos: Vec3, yaw: number): 
     yaw,
     vel: { x: 0, y: 0, z: 0 },
     wheel: 0,
+    gas: 0,
     grounded: false,
     held: false,
     hop: false,
@@ -188,6 +190,7 @@ export function stepKart(k: KartState, c: KartControls, dt: number, structures: 
   const spec = KARTS[k.kart];
   const steer = Math.max(-1, Math.min(1, c.steer));
   k.wheel += Math.max(-WHEEL_RATE * dt, Math.min(WHEEL_RATE * dt, steer - k.wheel));
+  k.gas = Math.max(-1, Math.min(1, c.gas));
   const pressed = c.drift && !k.held;
   k.held = c.drift;
   if (pressed && k.grounded && !k.drift) {
