@@ -14,7 +14,8 @@ export class Seat {
   speed = 0; // m/s along the kart, negative backing up
   hop = false; // in the hop into a drift
   drift: -1 | 0 | 1 = 0; // drifting, to the left or the right
-  boost = false; // on a mini-turbo
+  boost = false; // on a boost
+  trick: { way: 1 | -1; through: number } | null = null; // in a trick: its way (1 right) and how far through, 0 to 1
   readonly grips: readonly [Vector3, Vector3] = [new Vector3(), new Vector3()]; // left and right, turned with the wheel
   readonly feet = new Vector3(); // where the right foot rests; the left's is across the middle from it
   readonly hub = new Vector3(); // the steering wheel's middle
@@ -42,10 +43,23 @@ export class Seat {
     };
   }
 
+  // How far up out of the seat a trick throws its driver, 0 to 1: up and back down through it.
+  get leap(): number {
+    return this.trick ? Math.sin(Math.PI * this.trick.through) : 0;
+  }
+
   // Puts it in `kart`, whose ground under its middle is at `pos` (KartMesh's root), turned by `turn`
   // there and drawn `size` times its model's size; its steering wheel turned by `steer` about its
-  // own middle; going `speed` along it.
-  place(kart: KartState, pos: Vector3, turn: Quaternion, size: number, steer: Quaternion, speed: number): void {
+  // own middle; going `speed` along it, and through `trick`, as the kart draws it.
+  place(
+    kart: KartState,
+    pos: Vector3,
+    turn: Quaternion,
+    size: number,
+    steer: Quaternion,
+    speed: number,
+    trick: Seat['trick'],
+  ): void {
     const m = this.model;
     this.turn.copyFrom(turn);
     m.from.scaleToRef(size, this.at).rotateByQuaternionToRef(turn, this.at).addInPlace(pos);
@@ -55,6 +69,7 @@ export class Seat {
     this.hop = kart.hop;
     this.drift = kart.drift?.way ?? 0;
     this.boost = kart.turbo !== null;
+    this.trick = trick;
     m.feet.scaleToRef(size, this.feet);
     m.hub.scaleToRef(size, this.hub);
     m.top.scaleToRef(size, this.top);

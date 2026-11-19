@@ -5,6 +5,7 @@ import {
   KARTS,
   Structures,
   TICK_DT,
+  TRICK,
   TURBO,
   createKart,
   stepKart,
@@ -41,7 +42,7 @@ test('a kart drifts, sparks blue, yellow and purple at its mini-turbo time, and 
   drive(k, { gas: 1, steer: 0.5, drift: true }, 2 * spec.miniTurboTime, structures);
   drive(k, gas, TICK_DT, structures);
   assert.equal(k.drift, null);
-  assert.equal(k.turbo?.spark, 2);
+  assert.equal(k.turbo?.hold, TURBO.holds[1]);
   drive(k, gas, TURBO.rise, structures);
   assert.ok(speed(k) > TURBO.boost * spec.speed - 0.5, `boosted after its rise: ${speed(k)}`);
   drive(k, gas, TURBO.holds[1] - 0.1, structures);
@@ -49,6 +50,25 @@ test('a kart drifts, sparks blue, yellow and purple at its mini-turbo time, and 
   drive(k, gas, TURBO.fall + 0.3, structures);
   assert.equal(k.turbo, null);
   assert.ok(speed(k) < TURBO.boost * spec.speed - 2, `let down after: ${speed(k)}`);
+});
+
+test('a press in the air tricks a kart the way its wheel is held and boosts it as it lands, but not in its own hop', () => {
+  const structures = world();
+  const k = createKart('standard', 1, { x: 0, y: 3, z: 0 }, 0);
+  const gas = { gas: 1, steer: 0, drift: false };
+  drive(k, { gas: 1, steer: -1, drift: true }, TICK_DT, structures);
+  assert.equal(k.trick?.way, -1);
+  drive(k, gas, 1, structures);
+  assert.equal(k.trick, null);
+  assert.equal(k.turbo?.hold, TRICK.hold);
+  drive(k, gas, TURBO.rise + TRICK.hold + TURBO.fall + 0.2, structures);
+  // A press hops it, and another in the hop is no trick.
+  drive(k, { gas: 1, steer: 0, drift: true }, TICK_DT, structures);
+  drive(k, gas, TICK_DT, structures);
+  drive(k, { gas: 1, steer: 0, drift: true }, TICK_DT, structures);
+  assert.equal(k.trick, null);
+  drive(k, gas, 1, structures);
+  assert.equal(k.turbo, null);
 });
 
 test('a kart driven into a wall stops at it and says how hard it hit', () => {

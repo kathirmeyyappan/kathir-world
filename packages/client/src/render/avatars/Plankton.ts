@@ -20,7 +20,8 @@ const RUN_ARMS = 1.1;
 const RUN_BOB = 0.012;
 const RUN_LEAN = 0.35;
 
-// He runs on the steering wheel's rim, on its top however it's turned, never getting anywhere.
+// He runs on the steering wheel's rim, on its top however it's turned, never getting anywhere, and
+// a trick throws him up off it as the kart twirls under him.
 class PlanktonAvatar extends WalkerAvatar {
   private running = 0; // radians into his stride on the wheel
 
@@ -29,7 +30,7 @@ class PlanktonAvatar extends WalkerAvatar {
     this.place(seat);
     this.running += dt * (RUN + Math.abs(seat.speed) * RUN_PER_SPEED);
     const swing = Math.sin(this.running);
-    this.base.position.copyFrom(seat.top).addInPlaceFromFloats(0, Math.abs(swing) * RUN_BOB, 0);
+    this.base.position.copyFrom(seat.top).addInPlaceFromFloats(0, Math.abs(swing) * RUN_BOB + this.thrown(seat), 0);
     this.base.rotation.set(0, 0, -seat.wheel * RUN_LEAN);
     for (const leg of f.legs ?? []) leg.node.rotation.x = leg.side * swing * RUN_LEGS;
     for (const [arm, side] of [

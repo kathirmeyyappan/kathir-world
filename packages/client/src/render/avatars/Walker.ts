@@ -53,6 +53,10 @@ const SIT_BACK = 0.5;
 const SIT_FORWARD = 0.35;
 const SIT_EASE = 0.15;
 const SIT_ROLL = 0.12;
+// A trick in a kart: the share of its height a body is thrown up out of the seat at the top of it,
+// standing; and its hands up over its head there, this far out to their sides for each up.
+const TRICK_LEAP = 0.25;
+const HANDS_OUT = 0.35;
 
 export interface Leg {
   node: TransformNode; // swings at the hip
@@ -150,6 +154,7 @@ export class WalkerAvatar implements Avatar {
   private dead = false;
   protected gone = Infinity; // seconds since it was seen to die: forever for one first seen dead
   private readonly leap: number; // metres its dying leap rises
+  private readonly height: number; // metres it stands
   private readonly joints: Joints;
   protected lean = 0; // radians it leans back, sat in a kart
   readonly color?: string;
@@ -168,7 +173,8 @@ export class WalkerAvatar implements Avatar {
     this.figure = build(engine, id, this.base, color);
     const { armR, back, materials, shadow, itemScale, bend } = this.figure;
     this.color = this.figure.color;
-    this.leap = AVATARS[kind].hitbox.top * DEATH_LEAP;
+    this.height = AVATARS[kind].hitbox.top;
+    this.leap = this.height * DEATH_LEAP;
     this.aimFrom = bend ? raised(armR.reach, bend) : armR.reach;
     this.hitFlash = new HitFlash(materials);
     const hold = armR.hold ?? Vector3.Zero();
@@ -304,7 +310,8 @@ export class WalkerAvatar implements Avatar {
   // Sat in a kart: its hips on the seat (back from its middle as far as keeps its trunk behind the
   // steering wheel's), its legs out ahead and, with two arms, a hand on each grip, turning the
   // wheel, the body leaning back or forward as far as brings them there and into the turn; the head
-  // turns to the look as it does on foot.
+  // turns to the look as it does on foot. A trick throws it up out of the seat, standing with its
+  // hands up, as the kart twirls under it, and back down.
   protected sit(p: RemotePlayer, seat: Seat, dt: number): Pose {
     const f = this.figure;
     const { hips, shoulders, front } = this.joints;
@@ -315,7 +322,7 @@ export class WalkerAvatar implements Avatar {
     this.base.rotation.set(-this.lean, 0, -seat.wheel * SIT_ROLL);
     Quaternion.RotationYawPitchRollToRef(0, -this.lean, -seat.wheel * SIT_ROLL, NODE);
     AHEAD.set(0, hips, 0).rotateByQuaternionToRef(NODE, AHEAD);
-    this.base.position.set(-AHEAD.x, rise - AHEAD.y, -back - AHEAD.z);
+    this.base.position.set(-AHEAD.x, rise - AHEAD.y + this.thrown(seat), -back - AHEAD.z);
     if (f.rock && f.rock !== this.base) f.rock.rotation.z = 0;
     // The legs out from the hips, straight, to the pedals; or, longer than that, as far as lays
     // their ends on the floor. A two-part leg (a tentacle) lies straight along.
@@ -336,7 +343,27 @@ export class WalkerAvatar implements Avatar {
       hang(f.armR.node);
       f.armR.node.rotation.set(0, 0, 0);
     }
+    const up = seat.leap;
+    if (up > 0) {
+      for (const leg of f.legs ?? []) leg.node.rotation.x *= 1 - up;
+      if (shoulders && f.armL) {
+        this.handsUp(f.armL, -1, up);
+        this.handsUp(f.armR, 1, up);
+      }
+    }
     return { phase: this.gait.phase, effort: 0, on: 'kart' };
+  }
+
+  // Metres a trick throws the body up out of `seat`, as far through it as the trick is.
+  protected thrown(seat: Seat): number {
+    return this.height * TRICK_LEAP * seat.leap;
+  }
+
+  // Turns `arm`, on the body's `side`, `weight` of the way from where it is to up over the head.
+  private handsUp(arm: Arm, side: 1 | -1, weight: number): void {
+    const turn = (arm.node.rotationQuaternion ??= new Quaternion());
+    Quaternion.FromUnitVectorsToRef(arm.reach, AHEAD.set(side * HANDS_OUT, 1, 0).normalize(), NODE);
+    Quaternion.SlerpToRef(turn, NODE, weight, turn);
   }
 
   // Puts the body on `seat`, turned and tipped with its kart and facing its way.

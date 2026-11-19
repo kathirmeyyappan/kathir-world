@@ -245,7 +245,7 @@ const ACTION_HELP: Record<ItemAction, (spec: ActionSpec) => string> = {
   crouch: () => 'hold % to crouch',
   strike: () => '% to strike',
   float: () => 'hold % in the air to float',
-  drift: () => 'hold % to drift',
+  drift: () => 'hold % to drift, tap it in the air to trick',
   exit: () => '% to get out',
 };
 
