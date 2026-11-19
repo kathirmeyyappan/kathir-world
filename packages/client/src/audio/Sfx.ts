@@ -179,6 +179,7 @@ export type SoundId =
   | 'kart-engine'
   | 'kart-drift'
   | 'kart-boost'
+  | 'kart-trick'
   | 'kart-crash'
   | 'kart-boom'
   | 'land'
@@ -418,6 +419,7 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
     lazy: true,
   },
   'kart-boost': { file: 'kart-boost.mp3', half: 10, reach: 60, volume: 0.12, fade: 0.6, lazy: true },
+  'kart-trick': { file: 'kart-trick.mp3', half: 10, reach: 60, volume: 0.15, lazy: true },
   'kart-crash': { file: 'kart-crash.mp3', half: 10, reach: 60, volume: 0.3, lazy: true },
   'kart-boom': { file: 'kart-boom.mp3', half: 16, reach: 150, volume: 0.4, lazy: true },
   land: { file: 'land.mp3', half: 8, reach: 35, volume: 0.1 },
@@ -540,6 +542,12 @@ export function heard(id: SoundId, metres: number): number {
   return falloff(metres, SOUNDS[id]);
 }
 
+// The `level` that plays a sound at `volume`, whatever its own: for a recording borrowed for another
+// job than the one its volume is set for.
+export function levelAt(id: SoundId, volume: number): number {
+  return volume / SOUNDS[id].volume;
+}
+
 // What each item sounds like: a tap weapon's shot, one of `nearMiss` at random for a shot that
 // passes within `within` metres of you without hitting (placed where it passed, so a far one is
 // quieter), or a hold weapon's loop while it sprays.
@@ -559,13 +567,14 @@ export const GEAR_SOUNDS: Record<GearId, { thrusting?: SoundId }> = {
   jetpack: { thrusting: 'jet' },
 };
 
-// What's heard of a kart: its engine idling and running, its drift, a boost beginning, a knock that
-// costs it wrenches (a wall, another kart, a shot), and its blowing up.
+// What's heard of a kart: its engine idling and running, its drift, a boost beginning, a trick, a
+// knock that costs it wrenches (a wall, another kart, a shot), and its blowing up.
 export const KART_SOUNDS = {
   idle: 'kart-idle',
   running: 'kart-engine',
   drift: 'kart-drift',
   boost: 'kart-boost',
+  trick: 'kart-trick',
   knock: 'kart-crash',
   boom: 'kart-boom',
 } satisfies Record<string, SoundId>;

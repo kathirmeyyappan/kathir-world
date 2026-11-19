@@ -796,7 +796,8 @@ its step sounds and its limbs alike (and, for a look that crouches, its `crawl`,
 its hands coming down, each a shuffle, quieter and lower than a step), what a footfall sounds like (the thuds, a bar of its own
 sounds, or a loop) and the sounds' pitch; the swing of its limbs is the renderer's. Ask for each
 when adding one. What it says in its own voice is its row in `VOICES` (`audio/voices.ts`), which
-every look has. Its `enter` is its intro, the line every character is expected to have (empty
+every look has: ask for its lines when adding one, and then, as a question of its own, which of
+them it cries at a kart's trick (`trick`, below; none unless told). Its `enter` is its intro, the line every character is expected to have (empty
 until its recording is added): said as a player switches to the look, to them and everyone near,
 until they switch again (`Sfx.hush`; the home screen's stops at the next pick too),
 on the home screen as the look is picked (`Sfx.ts` `audition`), and to the player alone as they
@@ -809,7 +810,11 @@ for a jump in the swoosh's place (`jump`, by where the jump is in a chain of the
 second, the third, the last one given serving the rest), and the takes it picks from on a long jump, at a hit (heard by
 everyone near, never before the last cry has run out nor within `CRY_GAP_MS` of it; its own player
 hears it over the hurt sound, which sounds at every hit whatever the look; a spray's hits, fire's
-and ice's, come too fast for a voice and are the hurt sound alone, `Game.sprayed`) and a moment after a kill (`Game.say`); and its `death`,
+and ice's, come too fast for a voice and are the hurt sound alone, `Game.sprayed`) and a moment after a kill (`Game.say`);
+its `trick`, what it cries as the kart it drives tricks, heard by everyone near: takes borrowed
+from its other lines (none unless given), each played at the one volume (`TRICK_CRY`) whichever
+line it's from, since the lines' recordings are level and it's only their volumes that differ (an
+intro's is over twice a jump's), and sent for as the look is first seen driving; and its `death`,
 which its own player alone hears over the death screen (cut to its ten seconds; the reload ends
 it), `DEATH_SOUND_DELAY` after dying so the hit that killed them sounds first, as any hit does,
 and over that hit's cry rather than cutting it as a look's other lines cut its last. While it
@@ -1057,7 +1062,9 @@ first spark, so something is seen building), and in the colour of the spark the 
 bolts that flicker where they stand, over a glow) and sparks flying out from under it, with a burst
 of both as each spark is reached, all kept in the kart's own frame so they stay at its tires at any
 speed; and flames out of the mouths of its exhaust pipes through a boost, streaked the colour of
-the spark its drift was let go on (`turbo.spark`; a trick's are plain fire). A knock that costs it
+the spark its drift was let go on (`turbo.spark`; a trick's are plain fire); and through a trick
+its twinkles, four-pointed stars that swell and are gone, a burst round it that turns with its
+twirl and a trail of them left along its flight. A knock that costs it
 wrenches flashes it grey and is heard (`Driving.onKnock`), and one blowing up (`boom`) is a blast
 (`render/Blast.ts`: a flash, fire, smoke and bits) and its sound (what's heard of a kart is said
 further down). `game/Driving.ts` is
@@ -1094,7 +1101,8 @@ of its top speed, and no less than a quarter of how far its pedal is down, `Kart
 gas is heard the moment it's pressed): the idle, all but unheard except from its seat, and the
 running loop, a steady stretch of an engine played faster and slower by the revs (`setLoops`'
 `rate`) and louder with them. A drift on the ground is its skid, an onset and then a loop, kept
-quiet; a boost beginning is its rush (`Driving.onBoost`), a knock that costs wrenches its crash
+quiet; a boost beginning is its rush (`Driving.onBoost`), a trick its chime, with its driver's cry
+if their look has one (`Driving.onTrick`, `VOICES`' `trick`), a knock that costs wrenches its crash
 (`Driving.onKnock`), and a kart blowing up its bang. The kart the player drives is heard flat and
 any other from where it is, and only those within earshot are played at all, so a room full of
 karts costs the few that are near. A loop here is cut on exact samples and encoded as a theme's is

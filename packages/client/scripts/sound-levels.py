@@ -13,7 +13,9 @@ A set is the sounds a player hears as one kind of thing and so compares: one cha
 beside another's, one footstep beside the next. Within a set every sound should play within
 TOLERANCE of the set's middle; the script exits 1 if one doesn't. Level a new clip's file to its
 set's loudness and give it the set's `volume`: a `volume` of its own to make up for a quiet file is
-what this catches. Sounds that are meant to differ from their neighbours (a soft landing and a hard
+what this catches. A line a look also cries at a kart's trick (audio/voices.ts `trick`) is in a
+second set there, at the one volume every such cry plays at (`TRICK_CRY`) whichever line it's
+borrowed from. Sounds that are meant to differ from their neighbours (a soft landing and a hard
 one, the two guns, the light and heavy plop of a tentacle), and a dragon's roars, cries and theme,
 which are each recorded and set to carry across the world, are in no set and only listed.
 """
@@ -56,7 +58,22 @@ def biquad(b: tuple[float, ...], a: tuple[float, ...], x: np.ndarray) -> np.ndar
 def samples(path: Path, seconds: float = 20) -> np.ndarray:
     """A file's first `seconds`, mono at RATE."""
     raw = subprocess.run(
-        ["ffmpeg", "-v", "error", "-t", str(seconds), "-i", str(path), "-ac", "1", "-ar", str(RATE), "-f", "f32le", "-"],
+        [
+            "ffmpeg",
+            "-v",
+            "error",
+            "-t",
+            str(seconds),
+            "-i",
+            str(path),
+            "-ac",
+            "1",
+            "-ar",
+            str(RATE),
+            "-f",
+            "f32le",
+            "-",
+        ],
         capture_output=True,
         check=True,
     ).stdout
@@ -83,13 +100,23 @@ def main() -> int:
     source = (CLIENT / "src/audio/Sfx.ts").read_text()
     table = source[source.index("const SOUNDS") :]
     table = table[: table.index("\n};")]
+    voices = (CLIENT / "src/audio/voices.ts").read_text()
+    cry = re.search(r"TRICK_CRY = ([\d.]+)", voices)
+    assert cry
+    tricks = set(re.findall(r"'([\w-]+)'", " ".join(re.findall(r"trick: \[(.*?)\]", voices, re.S))))
     sets: dict[str | None, list[tuple[str, float, float, float]]] = defaultdict(list)
     for sound, spec in re.findall(r"^  '?([\w-]+)'?: \{(.*?)\}", table, re.S | re.M):
         file = re.search(r"file: '([^']+)'", spec)
         volume = re.search(r"volume: ([\d.]+)", spec)
         assert file and volume, sound
         level = loudness(samples(CLIENT / "public/assets/sounds" / file.group(1)))
-        sets[set_of(sound)].append((sound, level, float(volume.group(1)), level + 20 * math.log10(float(volume.group(1)))))
+        sets[set_of(sound)].append(
+            (sound, level, float(volume.group(1)), level + 20 * math.log10(float(volume.group(1))))
+        )
+        if sound in tricks:
+            sets["voice: trick"].append(
+                (sound, level, float(cry.group(1)), level + 20 * math.log10(float(cry.group(1))))
+            )
     off = 0
     for name in sorted(sets, key=lambda n: (n is None, n or "")):
         rows = sets[name]
@@ -98,7 +125,10 @@ def main() -> int:
         for sound, level, volume, played in rows:
             out = name is not None and abs(played - middle) > TOLERANCE
             off += out
-            print(f"  {sound:22s} file {level:6.1f} dB  volume {volume:<5}  plays {played:6.1f} dB" + ("   <-- stands out" if out else ""))
+            print(
+                f"  {sound:22s} file {level:6.1f} dB  volume {volume:<5}  plays {played:6.1f} dB"
+                + ("   <-- stands out" if out else "")
+            )
     print(f"\n{off} stand out" if off else "\nevery set is level")
     return 1 if off else 0
 

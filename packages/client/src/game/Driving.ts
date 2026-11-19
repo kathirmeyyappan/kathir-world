@@ -26,8 +26,12 @@ const SETTLED_PITCH = 0.12; // radians down the settled look is, over the kart's
 export class Driving {
   onKnock: ((at: Vec3) => void) | null = null; // a kart there lost wrenches to a knock: for what's heard of it
   onBoost: ((at: Vec3) => void) | null = null; // a kart there began a boost: for what's heard of it
-  // Each kart drawn, with its wrenches and whether it was boosting as last seen.
-  private readonly drawn = new Map<string, { mesh: KartMesh; wrenches: number; boosting: boolean }>();
+  onTrick: ((at: Vec3, driver: string | null) => void) | null = null; // a kart there began a trick, with `driver` in it
+  // Each kart drawn, with its wrenches and whether it was boosting and in a trick as last seen.
+  private readonly drawn = new Map<
+    string,
+    { mesh: KartMesh; wrenches: number; boosting: boolean; tricking: boolean }
+  >();
   private kartYaw: number | null = null; // the yaw of the kart they drive, as last followed
   private left: { yaw: number; pitch: number } | null = null; // the look as it was last left
   private still = 0; // seconds the look has been let be
@@ -35,15 +39,17 @@ export class Driving {
   constructor(private readonly engine: Engine) {}
 
   // Draws `karts` as they are this frame, each flashed if it has lost wrenches since the last, says
-  // which were knocked and which began a boost, and lets go of any that are gone.
+  // which were knocked and which began a boost or a trick, and lets go of any that are gone.
   draw(karts: Kart[], dt: number): void {
     const here = new Set<string>();
     for (const k of karts) {
       here.add(k.id);
       const boosting = k.turbo !== null;
+      const tricking = k.trick !== null;
       let kart = this.drawn.get(k.id);
       if (!kart) {
-        kart = { mesh: new KartMesh(this.engine, k.id, k.kart, k.paint), wrenches: k.wrenches, boosting };
+        const mesh = new KartMesh(this.engine, k.id, k.kart, k.paint);
+        kart = { mesh, wrenches: k.wrenches, boosting, tricking };
         this.drawn.set(k.id, kart);
       }
       kart.mesh.update(k, dt);
@@ -52,8 +58,10 @@ export class Driving {
         this.onKnock?.(k.pos);
       }
       if (boosting && !kart.boosting) this.onBoost?.(k.pos);
+      if (tricking && !kart.tricking) this.onTrick?.(k.pos, k.driver);
       kart.wrenches = k.wrenches;
       kart.boosting = boosting;
+      kart.tricking = tricking;
     }
     for (const [id, { mesh }] of this.drawn)
       if (!here.has(id)) {
