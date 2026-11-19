@@ -19,6 +19,7 @@ import {
   type KrustyKrabMark,
   type Landmark,
   type PineappleMark,
+  type Bounds,
   type WorldPart,
 } from '@world/shared';
 
@@ -93,14 +94,14 @@ export class MapCanvas {
   private readonly landmarkLayer = layer();
   private readonly woodLayer = layer();
   private readonly houseLayer = layer();
-  private readonly parts: Path2D[];
+  private readonly parts: Map<WorldPart, Path2D>; // each part's path, made once
   private readonly bounds;
   private width = 0; // CSS pixels, as last drawn
   private height = 0;
 
   constructor(readonly canvas: HTMLCanvasElement) {
     this.ctx = canvas.getContext('2d')!;
-    this.parts = WORLD_GROUND.parts.map(partPath);
+    this.parts = new Map(WORLD_GROUND.parts.map((part) => [part, partPath(part)]));
     this.bounds = WORLD_GROUND.bounds;
   }
 
@@ -196,11 +197,15 @@ export class MapCanvas {
     return t;
   }
 
-  // The floor, its grid, `landmarks` and the world's edge, as shapes in world metres through `t`.
+  // The floor, its grid, `landmarks` and the world's edge, as shapes in world metres through `t`,
+  // each only where it's on the canvas, so a frame costs what's in view however big the world is.
   // The edge is every part's outline with everything inside the world rubbed out again, leaving the
   // outside half of the line round the whole; the rest goes under it, top first, each on a layer
   // masked to its shapes so overlapping parts don't double up.
-  private drawFloor(t: Transform, landmarks: Landmark[]): void {
+  private drawFloor(t: Transform, all: Landmark[]): void {
+    const view = this.view(t);
+    const parts = WORLD_GROUND.partsIn(view).map((part) => this.parts.get(part)!);
+    const landmarks = all.filter((l) => overlaps(landmarkBox(l), view));
     const W = this.width * RES;
     const H = this.height * RES;
     const k = RES / t.scale; // canvas pixels per metre
@@ -235,9 +240,9 @@ export class MapCanvas {
     place(ctx);
     ctx.strokeStyle = OUTLINE;
     ctx.lineWidth = px(2 * EDGE);
-    for (const p of this.parts) ctx.stroke(p);
+    for (const p of parts) ctx.stroke(p);
     ctx.globalCompositeOperation = 'destination-out';
-    for (const p of this.parts) ctx.fill(p);
+    for (const p of parts) ctx.fill(p);
     ctx.globalCompositeOperation = 'destination-over';
 
     ctx.strokeStyle = RING;
@@ -258,24 +263,28 @@ export class MapCanvas {
     place(this.woodLayer);
     cover(this.woodLayer, marks.filter(wooden).map(partPath));
     tint(this.woodLayer, WOOD);
-    // Only the houses on the canvas, and the layer composited only when one is: Chrome can keep
-    // showing a layer's last drawing after a clear with nothing drawn over it, which left a house
-    // standing on the map where it had been.
+    // The layer composited only when a house is on it: Chrome can keep showing a layer's last
+    // drawing after a clear with nothing drawn over it, which left a house standing on the map
+    // where it had been.
     place(this.houseLayer);
     let housed = false;
     for (const l of landmarks) {
-      if (l.kind === 'pineapple' && this.inView(t, l.x, l.z, l.sand)) drawPineapple(this.houseLayer, l, px);
-      else if (l.kind === 'krusty-krab' && this.inView(t, l.x, l.z, Math.hypot(l.w, l.d) / 2))
-        drawKrustyKrab(this.houseLayer, l, px);
+      if (l.kind === 'pineapple') drawPineapple(this.houseLayer, l, px);
+      else if (l.kind === 'krusty-krab') drawKrustyKrab(this.houseLayer, l, px);
       else continue;
       housed = true;
     }
 
     place(this.floorLayer);
-    cover(this.floorLayer, this.parts); // the world's floor, as a mask for the grid first
+    cover(this.floorLayer, parts); // the world's floor, as a mask for the grid first
     const grid = this.gridLayer;
     place(grid);
-    const b = this.bounds;
+    const b = {
+      minX: Math.max(this.bounds.minX, view.minX),
+      maxX: Math.min(this.bounds.maxX, view.maxX),
+      minZ: Math.max(this.bounds.minZ, view.minZ),
+      maxZ: Math.min(this.bounds.maxZ, view.maxZ),
+    };
     grid.beginPath();
     for (let x = Math.ceil(b.minX / GRID_SPACING) * GRID_SPACING; x <= b.maxX; x += GRID_SPACING) {
       grid.moveTo(x, b.minZ);
@@ -299,11 +308,26 @@ export class MapCanvas {
     ctx.globalCompositeOperation = 'source-over';
   }
 
-  // Whether anything within `r` metres of (x, z) is on the canvas.
-  private inView(t: Transform, x: number, z: number, r: number): boolean {
-    const [px, py] = this.toPixel(t, x, z);
-    const reach = r / t.scale;
-    return px + reach > 0 && px - reach < this.width && py + reach > 0 && py - reach < this.height;
+  // The box in world metres round all of the canvas as `t` draws it, a little past its edge so the
+  // world's outline drawn just outside a part still shows at the canvas's side.
+  private view(t: Transform): Bounds {
+    const margin = 2 * EDGE * t.scale;
+    const corners = [
+      [0, 0],
+      [this.width, 0],
+      [0, this.height],
+      [this.width, this.height],
+    ].map(([x, y]) => {
+      const right = (x - this.width / 2) * t.scale;
+      const up = (this.height / 2 - y) * t.scale;
+      return { x: t.ox + right * t.rx + up * t.fx, z: t.oz + right * t.rz + up * t.fz };
+    });
+    return {
+      minX: Math.min(...corners.map((c) => c.x)) - margin,
+      maxX: Math.max(...corners.map((c) => c.x)) + margin,
+      minZ: Math.min(...corners.map((c) => c.z)) - margin,
+      maxZ: Math.max(...corners.map((c) => c.z)) + margin,
+    };
   }
 
   private toPixel(t: Transform, x: number, z: number): [number, number] {
@@ -444,6 +468,24 @@ function drawKrustyKrab(c: CanvasRenderingContext2D, m: KrustyKrabMark, px: (n: 
   for (const side of [-1, 1]) c.fillRect(side * (roof.w / 2 + arch / 2) - arch / 2, -m.d * 0.46, arch, m.d * 0.92);
   c.strokeRect(-m.w / 2, -m.d / 2, m.w, m.d);
   c.restore();
+}
+
+// The box round a landmark in world metres, as the map draws it.
+function landmarkBox(l: Landmark): Bounds {
+  const round = (x: number, z: number, r: number): Bounds => ({ minX: x - r, maxX: x + r, minZ: z - r, maxZ: z + r });
+  if (l.kind === 'disc') return round(l.x, l.z, l.r);
+  if (l.kind === 'pineapple') return round(l.x, l.z, l.sand);
+  if (l.kind === 'krusty-krab') return round(l.x, l.z, Math.hypot(l.w, l.d) / 2);
+  return {
+    minX: Math.min(l.ax, l.bx) - l.halfWidth,
+    maxX: Math.max(l.ax, l.bx) + l.halfWidth,
+    minZ: Math.min(l.az, l.bz) - l.halfWidth,
+    maxZ: Math.max(l.az, l.bz) + l.halfWidth,
+  };
+}
+
+function overlaps(a: Bounds, b: Bounds): boolean {
+  return a.maxX >= b.minX && a.minX <= b.maxX && a.maxZ >= b.minZ && a.minZ <= b.maxZ;
 }
 
 // A part of the outline, or a landmark, as one closed path in world metres (a landmark open in the

@@ -581,7 +581,9 @@ is off (`npm run bot-map -- --if-stale`), and CI keeps what a deploy built for t
 
 Cubes don't know about structures. Every map (the HUD's minimap, the menu's and the guide's) draws
 through `ui/MapCanvas.ts`, which reads the outline (`WORLD_GROUND`) and `content/landmarks.ts` itself,
-so they all show one world and a map change is a change there: footprints grey on the floor (a disc's
+drawing only the parts, landmarks and grid lines its view covers (`Ground.partsIn`), so a frame
+costs what's on the map however big the world is, and they all show one world and a map change is a
+change there: footprints grey on the floor (a disc's
 `rings` drawn inside it: Tung Tung Tower has one per floor above the ground), SpongeBob's house as
 itself (a `PineappleMark`: the fruit hatched, its leaves in the middle, on the sand of its dune), the
 Krusty Krab as itself (a `KrustyKrabMark`: its plinth, the barrel of its roof, its arches), and

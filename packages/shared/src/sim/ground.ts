@@ -64,12 +64,14 @@ export class Ground {
   // Metres from the origin to the furthest of the floor: a circle round all of it.
   readonly reach: number;
   private readonly chunks = new Map<number, WorldPart[]>();
+  private readonly boxes = new Map<WorldPart, Bounds>(); // each part's, worked out once
 
   constructor(readonly parts: readonly WorldPart[]) {
     this.bounds = { minX: Infinity, maxX: -Infinity, minZ: Infinity, maxZ: -Infinity };
     let reach = 0;
     for (const part of parts) {
       const b = partBounds(part);
+      this.boxes.set(part, b);
       this.bounds.minX = Math.min(this.bounds.minX, b.minX);
       this.bounds.maxX = Math.max(this.bounds.maxX, b.maxX);
       this.bounds.minZ = Math.min(this.bounds.minZ, b.minZ);
@@ -157,7 +159,7 @@ export class Ground {
     for (let cx = chunkOf(box.minX); cx <= chunkOf(box.maxX); cx++)
       for (let cz = chunkOf(box.minZ); cz <= chunkOf(box.maxZ); cz++)
         for (const part of this.chunks.get(chunkKey(cx, cz)) ?? []) {
-          const b = partBounds(part);
+          const b = this.boxes.get(part)!;
           if (b.maxX >= box.minX && b.minX <= box.maxX && b.maxZ >= box.minZ && b.minZ <= box.maxZ) found.add(part);
         }
     return [...found];
