@@ -1,7 +1,10 @@
-// The world's ground: the floor the outline draws (discs, straight bridges and pie slices, all
-// unioned, authored in outline.ts), and past its edge the ground OUTSIDE_HEIGHT down. Everything
-// that cares where the floor ends asks this: the sim (server and client alike, through
-// Structures.ground), the renderers, the sky objects, the bots' map and every map.
+// The world's ground: a slab whose top is the floor the outline draws (discs, straight bridges and
+// pie slices, all unioned, authored in outline.ts), whose sides drop to the ground past the edge,
+// OUTSIDE_HEIGHT down, and all of it solid. A body stands on the floor, walks off its edge, falls
+// down the drop's face (a wall to anything below the floor) and lands on the ground beyond, which
+// is the end of it (room.ts). Everything that cares where the floor ends asks this: the sim (server
+// and client alike, through Structures.ground), the renderers, the sky objects, the bots' map and
+// every map.
 //
 // The parts are indexed by CHUNK-metre square, each square listing every part within NEAR of it,
 // so a question about a spot looks only at the few parts near it, however many the world has.
@@ -45,7 +48,7 @@ export interface Bounds {
 }
 
 // Metres the ground past the world's edge stands above the floor: below it, so the edge drops to it
-// and where you can't go reads from afar (render/Environment.ts).
+// and where the floor ends reads from afar (render/Environment.ts).
 export const OUTSIDE_HEIGHT = -10;
 
 // Metres on a side of the squares the world is cut into: the ground's index, and the renderer's
@@ -93,6 +96,59 @@ export class Ground {
 
   inside(x: number, z: number): boolean {
     return this.near(x, z).some((part) => partDistance(x, z, part) < 0);
+  }
+
+  // The height of the ground at (x, z): the floor inside the edge, the ground past it.
+  height(x: number, z: number): number {
+    return this.inside(x, z) ? 0 : OUTSIDE_HEIGHT;
+  }
+
+  // Keeps `pos` within the world's reach, `margin` short of it: the one barrier, a circle round
+  // everything, the same for a walker and a dragon.
+  keepWithin(pos: Vec3, margin: number): void {
+    const reach = this.reach - margin;
+    const out = Math.hypot(pos.x, pos.z);
+    if (out <= reach) return;
+    pos.x *= reach / out;
+    pos.z *= reach / out;
+  }
+
+  // Pushes a circle of `radius` at `pos` out of the slab's footprint, as the drop's face is a wall
+  // to a body below the floor: straight out from the nearest stretch of edge.
+  pushOut(pos: Vec3, radius: number): void {
+    const e = this.edge(pos.x, pos.z);
+    if (e >= radius) return;
+    const h = 0.01;
+    const gx = this.edge(pos.x + h, pos.z) - this.edge(pos.x - h, pos.z);
+    const gz = this.edge(pos.x, pos.z + h) - this.edge(pos.x, pos.z - h);
+    const g = Math.hypot(gx, gz);
+    if (g < 1e-9) return;
+    pos.x += (gx / g) * (radius - e);
+    pos.z += (gz / g) * (radius - e);
+  }
+
+  // Where the unit ray (o, d) first meets the slab within maxT: the floor where it comes down onto
+  // it (`top`), the drop's face where it runs into it from past the edge, or the ground beyond;
+  // null if it meets none of it. Below the floor, past the edge, it's traced across by the edge's
+  // distance, which is never more than the way to the slab.
+  slab(o: Vec3, d: Vec3, maxT: number): { t: number; top: boolean } | null {
+    let t = 0;
+    if (o.y >= 0) {
+      if (d.y >= 0) return null;
+      t = -o.y / d.y;
+      if (t > maxT) return null;
+      if (this.inside(o.x + d.x * t, o.z + d.z * t)) return { t, top: true };
+    } else if (this.inside(o.x, o.z)) return { t: 0, top: false };
+    const ground = d.y < 0 ? (OUTSIDE_HEIGHT - o.y) / d.y : Infinity;
+    const up = d.y > 0 ? -o.y / d.y : Infinity; // back above the floor, past its edge
+    const end = Math.min(maxT, ground, up);
+    const flat = Math.hypot(d.x, d.z);
+    while (flat > 1e-9 && t < end) {
+      const e = this.edge(o.x + d.x * t, o.z + d.z * t);
+      if (e <= 1e-3) return { t, top: false };
+      t += Math.max(e, 0.05) / flat;
+    }
+    return ground <= Math.min(maxT, up) ? { t: ground, top: false } : null;
   }
 
   // The parts of the floor that reach into the box, each once.

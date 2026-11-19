@@ -1,7 +1,6 @@
 export const TICK_RATE = 30;
 export const TICK_DT = 1 / TICK_RATE;
 
-export const PLAYER_PADDING = 1;
 // Against structures: a player is a cylinder this wide around their eye, and climbs any top
 // within STEP_UP of their feet (stairs, ramps); walking off an edge no more than STEP_DOWN lower
 // keeps them on the ground rather than launching them off a slope.

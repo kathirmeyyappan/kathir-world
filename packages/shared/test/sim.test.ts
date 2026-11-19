@@ -10,6 +10,7 @@ import {
   EYE_HEIGHT,
   LADDER_GAP,
   LADDER_GIRTH,
+  OUTSIDE_HEIGHT,
   PLAYER_RADIUS,
   GEAR,
   JUMP_VELOCITY,
@@ -43,6 +44,7 @@ import {
   stepCubes,
   stepPlayer,
   type InputFrame,
+  type Vec3,
   OFF_WALL,
   WALL_FRAMES,
   layoutWallFrame,
@@ -54,7 +56,6 @@ import {
   bodyLength,
   dragonShape,
   wall,
-  PLAYER_PADDING,
   FLOOR,
   MOVE_SPEED,
   SURFACES,
@@ -94,19 +95,17 @@ test('stepPlayer is deterministic: same inputs give identical state', () => {
   assert.deepEqual(a, b);
 });
 
-test('movement is yaw-relative and clamped to the world edge', () => {
+test('movement is yaw-relative, and walking off the edge falls to the ground past it', () => {
   const p = createPlayer('a', 'a', '#fff', { x: 0, y: EYE_HEIGHT, z: 0 });
   stepPlayer(p, frame(1, { my: 1, yaw: Math.PI / 2 }), 1);
   assert.ok(p.pos.x > 7.9 && Math.abs(p.pos.z) < 1e-9, 'yaw of pi/2 walks along +x');
-  for (let i = 2; i < 200; i++) stepPlayer(p, frame(i, { my: 1, yaw: Math.PI / 2 }), 1);
-  assert.ok(WORLD_GROUND.edge(p.pos.x, p.pos.z) <= -1 + 1e-9);
-  // Walking straight out across the fan between the buildings, through the gap between the Krusty
-  // Krab's grounds and Building 2's (the fan's round side at r 100).
+  // Straight out across the fan, through the gap between the Krusty Krab's grounds and Building 2's
+  // (the fan's round side at r 100): off its edge, down the drop, onto the ground past it.
   const out = (152.5 * Math.PI) / 180;
   const q = createPlayer('b', 'b', '#fff', { x: 60 * Math.cos(out), y: EYE_HEIGHT, z: 60 * Math.sin(out) });
-  for (let i = 1; i < 100; i++) stepPlayer(q, frame(i, { my: 1, yaw: Math.PI / 2 - out }), 1);
-  const reached = Math.hypot(q.pos.x, q.pos.z);
-  assert.ok(Math.abs(reached - 99) < 1e-6, `held a metre inside the fan: ${reached}`);
+  for (let i = 1; i < 300; i++) stepPlayer(q, frame(i, { my: 1, yaw: Math.PI / 2 - out }), TICK_DT);
+  assert.ok(Math.hypot(q.pos.x, q.pos.z) > 100, 'past the edge');
+  assert.equal(q.pos.y, OUTSIDE_HEIGHT + EYE_HEIGHT, 'on the ground below it');
 });
 
 test('jump only from the ground, and gravity brings you back', () => {
@@ -120,26 +119,31 @@ test('jump only from the ground, and gravity brings you back', () => {
   assert.equal(p.vy, 0);
 });
 
-test('the annex is reachable only through the bridge', () => {
-  // Walking +x along z=0 goes through the bridge into the second disc.
-  const via = createPlayer('a', 'a', '#fff', { x: 0, y: EYE_HEIGHT, z: 0 });
-  for (let i = 1; i < 30 * 20; i++) stepPlayer(via, frame(i, { my: 1, yaw: Math.PI / 2 }), TICK_DT);
-  assert.ok(via.pos.x > 100, `reached the annex at x=${via.pos.x.toFixed(1)}`);
-  assert.ok(WORLD_GROUND.edge(via.pos.x, via.pos.z) <= -1 + 1e-9);
-
-  // The straight line from off-axis to the annex crosses open space that isn't world.
-  assert.ok(WORLD_GROUND.edge(56, 10) > 0);
-
-  // Aiming at the annex from off-axis hits the main disc's wall, slides along it and can only
-  // get across by being funnelled into the bridge: whenever x is between the discs, z is inside
-  // the bridge's width.
-  const off = createPlayer('b', 'b', '#fff', { x: 0, y: EYE_HEIGHT, z: 20 });
-  const yaw = Math.atan2(112 - 0, 0 - 20); // toward the annex centre
-  for (let i = 1; i < 30 * 30; i++) {
-    stepPlayer(off, frame(i, { my: 1, yaw }), TICK_DT);
-    assert.ok(WORLD_GROUND.edge(off.pos.x, off.pos.z) <= -1 + 1e-6, `inside at tick ${i}`);
-    if (off.pos.x > 51 && off.pos.x < 81) assert.ok(Math.abs(off.pos.z) <= 7 + 1e-6, `on the bridge at tick ${i}`);
-  }
+test("the drop's face is a wall to a body below the floor, and shots stop on the ground's slab", () => {
+  // Down on the ground 10 m past the main disc's edge at a bearing of 340° (clear of the fan, its
+  // sides and the bridge), walking straight in at it: held a body's width off the face, never
+  // under the floor.
+  const out = { x: Math.cos((340 * Math.PI) / 180), z: Math.sin((340 * Math.PI) / 180) };
+  const p = createPlayer('a', 'a', '#fff', { x: out.x * 60, y: OUTSIDE_HEIGHT + EYE_HEIGHT, z: out.z * 60 });
+  const yaw = Math.atan2(-out.x, -out.z);
+  for (let i = 1; i < 120; i++) stepPlayer(p, frame(i, { my: 1, yaw }), TICK_DT);
+  assert.ok(
+    Math.abs(WORLD_GROUND.edge(p.pos.x, p.pos.z) - PLAYER_RADIUS) < 1e-3,
+    `against the face: ${p.pos.x}, ${p.pos.z}`,
+  );
+  assert.equal(p.pos.y, OUTSIDE_HEIGHT + EYE_HEIGHT);
+  // A shot from back on the floor down at the body below stops on the slab.
+  const from = { x: out.x * 40, y: EYE_HEIGHT, z: out.z * 40 };
+  const at = (to: Vec3) => {
+    const d = Math.hypot(to.x - from.x, to.y - from.y, to.z - from.z);
+    return WORLD_STRUCTURES.raycast(
+      from,
+      { x: (to.x - from.x) / d, y: (to.y - from.y) / d, z: (to.z - from.z) / d },
+      d,
+    );
+  };
+  assert.notEqual(at(p.pos), Infinity, 'the slab is in the way');
+  assert.equal(WORLD_STRUCTURES.raycast(from, { x: 0, y: -1, z: 0 }, 20), EYE_HEIGHT, 'the floor stops a shot');
 });
 
 test('cubes spawn apart, all live in the main disc and cover it evenly', () => {
@@ -720,21 +724,14 @@ test('a dragon climbs straight out of the ground, flies forward where it looks i
   fly(p, 60, {});
   assert.equal(p.pos.y, EYE_HEIGHT, 'fell to the floor');
 
-  // A dragon out over the void turning back into a walker lands on the nearest edge of the world,
-  // at the same height, rather than falling outside it.
+  // A dragon out over the void turning back into a walker stays where it was, and falls down the
+  // drop to the ground past the edge.
   becomeAvatar(p, 'light-dragon');
   p.pos = { x: 60, y: 40, z: 60 };
   becomeAvatar(p, 'standard');
-  assert.equal(p.pos.y, 40);
-  assert.ok(
-    Math.abs(WORLD_GROUND.edge(p.pos.x, p.pos.z) + PLAYER_PADDING) < 1e-6,
-    `on the edge: ${p.pos.x.toFixed(1)}, ${p.pos.z.toFixed(1)}`,
-  );
-  // One down in the drop past the edge comes up onto the floor there.
-  becomeAvatar(p, 'light-dragon');
-  p.pos = { x: 60, y: -4, z: 60 };
-  becomeAvatar(p, 'standard');
-  assert.equal(p.pos.y, EYE_HEIGHT);
+  assert.deepEqual(p.pos, { x: 60, y: 40, z: 60 });
+  fly(p, 120, {});
+  assert.equal(p.pos.y, OUTSIDE_HEIGHT + EYE_HEIGHT, 'on the ground past the edge');
 });
 
 test('a dead dragon drapes over an edge, its body a link apart, rather than stretching down to the ground', () => {

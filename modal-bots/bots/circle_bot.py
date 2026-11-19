@@ -29,8 +29,8 @@ from common.world import EYE_HEIGHT, load_world_map
 
 ORBIT_RADIUS = 12
 RADIAL_CORRECTION_DISTANCE = 6
-# Within this of the ring the bot circles; further off (a wall or the world's edge pushing it
-# off, or the target having moved) it walks to the ring by the map.
+# Within this of the ring the bot circles; further off (a wall pushing it off, or the target having
+# moved) it walks to the ring by the map.
 RING_BAND = 3
 # The ring point a detour heads for is this far round the circle from where the bot is, so the
 # way there goes round whatever it stopped at; the next ones round are tried when the map has no
@@ -38,8 +38,11 @@ RING_BAND = 3
 DETOUR_STEP = math.radians(60)
 # A detour is planned again when its target has moved this far since.
 REPLAN_DISTANCE = 4
-# Blocked means covering under half the commanded distance over a few ticks: the world's edge or a
-# wall is soaking up the move. The window is long enough that one late snapshot doesn't count.
+# Metres ahead along its strafe the bot looks for floor: none there (the world's edge, where a step
+# further drops it to its death, or the map's margin inside it) and it walks the map instead.
+EDGE_LOOKAHEAD = 1.5
+# Blocked means covering under half the commanded distance over a few ticks: a wall is soaking up
+# the move. The window is long enough that one late snapshot doesn't count.
 BLOCKED_PROGRESS = 0.5
 BLOCKED_TICKS = 4
 # After joining or a detour, the snapshots still show the old input for a round trip, so the
@@ -166,12 +169,25 @@ class Circler:
                 self.route.steer(me.pos, tick, controls)
                 return False
         distance = math.hypot(me.pos.x - center.x, me.pos.z - center.z)
-        if abs(distance - ORBIT_RADIUS) > RING_BAND or self.stall.blocked(
-            tick, me.pos, controls, self.world.walk_speed(me.avatar)
-        ):
-            return self._detour(tick, me, center)
         _orbit(controls, distance)
+        if (
+            abs(distance - ORBIT_RADIUS) > RING_BAND
+            or self._edge_ahead(me, controls)
+            or self.stall.blocked(tick, me.pos, controls, self.world.walk_speed(me.avatar))
+        ):
+            controls.stop()
+            return self._detour(tick, me, center)
         return False
+
+    def _edge_ahead(self, me: Player, controls: Controls) -> bool:
+        """Whether the map has no floor EDGE_LOOKAHEAD along the move ``controls`` command."""
+        dx, dz = _world_move(controls)
+        length = math.hypot(dx, dz)
+        if length < 1e-6:
+            return False
+        feet = _feet(me)
+        ahead = Vec3(feet.x + dx / length * EDGE_LOOKAHEAD, feet.y, feet.z + dz / length * EDGE_LOOKAHEAD)
+        return self.world.node_at(ahead, reach=1) is None
 
     def _detour(self, tick: int, me: Player, center: Vec3) -> bool:
         """Plan a way round to the ring; back to circling (and the stall check) when there's none."""

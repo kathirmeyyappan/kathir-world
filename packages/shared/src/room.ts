@@ -24,7 +24,6 @@ import {
   CHILL_SECONDS,
   DEATH_SCREEN_SECONDS,
   NAMED_COLORS,
-  PLAYER_PADDING,
   SPEEDY_SECONDS,
   STEP_UP,
   TICK_DT,
@@ -42,6 +41,7 @@ import { defaultBotsFor } from './sim/defaultBots';
 import { GEAR, createGear, gearHelp, type GearId } from './sim/gear';
 import { ITEMS, createItem, itemHelp, type Element, type ItemAction, type ItemId, type ItemSpec } from './sim/items';
 import { createCubes, stepCubes } from './sim/cubes';
+import { OUTSIDE_HEIGHT } from './sim/ground';
 import { randomPointInDisc, randomPointInRegion } from './sim/regions';
 import { createPickups, dropPickup, stepPickups, takePickups, type PickupArea, type PickupField } from './sim/pickups';
 import { becomeAvatar, createPlayer, stepPlayer } from './sim/player';
@@ -276,10 +276,9 @@ export class Room {
     if (!seat) return;
     this.seats.delete(id);
     if (seat.state.dead)
-      for (const at of classOf(seat.state.avatar).lies(seat.state, this.structures)) {
-        this.structures.ground.clamp(at, PLAYER_PADDING);
-        dropPickup(this.pickups, CORPSE_DROP, at, this.rng);
-      }
+      // Not past the edge: nobody walks down to the ground there and back.
+      for (const at of classOf(seat.state.avatar).lies(seat.state, this.structures))
+        if (this.structures.ground.inside(at.x, at.z)) dropPickup(this.pickups, CORPSE_DROP, at, this.rng);
     this.broadcast({ t: 'leave', id, name: seat.state.name });
     this.log(`${seat.state.name} (${id}) left ${this.id}, ${this.seats.size} online`);
     if (this.humanCount === 0) this.onEmpty?.(); // bots alone don't keep a room open
@@ -385,10 +384,9 @@ export class Room {
   // What a spray lands on (sim/frost.ts): an ice one frosts it, for good, and a fire one melts it.
   // Everyone hears of every cell that turned, the oldest frost melting to make room past MAX_FROST.
   private spray(me: PlayerState, halfAngle: number, range: number, element: Element): void {
-    const floor = (x: number, z: number) => this.structures.ground.inside(x, z);
     const dir = classOf(me.avatar).aim(me);
     const ice = element === 'ice';
-    const changed = sprayFrost(this.structures, floor, eyeOf(me), dir, halfAngle, range, this.tick, ice);
+    const changed = sprayFrost(this.structures, eyeOf(me), dir, halfAngle, range, this.tick, ice);
     const on = ice ? changed : [];
     const off = ice ? this.structures.frost.trim() : changed;
     if (on.length || off.length) this.broadcast({ t: 'frost', on, off });
@@ -443,6 +441,9 @@ export class Room {
     const me = seat.state;
     const damage = fallDamage(speed);
     if (damage > 0 && !me.dead) this.damage(me, damage, null);
+    // Down on the ground past the edge (ground.ts), a body on foot is done for, whatever the fall.
+    if (!me.dead && classOf(me.avatar).id === 'walker' && me.pos.y - EYE_HEIGHT <= OUTSIDE_HEIGHT + 1e-6)
+      this.damage(me, me.hearts, null);
     const pound = poundOf(me.avatar);
     if (!pound || me.dead || me.pound?.stage !== 'land' || me.pound.t !== 0) return;
     const { damage: hurt, reach } = poundPower(pound, me.pound.from - me.pos.y);
@@ -619,8 +620,7 @@ export class Room {
     if (!rising) return;
     const feet = me.pos.y - EYE_HEIGHT;
     if (Math.abs(feet) < 0.01) {
-      const floor = (x: number, z: number) => this.structures.ground.inside(x, z);
-      const on = frostDisc(this.structures, floor, me.pos.x, me.pos.z, rising.ice);
+      const on = frostDisc(this.structures, me.pos.x, me.pos.z, rising.ice);
       const off = this.structures.frost.trim();
       if (on.length || off.length) this.broadcast({ t: 'frost', on, off });
     }
@@ -745,7 +745,7 @@ export class Room {
   // those feet: a spot asked for on a floor lands on it, and one in the air falls from there.
   private placedSpawn(feet: Vec3): Vec3 {
     const p = { ...feet };
-    this.structures.ground.clamp(p, PLAYER_PADDING);
+    this.structures.ground.clamp(p, SPAWN_WALL_MARGIN);
     return { x: p.x, y: this.standAt(p.x, p.z, feet.y) + EYE_HEIGHT, z: p.z };
   }
 

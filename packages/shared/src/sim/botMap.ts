@@ -15,7 +15,6 @@ import {
   GRAVITY,
   JUMP_VELOCITY,
   MOVE_SPEED,
-  PLAYER_PADDING,
   PLAYER_RADIUS,
   STEP_DOWN,
   STEP_UP,
@@ -39,6 +38,8 @@ import { WORLD_GROUND, WORLD_OUTLINE } from './outline';
 // The world without its doors (doors.ts): bots can't open them, so they walk as if every one stood open.
 const MAP_STRUCTURES = new Structures(STRUCTURES.filter((s) => !s.door));
 
+// Metres inside the floor's edge the map stands its nodes, so a route never takes a bot over it.
+const EDGE_MARGIN = 1;
 const SPACING = 1; // metres between grid columns: under a doorway's clear width (1.2 m less a body)
 const WALL_CLEARANCE = 0.05; // metres a node's body may be pushed by a wall before it doesn't count
 const MAX_RISE = 1.5; // metres between neighbouring nodes worth trying an edge across
@@ -94,7 +95,7 @@ export function botMapSource(): number {
     EYE_HEIGHT,
     CAPSULE_TOP,
     PLAYER_RADIUS,
-    PLAYER_PADDING,
+    EDGE_MARGIN,
     STEP_UP,
     STEP_DOWN,
     MOVE_SPEED,
@@ -215,7 +216,7 @@ function walkableNodes(): Vec3[] {
   const nodes: Vec3[] = [];
   for (let x = Math.ceil(b.minX / SPACING) * SPACING; x <= b.maxX; x += SPACING) {
     for (let z = Math.ceil(b.minZ / SPACING) * SPACING; z <= b.maxZ; z += SPACING) {
-      if (WORLD_GROUND.edge(x, z) > -PLAYER_PADDING) continue;
+      if (WORLD_GROUND.edge(x, z) > -EDGE_MARGIN) continue;
       const heights = new Set([0, ...MAP_STRUCTURES.list.flatMap((s) => topAt(s, x, z))]);
       for (const y of heights) {
         if (Math.abs(MAP_STRUCTURES.groundAt(x, z, y + STEP_UP) - y) > 1e-9) continue;
