@@ -1023,8 +1023,9 @@ second; the kart
 under the crosshair, which a click gets in (the same prompt and `use` as a door's); the look
 turned with the kart and settled back behind it once the mouse is let be; and the drift on Space
 and E to get out (`KART_ACTIONS`). A driver is watched along `KART_BOOM`, their legend is the
-kart's keys and the hint bar says how to get out, and on touch the pad steers alone, GAS (red) and
-BRAKE hold W and S, the jump button (grey) drifts and OUT gets out.
+kart's keys and the hint bar says how to get out, and on touch the pad steers alone, GAS (red, a
+bar over the other two) and BRAKE hold W and S, the jump button (grey) drifts and OUT, up under
+CHAT, gets out.
 Their kart's wrenches are a row of pixel wrenches under their hearts (`Hearts` with the `wrench`
 sprite), and on a mouse device a gauge under those (`ui/KartGauge.ts`) says how fast the kart is
 going along its nose and how fast that's changing (`Prediction.kartPace`: a tick taken ahead on

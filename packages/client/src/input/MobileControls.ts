@@ -1,8 +1,8 @@
 // Touch controls: a square pad on the left that acts as a joystick, and a jump button on the
 // right; a dragon, which only flies forward, has a throttle in the pad's place, slid up for the
-// speed and left where it's put, and no jump; and a kart's driver steers with the pad, has GAS and
-// BRAKE beside the jump button, and the jump button drifts. All plain DOM styled like the rest of
-// the HUD. Only mounted on touch devices.
+// speed and left where it's put, and no jump; and a kart's driver steers with the pad and has GAS,
+// a bar over BRAKE and the jump button, which drifts. All plain DOM styled like the rest of the HUD.
+// Only mounted on touch devices.
 import type { PlayerClass } from '@world/shared';
 import type { InputManager } from './InputManager';
 import { IS_TOUCH } from './touch';

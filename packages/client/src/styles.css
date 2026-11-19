@@ -2202,32 +2202,33 @@ body {
   bottom: 178px;
   width: 84px;
 }
-/* SWAP, on a ladder, and a look's own move (CROUCH, or POUND in the air): a square beside JUMP, to its left. */
+/* A square beside JUMP, to its left: SWAP on a ladder, a look's own move (CROUCH, or POUND in the
+   air), and a kart's BRAKE. */
 #swap-button,
 #pound-button,
-#out-button {
+#brake-button {
   bottom: 26px;
   right: 118px;
   width: 84px;
   height: 84px;
   padding: 0;
 }
-/* A kart's pedals: GAS over the drift button, BRAKE beside it. */
-#gas-button,
-#brake-button {
-  width: 84px;
-  height: 84px;
-  padding: 0;
-}
+/* A kart's GAS: a bar over BRAKE and the jump button, as wide as the two. */
 #gas-button {
-  bottom: 118px;
-  right: 26px;
+  bottom: 122px;
+  width: 180px;
+  height: 64px;
+  padding: 0;
   border-color: rgba(255, 59, 78, 0.8);
   background: rgba(255, 59, 78, 0.3);
   color: #ffd9dd;
 }
 #gas-button.active {
   background: rgba(255, 59, 78, 0.6);
+}
+/* A cube's SELECT while driving: over GAS, where SCOPE is on foot. */
+#app:has(#gas-button:not(.hidden)) #action-button {
+  bottom: 198px;
 }
 /* The jump button while driving, when it's the drift. */
 #jump-button.drift {
@@ -2241,15 +2242,22 @@ body {
   border-color: #dfe3ea;
   box-shadow: 0 0 14px #dfe3ea;
 }
-#brake-button {
-  bottom: 118px;
-  right: 118px;
+/* A column in the top-right corner: CHAT, CMDS, and under them a kart's OUT, out of reach of the
+   thumbs that drive it. */
+#chat-button,
+#commands-button,
+#out-button {
+  width: 72px;
+  padding: 0;
 }
 #chat-button {
   top: 16px;
 }
 #commands-button {
   top: 70px;
+}
+#out-button {
+  top: 124px;
 }
 
 @media (pointer: coarse) {
@@ -2350,9 +2358,10 @@ body {
 }
 /* A phone on its side, a screen as little as 280px tall once the browser's bars are off it. The menu
    button and the room panel share one row at the top left, CHAT and CMDS one at the top right; the
-   pad and the right thumb's buttons are smaller, FIRE and SCOPE side by side over JUMP and SWAP, so
-   nothing on the right stands higher than 136px; the chat runs from under the corner to just over
-   the pad (or the throttle), its oldest lines cut off at the top. */
+   pad and the right thumb's buttons are smaller, FIRE and SCOPE side by side over JUMP and SWAP (a
+   kart's SELECT beside its GAS, over BRAKE and the drift), so nothing on the right stands higher
+   than 144px, and OUT is under CHAT; the chat runs from under the corner to just over the pad (or
+   the throttle), its oldest lines cut off at the top. */
 @media (pointer: coarse) and (max-height: 500px) {
   #corner {
     top: 8px;
@@ -2422,20 +2431,35 @@ body {
     right: 96px;
   }
   #swap-button,
-  #pound-button {
+  #pound-button,
+  #brake-button {
     right: 96px;
     bottom: 16px;
     width: 72px;
     height: 72px;
   }
+  #gas-button {
+    right: 16px;
+    bottom: 96px;
+    width: 152px;
+    height: 48px;
+  }
+  #app:has(#gas-button:not(.hidden)) #action-button {
+    right: 176px;
+    bottom: 96px;
+  }
   #chat-button,
-  #commands-button {
+  #commands-button,
+  #out-button {
     top: 8px;
     width: 64px;
-    padding: 0;
   }
-  #chat-button {
+  #chat-button,
+  #out-button {
     right: 16px;
+  }
+  #out-button {
+    top: 56px;
   }
   #commands-button {
     right: 88px;
