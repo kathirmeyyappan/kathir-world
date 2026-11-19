@@ -963,10 +963,9 @@ A kart's model is written by `scripts/kart-model.py` from a rip of a Mario Kart 
 set, sized as MK8 sizes it against Mario and a tenth bigger (`ROOM`), so he sits in it with room: its parts (`body`, the `steer`ing wheel that turns, the
 `emblem` and one `tire`, each simplified to its size) and their pictures in
 `public/assets/models/kart-<id>/`, and `render/vehicles/<id>KartModel.ts`, read through
-`KART_MODELS` (`render/vehicles/kartModel.ts`): where its tires stand and how big each is (the
-rips leave out how MK8 sizes and places a body's tires, so each is centred on its axle's hub, as
-big as reaches the ground the body rides `UNDERSIDE` over, and set out from the hub only as far as
-clears the body: in its wells, the rear ones bigger on their higher hubs), the steering wheel's middle,
+`KART_MODELS` (`render/vehicles/kartModel.ts`): where its tires stand (the tire set's own, at MK8's
+size, each centred along the kart on its axle's hub with its outer face flush with the body's side,
+on the edge of its wells, all four on the ground), the steering wheel's middle,
 the axis it turns round and the grips a driver's hands take on it (a wheel's rim or a handlebar's
 ends alike), the seat, where a driver's feet rest (against the pedals, or as far forward under the
 nose as a foot fits), and each driver's paint. A paint is two colours and an emblem: the body is

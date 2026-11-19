@@ -2,14 +2,14 @@
 of a set of its tires, each unpacked into a folder:
 
     pip install numpy pillow fast_simplification
-    python packages/client/scripts/kart-model.py standard "path/to/Standard Kart" "path/to/Slim & Crimson Slim"
+    python packages/client/scripts/kart-model.py standard "path/to/Standard Kart" "path/to/Standard & Blue Standard"
 
 A body rip is the body as an OBJ (<name>.obj, MK8's units scaled by OBJ_UNIT, y up, the nose along
 +z): the body itself (material `m_Body`), its steering wheel among its pieces, and the emblem decal
 on its nose (`m_Body.002`); with its albedo once for each driver (bodyk_*_<driver>_alb.png), alike
 but for the two colours it's painted in, and the drivers' emblems (Emblems/<Name>.png). A tire rip
-is its tires as Collada files in MK8's own units, the kart's four in TireK_Rng.dae (each a mesh
-with its axle along x), with their albedo (Tire_Rng_Alb.png).
+is its tires as Collada files in MK8's own units, the kart's four in TireK_<set>.dae (each a mesh
+with its axle along x), with their albedo (Tire_<set>_Alb.png).
 
 It writes, in public/assets/models/kart-<id>/, the parts in the client's format (house_mesh.py
 `emit_part`): `body`, `steer` (the steering wheel, which turns), `emblem` and one `tire`, all
@@ -52,9 +52,6 @@ BODY_TEXTURE = 512  # px: the body's picture and its paint, each side
 EMBLEM_TEXTURE = 64  # px: an emblem's picture, each side
 TIRE_KEEP = 0.5  # of a tire's triangles kept: a tread's bevels are lost at its size
 PAINT_DIFFERS = 24  # 0-255: a pixel some driver's albedo has this far from another's is painted
-TIRE_GAP = 0.03  # metres a tire keeps clear of the body round it
-UNDERSIDE = 0.02  # metres the body's lowest point rides over the ground
-SURFACE_STEP = 0.01  # metres between the points a tire's fit is checked against, over every face of the body
 FEET_APART = 0.19  # metres each foot rests out from the middle line: on its pedal, where there are pedals
 FOOT_ROOM = 0.25  # metres over the floor a foot needs: the feet go forward as far as that's clear
 
@@ -94,6 +91,11 @@ def read_obj(path: Path) -> dict[str, tuple[np.ndarray, np.ndarray]]:
                     pos.append(positions[int(c[0]) - 1])
                     uv.append(uvs[int(c[1]) - 1])
     return {m: (np.array(pos) / OBJ_UNIT * MK8_METRES, np.array(uv)) for m, (pos, uv) in by_material.items()}
+
+
+def geometries(path: Path) -> list[str]:
+    """The names of a Collada file's meshes."""
+    return [g.get("name") or "" for g in ET.parse(path).getroot().iter(f"{NS}geometry")]
 
 
 def read_collada(path: Path, name: str) -> tuple[np.ndarray, np.ndarray]:
@@ -235,11 +237,14 @@ def main(kart_id: str, body_dir: Path, tire_dir: Path) -> None:
     parts = read_obj(next(body_dir.glob("*.obj")))
     body_pos, body_uv = parts["m_Body"]
     emblem_pos, emblem_uv = parts["m_Body.002"]
-    tire_pos, tire_uv = read_collada(tire_dir / "TireK_Rng.dae", "Tire_LF__m_Tire")
+    tires_dae = next(tire_dir.glob("TireK_*.dae"))
+    tire_set = tires_dae.stem.removeprefix("TireK_")
+    tire_pos, tire_uv = read_collada(tires_dae, next(n for n in geometries(tires_dae) if n.endswith("LF__m_Tire")))
 
-    # The body's frame: the ground UNDERSIDE under its lowest point, the middle of its length over
-    # the origin. Each tire is centred on its axle's hub (the biggest round piece at its end, square
-    # to x) and sized to reach the ground from there, so the rear ones, on higher hubs, are bigger.
+    # The body's frame: its tires as MK8 makes them, each centred along it on its axle's hub (the
+    # biggest round piece at its end, square to x) with its outer face flush with the body's side,
+    # on the edge of its wells, and all four on the ground with their axles level with the hubs as
+    # near as they all can be; the middle of its length over the origin.
     tire_middle = (tire_pos.min(axis=0) + tire_pos.max(axis=0)) / 2
     tire_pos = tire_pos - tire_middle
     tire_radius = float(tire_pos[:, 1].max())
@@ -247,7 +252,7 @@ def main(kart_id: str, body_dir: Path, tire_dir: Path) -> None:
     hubs = axle_hubs(body_pos)
     wheel, middle, axis, radius = steering_wheel(body_pos)
     rest = np.setdiff1d(np.arange(len(body_pos) // 3), wheel)
-    ground = float(body_pos.reshape(-1, 3, 3)[rest, :, 1].min()) - UNDERSIDE
+    ground = float(np.mean([h[1] for h in hubs.values()])) - tire_radius
     lo, hi = body_pos.min(axis=0), body_pos.max(axis=0)
     shift = np.array([0, -ground, -(lo[2] + hi[2]) / 2])
     body_pos = body_pos + shift
@@ -269,17 +274,14 @@ def main(kart_id: str, body_dir: Path, tire_dir: Path) -> None:
     for driver, (_, name) in DRIVERS.items():
         emblem = Image.open(body_dir / "Emblems" / f"{name}.png").convert("RGBA")
         emblem.resize((EMBLEM_TEXTURE,) * 2, Image.Resampling.LANCZOS).save(out / f"emblem-{driver}.png", optimize=True)
-    Image.open(tire_dir / "Tire_Rng_Alb.png").convert("RGB").save(out / "tire.png", optimize=True)
+    Image.open(tire_dir / f"Tire_{tire_set}_Alb.png").convert("RGB").save(out / "tire.png", optimize=True)
 
-    surface = surface_points(body_pos, rest)
-    tires = []
-    for (end, side), hub in sorted(hubs.items()):
-        hub = hub + shift
-        r = float(hub[1])
-        w = tire_width * r / tire_radius
-        out = outboard(surface, hub, side, r, w)
-        tires.append((np.array([hub[0] + side * (out + w / 2), r, hub[2]]), r, end == "front"))
-    width = max(float(hi[0] - lo[0]), 2 * max(abs(at[0]) + tire_width * r / tire_radius / 2 for at, r, _ in tires))
+    side = float(hi[0])  # the body's side: it's even about the middle
+    tires = [
+        (np.array([s * (side - tire_width / 2), tire_radius, hub[2] + shift[2]]), end == "front")
+        for (end, s), hub in sorted(hubs.items())
+    ]
+    width = 2 * side
     length = float(hi[2] - lo[2])
     height = float((body_pos[:, 1]).max())
     # In the game's frame, as written out: a point (a way, unscaled) and a length.
@@ -301,10 +303,7 @@ def main(kart_id: str, body_dir: Path, tire_dir: Path) -> None:
         f"  feet: {game(feet)},",
         f"  tire: {{ radius: {metres(tire_radius)}, width: {metres(tire_width)} }},",
         "  tires: [",
-        *[
-            f"    {{ at: {game(at)}, radius: {metres(r)}, front: {'true' if front else 'false'} }},"
-            for at, r, front in tires
-        ],
+        *[f"    {{ at: {game(at)}, front: {'true' if front else 'false'} }}," for at, front in tires],
         "  ],",
         "  paints: {",
         *[f"    {d}: {{ colours: ['{c1}', '{c2}'], emblem: '{d}' }}," for d, (c1, c2) in colours.items()],
@@ -342,32 +341,6 @@ def axle_hubs(pos: np.ndarray) -> dict[tuple[str, int], np.ndarray]:
             found[(end, side)] = (float(size[1]), face)
     assert len(found) == 4, f"found {len(found)} axle hubs, not 4"
     return {k: v for k, (_, v) in found.items()}
-
-
-def surface_points(pos: np.ndarray, which: np.ndarray) -> np.ndarray:
-    """Points over every face of triangles `which`, no further apart than SURFACE_STEP."""
-    out = []
-    for a, b, c in pos.reshape(-1, 3, 3)[which]:
-        n = max(
-            1, int(np.ceil(max(np.linalg.norm(b - a), np.linalg.norm(c - a), np.linalg.norm(c - b)) / SURFACE_STEP))
-        )
-        i, j = np.meshgrid(np.arange(n + 1), np.arange(n + 1))
-        keep = i + j <= n
-        u, v = i[keep] / n, j[keep] / n
-        out.append(a + u[:, None] * (b - a) + v[:, None] * (c - a))
-    return np.concatenate(out)
-
-
-def outboard(surface: np.ndarray, hub: np.ndarray, side: int, radius: float, width: float) -> float:
-    """How far out from its hub's face (metres) a tire on that hub, `radius` round and `width`
-    across, has to stand to keep TIRE_GAP clear of the body (its `surface` points): as near the
-    hub as it can, in the body's wells."""
-    across = np.hypot(surface[:, 1] - hub[1], surface[:, 2] - hub[2]) < radius + TIRE_GAP
-    out = side * (surface[across, 0] - hub[0])
-    for d in np.arange(0, 1, 0.005):
-        if not ((out > d - TIRE_GAP) & (out < d + width + TIRE_GAP)).any():
-            return float(d)
-    raise AssertionError(f"no room for a tire on the hub at {hub.round(3)}")
 
 
 def seat_of(pos: np.ndarray, which: np.ndarray) -> np.ndarray:

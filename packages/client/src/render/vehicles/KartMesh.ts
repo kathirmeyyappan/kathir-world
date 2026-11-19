@@ -46,9 +46,9 @@ export class KartMesh {
   private readonly axis: Vector3; // what its steering wheel turns round
   readonly seat: Seat;
   private steer: TransformNode | null = null;
-  private tires: { spin: TransformNode; steer: TransformNode; radius: number; front: boolean }[] = [];
+  private tires: { spin: TransformNode; steer: TransformNode; front: boolean }[] = [];
   private standIn: Mesh | null;
-  private rolled = 0; // metres its tires have rolled
+  private rolled = 0; // radians its tires have turned
   private size = 0; // how many times its model's size it's drawn, on its way to the kart's own; none yet
   private pitch = 0;
   private roll = 0;
@@ -86,12 +86,12 @@ export class KartMesh {
     this.size = this.size ? this.size + (kart.size - this.size) * (1 - Math.exp(-GROW_RATE * dt)) : kart.size;
     const f = noseOf(kart.yaw);
     const along = kart.vel.x * f.x + kart.vel.z * f.z;
-    this.rolled += along * dt;
+    this.rolled += (along * dt) / (this.model.tire.radius * this.size);
     if (kart.grounded) this.tipTo(kart, dt);
     this.tilt.rotation.set(this.pitch, 0, this.roll);
     this.tilt.scaling.setAll(this.size);
     for (const tire of this.tires) {
-      tire.spin.rotation.x = this.rolled / (tire.radius * this.size);
+      tire.spin.rotation.x = this.rolled;
       if (tire.front) tire.steer.rotation.y = kart.wheel * MAX_TURN;
     }
     Quaternion.RotationAxisToRef(this.axis, -kart.wheel * WHEEL_TURN, STEER);
@@ -151,7 +151,7 @@ export class KartMesh {
     this.steer.parent = this.tilt;
     this.steer.position.set(...this.model.steer.at);
     piece(p.steer, 'wheel', this.steer).material = materials.body;
-    this.tires = this.model.tires.map(({ at, radius, front }, i) => {
+    this.tires = this.model.tires.map(({ at, front }, i) => {
       const steer = new TransformNode(`kart-${this.id}-tire-${i}`, this.scene);
       steer.parent = this.tilt;
       steer.position.set(...at);
@@ -161,10 +161,9 @@ export class KartMesh {
       // model into the game's frame (scripts/house_mesh.py MIRROR): mirrored back, across its
       // axle on the right and along it on the left, its rim faces out on both.
       const tire = piece(p.tire, `tire-${i}`, spin);
-      tire.scaling.setAll(radius / this.model.tire.radius);
-      if (at[0] > 0) tire.scaling.z *= -1;
-      else tire.scaling.x *= -1;
-      return { spin, steer, radius, front };
+      if (at[0] > 0) tire.scaling.z = -1;
+      else tire.scaling.x = -1;
+      return { spin, steer, front };
     });
   }
 }
