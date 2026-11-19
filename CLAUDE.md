@@ -947,15 +947,16 @@ for a bigger one grown as many times as they're bigger, by up to `GROWTH` (a fif
 see karts come in sizes; everything about its box is read at that size through `bodyOf`. `stepKart` (`kart.ts`)
 is how every kart drives, a pure step of its `KartState` by its driver's `KartControls` (gas or
 brake, the wheel, the drift key) that the Room runs and the driver's client predicts with: the gas
-and the brake along it (the brake backing it up once it stops), a turn as tight at any speed,
+and the brake along it (the brake backing it up once it stops; with neither it slows fast, to a
+stop from flat out in under two seconds, `COAST`), a turn as tight at any speed,
 the wheels taking back what slides across, rolling up anything within a kerb's height and
 flying off a ramp's lip, and walls in the way, which it meets as two circles, at its nose and its
 tail, so a corner hit turns it; it reports how fast it ran into what it hit and how fast it came
 down when it lands. A drift is Space: a press hops it, and landing with the key held and the
 wheel over at speed it drifts that way, tighter or wider by the wheel, a spark blue, yellow and
-purple at one, two and three `miniTurboTime`s of it on the ground; let go on a spark, it's a
-mini-turbo, its top speed raised by half over `TURBO.rise`, held for `TURBO.holds` by the spark
-and let down over `TURBO.fall`. A press in the air, off a ramp or a ledge but not its own hop (or
+purple at 1, 2.25 and 3.5 `miniTurboTime`s of it on the ground (`SPARKS`); let go on a spark, it's a
+mini-turbo, its top speed raised by half over `TURBO.rise`, held as long as the spark gives
+and let down over `TURBO.fall`, the kart slowing with it, so a boost is over when it says. A press in the air, off a ramp or a ledge but not its own hop (or
 every hop would be a boost), is a trick (`KartState.trick`), left or right the way the wheel is
 held, else either by where the kart is (so the driver's client predicts the same way), and landing
 after one is a boost like a mini-turbo's held for `TRICK.hold`; `turbo` is either, by how long it
@@ -971,12 +972,12 @@ out with E (the `exit` action), whatever move they were in stops, and they ride 
 (`PlayerState.riding`), their frames driving it (`my` the gas, `mx` the wheel, the `drift`
 action held) and only what stands out of the seat hit by shots (`SEATED`); kit and bodies that
 can't sit are refused till they get out. Everything that hurts is judged by how fast two things
-close square to where they touch (`IMPACT`: nothing under 10 m/s, 5 at 20 and on in step):
-hearts off a player on foot a kart runs into, who is thrown back hard (and 5 off one it comes
-down on), credited to its driver, else whoever last drove or dropped it; and wrenches off a kart
-from a wall or another kart (which also part by their `weight`s), from the ground it lands on more
-gently (`LANDING`: half how fast it comes down counts, so it's worn only from a 10 m drop and a
-40 m one takes every wrench), and a
+close square to where they touch, nothing under 10 m/s and in step with the speed from there:
+hearts off a player on foot a kart runs into (`IMPACT`, 5 at 20 m/s), who is thrown back hard (and
+5 off one it comes down on), credited to its driver, else whoever last drove or dropped it; and
+wrenches off a kart (`WEAR`, 2 at 20 m/s, so it takes crash after crash flat out) from a wall or
+another kart (which also part by their `weight`s) and from the ground it lands on, more gently
+still (`LANDING`: half how fast it comes down counts, so it's worn only from a 10 m drop), and a
 shot's damage from anyone, a shot stopping at a kart nearer than whoever it would have hit. At
 no wrenches it explodes (`boom`): it's gone, its driver is thrown out of it, and everyone on foot
 within `BLAST.reach` with nothing between takes `BLAST.damage` and is thrown away, credited to
