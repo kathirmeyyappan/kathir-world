@@ -647,7 +647,7 @@ builder makes the avatar's parts under the base node and says which plays which 
 with the look, a head, the legs, the free arm, the weapon arm with its grip and the way it reaches
 in the model) and the numbers its walk takes (swings, bob, sway, how it lies dead), and
 `WalkerAvatar` poses every figure the same way: standing, walking, aiming what it holds, falling,
-climbing a ladder and lying dead. Empty-handed the body turns to face the way it's going (the look
+climbing a ladder, sat driving a kart and lying dead. Empty-handed the body turns to face the way it's going (the look
 only turns its head) and stays facing that way when it stops, unless it's `headless` (Tung Tung
 Tung Sahur, his face on the log), when standing still it turns whole to the look; with something to
 aim it faces its look, so the aim shows. It watches how it moves from where it's drawn, which for a player's own
@@ -659,9 +659,10 @@ only which way it last moved is read, up or down. A body dying leaps `DEATH_LEAP
 over in the air, landing as it lies (`WalkerAvatar.lie`); one first seen dead just lies. Motion is written there once, for all of them, and an avatar's
 own touches (a tail, a twitch, feet that lift) are its `extra` hook. A body that differs by a
 number (how far a leg swings, a two-part tentacle, no legs at all) is still a figure; one that
-differs by a rule (a sidestep, a slither, tentacles wrapping the rungs) extends `WalkerAvatar` and
-overrides that one phase (`walk`, `climb`, `lie` or `aim`), registered in `LOOKS` by its class,
-and the walker never asks which avatar it is posing. A Sketchfab
+differs by a rule (a sidestep, a slither, tentacles wrapping the rungs, running on a kart's
+steering wheel) extends `WalkerAvatar` and overrides that one phase (`walk`, `climb`, `sit`, `lie`
+or `aim`), registered in `LOOKS` by its class (a `BodySpec` names it as its `avatar`), and the
+walker never asks which avatar it is posing. A Sketchfab
 model goes through `packages/client/scripts/avatar-model.py` into a `<name>Model.ts` and a texture
 atlas (`public/assets/textures/avatars/<id>.png`, fetched with the look's chunk, see Client
 loading); a trunk on two arms and two legs is a `BodySpec` (`Body.ts`), and one with
@@ -807,7 +808,8 @@ its barrel along the look: the weapon arm is turned from its `reach` (shoulder t
 holds it) to the look, and the grip at its hand turned so the barrel runs that way.
 
 Audit every look in every state, up close: standing, walking, each weapon held and aimed up and
-down, firing, hit, dying, dead, on a ladder with and without an item, and any move of its own. A
+down, firing, hit, dying, dead, on a ladder with and without an item, driving a kart with the
+wheel straight and full over, and any move of its own. A
 sheet of the whole body hides what's wrong at a hand, so look at the hand itself from the front,
 the side, behind and above for each weapon: a weapon is held by its handle (`HANDLE` in
 `render/Weapons.ts`, whose middle `HeldItems` puts at the hand's grip), so the handle is in the hand
@@ -938,7 +940,11 @@ the units it's felt in: `speed` (S, m/s flat out on the gas), `acceleration` (se
 standing to S), `handling` (metres across the circle it turns at S with the wheel full over),
 `weight` (who shoves whom in a bump), `miniTurboTime` (seconds of drifting to a blue spark,
 smaller better) and `wrenches` (its health), with the box it drives as. Traction isn't a stat:
-it's one constant for every kart, and only an icy footing's grip is less. `stepKart` (`kart.ts`)
+it's one constant for every kart, and only an icy footing's grip is less. A kart is built to seat
+its driver (`sizeFor`, `KartState.size`, set as it's dropped and every tick it's driven): at its
+model's size for one no bigger than `SEATS` (as tall as Luigi, as wide as the standard body), and
+for a bigger one grown as many times as they're bigger, by up to `GROWTH` (a fifth), too little to
+see karts come in sizes; everything about its box is read at that size through `bodyOf`. `stepKart` (`kart.ts`)
 is how every kart drives, a pure step of its `KartState` by its driver's `KartControls` (gas or
 brake, the wheel, the drift key) that the Room runs and the driver's client predicts with: the gas
 and the brake along it (the brake backing it up once it stops), a turn as tight at any speed,
@@ -973,17 +979,18 @@ announced as one (`kill` with `item: 'kart'` or `'explosion'`), and a death of o
 one as `crashed`.
 
 A kart's model is written by `scripts/kart-model.py` from a rip of a Mario Kart 8 body and tire
-set, sized as MK8 sizes it against Mario: its parts (`body`, the `steer`ing wheel that turns, the
+set, sized as MK8 sizes it against Mario and a tenth bigger (`ROOM`), so he sits in it with room: its parts (`body`, the `steer`ing wheel that turns, the
 `emblem` and one `tire`, each simplified to its size) and their pictures in
 `public/assets/models/kart-<id>/`, and `render/vehicles/<id>KartModel.ts`, read through
 `KART_MODELS` (`render/vehicles/kartModel.ts`): where its tires stand, the steering wheel's middle,
 the axis it turns round and the grips a driver's hands take on it (a wheel's rim or a handlebar's
-ends alike), the seat, and each driver's paint. A paint is two colours and an emblem: the body is
+ends alike), the seat, where a driver's feet rest (against the pedals, or as far forward under the
+nose as a foot fits), and each driver's paint. A paint is two colours and an emblem: the body is
 one picture with its two painted colours left white and a second saying where they go, painted on
 the client in whichever colours (`paintOf`: the dropper's own, for the Mario family, else Mario's).
 The script prints the box the sim drives it as, for its row in `KARTS`. `render/vehicles/KartMesh.ts`
 draws one: its tires rolled by how far it went and the front pair steered, its steering wheel
-turned, the body tipped to the ground under its tires; its parts are fetched the first time a kart
+turned, the body tipped to the ground under its tires, all at its size, eased there; its parts are fetched the first time a kart
 of that model is drawn (a box of its size in its paint stands in till then). `game/Driving.ts` is
 the rest of driving on the client: every kart drawn, the driven one where its driver's prediction
 has it (`Prediction` rides it as the Room does, rewinding and replaying it with them); the kart
@@ -994,6 +1001,21 @@ touch the pad steers alone, GAS and BRAKE hold W and S, the jump button drifts a
 Their kart's wrenches are a row of pixel wrenches under their hearts (`Hearts` with the `wrench`
 sprite). A frame the Room steps a driver without (one arriving late) drives on with the keys as
 their last frame held them.
+
+A driver sits in their kart as it's drawn: `KartMesh` puts its `Seat` (`render/vehicles/Seat.ts`)
+each frame, the seat's middle and the kart's turn, tipped with it, and in its frame the grips
+turned with the wheel, the feet and the top of the wheel's rim, and karts are drawn before bodies,
+so a body sits where its kart is that frame. Every figure on foot `sit`s (`Walker.ts`): its hips on
+the seat, back from its middle as far as keeps its trunk (measured off its vertices) behind the
+steering wheel's middle, its legs straight out to the pedals or, longer, to the floor under the
+nose, and, with two arms, a hand on each grip, the body leaning back or forward as far as brings its
+hands there, and into the turn; a big one is cramped in, round the wheel and through the nose. A
+jointed body's seat is worked out as its ladder pose is (`Rig.sit`): its hips back the same way,
+its fists closed on the grips and its feet treading the pedals, its knees bending as its legs are
+long.
+Plankton, too small to reach the pedals, stands on top of the steering wheel and runs on it
+(`Plankton.ts`). The sim knows a driver only by their seat (`kart.ts` `seat`, `SEATED`), so a body
+sat in a kart and its hit shape agree only roughly.
 
 ## Weapons
 

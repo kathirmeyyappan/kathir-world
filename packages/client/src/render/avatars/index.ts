@@ -6,6 +6,7 @@ import type { Vector3 } from '@babylonjs/core';
 import { AVATARS, type AvatarId, type ItemAction } from '@world/shared';
 import type { RemotePlayer } from '../../net/Interpolation';
 import type { Engine } from '../Engine';
+import type { Seat } from '../vehicles/Seat';
 import { bodyBuilder, type BodySpec } from './Body';
 import { DragonAvatar } from './Dragon';
 import { DRAGONS, type DragonAvatarId } from './dragons';
@@ -34,11 +35,11 @@ type Look = { atlases: readonly AtlasName[] } & (
 
 // Everyone on foot is a figure the walker poses (Walker.ts), made from its builder; one that moves
 // by a rule of its own is a subclass of WalkerAvatar, made here by its class: a jointed body
-// (Jointed.ts) is posed in its own style.
+// (Jointed.ts) is posed in its own style, and a Body may name its own (BodySpec.avatar).
 const walker =
-  (build: Build): Make =>
+  (build: Build, avatar: typeof WalkerAvatar = WalkerAvatar): Make =>
   (engine, id, kind, color) =>
-    new WalkerAvatar(engine, id, kind, build, color);
+    new avatar(engine, id, kind, build, color);
 const jointed =
   (spec: JointedSpec): Make =>
   (engine, id, kind, color) =>
@@ -53,7 +54,7 @@ const ofJointed = (kind: AvatarId, spec: () => Promise<JointedSpec>): Look => ({
   atlases: [kind],
 });
 const ofBody = (kind: AvatarId, spec: () => Promise<BodySpec>): Look => ({
-  load: () => spec().then((s) => walker(bodyBuilder(s))),
+  load: () => spec().then((s) => walker(bodyBuilder(s), s.avatar)),
   atlases: [kind],
 });
 const ofBuild = (kind: AvatarId, build: () => Promise<Build>, atlas = true): Look => ({
@@ -198,8 +199,8 @@ class Pending implements Avatar {
     return this.arrived ? this.body?.color : undefined;
   }
 
-  update(p: RemotePlayer, step: number): void {
-    this.body?.update(p, step);
+  update(p: RemotePlayer, step: number, seat: Seat | null): void {
+    this.body?.update(p, step, seat);
   }
   flash(): void {
     this.body?.flash();

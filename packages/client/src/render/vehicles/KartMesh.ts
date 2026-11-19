@@ -1,8 +1,9 @@
 // A kart as it's drawn (a Kart from the room, sim/vehicles/garage.ts): its model's body in its paint,
 // its emblem, its four tires turning as it rolls (the front two steering), its steering wheel
-// turning, and the body tipped to the ground under its tires. Its model's parts are fetched the
-// first time a kart of that model is drawn, and each paint is made the first time one wears it:
-// until both are here it's drawn as a box of its size in its paint's first colour.
+// turning, the body tipped to the ground under its tires, and all of it at the size it's built at
+// for its driver, eased there; and its seat as it's drawn, for its driver to sit in. Its model's parts are fetched the first time a kart of that model is drawn, and
+// each paint is made the first time one wears it: until both are here it's drawn as a box of its
+// size in its paint's first colour.
 import {
   Color3,
   Mesh,
@@ -19,11 +20,13 @@ import { KARTS, WORLD_STRUCTURES, noseOf, type AvatarId, type Kart, type KartId 
 import { fetchMesh, meshData } from '../models/meshFile';
 import { perScene } from '../perScene';
 import { KART_MODELS, paintOf, type KartModel, type KartPaint } from './kartModel';
+import { Seat } from './Seat';
 
 const GLOW = 0.3; // how much a kart lights itself, as the landmarks' models do (models/Models.ts)
 const MAX_TURN = 0.5; // radians the front tires turn with the wheel full over
 const WHEEL_TURN = 1.6; // radians the steering wheel turns, full over
 const TIP_RATE = 10; // per second: how fast the body settles to the tilt of the ground under it
+const GROW_RATE = 4; // per second: how fast it grows or shrinks to the size it's built at for its driver
 
 // A model's meshes in a scene, hidden, every drawn kart a clone of them sharing their geometry.
 interface Parts {
@@ -40,10 +43,13 @@ export class KartMesh {
   private readonly root: TransformNode; // where it stands, turned its way
   private readonly tilt: TransformNode; // tipped with the ground under its tires
   private readonly model: KartModel;
+  private readonly axis: Vector3; // what its steering wheel turns round
+  readonly seat: Seat;
   private steer: TransformNode | null = null;
   private tires: { spin: TransformNode; steer: TransformNode; front: boolean }[] = [];
   private standIn: Mesh | null;
   private rolled = 0; // radians its tires have turned
+  private size = 0; // how many times its model's size it's drawn, on its way to the kart's own; none yet
   private pitch = 0;
   private roll = 0;
   private disposed = false;
@@ -55,6 +61,8 @@ export class KartMesh {
     paint: AvatarId,
   ) {
     this.model = KART_MODELS[kart];
+    this.axis = Vector3.FromArray(this.model.steer.axis);
+    this.seat = new Seat(this.model);
     this.root = new TransformNode(`kart-${id}`, scene);
     this.tilt = new TransformNode(`kart-${id}-tilt`, scene);
     this.tilt.parent = this.root;
@@ -70,24 +78,26 @@ export class KartMesh {
     );
   }
 
-  // Draws it where `kart` is, its tires rolled on by how far it went in `dt` seconds.
+  // Draws it where `kart` is, its tires rolled on by how far it went in `dt` seconds, and puts its
+  // seat there.
   update(kart: Kart, dt: number): void {
     this.root.position.set(kart.pos.x, kart.pos.y, kart.pos.z);
     this.root.rotation.y = kart.yaw;
+    this.size = this.size ? this.size + (kart.size - this.size) * (1 - Math.exp(-GROW_RATE * dt)) : kart.size;
     const f = noseOf(kart.yaw);
     const along = kart.vel.x * f.x + kart.vel.z * f.z;
-    this.rolled += (along * dt) / this.model.tire.radius;
+    this.rolled += (along * dt) / (this.model.tire.radius * this.size);
     if (kart.grounded) this.tipTo(kart, dt);
     this.tilt.rotation.set(this.pitch, 0, this.roll);
+    this.tilt.scaling.setAll(this.size);
     for (const tire of this.tires) {
       tire.spin.rotation.x = this.rolled;
       if (tire.front) tire.steer.rotation.y = kart.wheel * MAX_TURN;
     }
-    if (this.steer)
-      this.steer.rotationQuaternion = Quaternion.RotationAxis(
-        new Vector3(...this.model.steer.axis),
-        -kart.wheel * WHEEL_TURN,
-      );
+    Quaternion.RotationAxisToRef(this.axis, -kart.wheel * WHEEL_TURN, STEER);
+    if (this.steer) (this.steer.rotationQuaternion ??= new Quaternion()).copyFrom(STEER);
+    Quaternion.RotationYawPitchRollToRef(kart.yaw, this.pitch, this.roll, TURN);
+    this.seat.place(this.root.position, TURN, this.size, kart.yaw, STEER, kart.wheel, along);
   }
 
   dispose(): void {
@@ -99,24 +109,27 @@ export class KartMesh {
   // under the front pair against the back's, and over by the left's against the right's.
   private tipTo(kart: Kart, dt: number): void {
     const f = noseOf(kart.yaw);
+    // Each tire's spot, metres to the kart's right and ahead of its middle, and the ground under it.
     const ground = this.model.tires.map(({ at }) => {
-      const x = kart.pos.x + f.z * at[0] + f.x * at[2];
-      const z = kart.pos.z - f.x * at[0] + f.z * at[2];
-      return { at, y: WORLD_STRUCTURES.groundAt(x, z, kart.pos.y + 0.5) };
+      const across = at[0] * this.size;
+      const along = at[2] * this.size;
+      const x = kart.pos.x + f.z * across + f.x * along;
+      const z = kart.pos.z - f.x * across + f.z * along;
+      return { across, along, y: WORLD_STRUCTURES.groundAt(x, z, kart.pos.y + 0.5) };
     });
-    const mean = (pick: (g: (typeof ground)[number]) => boolean) => {
+    type Tire = (typeof ground)[number];
+    const mean = (pick: (g: Tire) => boolean) => {
       const some = ground.filter(pick);
       return some.reduce((s, g) => s + g.y, 0) / some.length;
     };
-    const span = (pick: (g: (typeof ground)[number]) => number) =>
-      Math.max(...ground.map(pick)) - Math.min(...ground.map(pick));
+    const span = (pick: (g: Tire) => number) => Math.max(...ground.map(pick)) - Math.min(...ground.map(pick));
     const pitch = -Math.atan2(
-      mean((g) => g.at[2] > 0) - mean((g) => g.at[2] < 0),
-      span((g) => g.at[2]),
+      mean((g) => g.along > 0) - mean((g) => g.along < 0),
+      span((g) => g.along),
     );
     const roll = Math.atan2(
-      mean((g) => g.at[0] > 0) - mean((g) => g.at[0] < 0),
-      span((g) => g.at[0]),
+      mean((g) => g.across > 0) - mean((g) => g.across < 0),
+      span((g) => g.across),
     );
     const k = 1 - Math.exp(-TIP_RATE * dt);
     this.pitch += (pitch - this.pitch) * k;
@@ -154,6 +167,10 @@ export class KartMesh {
     });
   }
 }
+
+// Scratch for a frame's turns, shared by every kart: none of it survives a call.
+const STEER = new Quaternion();
+const TURN = new Quaternion();
 
 function parts(scene: Scene, kart: KartId, model: KartModel): Promise<Parts> {
   const made = partsIn(scene);

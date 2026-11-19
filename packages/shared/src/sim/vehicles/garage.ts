@@ -14,8 +14,19 @@ import type { GearState } from '../gear';
 import type { ItemState } from '../items';
 import type { InputFrame, PlayerState, Vec3 } from '../types';
 import { throwWalker } from '../walker';
-import { IDLE, createKart, impactDamage, noseOf, ride, seat, stepKart, type KartState, type KartStep } from './kart';
-import { KARTS, type KartId } from './karts';
+import {
+  IDLE,
+  bodyOf,
+  createKart,
+  impactDamage,
+  noseOf,
+  ride,
+  seat,
+  stepKart,
+  type KartState,
+  type KartStep,
+} from './kart';
+import { KARTS, sizeFor, type KartId } from './karts';
 
 // A kart in the room, as every client is sent it: its body, the look of whoever dropped it (which
 // its paint follows), its wrenches left, and who's driving it.
@@ -82,12 +93,13 @@ export class Garage {
     return this.karts.has(id);
   }
 
-  // Drops a kart in front of `p`, nose their way: DROP_AHEAD out, or short of a wall in the way down
-  // to right over them, from DROP_HEIGHT over their feet or as high as the ceiling lets it. Or says
-  // why not: with `cap` karts in the room already.
+  // Drops a kart in front of `p`, nose their way, built to seat them: DROP_AHEAD out, or short of a
+  // wall in the way down to right over them, from DROP_HEIGHT over their feet or as high as the
+  // ceiling lets it. Or says why not: with `cap` karts in the room already.
   drop(p: PlayerState, kart: KartId, cap: number): Kart | string {
     if (this.karts.size >= cap) return 'there are as many karts as players: blow one up first';
-    const { length, height } = KARTS[kart].body;
+    const made = createKart(kart, sizeFor(p.avatar), p.pos, p.yaw);
+    const { length, height } = bodyOf(made);
     const f = noseOf(p.yaw);
     const feet = p.pos.y - EYE_HEIGHT;
     const chest = { x: p.pos.x, y: feet + 1, z: p.pos.z };
@@ -97,7 +109,8 @@ export class Garage {
     const z = p.pos.z + f.z * ahead;
     const y = Math.max(feet, Math.min(feet + DROP_HEIGHT, this.structures.ceilingAt(x, z, feet + 0.1) - height - 0.1));
     const k: Kart = {
-      ...createKart(kart, { x, y, z }, p.yaw),
+      ...made,
+      pos: { x, y, z },
       id: `kart-${this.next++}`,
       paint: p.avatar,
       wrenches: KARTS[kart].wrenches,
@@ -158,7 +171,8 @@ export class Garage {
   }
 
   // One step of `p`'s kart by their frame (or with none, the keys as their last frame held them, as
-  // their own client went on predicting), them sat in it, and it worn by what it ran into.
+  // their own client went on predicting), built to seat them, them sat in it, and it worn by what
+  // it ran into.
   drive(p: PlayerState, frame: InputFrame | null, dt: number): void {
     const k = p.riding ? this.karts.get(p.riding) : undefined;
     const keep = p.riding ? this.keeps.get(p.riding) : undefined;
@@ -167,6 +181,7 @@ export class Garage {
       return;
     }
     if (frame) keep.frame = frame;
+    k.size = sizeFor(p.avatar);
     this.worn(k, ride(p, k, keep.frame, dt, this.structures));
   }
 
@@ -179,7 +194,7 @@ export class Garage {
   // reaches.
   within(o: Vec3, d: Vec3, range: number, halfAngle: number): Kart[] {
     return this.list.filter((k) => {
-      const { length, height } = KARTS[k.kart].body;
+      const { length, height } = bodyOf(k);
       const mid = { x: k.pos.x - o.x, y: k.pos.y + height / 2 - o.y, z: k.pos.z - o.z };
       const dist = Math.hypot(mid.x, mid.y, mid.z);
       if (dist - length / 2 > range) return false;
@@ -235,7 +250,7 @@ export class Garage {
   // Where someone getting out of `k` stands: its left, its right, behind it or in front, the first
   // that's ground within a step of its own with room for their body, else on top of it.
   private beside(k: Kart, p: PlayerState): Vec3 {
-    const { width, length, height } = KARTS[k.kart].body;
+    const { width, length, height } = bodyOf(k);
     const { radius, top } = AVATARS[p.avatar].hitbox;
     const f = noseOf(k.yaw);
     const side = width / 2 + radius + 0.2;
@@ -281,7 +296,7 @@ export class Garage {
   private bump(a: Kart, b: Kart): void {
     const sa = KARTS[a.kart];
     const sb = KARTS[b.kart];
-    if (Math.abs(a.pos.y - b.pos.y) > Math.max(sa.body.height, sb.body.height)) return;
+    if (Math.abs(a.pos.y - b.pos.y) > Math.max(bodyOf(a).height, bodyOf(b).height)) return;
     let best: { n: { x: number; z: number }; overlap: number } | null = null;
     for (const ca of circles(a))
       for (const cb of circles(b)) {
@@ -315,7 +330,7 @@ export class Garage {
   // reach with nothing between hurt and thrown away from it, credited to whoever took its last
   // wrench. Returns where it blew up.
   private explode(k: Kart, players: PlayerState[], blows: KartBlow[]): Vec3 {
-    const at = { x: k.pos.x, y: k.pos.y + KARTS[k.kart].body.height / 2, z: k.pos.z };
+    const at = { x: k.pos.x, y: k.pos.y + bodyOf(k).height / 2, z: k.pos.z };
     const by = this.keeps.get(k.id)?.breaker ?? this.credit(k);
     const driver = players.find((p) => p.id === k.driver);
     if (driver) this.getOut(driver);
@@ -356,7 +371,7 @@ export function kartAt<K extends KartState>(
 
 // The circles a kart meets walls and other karts as: at its nose and its tail, each as wide as it.
 function circles(k: KartState): { x: number; z: number; r: number }[] {
-  const { width, length } = KARTS[k.kart].body;
+  const { width, length } = bodyOf(k);
   const f = noseOf(k.yaw);
   const half = (length - width) / 2;
   return [1, -1].map((s) => ({ x: k.pos.x + f.x * half * s, z: k.pos.z + f.z * half * s, r: width / 2 }));
@@ -365,7 +380,7 @@ function circles(k: KartState): { x: number; z: number; r: number }[] {
 // Where `p` overlaps kart `k`'s box, if they do: the way out of it across the ground, how far in
 // they are, and whether the kart is over their middle (coming down on them, if it's falling).
 function touching(k: KartState, p: PlayerState): { n: { x: number; z: number }; depth: number; under: boolean } | null {
-  const { width, length, height } = KARTS[k.kart].body;
+  const { width, length, height } = bodyOf(k);
   const { radius, top } = AVATARS[p.avatar].hitbox;
   const feet = p.pos.y - EYE_HEIGHT;
   if (feet > k.pos.y + height || feet + top < k.pos.y) return null;
@@ -399,7 +414,7 @@ function touching(k: KartState, p: PlayerState): { n: { x: number; z: number }; 
 
 // Distance along the unit ray (o, d) to where it enters kart `k`'s box within maxT, else null.
 function rayKart(o: Vec3, d: Vec3, k: KartState, maxT: number): number | null {
-  const { width, length, height } = KARTS[k.kart].body;
+  const { width, length, height } = bodyOf(k);
   const f = noseOf(k.yaw);
   const ox = o.x - k.pos.x;
   const oz = o.z - k.pos.z;

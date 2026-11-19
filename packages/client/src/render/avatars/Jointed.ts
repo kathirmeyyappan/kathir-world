@@ -10,6 +10,7 @@ import { GRAVITY, chainOf, crouchOf, jumpVelocityOf, poundOf, walkSpeedOf, type 
 import type { RemotePlayer } from '../../net/Interpolation';
 import type { Engine } from '../Engine';
 import { Sparkles } from '../Sparkles';
+import type { Seat } from '../vehicles/Seat';
 import {
   ARMS,
   CLIP_BONES,
@@ -234,6 +235,17 @@ const STEP_UP = 0.2; // metres up from where it stands the middle of a foot's st
 const RUNG_EDGE = 0.1; // metres this side of a rung's middle a fist closes on it
 const CLIMB_SWAY = 0.03; // metres its hips go over the foot that bears it
 const CLIMB_TILT = 0.05; // radians its hips tip with that
+// In a kart: sat back a little with its chest over the wheel and fists closed on the grips; its
+// hips' pivot this share of a thigh over the seat, and leaning this many radians into the sharpest
+// turn.
+const SAT = pose({
+  hips: { lean: -0.2 },
+  chest: { lean: 0.25 },
+  armL: { grip: 1 },
+  armR: { grip: 1 },
+});
+const SAT_HIPS = 0.35;
+const SAT_TILT = 0.15;
 // A fist: radians the fingers fold under the palm, and the thumb turns in and down after them.
 const FINGER_CURL = 1.7;
 const THUMB_FOLD = 0.6;
@@ -251,7 +263,7 @@ export class JointedAvatar extends WalkerAvatar {
   private readonly out = motion();
   private readonly other = motion();
   private readonly third = motion();
-  private readonly onLadder = pose(); // a pose worked out, not played: on a ladder
+  private readonly worked = pose(); // a pose worked out, not played: on a ladder or in a kart
   private peak = 0; // the highest its feet have been since it left the ground, metres
   private falling = 0; // how far over the top of its jump it is: 0 going up, 1 coming down
   private grounded = true;
@@ -490,7 +502,7 @@ export class JointedAvatar extends WalkerAvatar {
     const posed = super.climb(p, feetY, dt);
     this.moving = this.airborne = this.impact = 0;
     const { rig, climbed, rungsAhead: ahead } = this;
-    const held = this.onLadder;
+    const held = this.worked;
     held.set(CLIMB);
     held[HIP_Z] = Math.max(-CLIMB_BACK, ahead - RUNG_EDGE - rig.shoulder.z - CLIMB_NEAR * rig.armLength);
     const over = Math.sin((climbed - limbLead(1, true)) * (Math.PI / 2));
@@ -508,6 +520,24 @@ export class JointedAvatar extends WalkerAvatar {
     rig.apply(held);
     this.arm(p);
     return posed;
+  }
+
+  // In a kart, where the walker has put it: sat on the seat with its feet on the pedals and its
+  // fists on the grips, turning the wheel with them, leaning into the turn and its head to the look.
+  protected override sit(p: RemotePlayer, seat: Seat): Pose {
+    this.place(seat);
+    this.base.rotation.set(0, 0, 0);
+    this.base.position.set(0, 0, 0);
+    this.moving = this.airborne = this.impact = this.bank = 0;
+    const sat = this.worked;
+    sat.set(SAT);
+    this.rig.sit(sat, seat);
+    sat[CHEST_TILT] = seat.wheel * SAT_TILT;
+    const off = wrap(p.yaw - this.facing);
+    sat[HEAD_TURN] = Math.max(-HEAD_LIMIT, Math.min(HEAD_LIMIT, off));
+    sat[HEAD_LEAN] += p.pitch * this.style.follow;
+    this.rig.apply(sat);
+    return { phase: this.gait.phase, effort: 0, on: 'kart' };
   }
 
   override hide(): void {
@@ -557,6 +587,22 @@ function cloth(model: JointedModel): [number, number, number][] {
   return out;
 }
 
+// How far ahead of the hips' pivot the trunk reaches standing, in metres: the furthest of the
+// vertices that follow the hips, the spine or the chest before any other bone, below the shoulders.
+function trunkFront(model: JointedModel): number {
+  const names = Object.keys(model.bones);
+  const at = new Int16Array(bytes(model.positions).buffer);
+  const follows = bytes(model.boneIndices);
+  const shoulders = model.bones.armR[1];
+  const hips = model.bones.hips[2];
+  let front = 0;
+  for (let v = 0; v < at.length / 3; v++)
+    if (TRUNK.has(names[follows[v * 4]]) && at[v * 3 + 1] / 1000 < shoulders)
+      front = Math.max(front, at[v * 3 + 2] / 1000 - hips);
+  return front;
+}
+const TRUNK = new Set(['hips', 'spine', 'chest']);
+
 // `value` on its way to `target`, `dt` seconds on, most of the way there after `seconds`.
 function eased(value: number, target: number, dt: number, seconds: number): number {
   return value + (target - value) * (1 - Math.exp((-3 * dt) / seconds));
@@ -594,6 +640,7 @@ class Rig {
   private readonly mitt: Float32Array;
   private readonly wrist: number; // metres, elbow to wrist
   readonly armLength: number; // metres from a shoulder to its fist's middle, the arm straight
+  private readonly front: number; // metres its trunk reaches ahead of the hips' pivot, below the shoulders
   private readonly upper: number; // metres, shoulder to elbow
   private readonly fore: number; // elbow to the fist's middle
   // Each leg's hip joint from the hips' pivot, and where its ankle stands.
@@ -631,6 +678,7 @@ class Rig {
     this.upper = Vector3.Distance(at('armR'), at('forearmR'));
     this.fore = Vector3.Distance(at('forearmR'), Vector3.FromArray(model.hand as number[]));
     this.armLength = this.upper + this.fore;
+    this.front = trunkFront(model);
 
     // A held item goes in the right palm, which the walker points along the look from the shoulder:
     // the arm's own length, straight, is its reach.
@@ -903,6 +951,21 @@ class Rig {
     const low = at(row, column) + (at(row, column + 1) - at(row, column)) * (c - column);
     const high = at(row + 1, column) + (at(row + 1, column + 1) - at(row + 1, column)) * (c - column);
     return low + (high - low) * (r - row);
+  }
+
+  // Sits `pose` in `seat`, whose frame is the body's: its hips' pivot SAT_HIPS of a thigh over the
+  // middle of the seat's top, or back from it as far as keeps its trunk behind the steering wheel's
+  // middle (a belly the wheel would be lost in), a foot on each pedal and a fist on each grip.
+  sit(pose: BodyPose, seat: Seat): void {
+    pose[HIP_X] = -this.hipsAt.x;
+    pose[HIP_Y] = SAT_HIPS * this.thigh - this.hipsAt.y;
+    pose[HIP_Z] = Math.min(0, seat.hub.z - this.front) - this.hipsAt.z;
+    const { feet, grips } = seat;
+    for (const side of [-1, 1] as const) {
+      this.tread(pose, side, side * feet.x, feet.y, feet.z);
+      const grip = grips[side < 0 ? 0 : 1];
+      this.reach(pose, side, grip.x, grip.y, grip.z);
+    }
   }
 
   // Puts a foot of `pose` with the ball of its sole at a point in the body's frame, as `reach` does

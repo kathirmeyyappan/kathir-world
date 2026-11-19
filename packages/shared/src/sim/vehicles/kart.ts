@@ -13,7 +13,7 @@ import { EYE_HEIGHT, GRAVITY } from '../constants';
 import { takeLook } from '../player';
 import { SURFACES } from '../surfaces';
 import type { InputFrame, PlayerState, Vec3 } from '../types';
-import { KARTS, type KartId, type KartSpec } from './karts';
+import { KARTS, type KartBody, type KartId, type KartSpec } from './karts';
 
 // What a kart's driver asks of it this tick: the gas (1, W) or the brake (-1, S, which backs it up
 // once it's stopped), the wheel (-1 full left, A, to 1 full right, D) and the drift key (Space).
@@ -29,6 +29,7 @@ export type Spark = 1 | 2 | 3; // blue, yellow, purple
 
 export interface KartState {
   kart: KartId;
+  size: number; // how many times its model's size it's built at, to seat its driver (karts.ts `sizeFor`)
   pos: Vec3; // the middle of its underside
   yaw: number; // the way its nose points: 0 along +z, turning right as it grows, as a look does
   vel: Vec3; // m/s
@@ -76,9 +77,10 @@ const DRIFT_TIGHT = 1.25;
 const AIR_STEER = 0.3; // of its turn, in the air
 const BOUNCE = 0.3; // of the speed it ran into a wall at, back off it
 
-export function createKart(kart: KartId, pos: Vec3, yaw: number): KartState {
+export function createKart(kart: KartId, size: number, pos: Vec3, yaw: number): KartState {
   return {
     kart,
+    size,
     pos: { ...pos },
     yaw,
     vel: { x: 0, y: 0, z: 0 },
@@ -114,9 +116,16 @@ export function ride(
   return step;
 }
 
+// The box kart `k` drives as, at the size it's built at.
+export function bodyOf(k: KartState): KartBody {
+  const { width, length, height, seat } = KARTS[k.kart].body;
+  const s = k.size;
+  return { width: width * s, length: length * s, height: height * s, seat: { y: seat.y * s, z: seat.z * s } };
+}
+
 // Sits `p` in kart `k`'s seat, their feet on it, moving with it.
 export function seat(p: PlayerState, k: KartState): void {
-  const { seat: at } = KARTS[k.kart].body;
+  const { seat: at } = bodyOf(k);
   const f = noseOf(k.yaw);
   p.pos = { x: k.pos.x + f.x * at.z, y: k.pos.y + at.y + EYE_HEIGHT, z: k.pos.z + f.z * at.z };
   p.vx = k.vel.x;
@@ -144,7 +153,7 @@ export function stepKart(k: KartState, c: KartControls, dt: number, structures: 
   }
   k.yaw += turnRate(k, spec, speed) * dt;
   if (k.grounded) drive(k, spec, c.gas, dt, structures);
-  const impact = move(k, spec, dt, structures);
+  const impact = move(k, dt, structures);
   const landing = settle(k, dt, structures);
   if (landing > 0 && k.hop) {
     k.hop = false;
@@ -226,8 +235,8 @@ function drive(k: KartState, spec: KartSpec, gas: number, dt: number, structures
 // Across the ground by its velocity as two circles, at its nose and its tail, each as wide as it,
 // pushed out of what's in the way: a corner hit turns it, and what it ran into takes the speed it
 // had into it, square to it, all but a bounce. Returns that speed.
-function move(k: KartState, spec: KartSpec, dt: number, structures: Structures): number {
-  const { width, length, height } = spec.body;
+function move(k: KartState, dt: number, structures: Structures): number {
+  const { width, length, height } = bodyOf(k);
   const f = noseOf(k.yaw);
   const half = (length - width) / 2;
   const body = { head: k.pos.y + height, reach: k.pos.y + STEP, radius: width / 2 };
