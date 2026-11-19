@@ -158,7 +158,7 @@
 #menu .preview .player canvas:active {
   cursor: grabbing;
 }
-/* The big view's name across its top, on a dark tag so it reads over the map's lines too. */
+/* The body's name across its top while it fills the window, on a dark tag. */
 #menu .preview .view .title {
   position: absolute;
   top: 6px;

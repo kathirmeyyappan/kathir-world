@@ -930,7 +930,7 @@ handed in as `MenuHooks`; `rows.ts` is the kinds of row (a toggle, a stepper wit
 an AUTO button, a field, buttons, a link to share) and how each draws; and `menu.css` is its look. A
 new setting is a row in `tabs.ts`, and a new kind of row a type and a case in `rows.ts`. The PLAY
 tab opens on a window (`Preview.ts`) with the player's own body in it and the map in a square in
-its corner, the two swapping places at a click on the small one, and under it the hint to press C
+its corner (on touch, the other way round), the two swapping places at a click on the small one, and under it the hint to press C
 (which closes the menu and opens the commands, as it would from the world). The body is a second
 `Engine` on a canvas of the card's, built the first time the tab is seen and drawn only while it
 is, where the world's own avatar builders stand the avatar on a floor ruled in metres that fades
