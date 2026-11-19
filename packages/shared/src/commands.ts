@@ -14,6 +14,7 @@ import {
 import { isGearId, type GearId } from './sim/gear';
 import { NAMED_COLORS } from './sim/constants';
 import { ITEMS, isItemId, type ItemId } from './sim/items';
+import { KARTS, KART_IDS, type KartId } from './sim/vehicles/karts';
 
 export type Command =
   | { name: 'speedy' }
@@ -24,6 +25,7 @@ export type Command =
   | { name: 'color'; color: string } // one of NAMED_COLORS' names
   | { name: 'bot'; bot: BotId; call: BotCallArgs | null } // null: the flags didn't parse
   | { name: 'kill-bots' }
+  | { name: 'kart'; kart: KartId } // drops one in front of them (sim/vehicles/garage.ts)
   | { name: 'unknown'; raw: string };
 
 export const COMMAND_SHORTCUTS: Readonly<Partial<Record<string, ItemId | GearId | AvatarId | 'speedy'>>> = {
@@ -54,6 +56,8 @@ export function parseCommand(text: string): Command | null {
   if (avatar) return { name: 'avatar', avatar };
   if (Object.hasOwn(NAMED_COLORS, normalized)) return { name: 'color', color: normalized };
   if (normalized === 'kill-bots') return { name: 'kill-bots' };
+  const kart = KART_IDS.find((id) => KARTS[id].command === normalized);
+  if (kart) return { name: 'kart', kart };
   const bot = botIdFor(normalized);
   if (bot) return botCommand(bot, args);
   return { name: 'unknown', raw };

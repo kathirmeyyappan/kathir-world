@@ -12,10 +12,9 @@ import { EYE_HEIGHT, STEP_UP, TICK_RATE } from '../constants';
 import { lookVector } from '../doors';
 import type { GearState } from '../gear';
 import type { ItemState } from '../items';
-import { takeLook } from '../player';
 import type { InputFrame, PlayerState, Vec3 } from '../types';
 import { throwWalker } from '../walker';
-import { IDLE, createKart, impactDamage, noseOf, stepKart, type KartControls, type KartState } from './kart';
+import { IDLE, createKart, impactDamage, noseOf, ride, seat, stepKart, type KartState, type KartStep } from './kart';
 import { KARTS, type KartId } from './karts';
 
 // A kart in the room, as every client is sent it: its body, the look of whoever dropped it (which
@@ -37,6 +36,9 @@ export interface KartBlow {
 }
 
 export const KART_REACH = 4; // metres along the look from the eye that a click gets in within
+// Metres past KART_REACH the Room takes a click from: the clicker's own view of where they stand is
+// a step ahead of the Room's.
+const REACH_SLACK = 1;
 const DROP_AHEAD = 7; // metres in front of whoever asks for one that a kart drops
 const DROP_HEIGHT = 2; // metres over their feet it drops from: landing under what wears it (IMPACT)
 const IDLE_SECONDS = 120; // an empty kart is taken away after this long
@@ -53,13 +55,15 @@ const BUMP = 0.3; // of the speed two karts closed at that they part at
 
 // What only the Room keeps of a kart: who's credited with what it does (its driver, else whoever
 // last drove or dropped it), the ticks it has stood empty, when it last hurt each player, what its
-// driver put away to drive, and who took its last wrench.
+// driver put away to drive, who took its last wrench, and its driver's last frame, whose keys it
+// keeps to on a tick their frame is late for.
 interface Keep {
   owner: string | null;
   empty: number;
   struck: Map<string, number>;
   stowed: { item: ItemState | null; gear: GearState | null };
   breaker: string | null;
+  frame: InputFrame | null;
 }
 
 export class Garage {
@@ -106,6 +110,7 @@ export class Garage {
       struck: new Map(),
       stowed: { item: null, gear: null },
       breaker: null,
+      frame: null,
     });
     return k;
   }
@@ -116,7 +121,7 @@ export class Garage {
     const k = this.karts.get(id);
     const keep = this.keeps.get(id);
     if (!k || !keep || k.driver !== null || p.dead || p.riding || classOf(p.avatar).id !== 'walker') return false;
-    if (this.at(eyeOf(p), lookVector(p.yaw, p.pitch), KART_REACH)?.kart !== k) return false;
+    if (this.at(eyeOf(p), lookVector(p.yaw, p.pitch), KART_REACH + REACH_SLACK)?.kart !== k) return false;
     classOf(p.avatar).exit(p);
     keep.stowed = { item: p.item, gear: p.gear };
     p.item = null;
@@ -127,7 +132,8 @@ export class Garage {
     k.driver = p.id;
     keep.owner = p.id;
     keep.empty = 0;
-    this.seat(p, k);
+    keep.frame = null;
+    seat(p, k);
     return true;
   }
 
@@ -151,27 +157,22 @@ export class Garage {
     p.vx = p.vy = p.vz = 0;
   }
 
-  // One step of `p`'s kart by their frame (or with none, their keys let go), and them sat in it.
+  // One step of `p`'s kart by their frame (or with none, the keys as their last frame held them, as
+  // their own client went on predicting), them sat in it, and it worn by what it ran into.
   drive(p: PlayerState, frame: InputFrame | null, dt: number): void {
     const k = p.riding ? this.karts.get(p.riding) : undefined;
-    if (!k) {
+    const keep = p.riding ? this.keeps.get(p.riding) : undefined;
+    if (!k || !keep) {
       p.riding = null;
       return;
     }
-    if (frame) takeLook(p, frame);
-    const controls = frame ? { gas: frame.my, steer: frame.mx, drift: frame.actions.includes('drift') } : IDLE;
-    this.roll(k, controls, dt);
-    this.seat(p, k);
+    if (frame) keep.frame = frame;
+    this.worn(k, ride(p, k, keep.frame, dt, this.structures));
   }
 
   // The nearest kart a ray from `o` along unit `d` enters within `maxT`, and how far along it.
   at(o: Vec3, d: Vec3, maxT: number): { kart: Kart; t: number } | null {
-    let best: { kart: Kart; t: number } | null = null;
-    for (const kart of this.karts.values()) {
-      const t = rayKart(o, d, kart, best?.t ?? maxT);
-      if (t !== null) best = { kart, t };
-    }
-    return best;
+    return kartAt(o, d, maxT, this.karts.values());
   }
 
   // Every kart with any of it within `range` of `o` and `halfAngle` of `d`, in sight: what a spray
@@ -202,7 +203,7 @@ export class Garage {
   step(players: PlayerState[]): { blows: KartBlow[]; booms: Vec3[] } {
     this.tick++;
     const karts = this.list;
-    for (const k of karts) if (k.driver === null) this.roll(k, IDLE, 1 / TICK_RATE);
+    for (const k of karts) if (k.driver === null) this.worn(k, stepKart(k, IDLE, 1 / TICK_RATE, this.structures));
     const blows: KartBlow[] = [];
     for (const k of karts) for (const p of players) this.runInto(k, p, blows);
     for (let i = 0; i < karts.length; i++) for (let j = i + 1; j < karts.length; j++) this.bump(karts[i], karts[j]);
@@ -215,8 +216,8 @@ export class Garage {
     return { blows, booms };
   }
 
-  private roll(k: Kart, controls: KartControls, dt: number): void {
-    const { impact, landing } = stepKart(k, controls, dt, this.structures);
+  // Wrenches off `k` for what it ran into and came down on, credited to it.
+  private worn(k: Kart, { impact, landing }: KartStep): void {
     this.wear(k, impactDamage(impact) + impactDamage(landing), this.credit(k));
   }
 
@@ -229,17 +230,6 @@ export class Garage {
   // Who's credited with what a kart does: its driver, else whoever last drove it or dropped it.
   private credit(k: Kart): string | null {
     return k.driver ?? this.keeps.get(k.id)?.owner ?? null;
-  }
-
-  // Sits `p` in kart `k`'s seat, their feet on it, moving with it.
-  private seat(p: PlayerState, k: Kart): void {
-    const { seat } = KARTS[k.kart].body;
-    const f = noseOf(k.yaw);
-    p.pos = { x: k.pos.x + f.x * seat.z, y: k.pos.y + seat.y + EYE_HEIGHT, z: k.pos.z + f.z * seat.z };
-    p.vx = k.vel.x;
-    p.vy = k.vel.y;
-    p.vz = k.vel.z;
-    p.walk = 0;
   }
 
   // Where someone getting out of `k` stands: its left, its right, behind it or in front, the first
@@ -347,6 +337,21 @@ export class Garage {
     this.karts.delete(k.id);
     this.keeps.delete(k.id);
   }
+}
+
+// The nearest of `karts` a ray from `o` along unit `d` enters within `maxT`, and how far along it.
+export function kartAt<K extends KartState>(
+  o: Vec3,
+  d: Vec3,
+  maxT: number,
+  karts: Iterable<K>,
+): { kart: K; t: number } | null {
+  let best: { kart: K; t: number } | null = null;
+  for (const kart of karts) {
+    const t = rayKart(o, d, kart, best?.t ?? maxT);
+    if (t !== null) best = { kart, t };
+  }
+  return best;
 }
 
 // The circles a kart meets walls and other karts as: at its nose and its tail, each as wide as it.

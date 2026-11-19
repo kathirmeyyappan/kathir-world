@@ -39,13 +39,17 @@ import {
   type ItemAction,
   type ItemId,
   type ItemState,
+  type Kart,
   type KillItem,
+  type LifeSpec,
   type ClassSpec,
   type PlayerClass,
   type PlayerState,
   type ServerMessage,
   type Vec3,
   EYE_HEIGHT,
+  KARTS,
+  SEATED,
   eyeOf,
   statureOf,
   walkSpeedOf,
@@ -53,6 +57,7 @@ import {
   SIGHT,
 } from '@world/shared';
 import { Footsteps } from '../audio/Footsteps';
+import { Driving } from './Driving';
 import { ITEM_SOUNDS, heard, loopsOf, PLACE_THEMES, Sfx, voiceOf, type SoundId } from '../audio/Sfx';
 import { swingOf, take, twirlOf, VOICES } from '../audio/voices';
 import { InputManager } from '../input/InputManager';
@@ -96,7 +101,7 @@ import { NameTags } from '../ui/NameTags';
 import { Pins } from '../ui/Pins';
 import { Menu, toggleFullscreen } from '../ui/menu/Menu';
 import { rideGround } from './ride';
-import { VIEWS, View, boomOf, screenBoom, screenFov, type Boom } from './View';
+import { KART_BOOM, VIEWS, View, boomOf, screenBoom, screenFov, type Boom } from './View';
 
 const CORRECTION_HALF_LIFE = 0.06;
 // Seconds for the camera to catch up when it goes from riding the ground (ride.ts) to following the
@@ -192,10 +197,13 @@ export class Game {
   private readonly loader = new Loader(); // streams the world in round the player
   private readonly models: Models;
   private readonly frost: FrostLayer; // the ice sprayed over the world's surfaces (sim/frost.ts)
-  private hoveredDoor: string | null = null; // the door under the crosshair within reach (sim/doors.ts)
+  // What a click uses, under the crosshair within reach: a door (sim/doors.ts) or a kart to get
+  // into (sim/vehicles/garage.ts).
+  private hoveredUse: string | null = null;
   private introduced = false; // the look the player came in as has said its intro
   private hoveredHorn = false; // the bedroom's foghorn is under the crosshair within reach
-  private useDoor: string | null = null; // a door clicked since the last input frame
+  private use: string | null = null; // a door or kart clicked since the last input frame
+  private readonly driving: Driving;
   private readonly camera: UniversalCamera;
   private readonly input: InputManager;
   private readonly mobile: MobileControls;
@@ -240,6 +248,8 @@ export class Game {
   private readonly minimap = new Minimap();
   private readonly death = new Death();
   private readonly hearts = new Hearts();
+  // The wrenches of the kart they drive, under the hearts while they drive one.
+  private readonly wrenches = new Hearts(document.getElementById('wrenches')!, WRENCHES);
   private readonly fuel = new Fuel();
   private readonly gearHud = new GearHud();
   private readonly condition = new Condition();
@@ -293,6 +303,7 @@ export class Game {
     this.frost = new FrostLayer(this.engine, WORLD_STRUCTURES.list);
     this.interiors = new Interiors(INTERIOR_BUILDINGS, (door) => this.models.ajar(door));
     this.models = new Models(this.engine, this.loader, this.interiors);
+    this.driving = new Driving(this.engine.scene);
     this.wallFrames = new WallFrames(this.engine, WALL_FRAMES, this.interiors);
     this.camera = new UniversalCamera('camera', new Vector3(0, 1.7, 0), this.engine.scene);
     this.camera.minZ = NEAR;
@@ -318,6 +329,7 @@ export class Game {
       onActionUp: () => (this.input.fireHeld = false),
       onScope: () => this.setScoped(!this.scoped),
       onSwap: () => (this.swapRequested = true),
+      onOut: () => this.input.tap('KeyE'),
       onPound: () => (this.poundRequested = true),
       onChat: () => this.hud.openChat(),
       onCommands: () => this.commandsMenu.toggle(),
@@ -401,7 +413,7 @@ export class Game {
     // that uses the door under the crosshair; the FIRE button, when there is one, uses it too.
     onTap(canvas, () => {
       if (this.isBlocked()) return;
-      if (this.hoveredDoor) this.useDoor = this.hoveredDoor;
+      if (this.hoveredUse) this.use = this.hoveredUse;
       if (this.hoveredHorn) this.sfx.play('boat-horn', HORN_AT);
     });
 
@@ -438,14 +450,15 @@ export class Game {
     if (mouse && !this.mouseWasHeld) {
       // A press on a door uses it, one on the foghorn sounds it, and one on a cube selects it; none
       // is a shot.
-      if (this.hoveredDoor) this.useDoor = this.hoveredDoor;
+      if (this.hoveredUse) this.use = this.hoveredUse;
       if (this.hoveredHorn) this.sfx.play('boat-horn', HORN_AT);
-      this.mouseFiring = !this.hovered && !this.hoveredDoor && !this.hoveredHorn;
+      this.mouseFiring = !this.hovered && !this.hoveredUse && !this.hoveredHorn;
     }
     if (!mouse) this.mouseFiring = false;
     this.mouseWasHeld = mouse;
 
     if (this.dead) return [];
+    if (this.prediction?.state.riding) return this.driving.actions(this.input);
     const actions: ItemAction[] = [];
     const held = this.held;
     if (held) {
@@ -573,6 +586,7 @@ export class Game {
   // The boom the camera hangs on in third person: the worn look's, scaled to a walker's stature and
   // fitted to a portrait screen.
   private boom(): Boom {
+    if (this.prediction!.state.riding) return screenBoom(KART_BOOM, this.wornFov(), this.aspect());
     const avatar = this.prediction!.state.avatar;
     const boom = boomOf(avatar);
     const scale = classOf(avatar).id === 'walker' ? (this.stature ?? 1) : 1;
@@ -605,6 +619,10 @@ export class Game {
           this.skyByMesh.set(sky.mesh.name, sky);
         const me = m.players.find((p) => p.id === m.id)!;
         this.prediction = new Prediction(me, WORLD_STRUCTURES);
+        this.prediction.reconcile(
+          me,
+          m.karts.find((k) => k.id === me.riding),
+        );
         this.input.yaw = me.yaw;
         this.input.pitch = me.pitch;
         this.interp.push(m, now);
@@ -631,11 +649,20 @@ export class Game {
           // A pickup's worth of hearts flashes; a regen's trickle each tick doesn't.
           if (me.hearts - this.hearts.count >= 1 && !this.dead) this.healFlash.flash();
           this.hearts.set(me.hearts);
+          const kart = m.karts.find((k) => k.id === me.riding);
+          this.wrenches.show(!!kart);
+          if (kart) {
+            this.wrenches.setLife({ ...WRENCHES, hearts: KARTS[kart.kart].wrenches }, kart.wrenches);
+            this.wrenches.set(kart.wrenches);
+          }
         }
         this.hud.updateStats(m.players);
         this.hearShots(m.players);
         if (me && this.prediction) {
-          const d = this.prediction.reconcile(me);
+          const d = this.prediction.reconcile(
+            me,
+            m.karts.find((k) => k.id === me.riding),
+          );
           const dist = Math.hypot(d.dx, d.dy, d.dz);
           if (dist > SNAP_DISTANCE) this.correction.set(0, 0, 0);
           else if (dist > 1e-4) this.correction.addInPlace(new Vector3(d.dx, d.dy, d.dz));
@@ -946,6 +973,7 @@ export class Game {
     this.syncBlocked();
     this.input.update();
     this.holdLook(dt);
+    this.driving.follow(this.input, this.prediction.state.riding ? this.prediction.kart : null, dt);
     const sampled = this.interp.sample(performance.now(), this.myId);
     // Off the eyes the camera's centre ray and theirs differ, so the look sent (the shot, the head's
     // turn) is the eyes' at what the crosshair is on, from where the camera was last frame.
@@ -969,11 +997,12 @@ export class Game {
         this.overlay.reading,
         this.itemActions(),
         this.interp.viewTick,
+        !!this.prediction.state.riding,
       );
       frame.yaw = this.aim.yaw;
       frame.pitch = this.aim.pitch;
-      frame.use = this.useDoor;
-      this.useDoor = null;
+      frame.use = this.use;
+      this.use = null;
       this.prediction.apply(frame);
       this.conn.send({ t: 'input', f: frame });
     }
@@ -996,6 +1025,7 @@ export class Game {
       this.classId = cls;
     }
     this.hud.setKeys(legendOf(self));
+    this.mobile.setDriving(!!self.riding);
     if (self.avatar !== this.look) {
       if (this.look) this.say(this.myId, 'enter');
       this.look = self.avatar;
@@ -1015,7 +1045,9 @@ export class Game {
       this.wearing = wearing;
       this.setScoped(false);
     }
-    const lift = (this.stature - 1) * EYE_HEIGHT; // metres the eyes are above the body's eye point
+    // Metres the eyes are above the body's eye point: sat in a kart, its feet on the seat, they're
+    // down at the share of its height that stands out of it.
+    const lift = self.riding ? this.stature * EYE_HEIGHT * SEATED - EYE_HEIGHT : (this.stature - 1) * EYE_HEIGHT;
     this.camera.minZ = Math.min(NEAR, this.stature * EYE_HEIGHT * NEAR_SHARE);
     // On its feet, the camera rides the ground (ride.ts) rather than the sim's feet; a change
     // between the two is eased like a step.
@@ -1027,7 +1059,7 @@ export class Game {
     }
     this.lastPos = { x: p.x, z: p.z };
     const feet = p.y - EYE_HEIGHT;
-    const rides = cls === 'walker' && !this.dead && !self.climb && isGrounded(self);
+    const rides = cls === 'walker' && !this.dead && !self.climb && !self.riding && isGrounded(self);
     const riding = rides ? rideGround(WORLD_STRUCTURES, p.x, p.z, this.walkDir, feet) - feet : null;
     if ((this.riding === null) !== (riding === null)) this.stepEase += (this.riding ?? 0) - (riding ?? 0);
     this.riding = riding;
@@ -1077,7 +1109,8 @@ export class Game {
     );
     // A look's own moves get their hint as the look is taken, once the start press (main.ts
     // showStart, which takes #start away) has let the player in to read it.
-    const moves = this.dead || document.getElementById('start') ? [] : movesHelp(self.avatar, IS_TOUCH);
+    // None while driving: a kart's keys are its own.
+    const moves = this.dead || self.riding || document.getElementById('start') ? [] : movesHelp(self.avatar, IS_TOUCH);
     this.hud.setMoveHint(self.avatar.toUpperCase(), moves);
     const fuelMax = held && ITEMS[held.id].fuelSeconds;
     this.fuel.set(
@@ -1163,11 +1196,21 @@ export class Game {
         this.wantVoice(rp.avatar, false);
         if (was && was !== rp.avatar) this.say(rp.id, 'enter');
       }
-      avatar.update(rp, this.footsteps.phase(rp.id));
+      if (rp.riding) avatar.hide();
+      else avatar.update(rp, this.footsteps.phase(rp.id));
       if (rp.reading) readers.set(rp.reading, (readers.get(rp.reading) ?? 0) + 1);
     }
     for (const [id, avatar] of this.avatars) if (!seen.has(id)) avatar.hide();
     this.updateOwnAvatar({ x: eye.x, y: p.y + this.correction.y, z: eye.z }, held);
+    // The kart the player drives is drawn where they predict it, eased as they are.
+    const driven = self.riding ? this.prediction.kart : null;
+    const c = this.correction;
+    const karts = sampled.karts.map((k) =>
+      driven && k.id === self.riding
+        ? { ...k, ...driven, pos: { x: driven.pos.x + c.x, y: driven.pos.y + c.y, z: driven.pos.z + c.z } }
+        : k,
+    );
+    this.driving.draw(karts, dt);
     this.pins.update(sampled.players, this.engine.scene, this.camera, this.canvasEl);
     this.nameTags.update(sampled.players, this.engine.scene, this.camera, this.canvasEl);
     this.bubble.update(this.engine.scene, this.camera, this.canvasEl);
@@ -1176,7 +1219,7 @@ export class Game {
 
     this.loader.update(p.x, p.z);
     this.models.update();
-    this.updateHover();
+    this.updateHover(karts);
     // Red crosshair when a shot from here would land: same maths the server will run.
     const me = this.prediction.state;
     const hit =
@@ -1195,7 +1238,8 @@ export class Game {
       scoped: this.scoped,
       canFire: this.canFire(),
       climbing: !!self.climb,
-      move: this.dead ? null : this.ownMove(self),
+      driving: !!self.riding,
+      move: this.dead || self.riding ? null : this.ownMove(self),
     });
     if (hit !== this.canHit) {
       this.canHit = hit;
@@ -1340,7 +1384,7 @@ export class Game {
     }
     const own: Avatar = avatar;
     const shown = this.view.showsBody;
-    if (!shown && !own.setHeadless) {
+    if (self.riding || (!shown && !own.setHeadless)) {
       own.hide();
       return;
     }
@@ -1388,15 +1432,22 @@ export class Game {
     return t !== Infinity && WORLD_STRUCTURES.raycast(o, d, t) >= t - HORN_SLACK;
   }
 
-  private updateHover(): void {
-    // A door in reach of the look is used by a click; say so while the crosshair is on one.
+  private updateHover(karts: Kart[]): void {
+    // A door or a kart in reach of the look is used by a click; say so while the crosshair is on one.
     const me = this.prediction?.state;
-    const door =
-      me && !this.dead ? WORLD_STRUCTURES.doorAt(me.pos, lookVector(this.aim.yaw, this.aim.pitch), DOOR_REACH) : null;
+    const look = lookVector(this.aim.yaw, this.aim.pitch);
+    const free = !!me && !this.dead && !me.riding;
+    const door = me && !this.dead ? WORLD_STRUCTURES.doorAt(me.pos, look, DOOR_REACH) : null;
+    const kart = free && !door ? this.driving.under(eyeOf(me), look, karts, WORLD_STRUCTURES) : null;
+    const tap = IS_TOUCH ? 'tap' : 'click';
     this.hitNotice.prompt(
-      door ? `${IS_TOUCH ? 'tap' : 'click'} to ${WORLD_STRUCTURES.isOpen(door) ? 'shut' : 'open'} the door` : null,
+      door
+        ? `${tap} to ${WORLD_STRUCTURES.isOpen(door) ? 'shut' : 'open'} the door`
+        : kart && kart.driver === null
+          ? `${tap} to drive`
+          : null,
     );
-    this.hoveredDoor = door;
+    this.hoveredUse = door ?? (kart && kart.driver === null ? kart.id : null);
     const horn = !!me && !this.dead && !door && this.hornAt(me.pos, lookVector(this.aim.yaw, this.aim.pitch));
     if (horn && !this.hoveredHorn) this.sfx.want('boat-horn');
     this.hoveredHorn = horn;
@@ -1488,6 +1539,9 @@ function boomLength(avatar: RemotePlayer['avatar']): number {
   const boom = boomOf(avatar);
   return Math.hypot(boom.back, boom.right, boom.up);
 }
+
+// A kart's wrenches, as a life of them in a row (Hearts), however many its row in KARTS gives it.
+const WRENCHES: LifeSpec = { hearts: KARTS.standard.wrenches, row: 5, sprite: 'wrench' };
 
 // How the death screen says a kill was done, where it isn't a shot.
 const KILLED_BY: Partial<Record<KillItem, string>> = { kart: 'run over', explosion: 'blown up' };

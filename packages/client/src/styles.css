@@ -990,6 +990,32 @@ body {
   }
 }
 
+/* A kart's wrenches, under the hearts while you drive it: steel, snapping rather than cracking. */
+#wrenches {
+  position: fixed;
+  top: 72px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  pointer-events: none;
+  display: grid;
+  grid-template-columns: repeat(var(--heart-row, 5), 27px);
+  gap: 3px 4px;
+}
+#wrenches[hidden] {
+  display: none;
+}
+.heart.wrench svg rect {
+  fill: #8a96a8;
+}
+.heart.wrench svg rect.hi {
+  fill: #dce4ee;
+}
+.heart.wrench.lost svg rect,
+.heart.wrench.half svg rect.grey {
+  fill: #3a3d46;
+}
+
 /* Crystal hearts: a dragon's, one big ice crystal a ring segment, that shatters rather than cracks. */
 #hearts[data-sprite='crystal'] {
   grid-template-columns: repeat(var(--heart-row, 3), 68px);
@@ -2112,12 +2138,28 @@ body {
 }
 /* SWAP, on a ladder, and a look's own move (CROUCH, or POUND in the air): a square beside JUMP, to its left. */
 #swap-button,
-#pound-button {
+#pound-button,
+#out-button {
   bottom: 26px;
   right: 118px;
   width: 84px;
   height: 84px;
   padding: 0;
+}
+/* A kart's pedals: GAS over the drift button, BRAKE beside it. */
+#gas-button,
+#brake-button {
+  width: 84px;
+  height: 84px;
+  padding: 0;
+}
+#gas-button {
+  bottom: 118px;
+  right: 26px;
+}
+#brake-button {
+  bottom: 118px;
+  right: 118px;
 }
 #chat-button {
   top: 16px;
@@ -2354,6 +2396,11 @@ body {
   }
   #hearts {
     top: 8px;
+    grid-template-columns: repeat(var(--heart-row, 5), 18px);
+    gap: 2px 3px;
+  }
+  #wrenches {
+    top: 46px;
     grid-template-columns: repeat(var(--heart-row, 5), 18px);
     gap: 2px 3px;
   }

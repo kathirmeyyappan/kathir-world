@@ -30,7 +30,7 @@ export type HitPart = 'head' | 'body' | number;
 
 // A life: a full one's hearts, how many to a row on the HUD, and what they look like there
 // (ui/Hearts.ts): pixel hearts, or crystals, big, one per weak point.
-export type HeartSprite = 'heart' | 'crystal';
+export type HeartSprite = 'heart' | 'crystal' | 'wrench'; // a wrench is a kart's (vehicles/karts.ts `wrenches`)
 export interface LifeSpec {
   hearts: number;
   row: number;

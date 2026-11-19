@@ -9,9 +9,10 @@
 // purple, and letting go of the key on one is a mini-turbo: its top speed raised by half over
 // TURBO.rise, held for TURBO.holds by the spark, and let down over TURBO.fall.
 import type { Structures } from '../collision';
-import { GRAVITY } from '../constants';
+import { EYE_HEIGHT, GRAVITY } from '../constants';
+import { takeLook } from '../player';
 import { SURFACES } from '../surfaces';
-import type { Vec3 } from '../types';
+import type { InputFrame, PlayerState, Vec3 } from '../types';
 import { KARTS, type KartId, type KartSpec } from './karts';
 
 // What a kart's driver asks of it this tick: the gas (1, W) or the brake (-1, S, which backs it up
@@ -88,6 +89,40 @@ export function createKart(kart: KartId, pos: Vec3, yaw: number): KartState {
     drift: null,
     turbo: null,
   };
+}
+
+// The keys a driver's frame holds (none: let go): the gas on W and S, the wheel on A and D, the
+// drift on Space.
+export function controlsOf(frame: InputFrame | null): KartControls {
+  if (!frame) return IDLE;
+  const unit = (v: number) => Math.max(-1, Math.min(1, v));
+  return { gas: unit(frame.my), steer: unit(frame.mx), drift: frame.actions.includes('drift') };
+}
+
+// One step of the kart `p` drives, by their frame, and them sat in it after: what the Room runs and
+// the driver's own client predicts with.
+export function ride(
+  p: PlayerState,
+  k: KartState,
+  frame: InputFrame | null,
+  dt: number,
+  structures: Structures,
+): KartStep {
+  if (frame) takeLook(p, frame);
+  const step = stepKart(k, controlsOf(frame), dt, structures);
+  seat(p, k);
+  return step;
+}
+
+// Sits `p` in kart `k`'s seat, their feet on it, moving with it.
+export function seat(p: PlayerState, k: KartState): void {
+  const { seat: at } = KARTS[k.kart].body;
+  const f = noseOf(k.yaw);
+  p.pos = { x: k.pos.x + f.x * at.z, y: k.pos.y + at.y + EYE_HEIGHT, z: k.pos.z + f.z * at.z };
+  p.vx = k.vel.x;
+  p.vy = k.vel.y;
+  p.vz = k.vel.z;
+  p.walk = 0;
 }
 
 export function stepKart(k: KartState, c: KartControls, dt: number, structures: Structures): KartStep {
