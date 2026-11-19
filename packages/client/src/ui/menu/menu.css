@@ -206,7 +206,7 @@
 #menu .preview .view.small .swap:hover .caption {
   color: #fff;
 }
-/* The map's NEAR/WORLD toggle and your x, y, z, as on the HUD's; only while it's big. */
+/* The map's views' toggle and your x, y, z, as on the HUD's; only while it's big. */
 #menu .preview .map .toggle {
   position: absolute;
   top: 6px;
@@ -214,7 +214,8 @@
   display: flex;
   gap: 4px;
 }
-#menu .preview .map .toggle button {
+#menu .preview .map .toggle button,
+#menu .preview .map .elevation {
   min-width: 58px;
   padding: 4px 6px 3px;
   font: 9px var(--pixel);
@@ -224,7 +225,8 @@
   border: 2px solid rgba(100, 181, 246, 0.3);
   box-shadow: none;
 }
-#menu .preview .map .toggle button.on {
+#menu .preview .map .toggle button.on,
+#menu .preview .map .elevation.on {
   color: #05070c;
   background: var(--accent-soft);
   border-color: var(--accent-soft);
@@ -239,7 +241,37 @@
   background: rgba(5, 7, 12, 0.7);
   white-space: nowrap;
 }
+/* ELEVATION, in the corner under the views' toggle (the other view's square has the top left),
+   and over it while it's on the scale the heights are coloured by. */
+#menu .preview .map .elevation {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+}
+#menu .preview .map .elevation-scale {
+  position: absolute;
+  right: 6px;
+  bottom: 32px;
+  display: none;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  font: 8px/1 var(--pixel);
+  letter-spacing: 1px;
+  color: rgba(255, 255, 255, 0.85);
+  background: rgba(5, 7, 12, 0.75);
+  pointer-events: none;
+}
+#menu .preview .map.heights .elevation-scale {
+  display: flex;
+}
+#menu .preview .map .elevation-scale .bar {
+  width: 72px;
+  height: 6px;
+}
 #menu .preview .map.small .toggle,
+#menu .preview .map.small .elevation,
+#menu .preview .map.small .elevation-scale,
 #menu .preview .map.small .coords {
   display: none;
 }
