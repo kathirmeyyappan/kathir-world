@@ -44,3 +44,5 @@ export * from './content/krustyKrab';
 export * from './content/krustyKrabProfile';
 export { BUILDING_NAMES } from './content/buildings';
 export { toTower } from './content/tower';
+export * from './sim/vehicles/karts';
+export * from './sim/vehicles/kart';
