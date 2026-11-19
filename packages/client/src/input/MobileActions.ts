@@ -14,7 +14,7 @@ export interface MobileActionState {
   scoped: boolean;
   canFire: boolean; // false for a scope-only weapon that isn't scoped
   climbing: boolean; // on a ladder: SWAP goes round to its other face
-  driving: boolean; // in a kart: OUT gets out of it
+  driving: boolean; // in a kart: OUT gets out of it, and there's no SELECT, its corner being the pedals' (a tap on the view opens a cube)
   move: { label: 'CROUCH' | 'POUND' | 'BAT'; on: boolean } | null; // what a look's own move is where it stands, and whether it's on
 }
 
@@ -52,7 +52,7 @@ export class MobileActions {
 
   update(state: MobileActionState): void {
     if (!IS_TOUCH || !this.action || !this.scope) return;
-    const label = state.item ? (state.canFire ? 'FIRE' : 'SCOPE TO FIRE') : state.hot ? 'SELECT' : '';
+    const label = state.item ? (state.canFire ? 'FIRE' : 'SCOPE TO FIRE') : state.hot && !state.driving ? 'SELECT' : '';
     if (label !== this.label) {
       this.label = label;
       this.action.textContent = label;

@@ -1998,6 +1998,7 @@ body {
 #pad,
 #jump-button,
 #throttle,
+#pedals,
 .touch-button {
   display: none;
 }
@@ -2204,24 +2205,37 @@ body {
 }
 /* SWAP, on a ladder, and a look's own move (CROUCH, or POUND in the air): a square beside JUMP, to its left. */
 #swap-button,
-#pound-button,
-#out-button {
+#pound-button {
   bottom: 26px;
   right: 118px;
   width: 84px;
   height: 84px;
   padding: 0;
 }
-/* A kart's pedals: GAS over the drift button, BRAKE beside it. */
-#gas-button,
-#brake-button {
-  width: 84px;
-  height: 84px;
+/* A kart's driver's buttons, in JUMP's corner in its place: GAS, a bar over two squares, BRAKE and
+   DRIFT, each bigger than a walker's, being held without a look at them. --pedal is a square's
+   side, no wider than leaves the pad clear on a narrow phone, and --gas the bar's height. */
+#pedals {
+  --pedal: min(96px, calc((100vw - 190px) / 2));
+  --gas: 80px;
+  position: fixed;
+  right: 22px;
+  bottom: 26px;
+  z-index: 100;
+  grid-template:
+    'gas gas' var(--gas)
+    'brake drift' var(--pedal)
+    / var(--pedal) var(--pedal);
+  gap: 12px;
+}
+#pedals .touch-button {
+  position: static;
+  height: auto;
   padding: 0;
+  font-size: 11px;
 }
 #gas-button {
-  bottom: 118px;
-  right: 26px;
+  grid-area: gas;
   border-color: rgba(255, 59, 78, 0.8);
   background: rgba(255, 59, 78, 0.3);
   color: #ffd9dd;
@@ -2229,27 +2243,35 @@ body {
 #gas-button.active {
   background: rgba(255, 59, 78, 0.6);
 }
-/* The jump button while driving, when it's the drift. */
-#jump-button.drift {
+#brake-button {
+  grid-area: brake;
+}
+#drift-button {
+  grid-area: drift;
   border-color: rgba(190, 196, 206, 0.7);
   background: rgba(120, 126, 138, 0.35);
   color: #dfe3ea;
-  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.6);
 }
-#jump-button.drift.active {
+#drift-button.active {
   background: rgba(190, 196, 206, 0.5);
   border-color: #dfe3ea;
-  box-shadow: 0 0 14px #dfe3ea;
 }
-#brake-button {
-  bottom: 118px;
-  right: 118px;
+/* A column in the top-right corner: CHAT, CMDS, and under them a kart's OUT, out of reach of the
+   thumbs that drive it. */
+#chat-button,
+#commands-button,
+#out-button {
+  width: 72px;
+  padding: 0;
 }
 #chat-button {
   top: 16px;
 }
 #commands-button {
   top: 70px;
+}
+#out-button {
+  top: 124px;
 }
 
 @media (pointer: coarse) {
@@ -2269,9 +2291,13 @@ body {
   .touch-button {
     display: block;
   }
+  #pedals {
+    display: grid;
+  }
   #pad.hidden,
   #jump-button.hidden,
   #throttle.hidden,
+  #pedals.hidden,
   .touch-button.hidden {
     display: none;
   }
@@ -2351,8 +2377,9 @@ body {
 /* A phone on its side, a screen as little as 280px tall once the browser's bars are off it. The menu
    button and the room panel share one row at the top left, CHAT and CMDS one at the top right; the
    pad and the right thumb's buttons are smaller, FIRE and SCOPE side by side over JUMP and SWAP, so
-   nothing on the right stands higher than 136px; the chat runs from under the corner to just over
-   the pad (or the throttle), its oldest lines cut off at the top. */
+   nothing a walker has on the right stands higher than 136px; a kart's OUT is under CHAT and its
+   pedals reach up to just short of that; the chat runs from under the corner to just over the pad
+   (or the throttle), its oldest lines cut off at the top. */
 @media (pointer: coarse) and (max-height: 500px) {
   #corner {
     top: 8px;
@@ -2428,14 +2455,26 @@ body {
     width: 72px;
     height: 72px;
   }
+  /* The bar no taller than leaves OUT clear above it on the shortest screen. */
+  #pedals {
+    --pedal: 100px;
+    --gas: min(72px, calc(100dvh - 228px));
+    right: 16px;
+    bottom: 16px;
+    gap: 8px;
+  }
   #chat-button,
-  #commands-button {
+  #commands-button,
+  #out-button {
     top: 8px;
     width: 64px;
-    padding: 0;
   }
-  #chat-button {
+  #chat-button,
+  #out-button {
     right: 16px;
+  }
+  #out-button {
+    top: 56px;
   }
   #commands-button {
     right: 88px;

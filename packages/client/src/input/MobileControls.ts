@@ -1,8 +1,8 @@
 // Touch controls: a square pad on the left that acts as a joystick, and a jump button on the
 // right; a dragon, which only flies forward, has a throttle in the pad's place, slid up for the
-// speed and left where it's put, and no jump; and a kart's driver steers with the pad, has GAS and
-// BRAKE beside the jump button, and the jump button drifts. All plain DOM styled like the rest of
-// the HUD. Only mounted on touch devices.
+// speed and left where it's put, and no jump; and a kart's driver steers with the pad and has its
+// pedals in the jump button's place: GAS, a bar over BRAKE and DRIFT. All plain DOM styled like the
+// rest of the HUD. Only mounted on touch devices.
 import type { PlayerClass } from '@world/shared';
 import type { InputManager } from './InputManager';
 import { IS_TOUCH } from './touch';
@@ -19,9 +19,9 @@ export class MobileControls {
   private readonly jump = document.getElementById('jump-button');
   private readonly throttle = document.getElementById('throttle');
   private readonly throttleThumb = document.getElementById('throttle-thumb');
-  private readonly gas = document.getElementById('gas-button');
-  private readonly brake = document.getElementById('brake-button');
-  private driving = false; // the pad only steers
+  private readonly pedals = document.getElementById('pedals');
+  private flies = false; // a dragon: the throttle is out, in the pad's place
+  private driving = false; // in a kart: the pedals are out, in the jump button's place, and the pad only steers
   private touchId: number | null = null;
   private throttleTouch: number | null = null;
   private originX = 0;
@@ -78,8 +78,9 @@ export class MobileControls {
     };
     jump?.addEventListener('touchend', release);
     jump?.addEventListener('touchcancel', release);
-    holding(this.gas, input, 'KeyW');
-    holding(this.brake, input, 'KeyS');
+    holding(document.getElementById('gas-button'), input, 'KeyW');
+    holding(document.getElementById('brake-button'), input, 'KeyS');
+    holding(document.getElementById('drift-button'), input, 'Space');
     const throttle = this.throttle;
     if (throttle) {
       throttle.addEventListener(
@@ -115,25 +116,27 @@ export class MobileControls {
   // with. Either starts still.
   setClass(cls: PlayerClass): void {
     if (!IS_TOUCH) return;
-    const flies = cls === 'asian-dragon';
+    this.flies = cls === 'asian-dragon';
     this.release();
     this.leave();
     this.setThrottle(0);
-    this.pad?.classList.toggle('hidden', flies);
-    this.jump?.classList.toggle('hidden', flies);
-    this.throttle?.classList.toggle('hidden', !flies);
+    this.show();
   }
 
-  // Driving a kart or not: the pad steering alone, GAS and BRAKE out, and the jump button DRIFT.
+  // Driving a kart or not: the pad steering alone, and the pedals out in JUMP's place.
   setDriving(driving: boolean): void {
     if (!IS_TOUCH || driving === this.driving) return;
     this.driving = driving;
     this.release();
-    this.gas?.classList.toggle('hidden', !driving);
-    this.brake?.classList.toggle('hidden', !driving);
-    this.jump?.classList.toggle('drift', driving);
-    const word = this.jump?.querySelector('span:last-child');
-    if (word) word.textContent = driving ? 'DRIFT' : 'JUMP';
+    this.show();
+  }
+
+  // Puts out what the thumbs have as things stand.
+  private show(): void {
+    this.pad?.classList.toggle('hidden', this.flies);
+    this.throttle?.classList.toggle('hidden', !this.flies);
+    this.jump?.classList.toggle('hidden', this.flies || this.driving);
+    this.pedals?.classList.toggle('hidden', !this.driving);
   }
 
   private move(x: number, y: number): void {
