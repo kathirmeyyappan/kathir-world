@@ -52,7 +52,9 @@ BODY_TEXTURE = 512  # px: the body's picture and its paint, each side
 EMBLEM_TEXTURE = 64  # px: an emblem's picture, each side
 TIRE_KEEP = 0.5  # of a tire's triangles kept: a tread's bevels are lost at its size
 PAINT_DIFFERS = 24  # 0-255: a pixel some driver's albedo has this far from another's is painted
-TIRE_GAP = 0.03  # metres between a tire and the body beside it
+TIRE_GAP = 0.03  # metres a tire keeps clear of the body round it
+UNDERSIDE = 0.02  # metres the body's lowest point rides over the ground
+SURFACE_STEP = 0.01  # metres between the points a tire's fit is checked against, over every face of the body
 FEET_APART = 0.19  # metres each foot rests out from the middle line: on its pedal, where there are pedals
 FOOT_ROOM = 0.25  # metres over the floor a foot needs: the feet go forward as far as that's clear
 
@@ -235,21 +237,22 @@ def main(kart_id: str, body_dir: Path, tire_dir: Path) -> None:
     emblem_pos, emblem_uv = parts["m_Body.002"]
     tire_pos, tire_uv = read_collada(tire_dir / "TireK_Rng.dae", "Tire_LF__m_Tire")
 
-    # The body's frame: its tires stand level with its axles' hubs (each the biggest round piece at
-    # its end, square to x), their feet on the ground, the middle of its length over the origin.
+    # The body's frame: the ground UNDERSIDE under its lowest point, the middle of its length over
+    # the origin. Each tire is centred on its axle's hub (the biggest round piece at its end, square
+    # to x) and sized to reach the ground from there, so the rear ones, on higher hubs, are bigger.
     tire_middle = (tire_pos.min(axis=0) + tire_pos.max(axis=0)) / 2
     tire_pos = tire_pos - tire_middle
     tire_radius = float(tire_pos[:, 1].max())
     tire_width = float(tire_pos[:, 0].max() - tire_pos[:, 0].min())
     hubs = axle_hubs(body_pos)
-    ground = float(np.mean([h[1] for h in hubs.values()])) - tire_radius
+    wheel, middle, axis, radius = steering_wheel(body_pos)
+    rest = np.setdiff1d(np.arange(len(body_pos) // 3), wheel)
+    ground = float(body_pos.reshape(-1, 3, 3)[rest, :, 1].min()) - UNDERSIDE
     lo, hi = body_pos.min(axis=0), body_pos.max(axis=0)
     shift = np.array([0, -ground, -(lo[2] + hi[2]) / 2])
     body_pos = body_pos + shift
     emblem_pos = emblem_pos + shift
-
-    wheel, middle, axis, radius = steering_wheel(body_pos)
-    rest = np.setdiff1d(np.arange(len(body_pos) // 3), wheel)
+    middle = middle + shift
     across = np.array([1.0, 0, 0])
     grips = [middle - across * radius, middle + across * radius]
     seat = seat_of(body_pos, rest)
@@ -268,15 +271,15 @@ def main(kart_id: str, body_dir: Path, tire_dir: Path) -> None:
         emblem.resize((EMBLEM_TEXTURE,) * 2, Image.Resampling.LANCZOS).save(out / f"emblem-{driver}.png", optimize=True)
     Image.open(tire_dir / "Tire_Rng_Alb.png").convert("RGB").save(out / "tire.png", optimize=True)
 
+    surface = surface_points(body_pos, rest)
     tires = []
     for (end, side), hub in sorted(hubs.items()):
         hub = hub + shift
-        # Just clear of the body beside its hub, on the ground: past the widest of it across
-        # where the tire stands.
-        band = (np.abs(body_pos[:, 2] - hub[2]) < tire_radius) & (body_pos[:, 1] < 2 * tire_radius)
-        clear = float(np.abs(body_pos[band, 0]).max()) + TIRE_GAP + tire_width / 2
-        tires.append((np.array([side * clear, tire_radius, hub[2]]), end == "front"))
-    width = 2 * max(abs(t[0][0]) for t in tires) + tire_width
+        r = float(hub[1])
+        w = tire_width * r / tire_radius
+        out = outboard(surface, hub, side, r, w)
+        tires.append((np.array([hub[0] + side * (out + w / 2), r, hub[2]]), r, end == "front"))
+    width = max(float(hi[0] - lo[0]), 2 * max(abs(at[0]) + tire_width * r / tire_radius / 2 for at, r, _ in tires))
     length = float(hi[2] - lo[2])
     height = float((body_pos[:, 1]).max())
     # In the game's frame, as written out: a point (a way, unscaled) and a length.
@@ -298,7 +301,10 @@ def main(kart_id: str, body_dir: Path, tire_dir: Path) -> None:
         f"  feet: {game(feet)},",
         f"  tire: {{ radius: {metres(tire_radius)}, width: {metres(tire_width)} }},",
         "  tires: [",
-        *[f"    {{ at: {game(at)}, front: {'true' if front else 'false'} }}," for at, front in tires],
+        *[
+            f"    {{ at: {game(at)}, radius: {metres(r)}, front: {'true' if front else 'false'} }},"
+            for at, r, front in tires
+        ],
         "  ],",
         "  paints: {",
         *[f"    {d}: {{ colours: ['{c1}', '{c2}'], emblem: '{d}' }}," for d, (c1, c2) in colours.items()],
@@ -336,6 +342,32 @@ def axle_hubs(pos: np.ndarray) -> dict[tuple[str, int], np.ndarray]:
             found[(end, side)] = (float(size[1]), face)
     assert len(found) == 4, f"found {len(found)} axle hubs, not 4"
     return {k: v for k, (_, v) in found.items()}
+
+
+def surface_points(pos: np.ndarray, which: np.ndarray) -> np.ndarray:
+    """Points over every face of triangles `which`, no further apart than SURFACE_STEP."""
+    out = []
+    for a, b, c in pos.reshape(-1, 3, 3)[which]:
+        n = max(
+            1, int(np.ceil(max(np.linalg.norm(b - a), np.linalg.norm(c - a), np.linalg.norm(c - b)) / SURFACE_STEP))
+        )
+        i, j = np.meshgrid(np.arange(n + 1), np.arange(n + 1))
+        keep = i + j <= n
+        u, v = i[keep] / n, j[keep] / n
+        out.append(a + u[:, None] * (b - a) + v[:, None] * (c - a))
+    return np.concatenate(out)
+
+
+def outboard(surface: np.ndarray, hub: np.ndarray, side: int, radius: float, width: float) -> float:
+    """How far out from its hub's face (metres) a tire on that hub, `radius` round and `width`
+    across, has to stand to keep TIRE_GAP clear of the body (its `surface` points): as near the
+    hub as it can, in the body's wells."""
+    across = np.hypot(surface[:, 1] - hub[1], surface[:, 2] - hub[2]) < radius + TIRE_GAP
+    out = side * (surface[across, 0] - hub[0])
+    for d in np.arange(0, 1, 0.005):
+        if not ((out > d - TIRE_GAP) & (out < d + width + TIRE_GAP)).any():
+            return float(d)
+    raise AssertionError(f"no room for a tire on the hub at {hub.round(3)}")
 
 
 def seat_of(pos: np.ndarray, which: np.ndarray) -> np.ndarray:
