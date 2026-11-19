@@ -956,7 +956,8 @@ the wheels taking back what slides across, rolling up anything within a kerb's h
 flying off a ramp's lip, and walls in the way, which it meets as two circles, at its nose and its
 tail, so a corner hit turns it; it reports how fast it ran into what it hit and how fast it came
 down when it lands. A drift is Space: a press hops it, and landing with the key held and the
-wheel over at speed it drifts that way, tighter or wider by the wheel, a spark blue, yellow and
+wheel over at speed it drifts that way, by the wheel from all but straight (held out of its way)
+to tighter than any turn without one (held into it, `DRIFT_TURN`), a spark blue, yellow and
 purple at 1, 2.25 and 3.5 `miniTurboTime`s of it on the ground (`SPARKS`); let go on a spark, it's a
 mini-turbo, its top speed raised by half over `TURBO.rise`, held as long as the spark gives
 and let down over `TURBO.fall`, the kart slowing with it, so a boost is over when it says. A press in the air, off a ramp or a ledge but not its own hop (or
@@ -975,14 +976,16 @@ out with E (the `exit` action), whatever move they were in stops, and they ride 
 (`PlayerState.riding`), their frames driving it (`my` the gas, `mx` the wheel, the `drift`
 action held) and only what stands out of the seat hit by shots (`SEATED`); kit and bodies that
 can't sit are refused till they get out. Everything that hurts is judged by how fast two things
-close square to where they touch, nothing under 10 m/s and in step with the speed from there:
+close square to where they touch, nothing under 10 m/s and in step with the speed from there, to
+the nearest quarter of a heart or a wrench:
 hearts off a player on foot a kart runs into (`IMPACT`, 5 at 20 m/s), who is thrown back hard (and
 5 off one it comes down on), credited to its driver, else whoever last drove or dropped it; and
 wrenches off a kart (`WEAR`, 2 at 20 m/s, so it takes crash after crash flat out) from a wall or
 another kart (which also part by their `weight`s) and from the ground it lands on, more gently
 still (`LANDING`: half how fast it comes down counts, so it's worn only from a 10 m drop), and a
 shot's damage from anyone, a shot stopping at a kart nearer than whoever it would have hit. At
-no wrenches it explodes (`boom`): it's gone, its driver is thrown out of it, and everyone on foot
+no wrenches it explodes (`boom`): it's gone, its driver is thrown up out of where they sat (and a
+little back off its nose, so the blast is before their eyes), and everyone on foot
 within `BLAST.reach` with nothing between takes `BLAST.damage` and is thrown away, credited to
 whoever took its last wrench; what wore it down never reaches the driver. A kill by a kart is
 announced as one (`kill` with `item: 'kart'` or `'explosion'`), and a death of one's own doing in

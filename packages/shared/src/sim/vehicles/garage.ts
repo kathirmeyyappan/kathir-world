@@ -65,8 +65,9 @@ const DROP_SPEED = 2; // m/s down: a kart coming down on someone, not resting on
 // along the knock at a share of the speed the two closed at, and up.
 const KNOCK = { least: 9, share: 0.6, lift: 5, grip: 6 };
 // An explosion: hearts off everyone on foot within reach of it with nothing between, and the throw
-// it gives them away from it.
-export const BLAST = { reach: 6, damage: 3, speed: 9, lift: 6, grip: 6 };
+// it gives them away from it; its own driver it throws `up` out of where they sat, and a little
+// `back` off its nose, so the blast is before their eyes and not behind them.
+export const BLAST = { reach: 6, damage: 3, speed: 9, lift: 6, grip: 6, driver: { up: 14, back: 3 } };
 const BUMP = 0.3; // of the speed two karts closed at that they part at
 
 // What only the Room keeps of a kart: who's credited with what it does (its driver, else whoever
@@ -346,14 +347,21 @@ export class Garage {
     this.wear(b, worn, this.credit(a));
   }
 
-  // Kart `k` blown up: gone, its driver thrown out of it, and everyone on foot within the blast's
-  // reach with nothing between hurt and thrown away from it, credited to whoever took its last
-  // wrench. Returns where it blew up.
+  // Kart `k` blown up: gone, its driver thrown up out of it, and everyone on foot within the
+  // blast's reach with nothing between hurt and thrown away from it, credited to whoever took its
+  // last wrench. Returns where it blew up.
   private explode(k: Kart, players: PlayerState[], blows: KartBlow[]): Vec3 {
     const at = { x: k.pos.x, y: k.pos.y + bodyOf(k).height / 2, z: k.pos.z };
     const by = this.keeps.get(k.id)?.breaker ?? this.credit(k);
+    const nose = noseOf(k.yaw);
     const driver = players.find((p) => p.id === k.driver);
-    if (driver) this.getOut(driver);
+    if (driver) {
+      this.getOut(driver);
+      // With the kart gone from under them they're where they sat, if their body fits there.
+      const { top, radius } = AVATARS[driver.avatar].hitbox;
+      if (this.structures.fits(k.pos.x, k.pos.z, k.pos.y, top, radius))
+        driver.pos = { x: k.pos.x, y: k.pos.y + EYE_HEIGHT, z: k.pos.z };
+    }
     this.forget(k);
     for (const p of players) {
       if (p.dead || p.riding || classOf(p.avatar).id !== 'walker') continue;
@@ -361,8 +369,13 @@ export class Garage {
       if (Math.hypot(mid.x - at.x, mid.y - at.y, mid.z - at.z) > BLAST.reach || !this.structures.clear(at, mid))
         continue;
       const flat = Math.hypot(mid.x - at.x, mid.z - at.z);
-      const out = flat > 1e-6 ? { x: (mid.x - at.x) / flat, z: (mid.z - at.z) / flat } : noseOf(k.yaw);
-      throwWalker(p, { x: out.x * BLAST.speed, y: BLAST.lift, z: out.z * BLAST.speed }, BLAST.grip);
+      const out = flat > 1e-6 ? { x: (mid.x - at.x) / flat, z: (mid.z - at.z) / flat } : nose;
+      const { up, back } = BLAST.driver;
+      const thrown =
+        p === driver
+          ? { x: -nose.x * back, y: up, z: -nose.z * back }
+          : { x: out.x * BLAST.speed, y: BLAST.lift, z: out.z * BLAST.speed };
+      throwWalker(p, thrown, BLAST.grip);
       blows.push({ victim: p.id, hearts: BLAST.damage, by, how: 'explosion' });
     }
     return at;

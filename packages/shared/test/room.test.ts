@@ -1326,6 +1326,7 @@ test('a kart hurts whoever it runs into by how fast they closed, credited to its
   const hit = inboxes[0].find((m) => m.t === 'hit' && m.victim === victim);
   assert.ok(hit && hit.t === 'hit' && hit.shooter === driver, 'hit, by the driver');
   assert.ok(Math.abs(bob.hearts - (MAX_HEARTS - 5)) < 0.6, `about 5 hearts off at 20 m/s: ${bob.hearts}`);
+  assert.equal((bob.hearts * 4) % 1, 0, `in quarters of a heart: ${bob.hearts}`);
   assert.ok(bob.vy > 0, 'thrown');
 });
 
@@ -1344,6 +1345,7 @@ test("a kart worn out by a wall blows up, hurting its driver and everyone near b
   assert.ok(inboxes[0].some((m) => m.t === 'boom'));
   const me = room.players.find((p) => p.id === driver)!;
   assert.equal(me.riding, null, 'thrown out');
+  assert.ok(me.vy > 2 * Math.hypot(me.vx, me.vz), 'mostly up');
   assert.equal(me.hearts, MAX_HEARTS - BLAST.damage);
   assert.equal(carol.hearts, MAX_HEARTS - BLAST.damage);
 });
