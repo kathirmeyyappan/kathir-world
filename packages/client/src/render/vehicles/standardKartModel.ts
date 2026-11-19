@@ -3,19 +3,19 @@ import type { KartModel } from './kartModel';
 
 export const STANDARD_KART: KartModel = {
   folder: 'kart-standard',
-  steer: { at: [0.0, 0.904, 0.289], axis: [-0.0, 0.426, -0.905], radius: 0.245 },
+  steer: { at: [0.0, 0.764, 0.289], axis: [-0.0, 0.426, -0.905], radius: 0.245 },
   grips: [
-    [-0.245, 0.904, 0.289],
-    [0.245, 0.904, 0.289],
+    [-0.245, 0.764, 0.289],
+    [0.245, 0.764, 0.289],
   ],
-  seat: [-0.0, 0.45, -0.091],
-  feet: [0.209, 0.372, 0.421],
-  tire: { radius: 0.392, width: 0.239 },
+  seat: [-0.0, 0.311, -0.091],
+  feet: [0.209, 0.232, 0.421],
+  tire: { radius: 0.253, width: 0.365 },
   tires: [
-    { at: [0.984, 0.392, 0.476], front: true },
-    { at: [-0.984, 0.392, 0.476], front: true },
-    { at: [0.66, 0.392, -0.777], front: false },
-    { at: [-0.66, 0.392, -0.777], front: false },
+    { at: [0.691, 0.253, 0.476], front: true },
+    { at: [-0.691, 0.253, 0.476], front: true },
+    { at: [0.691, 0.253, -0.777], front: false },
+    { at: [-0.691, 0.253, -0.777], front: false },
   ],
   paints: {
     mario: { colours: ['#183ab9', '#aa0f10'], emblem: 'mario' },

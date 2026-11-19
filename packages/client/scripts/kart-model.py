@@ -2,14 +2,14 @@
 of a set of its tires, each unpacked into a folder:
 
     pip install numpy pillow fast_simplification
-    python packages/client/scripts/kart-model.py standard "path/to/Standard Kart" "path/to/Slim & Crimson Slim"
+    python packages/client/scripts/kart-model.py standard "path/to/Standard Kart" "path/to/Standard & Blue Standard"
 
 A body rip is the body as an OBJ (<name>.obj, MK8's units scaled by OBJ_UNIT, y up, the nose along
 +z): the body itself (material `m_Body`), its steering wheel among its pieces, and the emblem decal
 on its nose (`m_Body.002`); with its albedo once for each driver (bodyk_*_<driver>_alb.png), alike
 but for the two colours it's painted in, and the drivers' emblems (Emblems/<Name>.png). A tire rip
-is its tires as Collada files in MK8's own units, the kart's four in TireK_Rng.dae (each a mesh
-with its axle along x), with their albedo (Tire_Rng_Alb.png).
+is its tires as Collada files in MK8's own units, the kart's four in TireK_<set>.dae (each a mesh
+with its axle along x), with their albedo (Tire_<set>_Alb.png).
 
 It writes, in public/assets/models/kart-<id>/, the parts in the client's format (house_mesh.py
 `emit_part`): `body`, `steer` (the steering wheel, which turns), `emblem` and one `tire`, all
@@ -52,7 +52,6 @@ BODY_TEXTURE = 512  # px: the body's picture and its paint, each side
 EMBLEM_TEXTURE = 64  # px: an emblem's picture, each side
 TIRE_KEEP = 0.5  # of a tire's triangles kept: a tread's bevels are lost at its size
 PAINT_DIFFERS = 24  # 0-255: a pixel some driver's albedo has this far from another's is painted
-TIRE_GAP = 0.03  # metres between a tire and the body beside it
 FEET_APART = 0.19  # metres each foot rests out from the middle line: on its pedal, where there are pedals
 FOOT_ROOM = 0.25  # metres over the floor a foot needs: the feet go forward as far as that's clear
 
@@ -92,6 +91,11 @@ def read_obj(path: Path) -> dict[str, tuple[np.ndarray, np.ndarray]]:
                     pos.append(positions[int(c[0]) - 1])
                     uv.append(uvs[int(c[1]) - 1])
     return {m: (np.array(pos) / OBJ_UNIT * MK8_METRES, np.array(uv)) for m, (pos, uv) in by_material.items()}
+
+
+def geometries(path: Path) -> list[str]:
+    """The names of a Collada file's meshes."""
+    return [g.get("name") or "" for g in ET.parse(path).getroot().iter(f"{NS}geometry")]
 
 
 def read_collada(path: Path, name: str) -> tuple[np.ndarray, np.ndarray]:
@@ -233,23 +237,27 @@ def main(kart_id: str, body_dir: Path, tire_dir: Path) -> None:
     parts = read_obj(next(body_dir.glob("*.obj")))
     body_pos, body_uv = parts["m_Body"]
     emblem_pos, emblem_uv = parts["m_Body.002"]
-    tire_pos, tire_uv = read_collada(tire_dir / "TireK_Rng.dae", "Tire_LF__m_Tire")
+    tires_dae = next(tire_dir.glob("TireK_*.dae"))
+    tire_set = tires_dae.stem.removeprefix("TireK_")
+    tire_pos, tire_uv = read_collada(tires_dae, next(n for n in geometries(tires_dae) if n.endswith("LF__m_Tire")))
 
-    # The body's frame: its tires stand level with its axles' hubs (each the biggest round piece at
-    # its end, square to x), their feet on the ground, the middle of its length over the origin.
+    # The body's frame: its tires as MK8 makes them, each centred along it on its axle's hub (the
+    # biggest round piece at its end, square to x) with its outer face flush with the body's side,
+    # on the edge of its wells, and all four on the ground with their axles level with the hubs as
+    # near as they all can be; the middle of its length over the origin.
     tire_middle = (tire_pos.min(axis=0) + tire_pos.max(axis=0)) / 2
     tire_pos = tire_pos - tire_middle
     tire_radius = float(tire_pos[:, 1].max())
     tire_width = float(tire_pos[:, 0].max() - tire_pos[:, 0].min())
     hubs = axle_hubs(body_pos)
+    wheel, middle, axis, radius = steering_wheel(body_pos)
+    rest = np.setdiff1d(np.arange(len(body_pos) // 3), wheel)
     ground = float(np.mean([h[1] for h in hubs.values()])) - tire_radius
     lo, hi = body_pos.min(axis=0), body_pos.max(axis=0)
     shift = np.array([0, -ground, -(lo[2] + hi[2]) / 2])
     body_pos = body_pos + shift
     emblem_pos = emblem_pos + shift
-
-    wheel, middle, axis, radius = steering_wheel(body_pos)
-    rest = np.setdiff1d(np.arange(len(body_pos) // 3), wheel)
+    middle = middle + shift
     across = np.array([1.0, 0, 0])
     grips = [middle - across * radius, middle + across * radius]
     seat = seat_of(body_pos, rest)
@@ -266,17 +274,14 @@ def main(kart_id: str, body_dir: Path, tire_dir: Path) -> None:
     for driver, (_, name) in DRIVERS.items():
         emblem = Image.open(body_dir / "Emblems" / f"{name}.png").convert("RGBA")
         emblem.resize((EMBLEM_TEXTURE,) * 2, Image.Resampling.LANCZOS).save(out / f"emblem-{driver}.png", optimize=True)
-    Image.open(tire_dir / "Tire_Rng_Alb.png").convert("RGB").save(out / "tire.png", optimize=True)
+    Image.open(tire_dir / f"Tire_{tire_set}_Alb.png").convert("RGB").save(out / "tire.png", optimize=True)
 
-    tires = []
-    for (end, side), hub in sorted(hubs.items()):
-        hub = hub + shift
-        # Just clear of the body beside its hub, on the ground: past the widest of it across
-        # where the tire stands.
-        band = (np.abs(body_pos[:, 2] - hub[2]) < tire_radius) & (body_pos[:, 1] < 2 * tire_radius)
-        clear = float(np.abs(body_pos[band, 0]).max()) + TIRE_GAP + tire_width / 2
-        tires.append((np.array([side * clear, tire_radius, hub[2]]), end == "front"))
-    width = 2 * max(abs(t[0][0]) for t in tires) + tire_width
+    side = float(hi[0])  # the body's side: it's even about the middle
+    tires = [
+        (np.array([s * (side - tire_width / 2), tire_radius, hub[2] + shift[2]]), end == "front")
+        for (end, s), hub in sorted(hubs.items())
+    ]
+    width = 2 * side
     length = float(hi[2] - lo[2])
     height = float((body_pos[:, 1]).max())
     # In the game's frame, as written out: a point (a way, unscaled) and a length.
