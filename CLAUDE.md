@@ -1008,7 +1008,13 @@ and E to get out. A driver is watched along `KART_BOOM`, their legend is the kar
 touch the pad steers alone, GAS and BRAKE hold W and S, the jump button drifts and OUT gets out.
 Their kart's wrenches are a row of pixel wrenches under their hearts (`Hearts` with the `wrench`
 sprite). A frame the Room steps a driver without (one arriving late) drives on with the keys as
-their last frame held them.
+their last frame held them. A kart's meshes and its paint's materials are made once per scene and
+shared by every kart of that model and paint, so a kart let go disposes its own nodes alone.
+
+A kart is in every menu a command or a key is: the commands card's `drop kart` group (its
+`command`), the guide's Items tab under Karts (standing empty in Mario's paint, its numbers read
+off its row, `kart.ts` and `garage.ts` in `guide/stats.ts`, its words `KART_TEXT`), and the
+guide's Kart controls, the legend's `DRIVING` cells.
 
 A driver sits in their kart as it's drawn: `KartMesh` puts its `Seat` (`render/vehicles/Seat.ts`)
 each frame, the seat's middle and the kart's turn, tipped with it, and in its frame the grips
@@ -1156,12 +1162,13 @@ it's one on foot they could switch to.
 ## Guide
 
 The guide (`world.kathirm.com/guide/`, `packages/client/guide/index.html` and `src/guide/`) is a
-second Vite page: every character, item, place, bot and command in tabs. A character stands in a
-`BodyView` (`render/BodyView.ts`, the menu's player view); an item, a heart or a résumé cube floats
-on its own in one (`BodyView.syncThing`, built in `guide/things.ts` from the shapes the game draws
-them with), framed by its measured size. Its numbers are worked out in `guide/stats.ts` from the
+second Vite page: every character, item, kart, place, bot and command in tabs. A character stands
+in a `BodyView` (`render/BodyView.ts`, the menu's player view); an item, a heart or a résumé cube
+floats on its own in one, and a kart stands there (`BodyView.syncThing`, built in `guide/things.ts`
+from the shapes the game draws them with; a thing drawn with the scene's shared materials, as a
+kart is, says so, `Thing.shared`, so they outlive it), framed by its measured size. Its numbers are worked out in `guide/stats.ts` from the
 registries the game runs on, never typed in, and its words are `guide/content.ts`, keyed by the
-registries' ids, so a new skin, item, gear or pickup doesn't build until it has an entry there:
+registries' ids, so a new skin, item, gear, kart or pickup doesn't build until it has an entry there:
 plain statements of what each thing is (Kathir writes anything more, and the fun facts), no numbers.
 A character's SOUNDS are a button for every sound it makes that not every look makes alike
 (`guide/sounds.ts` `linesOf`): what it says (`VOICES`), the sounds of the moves it has, its own

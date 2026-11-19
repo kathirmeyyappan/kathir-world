@@ -1,21 +1,26 @@
-// The guide's numbers, read off the registries the game runs on (AVATARS, ITEMS, GEAR, PICKUPS and
-// the constants), so a change to the game is a change here with no one remembering to make it.
-// Everything is worked out the way the sim does it: a spray's damage a second from its damage a tick
-// and how often it ticks.
+// The guide's numbers, read off the registries the game runs on (AVATARS, ITEMS, GEAR, KARTS,
+// PICKUPS and the constants), so a change to the game is a change here with no one remembering to
+// make it. Everything is worked out the way the sim does it: a spray's damage a second from its
+// damage a tick and how often it ticks.
 import {
   AVATARS,
+  BLAST,
   BOT_DEFAULT_SECONDS,
   BOT_FLAGS,
   botFlags,
   BOT_MAX_SECONDS,
   CHILL_SECONDS,
   CHILLED_SPEED_MULTIPLIER,
+  DRIFT_FROM,
   FUEL_REFILL_RATE,
   GEAR,
   GRAVITY,
   HEADSHOT_MULTIPLIER,
+  IMPACT,
   ITEMS,
   JUMP_RISE,
+  KARTS,
+  LANDING,
   PICKUPS,
   PICKUP_AREAS,
   REGEN_RATE,
@@ -24,7 +29,10 @@ import {
   SPEEDY_MULTIPLIER,
   SPEEDY_SECONDS,
   TICK_RATE,
+  TRICK,
+  TURBO,
   climbSpeedOf,
+  impactDamage,
   dragonShape,
   jumpVelocityOf,
   chainOf,
@@ -40,6 +48,7 @@ import {
   type BotId,
   type GearId,
   type ItemId,
+  type KartId,
   type PickupKind,
 } from '@world/shared';
 
@@ -260,6 +269,63 @@ export function gearStats(id: GearId): Stat[] {
     { label: 'Lift', value: `${num(spec.lift - GRAVITY)} m/s²` },
     { label: 'Max rise', value: `${num(spec.maxRise)} m/s` },
     { label: 'Brake', value: `${num(spec.brake - GRAVITY)} m/s²` },
+  ];
+}
+
+export function kartStats(id: KartId): Stat[] {
+  const spec = KARTS[id];
+  return [
+    { label: 'Drop', value: `/${spec.command}` },
+    { label: 'Top speed', value: `${num(spec.speed)} m/s` },
+    { label: 'Acceleration', value: `${num(spec.acceleration)} s to top speed` },
+    { label: 'Turning circle', value: `${num(spec.handling)} m` },
+    { label: 'Weight', value: num(spec.weight) },
+    { label: 'Wrenches', value: num(spec.wrenches) },
+  ];
+}
+
+const SPARKS = ['Blue', 'Yellow', 'Purple'];
+
+// What a drift, a trick and a crash come to in a kart, as kart.ts and garage.ts work them out.
+export function kartMoves(id: KartId): { title: string; stats: Stat[] }[] {
+  const spec = KARTS[id];
+  const boosted = num(spec.speed * TURBO.boost);
+  // The height a kart falls from rest to come down at `speed` m/s; and the speed it comes down at
+  // that takes every wrench it has, LANDING of it counting as a knock (IMPACT).
+  const drop = (speed: number) => num((speed * speed) / (2 * GRAVITY));
+  const breaking = (20 * spec.wrenches) / IMPACT.at20 / LANDING;
+  return [
+    {
+      title: 'Drift',
+      stats: [
+        { label: 'Use', value: 'Hold Space and steer' },
+        { label: 'Least speed', value: `${num(DRIFT_FROM * spec.speed)} m/s` },
+        ...SPARKS.map((spark, i) => ({
+          label: `${spark} spark`,
+          value: `${num((i + 1) * spec.miniTurboTime)} s drifting, a ${num(TURBO.holds[i])} s boost`,
+        })),
+        { label: 'Boost speed', value: `${boosted} m/s` },
+      ],
+    },
+    {
+      title: 'Trick',
+      stats: [
+        { label: 'Use', value: 'Hit Space in the air off a ramp or a ledge' },
+        { label: 'Boost', value: `${num(TRICK.hold)} s on landing, to ${boosted} m/s` },
+      ],
+    },
+    {
+      title: 'Crashes',
+      stats: [
+        {
+          label: 'Run over',
+          value: `${num(impactDamage(spec.speed))} hearts at top speed, ${num(impactDamage(spec.speed * TURBO.boost))} boosted`,
+        },
+        { label: 'Explosion', value: `${num(BLAST.damage)} hearts within ${num(BLAST.reach)} m` },
+        { label: 'Unharmed by', value: `drops up to ${drop(IMPACT.least / LANDING)} m` },
+        { label: 'Explodes from', value: `a ${drop(breaking)} m drop` },
+      ],
+    },
   ];
 }
 

@@ -1,18 +1,22 @@
 // What the guide's item views show: each item on its own, floating and turning as a pickup does in
-// the world (sim/pickups.ts), and each résumé cube floating as the cubes do (sim/cubes.ts), built
-// from the shapes the game draws them with.
+// the world (sim/pickups.ts), each résumé cube floating as the cubes do (sim/cubes.ts), and each
+// kart standing empty, built from the shapes the game draws them with.
 import { TransformNode, Vector3 } from '@babylonjs/core';
 import {
   CUBE_BASE_Y,
   CUBE_FLOAT_AMPLITUDE,
   ITEMS,
+  KARTS,
   PICKUPS,
   PICKUP_BOB,
   PICKUP_BOB_HZ,
   PICKUP_SPIN,
   type CubeContent,
+  createKart,
   type GearId,
   type ItemId,
+  type Kart,
+  type KartId,
   type PickupKind,
 } from '@world/shared';
 import type { Thing } from '../render/BodyView';
@@ -20,6 +24,7 @@ import { CubeMesh } from '../render/CubeMesh';
 import { buildGear } from '../render/Gear';
 import { buildHeart } from '../render/Pickups';
 import { buildTank, buildWeapon, weaponPalette } from '../render/Weapons';
+import { KartMesh } from '../render/vehicles/KartMesh';
 
 const HOVER = 1.2; // metres up an item floats over the floor, about where it's held
 const ITEM_BOB = 0.03; // of an item's size, how far it floats up and down
@@ -110,6 +115,32 @@ export function cubeThing(content: CubeContent): Thing {
           rx: Math.sin(t * 0.5) * 0.1,
           ry: t * CUBE_TURN,
         });
+    },
+  };
+}
+
+// A kart in Mario's paint, the one a kart wears for anyone outside his family, standing on the
+// floor where it drops.
+export function kartThing(id: KartId): Thing {
+  return {
+    key: `kart-${id}`,
+    shared: true,
+    build(engine, parent) {
+      const mesh = new KartMesh(engine.scene, `guide-${id}`, id, 'mario');
+      mesh.root.parent = parent;
+      parent.onDisposeObservable.add(() => mesh.dispose());
+      const kart: Kart = {
+        ...createKart(id, 1, { x: 0, y: 0, z: 0 }, 0),
+        id: `guide-${id}`,
+        paint: 'mario',
+        wrenches: KARTS[id].wrenches,
+        driver: null,
+      };
+      let last = 0;
+      return (t) => {
+        mesh.update(kart, t - last);
+        last = t;
+      };
     },
   };
 }

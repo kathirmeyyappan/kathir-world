@@ -2,7 +2,17 @@
 // here: anything the game decides (speeds, damage, heights, counts) is read off the code in
 // stats.ts. The tables are keyed by the registries' ids, so a new skin or item doesn't build until
 // it has an entry. `facts` are shown under a thing's numbers when there are any.
-import type { AvatarId, BotFlag, BotId, GearId, ItemId, PickupKind } from '@world/shared';
+import {
+  KARTS,
+  type AvatarId,
+  type BotFlag,
+  type BotId,
+  type GearId,
+  type ItemId,
+  type KartId,
+  type PickupKind,
+} from '@world/shared';
+import { DRIVING } from '../ui/legend';
 import type { AbilityId } from './stats';
 
 export interface Entry {
@@ -13,7 +23,7 @@ export interface Entry {
 
 export const INTRO = ['this is the kathir world official (can I call it that?) guide.'];
 
-// The keys, on foot and as a dragon.
+// The keys, on foot, as a dragon and in a kart.
 const SHARED: [string, string][] = [
   ['Z', 'first or third person'],
   ['C', 'every command as a button'],
@@ -29,13 +39,21 @@ export const CONTROLS: { title: string; keys: [string, string][] }[] = [
       ['Shift', 'hold to run'],
       ['Space', 'jump'],
       ['X', 'special move (character dependent)'],
-      ['Mouse', 'look; click to shoot, open a door or read a cube'],
+      ['Mouse', 'look; click to shoot, open a door, get in a kart or read a cube'],
       ...SHARED,
     ],
   },
   {
     title: 'Dragon',
     keys: [['W', 'fly forward'], ['Mouse', 'steer; hold click to breathe'], ['A / S / D', 'roar'], ...SHARED],
+  },
+  {
+    title: 'Kart',
+    keys: [
+      ...DRIVING.map(({ keys, does }): [string, string] => [keys.join(' / '), does]),
+      ['Mouse', 'look around'],
+      ...SHARED,
+    ],
   },
 ];
 
@@ -91,6 +109,10 @@ export const ITEM_TEXT: Record<ItemId, Entry> = {
 
 export const GEAR_TEXT: Record<GearId, Entry> = {
   jetpack: plain('Jetpack', 'A jetpack.'),
+};
+
+export const KART_TEXT: Record<KartId, Entry> = {
+  standard: plain(KARTS.standard.name, 'The Standard Kart from Mario Kart 8, painted for whoever drops it.'),
 };
 
 export const PICKUP_TEXT: Record<PickupKind, Entry> = {
