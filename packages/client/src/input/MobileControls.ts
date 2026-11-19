@@ -131,6 +131,7 @@ export class MobileControls {
     this.release();
     this.gas?.classList.toggle('hidden', !driving);
     this.brake?.classList.toggle('hidden', !driving);
+    this.jump?.classList.toggle('drift', driving);
     const word = this.jump?.querySelector('span:last-child');
     if (word) word.textContent = driving ? 'DRIFT' : 'JUMP';
   }

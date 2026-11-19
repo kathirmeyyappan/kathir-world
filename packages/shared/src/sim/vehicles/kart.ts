@@ -14,6 +14,7 @@
 // after one is a boost like a mini-turbo's held for TRICK.hold.
 import type { Structures } from '../collision';
 import { EYE_HEIGHT, GRAVITY } from '../constants';
+import type { ActionSpec, ItemAction } from '../items';
 import { takeLook } from '../player';
 import { SURFACES } from '../surfaces';
 import type { InputFrame, PlayerState, Vec3 } from '../types';
@@ -28,6 +29,13 @@ export interface KartControls {
 }
 
 export const IDLE: KartControls = { gas: 0, steer: 0, drift: false };
+
+// A driver's keys besides the movement keys' (the gas and the wheel): the drift, held, and getting
+// out, which is the Room's to do (garage.ts).
+export const KART_ACTIONS = {
+  drift: { key: 'Space', mode: 'hold' },
+  exit: { key: 'KeyE', mode: 'tap' },
+} satisfies Partial<Record<ItemAction, ActionSpec>>;
 
 export type Spark = 1 | 2 | 3; // blue, yellow, purple
 
@@ -247,7 +255,8 @@ function rightOf(yaw: number): { x: number; z: number } {
   return { x: Math.cos(yaw), z: -Math.sin(yaw) };
 }
 
-function forwardSpeed(k: KartState): number {
+// How fast it's going along its nose, m/s: less than nothing backing up.
+export function forwardSpeed(k: KartState): number {
   const f = noseOf(k.yaw);
   return k.vel.x * f.x + k.vel.z * f.z;
 }

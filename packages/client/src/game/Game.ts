@@ -49,6 +49,7 @@ import {
   type Vec3,
   EYE_HEIGHT,
   KARTS,
+  KART_ACTIONS,
   SEATED,
   eyeOf,
   seatedAt,
@@ -88,6 +89,7 @@ import { Bubble } from '../ui/Bubble';
 import { CommandHint } from '../ui/CommandHint';
 import { CommandsMenu } from '../ui/CommandsMenu';
 import { Condition } from '../ui/Condition';
+import { KartGauge } from '../ui/KartGauge';
 import { EdgeFlash } from '../ui/EdgeFlash';
 import { Death } from '../ui/Death';
 import { Fuel } from '../ui/Fuel';
@@ -254,6 +256,7 @@ export class Game {
   private readonly fuel = new Fuel();
   private readonly gearHud = new GearHud();
   private readonly condition = new Condition();
+  private readonly kartGauge = new KartGauge();
   private readonly commandHint = new CommandHint();
   private readonly areaTitle = new AreaTitle();
   private readonly commandsMenu = new CommandsMenu();
@@ -1109,10 +1112,13 @@ export class Game {
     this.viewmodel.swing(this.view.atEyes && !this.dead ? self.strike : null, strikeOf(self.avatar), dt);
     this.viewmodel.update(dt);
     const showHint = held && !this.dead;
+    // A driver on a mouse device, their hands empty, is told how to get out, and how their kart is
+    // going; on touch the OUT button says the one, and there's no room for the other.
+    const driving = !!self.riding && !this.dead && !IS_TOUCH;
     this.hud.setItemHint(
-      showHint ? itemHint(held.id, !IS_TOUCH, this.scoped, classOf(self.avatar)) : '',
+      driving ? EXIT_HINT : showHint ? itemHint(held.id, !IS_TOUCH, this.scoped, classOf(self.avatar)) : '',
       held && !ITEMS[held.id].own ? itemStats(held.id) : '',
-      showHint ? held.id : '',
+      driving ? 'kart' : showHint ? held.id : '',
       held ? ITEMS[held.id].element : null,
     );
     // A look's own moves get their hint as the look is taken, once the start press (main.ts
@@ -1127,6 +1133,7 @@ export class Game {
     );
     this.gearHud.set(this.dead ? null : self.gear);
     this.condition.set(this.dead ? 0 : self.chilled);
+    this.kartGauge.set(driving ? this.prediction.kartPace() : null);
     this.commandHint.update(this.isBlocked());
     this.minimap.update({
       me: { x: p.x, y: p.y, z: p.z, yaw: this.input.yaw },
@@ -1527,6 +1534,8 @@ export class Game {
 
 // A key as the hint bar draws one: its name in square brackets (ui/Hud.ts).
 const keyed = (code: string): string => `[${keyLabel(code)}]`;
+
+const EXIT_HINT = actionHelp({ exit: KART_ACTIONS.exit }, ', ', keyed);
 
 // The hint bar's text. A look's own weapon (a dragon's breath) is its name alone: a click fires it
 // as anywhere, and the look's keys are in the legend. A scope-only weapon leads with the step
