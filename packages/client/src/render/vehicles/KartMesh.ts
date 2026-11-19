@@ -1,7 +1,8 @@
 // A kart as it's drawn (a Kart from the room, sim/vehicles/garage.ts): its model's body in its paint,
 // its emblem, its four tires turning as it rolls (the front two steering), its steering wheel
 // turning, the body tipped to the ground under its tires, and all of it at the size it's built at
-// for its driver, eased there; and its seat as it's drawn, for its driver to sit in. Its model's parts are fetched the first time a kart of that model is drawn, and
+// for its driver, eased there; twirling a whole turn under its driver through a trick (theirs to
+// sit through as they will); and its seat as it's drawn, for its driver to sit in. Its model's parts are fetched the first time a kart of that model is drawn, and
 // each paint is made the first time one wears it: until both are here it's drawn as a box of its
 // size in its paint's first colour.
 import {
@@ -17,6 +18,7 @@ import {
   type Scene,
 } from '@babylonjs/core';
 import { KARTS, WORLD_STRUCTURES, noseOf, type AvatarId, type Kart, type KartId } from '@world/shared';
+import { smooth } from '../avatars/motion';
 import { fetchMesh, meshData } from '../models/meshFile';
 import { perScene } from '../perScene';
 import { KART_MODELS, paintOf, type KartModel, type KartPaint } from './kartModel';
@@ -27,6 +29,7 @@ const MAX_TURN = 0.5; // radians the front tires turn with the wheel full over
 const WHEEL_TURN = 1.6; // radians the steering wheel turns, full over
 const TIP_RATE = 10; // per second: how fast the body settles to the tilt of the ground under it
 const GROW_RATE = 4; // per second: how fast it grows or shrinks to the size it's built at for its driver
+const TRICK_SECONDS = 0.7; // a trick as it's drawn, from the press: the kart's twirl, its driver's leap
 
 // A model's meshes in a scene, hidden, every drawn kart a clone of them sharing their geometry.
 interface Parts {
@@ -42,6 +45,7 @@ const paintsIn = perScene(() => new Map<string, Promise<{ body: StandardMaterial
 export class KartMesh {
   private readonly root: TransformNode; // where it stands, turned its way
   private readonly tilt: TransformNode; // tipped with the ground under its tires
+  private readonly twirl: TransformNode; // turned round under its driver through a trick
   private readonly model: KartModel;
   private readonly axis: Vector3; // what its steering wheel turns round
   readonly seat: Seat;
@@ -50,6 +54,7 @@ export class KartMesh {
   private standIn: Mesh | null;
   private rolled = 0; // radians its tires have turned
   private size = 0; // how many times its model's size it's drawn, on its way to the kart's own; none yet
+  private trick: { way: 1 | -1; t: number } | null = null; // the trick being drawn: its way, and seconds since its press
   private pitch = 0;
   private roll = 0;
   private disposed = false;
@@ -66,10 +71,12 @@ export class KartMesh {
     this.root = new TransformNode(`kart-${id}`, scene);
     this.tilt = new TransformNode(`kart-${id}-tilt`, scene);
     this.tilt.parent = this.root;
+    this.twirl = new TransformNode(`kart-${id}-twirl`, scene);
+    this.twirl.parent = this.tilt;
     const { width, length, height } = KARTS[kart].body;
     this.standIn = MeshBuilder.CreateBox(`kart-${id}-stand-in`, { width, depth: length, height }, scene);
     this.standIn.position.y = height / 2;
-    this.standIn.parent = this.tilt;
+    this.standIn.parent = this.twirl;
     const flat = new StandardMaterial(`kart-${id}-stand-in`, scene);
     flat.diffuseColor = Color3.FromHexString(paintOf(this.model, paint).colours[0]);
     this.standIn.material = flat;
@@ -90,6 +97,11 @@ export class KartMesh {
     if (kart.grounded) this.tipTo(kart, dt);
     this.tilt.rotation.set(this.pitch, 0, this.roll);
     this.tilt.scaling.setAll(this.size);
+    // The sim's trick while it's in the air, then on through its landing until it's drawn through.
+    if (kart.trick) this.trick = { ...kart.trick };
+    else if (this.trick && (this.trick.t += dt) >= TRICK_SECONDS) this.trick = null;
+    const through = this.trick ? Math.min(1, this.trick.t / TRICK_SECONDS) : 0;
+    this.twirl.rotation.y = this.trick ? this.trick.way * 2 * Math.PI * smooth(through) : 0;
     for (const tire of this.tires) {
       tire.spin.rotation.x = this.rolled;
       if (tire.front) tire.steer.rotation.y = kart.wheel * MAX_TURN;
@@ -97,7 +109,15 @@ export class KartMesh {
     Quaternion.RotationAxisToRef(this.axis, -kart.wheel * WHEEL_TURN, STEER);
     if (this.steer) (this.steer.rotationQuaternion ??= new Quaternion()).copyFrom(STEER);
     Quaternion.RotationYawPitchRollToRef(kart.yaw, this.pitch, this.roll, TURN);
-    this.seat.place(kart, this.root.position, TURN, this.size, STEER, along);
+    this.seat.place(
+      kart,
+      this.root.position,
+      TURN,
+      this.size,
+      STEER,
+      along,
+      this.trick && { way: this.trick.way, through },
+    );
   }
 
   dispose(): void {
@@ -145,15 +165,15 @@ export class KartMesh {
       made.setEnabled(true);
       return made;
     };
-    piece(p.body, 'body', this.tilt).material = materials.body;
-    piece(p.emblem, 'emblem', this.tilt).material = materials.emblem;
+    piece(p.body, 'body', this.twirl).material = materials.body;
+    piece(p.emblem, 'emblem', this.twirl).material = materials.emblem;
     this.steer = new TransformNode(`kart-${this.id}-steer`, this.scene);
-    this.steer.parent = this.tilt;
+    this.steer.parent = this.twirl;
     this.steer.position.set(...this.model.steer.at);
     piece(p.steer, 'wheel', this.steer).material = materials.body;
     this.tires = this.model.tires.map(({ at, front }, i) => {
       const steer = new TransformNode(`kart-${this.id}-tire-${i}`, this.scene);
-      steer.parent = this.tilt;
+      steer.parent = this.twirl;
       steer.position.set(...at);
       const spin = new TransformNode(`kart-${this.id}-tire-${i}-spin`, this.scene);
       spin.parent = steer;

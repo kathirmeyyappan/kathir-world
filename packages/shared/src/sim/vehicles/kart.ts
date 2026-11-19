@@ -8,6 +8,10 @@
 // or out of it. Every `miniTurboTime` of it on the ground is a spark, blue, then yellow, then
 // purple, and letting go of the key on one is a mini-turbo: its top speed raised by half over
 // TURBO.rise, held for TURBO.holds by the spark, and let down over TURBO.fall.
+//
+// A trick: a press of the drift key in the air (off a ramp or a ledge; not its own hop's) tricks
+// it left or right, the way the wheel is held or, with it held neither way, either, and landing
+// after one is a boost like a mini-turbo's held for TRICK.hold.
 import type { Structures } from '../collision';
 import { EYE_HEIGHT, GRAVITY } from '../constants';
 import { takeLook } from '../player';
@@ -38,7 +42,8 @@ export interface KartState {
   held: boolean; // the drift key was down last tick, so a press is the tick it goes down
   hop: boolean; // in the hop a press gives, until it lands
   drift: { way: 1 | -1; t: number } | null; // its way (1 right) and the seconds of it on the ground
-  turbo: { spark: Spark; t: number } | null; // a mini-turbo: the spark it's from, and the seconds into it
+  trick: { way: 1 | -1; t: number } | null; // in the air: its way (1 right) and the seconds since it began
+  turbo: { hold: number; t: number } | null; // a boost: the seconds it holds at full, and the seconds into it
 }
 
 // What came of a tick: how fast it was going into what it ran into, square to it (0 for nothing),
@@ -49,6 +54,7 @@ export interface KartStep {
 }
 
 export const TURBO = { boost: 1.5, rise: 0.2, holds: [1, 2, 3], fall: 0.5 };
+export const TRICK = { hold: 0.8 }; // seconds a trick's boost holds at full, rising and falling as a mini-turbo's
 
 // What a knock does, by how fast the two close on each other square to where they touch, m/s:
 // nothing under `least`, then `at20` at 20 m/s and on in step. In hearts off a player a kart runs
@@ -57,6 +63,15 @@ export const IMPACT = { least: 10, at20: 5 };
 
 export function impactDamage(closing: number): number {
   return closing < IMPACT.least ? 0 : (IMPACT.at20 * closing) / 20;
+}
+
+// The share of how fast a kart comes down onto the ground that counts as a knock (IMPACT): landing
+// on its tires it's worn only from a 10 m drop (20 m/s), and a 40 m one (40 m/s) takes every
+// wrench a kart has, so it comes down whole from a trick off anything short of a cliff.
+export const LANDING = 0.5;
+
+export function landingDamage(speed: number): number {
+  return impactDamage(LANDING * speed);
 }
 export const DRIFT_FROM = 0.4; // of its speed: the least a drift begins or carries on at
 
@@ -89,6 +104,7 @@ export function createKart(kart: KartId, size: number, pos: Vec3, yaw: number): 
     held: false,
     hop: false,
     drift: null,
+    trick: null,
     turbo: null,
   };
 }
@@ -144,17 +160,22 @@ export function stepKart(k: KartState, c: KartControls, dt: number, structures: 
     k.vel.y = HOP;
     k.grounded = false;
     k.hop = true;
-  }
+  } else if (pressed && !k.grounded && !k.hop && !k.trick) k.trick = { way: trickWay(k, steer), t: 0 };
+  if (k.trick) k.trick.t += dt;
   const speed = forwardSpeed(k);
   if (k.drift && (!c.drift || speed < DRIFT_FROM * spec.speed)) {
     const spark = c.drift ? null : sparkOf(k.drift.t, spec);
-    if (spark) k.turbo = { spark, t: 0 };
+    if (spark) k.turbo = { hold: TURBO.holds[spark - 1], t: 0 };
     k.drift = null;
   }
   k.yaw += turnRate(k, spec, speed) * dt;
   if (k.grounded) drive(k, spec, c.gas, dt, structures);
   const impact = move(k, dt, structures);
   const landing = settle(k, dt, structures);
+  if (landing > 0 && k.trick) {
+    k.turbo = { hold: TRICK.hold, t: 0 };
+    k.trick = null;
+  }
   if (landing > 0 && k.hop) {
     k.hop = false;
     if (c.drift && Math.abs(steer) >= DRIFT_HOLD && forwardSpeed(k) >= DRIFT_FROM * spec.speed)
@@ -174,12 +195,18 @@ export function sparkOf(t: number, spec: KartSpec): Spark | null {
   return sparks === 0 ? null : (sparks as Spark);
 }
 
-// How many times its speed a kart's top speed is through a mini-turbo: 1 out of one.
+// The way a trick goes: the wheel's, held over, else either, by where the kart is: as good as a
+// coin's toss to the driver, and the same on the server and on their client predicting it.
+function trickWay(k: KartState, steer: number): 1 | -1 {
+  if (Math.abs(steer) >= DRIFT_HOLD) return steer > 0 ? 1 : -1;
+  return Math.floor(Math.abs(k.pos.x + k.pos.z) * 100) % 2 ? 1 : -1;
+}
+
+// How many times its speed a kart's top speed is through a boost: 1 out of one.
 export function turboShare(turbo: KartState['turbo']): number {
   if (!turbo) return 1;
-  const { boost, rise, holds, fall } = TURBO;
-  const hold = holds[turbo.spark - 1];
-  const t = turbo.t;
+  const { boost, rise, fall } = TURBO;
+  const { hold, t } = turbo;
   if (t < rise) return 1 + ((boost - 1) * t) / rise;
   if (t < rise + hold) return boost;
   return 1 + (boost - 1) * Math.max(0, 1 - (t - rise - hold) / fall);

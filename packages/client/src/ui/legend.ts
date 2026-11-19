@@ -36,7 +36,7 @@ const DRIVING: LegendCell[] = [
   cell(['W'], 'gas'),
   cell(['S'], 'brake'),
   cell(['A', 'D'], 'steer'),
-  cell(['Space'], 'hop, hold to drift'),
+  cell(['Space'], 'hop, hold to drift, trick in the air'),
   cell(['E'], 'get out'),
 ];
 

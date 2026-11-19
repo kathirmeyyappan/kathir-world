@@ -19,6 +19,7 @@ import {
   bodyOf,
   createKart,
   impactDamage,
+  landingDamage,
   noseOf,
   ride,
   seat,
@@ -51,7 +52,7 @@ export const KART_REACH = 4; // metres along the look from the eye that a click 
 // a step ahead of the Room's.
 const REACH_SLACK = 1;
 const DROP_AHEAD = 7; // metres in front of whoever asks for one that a kart drops
-const DROP_HEIGHT = 2; // metres over their feet it drops from: landing under what wears it (IMPACT)
+const DROP_HEIGHT = 2; // metres over their feet it drops from: landing under what wears it (LANDING)
 const IDLE_SECONDS = 120; // an empty kart is taken away after this long
 const STRUCK_SECONDS = 0.5; // a kart hurts the same player again no sooner than this
 const DROP_DAMAGE = 5; // hearts off someone a kart comes down on
@@ -152,15 +153,15 @@ export class Garage {
 
   // Gets `p` out of the kart they drive, standing beside it (its left, its right, behind it or in
   // front, the first a body fits, else on top of it), with what they put away handed back. The kart
-  // rolls on with no keys held, slowing to a stop, and any drift it was in goes with its driver,
-  // giving it no mini-turbo.
+  // rolls on with no keys held, slowing to a stop, and any drift or trick it was in goes with its
+  // driver, giving it no boost.
   getOut(p: PlayerState): void {
     const k = p.riding ? this.karts.get(p.riding) : undefined;
     const keep = p.riding ? this.keeps.get(p.riding) : undefined;
     p.riding = null;
     if (!k || !keep) return;
     k.driver = null;
-    k.drift = null;
+    k.drift = k.trick = null;
     k.hop = k.held = false;
     p.item = keep.stowed.item;
     p.gear = keep.stowed.gear;
@@ -233,7 +234,7 @@ export class Garage {
 
   // Wrenches off `k` for what it ran into and came down on, credited to it.
   private worn(k: Kart, { impact, landing }: KartStep): void {
-    this.wear(k, impactDamage(impact) + impactDamage(landing), this.credit(k));
+    this.wear(k, impactDamage(impact) + landingDamage(landing), this.credit(k));
   }
 
   private wear(k: Kart, wrenches: number, by: string | null): void {

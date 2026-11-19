@@ -955,7 +955,11 @@ down when it lands. A drift is Space: a press hops it, and landing with the key 
 wheel over at speed it drifts that way, tighter or wider by the wheel, a spark blue, yellow and
 purple at one, two and three `miniTurboTime`s of it on the ground; let go on a spark, it's a
 mini-turbo, its top speed raised by half over `TURBO.rise`, held for `TURBO.holds` by the spark
-and let down over `TURBO.fall`.
+and let down over `TURBO.fall`. A press in the air, off a ramp or a ledge but not its own hop (or
+every hop would be a boost), is a trick (`KartState.trick`), left or right the way the wheel is
+held, else either by where the kart is (so the driver's client predicts the same way), and landing
+after one is a boost like a mini-turbo's held for `TRICK.hold`; `turbo` is either, by how long it
+holds.
 
 A room's karts are its `Garage` (`garage.ts`), which the Room steps and whose hurts it deals out,
 and every client is sent them (`karts` in `welcome` and `snap`, each a `Kart`: its `KartState`,
@@ -970,7 +974,9 @@ can't sit are refused till they get out. Everything that hurts is judged by how 
 close square to where they touch (`IMPACT`: nothing under 10 m/s, 5 at 20 and on in step):
 hearts off a player on foot a kart runs into, who is thrown back hard (and 5 off one it comes
 down on), credited to its driver, else whoever last drove or dropped it; and wrenches off a kart
-from a wall, the ground it lands on or another kart (which also part by their `weight`s), and a
+from a wall or another kart (which also part by their `weight`s), from the ground it lands on more
+gently (`LANDING`: half how fast it comes down counts, so it's worn only from a 10 m drop and a
+40 m one takes every wrench), and a
 shot's damage from anyone, a shot stopping at a kart nearer than whoever it would have hit. At
 no wrenches it explodes (`boom`): it's gone, its driver is thrown out of it, and everyone on foot
 within `BLAST.reach` with nothing between takes `BLAST.damage` and is thrown away, credited to
@@ -1022,6 +1028,12 @@ wheel. Its hips go on the seat back as far as keeps its belly behind the wheel (
 hands a clip keeps on the wheel are closed on the kart's own grips (`Rig.grasp`), since MK8's
 wheels stand elsewhere. The driver files come whole in retexture mods (the script's docstring says
 which), the animations as the game has them.
+A trick (`Seat.trick`, timed by `KartMesh` from the press, `TRICK_SECONDS`, on through the landing)
+twirls the kart's drawn body a whole turn its way under its driver, the seat staying put: a
+jointed body plays its trick that way (`trickL`, `trickR`: MK8's trick that spins a whole turn
+that way, or the other way's mirrored, so it spins with the kart), and every other figure is
+thrown up out of the seat standing with its hands up and back down (`Seat.leap`,
+`WalkerAvatar.thrown`).
 Plankton, too small to reach the pedals, stands on top of the steering wheel and runs on it
 (`Plankton.ts`). The sim knows a driver only by their seat (`kart.ts` `seat`, `SEATED`), so a body
 sat in a kart and its hit shape agree only roughly.
