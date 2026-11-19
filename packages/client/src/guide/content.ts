@@ -134,18 +134,15 @@ export interface Photo {
 
 // The gallery tab's photos (public/assets/guide/gallery/), which the README shows too.
 export const GALLERY: Photo[] = [
-  { file: 'krusty-krab', caption: 'Squidward taking an order in the Krusty Krab' },
+  { file: 'sky-bridge', caption: 'Fire against ice on the sky bridge' },
   { file: 'living-room', caption: 'Wario in SpongeBob’s living room' },
   { file: 'kart-trick', caption: 'A trick in a kart over the road' },
   { file: 'cast', caption: 'Everyone looking up at the light dragon' },
   { file: 'colgera', caption: 'Colgera rising in its storm' },
-  { file: 'kart-drift', caption: 'Karts drifting past SpongeBob’s house' },
-  { file: 'sky-bridge', caption: 'Fire against ice on the sky bridge' },
-  { file: 'light-dragon', caption: 'The light dragon breathing fire' },
-  { file: 'staircase', caption: 'A staircase up to the terrace' },
-  { file: 'pineapple', caption: 'Outside SpongeBob’s house' },
-  { file: 'terrace', caption: 'Jumps on the terrace' },
+  { file: 'krusty-krab', caption: 'Squidward taking an order in the Krusty Krab' },
   { file: 'anime-building', caption: 'Elizabeth in the Anime Building' },
+  { file: 'light-dragon', caption: 'The light dragon breathing fire' },
+  { file: 'pineapple', caption: 'Outside SpongeBob’s house' },
 ];
 
 export interface Place extends Entry {
