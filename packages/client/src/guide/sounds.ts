@@ -48,6 +48,7 @@ export function linesOf(avatar: AvatarId): Line[] {
       : []),
     ...takes('Hurt', voice.hurt),
     ...takes('Kill', voice.kill),
+    ...takes('Kart trick', voice.trick),
     ...takes('Death', voice.death),
     ...(dragon
       ? [

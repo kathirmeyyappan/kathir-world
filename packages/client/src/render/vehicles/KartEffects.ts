@@ -2,8 +2,9 @@
 // smoke off each back tire, thickening up to its first spark; while the drift holds a spark
 // (kart.ts `sparkOf`), in that spark's colour, electricity crackling at the base of each back tire
 // (jagged bolts that flicker where they stand, over a glow) and sparks flying out from under it,
-// with a burst of both as each spark is reached; and flames from its exhaust pipes through a boost,
-// tinged the colour of the spark its drift was let go on.
+// with a burst of both as each spark is reached; flames from its exhaust pipes through a boost,
+// tinged the colour of the spark its drift was let go on; and a trick's twinkles, a burst of stars
+// round it that turns with its twirl and a trail of them left along its flight.
 // Drawn only: the sim decides the drift, the spark and the boost. Each is made the first time its
 // kart needs it, so a kart that never drifts or boosts carries none of them.
 import { Color3, Color4, DynamicTexture, Mesh, ParticleSystem, Texture, TransformNode, Vector3 } from '@babylonjs/core';
@@ -178,6 +179,56 @@ interface Sparking {
   burst: number;
   tints: Record<Spark, Tint>;
 }
+// A trick's twinkles, four-pointed stars that swell and are gone, gold through white to a pale blue.
+// A burst at once as the trick begins, from all round the kart, `out` metres from its middle and
+// leaving at `speed` m/s, kept in its frame so they turn with its twirl; and a `trail` a second for
+// the trick's first `seconds`, left where they're born, so they hang along its flight. Each grows to
+// between `sizes` metres across and lasts `life` seconds.
+const TWINKLES = {
+  burst: 40,
+  trail: 45,
+  seconds: 0.7,
+  most: 64,
+  out: 1.3,
+  speed: [0.5, 2.4],
+  sizes: [0.3, 0.8],
+  life: [0.3, 0.7],
+  gold: new Color4(1, 0.9, 0.45, 1),
+  blue: new Color4(0.7, 0.9, 1, 1),
+};
+const TWINKLE_CELL = 16; // a twinkle's sprite cell, in texture pixels
+// Half the width of a twinkle's arm, in pixels, by how far along it from the middle: a star's point.
+const TWINKLE_ARM = [3, 2, 2, 1, 1, 1, 1, 1];
+
+// Gives `ps` the twinkle to draw: a sheet of its own (disposed with the system), a four-pointed
+// star in pixels, its arms tapering to their points.
+function twinkleSprite(engine: Engine, ps: ParticleSystem): void {
+  const size = { width: TWINKLE_CELL, height: TWINKLE_CELL };
+  const sheet = new DynamicTexture(
+    'twinkle',
+    size,
+    engine.scene,
+    false,
+    Texture.NEAREST_SAMPLINGMODE,
+    undefined,
+    false,
+  );
+  sheet.hasAlpha = true;
+  const ctx = sheet.getContext() as CanvasRenderingContext2D;
+  ctx.clearRect(0, 0, TWINKLE_CELL, TWINKLE_CELL);
+  ctx.fillStyle = '#ffffff';
+  const middle = TWINKLE_CELL / 2;
+  TWINKLE_ARM.forEach((half, along) => {
+    for (const way of [-1, 1]) {
+      const at = way > 0 ? middle + along : middle - along - 1;
+      ctx.fillRect(at, middle - half, 1, 2 * half);
+      ctx.fillRect(middle - half, at, 2 * half, 1);
+    }
+  });
+  sheet.update(false);
+  ps.particleTexture = sheet;
+}
+
 // A boost's flames, a jet from each exhaust pipe (FlameJet.ts): metres long, the half angle it
 // spreads at, and how many and how big its blocks are beside a flamethrower's.
 const FLAME = { length: 1.4, halfAngle: 0.14, density: 0.5, size: 0.55 };
@@ -198,7 +249,9 @@ export class KartEffects {
   private smoke: ParticleSystem[] | null = null; // a back tire's each
   private sparks: Sparking[] | null = null; // each back tire's crackle, glow and flying sparks
   private flames: FlameJet[] | null = null; // a jet an exhaust pipe
+  private twinkles: { burst: ParticleSystem; trail: ParticleSystem } | null = null; // a trick's
   private spark: Spark | null = null; // the spark the drift had got to, as last drawn
+  private tricking = false; // it was in a trick, as last drawn
 
   // `ground` is the kart's node on the ground under its middle, tipped and sized with it, the frame
   // its smoke and sparks come out in; `body` what its body hangs from, which its flames go with.
@@ -210,7 +263,7 @@ export class KartEffects {
     private readonly model: KartModel,
   ) {}
 
-  // Its smoke, sparks and flames as `kart` is this frame, `dt` seconds on from the last.
+  // Its smoke, sparks, flames and twinkles as `kart` is this frame, `dt` seconds on from the last.
   update(kart: KartState, dt: number): void {
     const spec = KARTS[kart.kart];
     const drifted = kart.drift && kart.grounded ? kart.drift.t : null; // seconds into a drift on the ground
@@ -234,12 +287,21 @@ export class KartEffects {
       flame.set(kart.turbo !== null);
       flame.update(dt);
     }
+    if (kart.trick) this.twinkles ??= this.makeTwinkles();
+    if (this.twinkles) {
+      // A count to give off at once stands in for the rate until it's taken back (-1).
+      this.twinkles.burst.manualEmitCount = kart.trick && !this.tricking ? TWINKLES.burst : -1;
+      this.twinkles.trail.emitRate = kart.trick && kart.trick.t < TWINKLES.seconds ? TWINKLES.trail : 0;
+    }
+    this.tricking = kart.trick !== null;
   }
 
   dispose(): void {
     for (const system of this.smoke ?? []) system.dispose();
     for (const { system } of this.sparks ?? []) system.dispose();
     for (const flame of this.flames ?? []) flame.dispose();
+    this.twinkles?.burst.dispose();
+    this.twinkles?.trail.dispose();
   }
 
   // An empty mesh where each back tire meets the ground. A system follows a mesh, and its particles
@@ -324,6 +386,44 @@ export class KartEffects {
         { system: flying, ...FLYING },
       ];
     });
+  }
+
+  private makeTwinkles(): { burst: ParticleSystem; trail: ParticleSystem } {
+    const scene = this.engine.scene;
+    // The middle of the kart's body, which its twirl turns.
+    const middle = new Mesh(`kart-${this.id}-twinkles`, scene);
+    middle.parent = this.body;
+    middle.position.y = TWINKLES.out / 2;
+    middle.isPickable = false;
+    const system = (kind: string) => {
+      const ps = new ParticleSystem(`kart-${this.id}-twinkles-${kind}`, TWINKLES.most, scene);
+      twinkleSprite(this.engine, ps);
+      ps.emitter = middle;
+      ps.blendMode = ParticleSystem.BLENDMODE_ADD;
+      ps.applyFog = false;
+      ps.updateSpeed = 1 / 60; // so lifetimes are seconds and powers metres per second
+      [ps.minLifeTime, ps.maxLifeTime] = TWINKLES.life;
+      // Nothing, then all of it a third of the way through its life, then nothing: a twinkle.
+      ps.addSizeGradient(0, 0);
+      ps.addSizeGradient(0.35, TWINKLES.sizes[0], TWINKLES.sizes[1]);
+      ps.addSizeGradient(1, 0);
+      ps.color1 = TWINKLES.gold;
+      ps.color2 = TWINKLES.blue;
+      ps.colorDead = TWINKLES.blue;
+      ps.minInitialRotation = 0;
+      ps.maxInitialRotation = Math.PI / 2;
+      ps.emitRate = 0;
+      ps.start();
+      return ps;
+    };
+    const burst = system('burst');
+    burst.isLocal = true;
+    burst.createSphereEmitter(TWINKLES.out, 0.5);
+    [burst.minEmitPower, burst.maxEmitPower] = TWINKLES.speed;
+    const trail = system('trail');
+    trail.createSphereEmitter(TWINKLES.out, 1);
+    trail.minEmitPower = trail.maxEmitPower = 0.2;
+    return { burst, trail };
   }
 
   private makeFlames(): FlameJet[] {
