@@ -30,7 +30,7 @@ const speed = (k: KartState) => Math.hypot(k.vel.x, k.vel.z);
 test('a kart drifts, sparks blue, yellow and purple at its mini-turbo time, and boosts by the spark let go on', () => {
   const structures = world();
   const spec = KARTS.standard;
-  const k = createKart('standard', { x: 0, y: 0, z: 0 }, 0);
+  const k = createKart('standard', 1, { x: 0, y: 0, z: 0 }, 0);
   const gas = { gas: 1, steer: 0, drift: false };
   drive(k, gas, spec.acceleration, structures);
   assert.ok(Math.abs(speed(k) - spec.speed) < 0.5, `flat out after its acceleration: ${speed(k)}`);
@@ -53,7 +53,7 @@ test('a kart drifts, sparks blue, yellow and purple at its mini-turbo time, and 
 
 test('a kart driven into a wall stops at it and says how hard it hit', () => {
   const structures = world(wall({ x: -10, z: 30 }, { x: 10, z: 30 }, 3));
-  const k = createKart('standard', { x: 0, y: 0, z: 0 }, 0);
+  const k = createKart('standard', 1, { x: 0, y: 0, z: 0 }, 0);
   const hit = drive(k, { gas: 1, steer: 0, drift: false }, 4, structures);
   assert.ok(hit > 15, `head on at about its speed: ${hit}`);
   assert.ok(k.pos.z < 30 - KARTS.standard.body.length / 2 + 0.1, `short of the wall: ${k.pos.z}`);

@@ -921,7 +921,11 @@ the units it's felt in: `speed` (S, m/s flat out on the gas), `acceleration` (se
 standing to S), `handling` (metres across the circle it turns at S with the wheel full over),
 `weight` (who shoves whom in a bump), `miniTurboTime` (seconds of drifting to a blue spark,
 smaller better) and `wrenches` (its health), with the box it drives as. Traction isn't a stat:
-it's one constant for every kart, and only an icy footing's grip is less. `stepKart` (`kart.ts`)
+it's one constant for every kart, and only an icy footing's grip is less. A kart is built to seat
+its driver (`sizeFor`, `KartState.size`, set as it's dropped and every tick it's driven): at its
+model's size for one no bigger than `SEATS` (as tall as Luigi, as wide as the standard body), and
+for a bigger one grown as many times as they're bigger, by up to `GROWTH` (a fifth), too little to
+see karts come in sizes; everything about its box is read at that size through `bodyOf`. `stepKart` (`kart.ts`)
 is how every kart drives, a pure step of its `KartState` by its driver's `KartControls` (gas or
 brake, the wheel, the drift key) that the Room runs and the driver's client predicts with: the gas
 and the brake along it (the brake backing it up once it stops), a turn as tight at any speed,
@@ -956,7 +960,7 @@ announced as one (`kill` with `item: 'kart'` or `'explosion'`), and a death of o
 one as `crashed`.
 
 A kart's model is written by `scripts/kart-model.py` from a rip of a Mario Kart 8 body and tire
-set, sized as MK8 sizes it against Mario: its parts (`body`, the `steer`ing wheel that turns, the
+set, sized as MK8 sizes it against Mario and a tenth bigger (`ROOM`), so he sits in it with room: its parts (`body`, the `steer`ing wheel that turns, the
 `emblem` and one `tire`, each simplified to its size) and their pictures in
 `public/assets/models/kart-<id>/`, and `render/vehicles/<id>KartModel.ts`, read through
 `KART_MODELS` (`render/vehicles/kartModel.ts`): where its tires stand, the steering wheel's middle,
@@ -967,7 +971,7 @@ one picture with its two painted colours left white and a second saying where th
 the client in whichever colours (`paintOf`: the dropper's own, for the Mario family, else Mario's).
 The script prints the box the sim drives it as, for its row in `KARTS`. `render/vehicles/KartMesh.ts`
 draws one: its tires rolled by how far it went and the front pair steered, its steering wheel
-turned, the body tipped to the ground under its tires; its parts are fetched the first time a kart
+turned, the body tipped to the ground under its tires, all at its size, eased there; its parts are fetched the first time a kart
 of that model is drawn (a box of its size in its paint stands in till then). `game/Driving.ts` is
 the rest of driving on the client: every kart drawn, the driven one where its driver's prediction
 has it (`Prediction` rides it as the Room does, rewinding and replaying it with them); the kart
