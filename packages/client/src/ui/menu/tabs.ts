@@ -12,6 +12,7 @@ import {
   type AvatarId,
   type GearId,
   type ItemId,
+  type KartId,
 } from '@world/shared';
 import { skinChoice, skinChoices, skinCommand } from '../../app/skins';
 import type { Channel, Sfx } from '../../audio/Sfx';
@@ -50,6 +51,7 @@ export interface Me {
   gear: GearId | null;
   chilled: boolean; // frosted over by an ice hit
   shattered: number[]; // a dragon's weak points shot out (sim/dragon.ts DragonState)
+  kart: KartId | null; // the kart they drive, or none
 }
 
 export function menuTabs(hooks: MenuHooks, me: Me): Tab[] {

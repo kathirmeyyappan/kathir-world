@@ -310,6 +310,7 @@ class Stage {
       gear: null,
       chilled: false,
       shattered: [],
+      kart: null,
     };
   }
 

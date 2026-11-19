@@ -12,10 +12,8 @@ import {
   PICKUP_BOB_HZ,
   PICKUP_SPIN,
   type CubeContent,
-  createKart,
   type GearId,
   type ItemId,
-  type Kart,
   type KartId,
   type PickupKind,
 } from '@world/shared';
@@ -24,7 +22,7 @@ import { CubeMesh } from '../render/CubeMesh';
 import { buildGear } from '../render/Gear';
 import { buildHeart } from '../render/Pickups';
 import { buildTank, buildWeapon, weaponPalette } from '../render/Weapons';
-import { KartMesh } from '../render/vehicles/KartMesh';
+import { KartMesh, parkedKart } from '../render/vehicles/KartMesh';
 
 const HOVER = 1.2; // metres up an item floats over the floor, about where it's held
 const ITEM_BOB = 0.03; // of an item's size, how far it floats up and down
@@ -131,13 +129,7 @@ export function kartThing(id: KartId): Thing {
       const mesh = new KartMesh(engine, `guide-${id}`, id, 'mario');
       mesh.root.parent = parent;
       parent.onDisposeObservable.add(() => mesh.dispose());
-      const kart: Kart = {
-        ...createKart(id, 1, { x: 0, y: 0, z: 0 }, 0),
-        id: `guide-${id}`,
-        paint: 'mario',
-        wrenches: KARTS[id].wrenches,
-        driver: null,
-      };
+      const kart = parkedKart(`guide-${id}`, id, 'mario');
       let last = 0;
       return (t) => {
         mesh.update(kart, t - last);

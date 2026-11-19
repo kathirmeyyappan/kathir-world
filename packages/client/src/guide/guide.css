@@ -528,15 +528,20 @@ h2.command .args {
   }
 }
 
-/* The GROUND / HIGH toggle in the map's corner, the view shown lit. */
-.world-map .toggle {
+/* A toggle in a view's corner (the map's GROUND / HIGH, a character's ON FOOT / IN KART), the one
+   shown lit. */
+.view .toggle {
   position: absolute;
   top: 8px;
   right: 8px;
   display: flex;
 }
 
-.world-map .toggle button {
+.view .toggle.hidden {
+  display: none;
+}
+
+.view .toggle button {
   padding: 7px 10px;
   border: 2px solid var(--line);
   background: var(--panel);
@@ -544,12 +549,12 @@ h2.command .args {
   font: 10px/1 var(--pixel);
 }
 
-.world-map .toggle button + button {
+.view .toggle button + button {
   border-left: 0;
 }
 
-.world-map .toggle button.on,
-.world-map .toggle button:hover {
+.view .toggle button.on,
+.view .toggle button:hover {
   border-color: var(--accent);
   background: var(--accent);
   color: var(--panel);
