@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import {
   Ground,
   KARTS,
+  SPARKS,
   Structures,
   TICK_DT,
   TRICK,
@@ -28,7 +29,7 @@ function drive(k: KartState, c: KartControls, seconds: number, structures: Struc
 
 const speed = (k: KartState) => Math.hypot(k.vel.x, k.vel.z);
 
-test('a kart drifts, sparks blue, yellow and purple at its mini-turbo time, and boosts by the spark let go on', () => {
+test('a kart drifts, sparks blue, yellow and purple by its mini-turbo time, and boosts by the spark let go on', () => {
   const structures = world();
   const spec = KARTS.standard;
   const k = createKart('standard', 1, { x: 0, y: 0, z: 0 }, 0);
@@ -39,17 +40,18 @@ test('a kart drifts, sparks blue, yellow and purple at its mini-turbo time, and 
   drive(k, { gas: 1, steer: 1, drift: true }, 0.5, structures);
   assert.equal(k.drift?.way, 1);
   // Held on through a yellow spark and let go short of purple.
-  drive(k, { gas: 1, steer: 0.5, drift: true }, 2 * spec.miniTurboTime, structures);
+  const [, yellow] = SPARKS;
+  drive(k, { gas: 1, steer: 0.5, drift: true }, yellow.after * spec.miniTurboTime, structures);
   drive(k, gas, TICK_DT, structures);
   assert.equal(k.drift, null);
-  assert.equal(k.turbo?.hold, TURBO.holds[1]);
+  assert.equal(k.turbo?.hold, yellow.hold);
   drive(k, gas, TURBO.rise, structures);
   assert.ok(speed(k) > TURBO.boost * spec.speed - 0.5, `boosted after its rise: ${speed(k)}`);
-  drive(k, gas, TURBO.holds[1] - 0.1, structures);
+  drive(k, gas, yellow.hold - 0.1, structures);
   assert.ok(speed(k) > TURBO.boost * spec.speed - 0.5, `held through a yellow spark's: ${speed(k)}`);
-  drive(k, gas, TURBO.fall + 0.3, structures);
+  drive(k, gas, TURBO.fall + 0.2, structures);
   assert.equal(k.turbo, null);
-  assert.ok(speed(k) < TURBO.boost * spec.speed - 2, `let down after: ${speed(k)}`);
+  assert.ok(speed(k) < spec.speed + 0.5, `back at its own speed once it's let down: ${speed(k)}`);
 });
 
 test('a press in the air tricks a kart the way its wheel is held and boosts it as it lands, but not in its own hop', () => {
