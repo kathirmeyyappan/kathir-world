@@ -1010,9 +1010,16 @@ the seat, back from its middle as far as keeps its trunk (measured off its verti
 steering wheel's middle, its legs straight out to the pedals or, longer, to the floor under the
 nose, and, with two arms, a hand on each grip, the body leaning back or forward as far as brings its
 hands there, and into the turn; a big one is cramped in, round the wheel and through the nose. A
-jointed body's seat is worked out as its ladder pose is (`Rig.sit`): its hips back the same way,
-its fists closed on the grips and its feet treading the pedals, its knees bending as its legs are
-long.
+jointed body drives as Mario Kart 8 Deluxe has its character drive: its `kart` clips
+(`<name>KartClips.ts`, baked by `scripts/kart-clips.py` from each character's driver file, which
+`scripts/bfres.py` reads, through `clips.py` with the hips sat rather than stood) at the wheel,
+backing up, drifting each way, on a mini-turbo and in the hop into a drift, each steered (its frames
+run the wheel from full right to full left, sampled where the kart's wheel is) and eased into the
+next as the kart's `Seat` says what it's doing; stopped a second, waiting; hit, its hands off the
+wheel. Its hips go on the seat back as far as keeps its belly behind the wheel (`Rig.seat`), and the
+hands a clip keeps on the wheel are closed on the kart's own grips (`Rig.grasp`), since MK8's
+wheels stand elsewhere. The driver files come whole in retexture mods (the script's docstring says
+which), the animations as the game has them.
 Plankton, too small to reach the pedals, stands on top of the steering wheel and runs on it
 (`Plankton.ts`). The sim knows a driver only by their seat (`kart.ts` `seat`, `SEATED`), so a body
 sat in a kart and its hit shape agree only roughly.

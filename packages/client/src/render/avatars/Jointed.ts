@@ -5,7 +5,7 @@
 // its feet have got to, its jump, its fall and its landing, blended from one into the next. So it
 // moves as whoever animated the clips moved it, and a new character is a model and its clips. The
 // walker still places and turns the body, counts its stride, aims what it holds and lays it down dead.
-import { Quaternion, TransformNode, Vector3 } from '@babylonjs/core';
+import { Matrix, Quaternion, TransformNode, Vector3 } from '@babylonjs/core';
 import { GRAVITY, chainOf, crouchOf, jumpVelocityOf, poundOf, walkSpeedOf, type AvatarId } from '@world/shared';
 import type { RemotePlayer } from '../../net/Interpolation';
 import type { Engine } from '../Engine';
@@ -57,7 +57,17 @@ import {
 } from './motion';
 import { bytes, SkinnedBody, type SkinnedModel } from './skinned';
 import { bellOf, Skirt, Tail } from './soft';
-import { HEAD_LIMIT, headShare, limbLead, MOVING, rungHeld, WalkerAvatar, type Figure, type Pose } from './Walker';
+import {
+  fresh,
+  HEAD_LIMIT,
+  headShare,
+  limbLead,
+  MOVING,
+  rungHeld,
+  WalkerAvatar,
+  type Figure,
+  type Pose,
+} from './Walker';
 
 export type JointedBone =
   | 'hips'
@@ -177,10 +187,18 @@ export interface Style {
   waddle?: number; // radians it rocks over each foot as that foot comes down: a heavy body's walk
 }
 
+// How a body drives a kart: Mario Kart 8 Deluxe's own animations of it (<name>KartClips.ts, made by
+// scripts/kart-clips.py), at the wheel, backing up, drifting each way, on a boost and in the hop into
+// a drift, each steered (its frames from the wheel full over to the right to full over to the left);
+// hit, played through; and waiting, stopped, looped.
+export type KartMove = 'drive' | 'back' | 'driftL' | 'driftR' | 'dash' | 'hop' | 'damage' | 'wait';
+export type KartClips = Record<KartMove, RawClip>;
+
 export interface JointedSpec {
   kind: AvatarId;
   model: JointedModel;
   style: Style;
+  kart: KartClips;
   shadow: number; // metres across
   // With a tail of hair's bones: the way each of its links runs as the hair is dressed, from the
   // head to its tip, by the way the head faces: ahead of it (z) and up (soft.ts `Tail`).
@@ -235,17 +253,29 @@ const STEP_UP = 0.2; // metres up from where it stands the middle of a foot's st
 const RUNG_EDGE = 0.1; // metres this side of a rung's middle a fist closes on it
 const CLIMB_SWAY = 0.03; // metres its hips go over the foot that bears it
 const CLIMB_TILT = 0.05; // radians its hips tip with that
-// In a kart: sat back a little with its chest over the wheel and fists closed on the grips; its
-// hips' pivot this share of a thigh over the seat, and leaning this many radians into the sharpest
-// turn.
-const SAT = pose({
-  hips: { lean: -0.2 },
-  chest: { lean: 0.25 },
-  armL: { grip: 1 },
-  armR: { grip: 1 },
-});
+// In a kart: the hips' pivot this share of a thigh over the seat; seconds it takes to go from one
+// way of driving into another, and into waiting or being hit; seconds stopped, under STOPPED m/s,
+// before it waits; and m/s backing up over which it looks round behind to.
 const SAT_HIPS = 0.35;
-const SAT_TILT = 0.15;
+const KART_EASE = 0.12;
+const KART_SETTLE = 0.3;
+const WAIT_AFTER = 1;
+const STOPPED = 0.5;
+const BACKING = 0.5;
+// The hands each of the kart's clips keeps on the wheel, left and right, which the rig then closes
+// on the kart's own grips: backing up, the left is on the seat behind, and hit, both come off.
+const HOLDS: Record<KartMove, readonly [number, number]> = {
+  drive: [1, 1],
+  back: [0, 1],
+  driftL: [1, 1],
+  driftR: [1, 1],
+  dash: [1, 1],
+  hop: [1, 1],
+  damage: [0, 0],
+  wait: [1, 1],
+};
+// The clips steered by the wheel that each take over from the drive while the kart does what they're of.
+const STEERED = ['back', 'driftL', 'driftR', 'dash', 'hop'] as const;
 // A fist: radians the fingers fold under the palm, and the thumb turns in and down after them.
 const FINGER_CURL = 1.7;
 const THUMB_FOLD = 0.6;
@@ -263,7 +293,18 @@ export class JointedAvatar extends WalkerAvatar {
   private readonly out = motion();
   private readonly other = motion();
   private readonly third = motion();
-  private readonly worked = pose(); // a pose worked out, not played: on a ladder or in a kart
+  private readonly worked = pose(); // a pose worked out, not played: on a ladder
+  private readonly kart: Record<KartMove, Clip>;
+  private readonly steering: Record<(typeof STEERED)[number], number> = {
+    back: 0,
+    driftL: 0,
+    driftR: 0,
+    dash: 0,
+    hop: 0,
+  }; // how far each is in
+  private stopped = 0; // seconds its kart has stood still
+  private waiting = 0; // how far into waiting it is
+  private hurt = Infinity; // seconds since it was last hit
   private peak = 0; // the highest its feet have been since it left the ground, metres
   private falling = 0; // how far over the top of its jump it is: 0 going up, 1 coming down
   private grounded = true;
@@ -335,6 +376,17 @@ export class JointedAvatar extends WalkerAvatar {
     const third = jumpVelocityOf(kind) * Math.sqrt((chain?.rise ?? 1) ** 2);
     this.flip = FLIP_SHARE * ((2 * third) / GRAVITY);
     this.backflip = FLIP_SHARE * ((2 * jumpVelocityOf(kind) * Math.sqrt(crouchOf(kind)?.flip ?? 1)) / GRAVITY);
+    const k = spec.kart;
+    this.kart = {
+      drive: clip(k.drive),
+      back: clip(k.back),
+      driftL: clip(k.driftL),
+      driftR: clip(k.driftR),
+      dash: clip(k.dash),
+      hop: clip(k.hop),
+      damage: clip(k.damage),
+      wait: clip(k.wait),
+    };
     sample(this.third, this.clips.idle, 0, true);
     this.ahead = this.third.slice(HEAD_AT, HEAD_AT + 4);
     this.rest = this.third.slice();
@@ -522,22 +574,63 @@ export class JointedAvatar extends WalkerAvatar {
     return posed;
   }
 
-  // In a kart, where the walker has put it: sat on the seat with its feet on the pedals and its
-  // fists on the grips, turning the wheel with them, leaning into the turn and its head to the look.
-  protected override sit(p: RemotePlayer, seat: Seat): Pose {
+  // In a kart, where the walker has put it, driving as Mario Kart 8 has it drive: at the wheel,
+  // backing up, drifting, boosting or hopping as its kart is, each steered by the wheel and eased
+  // into the next; stopped a while, waiting; hit, its hands off the wheel. Its hips are on the seat,
+  // and the hands each clip keeps on the wheel are closed on the kart's own grips.
+  protected override sit(p: RemotePlayer, seat: Seat, dt: number): Pose {
     this.place(seat);
     this.base.rotation.set(0, 0, 0);
     this.base.position.set(0, 0, 0);
     this.moving = this.airborne = this.impact = this.bank = 0;
-    const sat = this.worked;
-    sat.set(SAT);
-    this.rig.sit(sat, seat);
-    sat[CHEST_TILT] = seat.wheel * SAT_TILT;
+    const { kart, out, other, rig } = this;
+    const steer = (1 - seat.wheel) / 2;
+    const now: KartMove = seat.hop
+      ? 'hop'
+      : seat.drift < 0
+        ? 'driftL'
+        : seat.drift > 0
+          ? 'driftR'
+          : seat.boost
+            ? 'dash'
+            : seat.speed < -BACKING
+              ? 'back'
+              : 'drive';
+    sample(out, kart.drive, steer, false);
+    let [left, right] = HOLDS.drive;
+    const over = (move: KartMove, weight: number) => {
+      blend(out, out, other, weight);
+      left += (HOLDS[move][0] - left) * weight;
+      right += (HOLDS[move][1] - right) * weight;
+    };
+    for (const move of STEERED) {
+      this.steering[move] = eased(this.steering[move], move === now ? 1 : 0, dt, KART_EASE);
+      if (this.steering[move] < 1e-3) continue;
+      sample(other, kart[move], steer, false);
+      over(move, smooth(this.steering[move]));
+    }
+    this.stopped = Math.abs(seat.speed) < STOPPED && now === 'drive' ? this.stopped + dt : 0;
+    this.waiting = eased(this.waiting, this.stopped > WAIT_AFTER ? 1 : 0, dt, KART_SETTLE);
+    if (this.waiting > 1e-3) {
+      sample(other, kart.wait, this.stood / kart.wait.seconds, true);
+      over('wait', smooth(this.waiting));
+    }
+    this.hurt += dt;
+    const { seconds } = kart.damage;
+    if (this.hurt < seconds) {
+      sample(other, kart.damage, this.hurt / seconds, false);
+      over('damage', smooth(this.hurt / KART_EASE) * smooth((seconds - this.hurt) / KART_SETTLE));
+    }
+    rig.seat(seat, out);
     const off = wrap(p.yaw - this.facing);
-    sat[HEAD_TURN] = Math.max(-HEAD_LIMIT, Math.min(HEAD_LIMIT, off));
-    sat[HEAD_LEAN] += p.pitch * this.style.follow;
-    this.rig.apply(sat);
+    rig.play(out, GRIP_RUN, 0, 0, Math.max(-HEAD_LIMIT, Math.min(HEAD_LIMIT, off)), p.pitch * this.style.follow);
+    rig.grasp(seat.grips, left, right);
     return { phase: this.gait.phase, effort: 0, on: 'kart' };
+  }
+
+  override flash(): void {
+    super.flash();
+    this.hurt = 0;
   }
 
   override hide(): void {
@@ -649,7 +742,12 @@ class Rig {
   private readonly standL: Vector3;
   private readonly standR: Vector3;
 
-  constructor(engine: Engine, id: string, spec: JointedSpec, base: TransformNode) {
+  constructor(
+    engine: Engine,
+    id: string,
+    spec: JointedSpec,
+    private readonly base: TransformNode,
+  ) {
     const { kind, model } = spec;
     const skin = new SkinnedBody<RigBone>(engine, `${kind}-${id}`, model, kind, PARENTS, base);
     this.skin = skin;
@@ -953,18 +1051,52 @@ class Rig {
     return low + (high - low) * (r - row);
   }
 
-  // Sits `pose` in `seat`, whose frame is the body's: its hips' pivot SAT_HIPS of a thigh over the
-  // middle of the seat's top, or back from it as far as keeps its trunk behind the steering wheel's
-  // middle (a belly the wheel would be lost in), a foot on each pedal and a fist on each grip.
-  sit(pose: BodyPose, seat: Seat): void {
-    pose[HIP_X] = -this.hipsAt.x;
-    pose[HIP_Y] = SAT_HIPS * this.thigh - this.hipsAt.y;
-    pose[HIP_Z] = Math.min(0, seat.hub.z - this.front) - this.hipsAt.z;
-    const { feet, grips } = seat;
+  // Moves the hips of `m` onto `seat`, whose frame is the body's: their pivot SAT_HIPS of a thigh
+  // over the middle of the seat's top, or back from it as far as keeps the trunk behind the steering
+  // wheel's middle (a belly the wheel would be lost in), the clip's own movement from sitting kept.
+  seat(seat: Seat, m: Motion): void {
+    const leg = this.thigh + this.shin;
+    m[0] -= this.hipsAt.x / leg;
+    m[1] += (SAT_HIPS * this.thigh - this.hipsAt.y) / leg;
+    m[2] += (Math.min(0, seat.hub.z - this.front) - this.hipsAt.z) / leg;
+  }
+
+  // Closes each fist on its grip (`grips` in the body's frame, left then right), `left` and `right`
+  // of the way from where the frame's pose has the arm: swung from the shoulder and bent at the elbow,
+  // which goes out and down, the hand turned on the forearm as the pose turns it.
+  grasp(grips: Seat['grips'], left: number, right: number): void {
+    const chest = this.skin.node('chest');
+    const root = this.base.parent as TransformNode;
+    fresh(chest, root);
+    chest.getWorldMatrix().invertToRef(INTO);
+    const { upper, fore } = this;
     for (const side of [-1, 1] as const) {
-      this.tread(pose, side, side * feet.x, feet.y, feet.z);
-      const grip = grips[side < 0 ? 0 : 1];
-      this.reach(pose, side, grip.x, grip.y, grip.z);
+      const weight = side < 0 ? left : right;
+      if (weight < 1e-3) continue;
+      // The fist's middle, from the shoulder, in the chest's frame, which the arm turns in.
+      Vector3.TransformCoordinatesToRef(grips[side < 0 ? 0 : 1], root.getWorldMatrix(), ALONG);
+      Vector3.TransformCoordinatesToRef(ALONG, INTO, ALONG).subtractInPlace(side < 0 ? this.shoulderL : this.shoulderR);
+      const span = Math.min(upper + fore - 1e-4, Math.max(Math.abs(upper - fore) + 1e-4, ALONG.length()));
+      ALONG.normalize();
+      POLE.set(side, -1, 0);
+      POLE.subtractInPlace(ALONG.scaleToRef(Vector3.Dot(POLE, ALONG), STEP)).normalize();
+      const along = (upper * upper + span * span - fore * fore) / (2 * span);
+      const off = Math.sqrt(Math.max(0, upper * upper - along * along));
+      ALONG.scaleToRef(along, ELBOW).addInPlace(POLE.scaleToRef(off, STEP));
+      ALONG.scaleToRef(span, FOREARM).subtractInPlace(ELBOW);
+      // Each bone's up square to the arm's triangle, the way that bends the elbow as the rig's
+      // elbows bend: its forearm toward the upper arm's front.
+      Vector3.CrossToRef(ELBOW, FOREARM, AWAY).normalize();
+      ELBOW.scaleToRef(side, HINGE);
+      if (Vector3.Dot(Vector3.CrossToRef(HINGE, AWAY, STEP), FOREARM) < 0) AWAY.scaleInPlace(-1);
+      alongArm(ELBOW, side, AWAY, THIGH);
+      alongArm(FOREARM, side, AWAY, SHIN);
+      const [a, f] = side < 0 ? LEFT_ARM : RIGHT_ARM;
+      const arm = this.skin.node(a).rotationQuaternion!;
+      Quaternion.SlerpToRef(arm, THIGH, weight, arm);
+      THIGH.conjugateToRef(B).multiplyToRef(SHIN, A);
+      const forearm = this.skin.node(f).rotationQuaternion!;
+      Quaternion.SlerpToRef(forearm, A, weight, forearm);
     }
   }
 
@@ -1076,6 +1208,7 @@ const NEAR = new Vector3();
 const FOREARM = new Vector3();
 const ALONG = new Vector3();
 const HAND = new Quaternion();
+const INTO = new Matrix(); // from the world into the chest's frame
 const LEFT_ARM = ['armL', 'forearmL', 'handL', 'fingersL', 'thumbL'] as const;
 const RIGHT_ARM = ['armR', 'forearmR', 'handR', 'fingersR', 'thumbR'] as const;
 const CLASP_CLEAR = 0.02; // metres a hand resting on the head is held off it

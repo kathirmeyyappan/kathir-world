@@ -3,6 +3,7 @@
 // top: x to the kart's right, y up, z ahead. `at` and `turn` put that frame in the world, and the
 // rest is in it, at the size the kart is drawn.
 import { Quaternion, Vector3 } from '@babylonjs/core';
+import type { KartState } from '@world/shared';
 import type { KartModel } from './kartModel';
 
 export class Seat {
@@ -10,7 +11,10 @@ export class Seat {
   readonly turn = new Quaternion(); // the kart's, tipped with it as it's drawn
   yaw = 0; // radians the kart faces
   wheel = 0; // how far over its steering wheel is, -1 to 1, to the right
-  speed = 0; // m/s along the kart
+  speed = 0; // m/s along the kart, negative backing up
+  hop = false; // in the hop into a drift
+  drift: -1 | 0 | 1 = 0; // drifting, to the left or the right
+  boost = false; // on a mini-turbo
   readonly grips: readonly [Vector3, Vector3] = [new Vector3(), new Vector3()]; // left and right, turned with the wheel
   readonly feet = new Vector3(); // where the right foot rests; the left's is across the middle from it
   readonly hub = new Vector3(); // the steering wheel's middle
@@ -38,24 +42,19 @@ export class Seat {
     };
   }
 
-  // Puts it in a kart whose ground under its middle is at `pos` (KartMesh's root), turned by
-  // `turn` there and drawn `size` times its model's size; its steering wheel turned by `steer`
-  // about its own middle, `wheel` of the way over; going `speed` along it.
-  place(
-    pos: Vector3,
-    turn: Quaternion,
-    size: number,
-    yaw: number,
-    steer: Quaternion,
-    wheel: number,
-    speed: number,
-  ): void {
+  // Puts it in `kart`, whose ground under its middle is at `pos` (KartMesh's root), turned by `turn`
+  // there and drawn `size` times its model's size; its steering wheel turned by `steer` about its
+  // own middle; going `speed` along it.
+  place(kart: KartState, pos: Vector3, turn: Quaternion, size: number, steer: Quaternion, speed: number): void {
     const m = this.model;
     this.turn.copyFrom(turn);
     m.from.scaleToRef(size, this.at).rotateByQuaternionToRef(turn, this.at).addInPlace(pos);
-    this.yaw = yaw;
-    this.wheel = wheel;
+    this.yaw = kart.yaw;
+    this.wheel = kart.wheel;
     this.speed = speed;
+    this.hop = kart.hop;
+    this.drift = kart.drift?.way ?? 0;
+    this.boost = kart.turbo !== null;
     m.feet.scaleToRef(size, this.feet);
     m.hub.scaleToRef(size, this.hub);
     m.top.scaleToRef(size, this.top);

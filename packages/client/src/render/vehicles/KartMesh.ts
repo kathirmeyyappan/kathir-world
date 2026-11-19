@@ -97,7 +97,7 @@ export class KartMesh {
     Quaternion.RotationAxisToRef(this.axis, -kart.wheel * WHEEL_TURN, STEER);
     if (this.steer) (this.steer.rotationQuaternion ??= new Quaternion()).copyFrom(STEER);
     Quaternion.RotationYawPitchRollToRef(kart.yaw, this.pitch, this.roll, TURN);
-    this.seat.place(this.root.position, TURN, this.size, kart.yaw, STEER, kart.wheel, along);
+    this.seat.place(kart, this.root.position, TURN, this.size, STEER, along);
   }
 
   dispose(): void {
