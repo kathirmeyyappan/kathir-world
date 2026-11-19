@@ -2215,12 +2215,9 @@ body {
 /* A kart's driver's buttons, in JUMP's corner in its place: GAS, a bar over two squares, BRAKE and
    DRIFT, each bigger than a walker's, being held without a look at them. --pedal is a square's
    side, no wider than leaves the pad clear on a narrow phone, and --gas the bar's height. */
-#app {
-  --pedal: min(96px, calc((100vw - 190px) / 2));
-  --pedal-gap: 12px;
-  --gas: 80px;
-}
 #pedals {
+  --pedal: min(96px, calc((100vw - 190px) / 2));
+  --gas: 80px;
   position: fixed;
   right: 22px;
   bottom: 26px;
@@ -2229,7 +2226,7 @@ body {
     'gas gas' var(--gas)
     'brake drift' var(--pedal)
     / var(--pedal) var(--pedal);
-  gap: var(--pedal-gap);
+  gap: 12px;
 }
 #pedals .touch-button {
   position: static;
@@ -2258,10 +2255,6 @@ body {
 #drift-button.active {
   background: rgba(190, 196, 206, 0.5);
   border-color: #dfe3ea;
-}
-/* A cube's SELECT while driving: over the pedals. */
-#app:has(#pedals:not(.hidden)) #action-button {
-  bottom: calc(26px + var(--pedal) + var(--gas) + 2 * var(--pedal-gap));
 }
 /* A column in the top-right corner: CHAT, CMDS, and under them a kart's OUT, out of reach of the
    thumbs that drive it. */
@@ -2384,9 +2377,9 @@ body {
 /* A phone on its side, a screen as little as 280px tall once the browser's bars are off it. The menu
    button and the room panel share one row at the top left, CHAT and CMDS one at the top right; the
    pad and the right thumb's buttons are smaller, FIRE and SCOPE side by side over JUMP and SWAP, so
-   nothing a walker has on the right stands higher than 136px; a kart's OUT is under CHAT, its
-   pedals reach up to just short of that, and its SELECT is beside its GAS; the chat runs from under
-   the corner to just over the pad (or the throttle), its oldest lines cut off at the top. */
+   nothing a walker has on the right stands higher than 136px; a kart's OUT is under CHAT and its
+   pedals reach up to just short of that; the chat runs from under the corner to just over the pad
+   (or the throttle), its oldest lines cut off at the top. */
 @media (pointer: coarse) and (max-height: 500px) {
   #corner {
     top: 8px;
@@ -2463,18 +2456,12 @@ body {
     height: 72px;
   }
   /* The bar no taller than leaves OUT clear above it on the shortest screen. */
-  #app {
-    --pedal: 100px;
-    --pedal-gap: 8px;
-    --gas: min(72px, calc(100dvh - 228px));
-  }
   #pedals {
+    --pedal: 100px;
+    --gas: min(72px, calc(100dvh - 228px));
     right: 16px;
     bottom: 16px;
-  }
-  #app:has(#pedals:not(.hidden)) #action-button {
-    right: calc(16px + 2 * var(--pedal) + 2 * var(--pedal-gap));
-    bottom: calc(16px + var(--pedal) + var(--pedal-gap));
+    gap: 8px;
   }
   #chat-button,
   #commands-button,
