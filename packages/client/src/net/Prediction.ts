@@ -5,7 +5,9 @@
 import {
   TICK_DT,
   clonePlayer,
+  controlsOf,
   ride,
+  stepKart,
   stepPlayer,
   type InputFrame,
   type Kart,
@@ -17,6 +19,7 @@ import {
 export class Prediction {
   state: PlayerState;
   kart: KartState | null = null; // the kart they drive, as predicted
+  private last: InputFrame | null = null; // the frame last applied
   private pending: InputFrame[] = [];
   private seq = 0;
 
@@ -35,6 +38,18 @@ export class Prediction {
   apply(frame: InputFrame): void {
     this.step(this.state, this.kart, frame);
     this.pending.push(frame);
+    this.last = frame;
+  }
+
+  // The kart they drive `into` seconds into the tick to come, on the keys of their last frame: where
+  // it's drawn between one tick and the next, so it moves and turns on every frame the screen draws
+  // rather than thirty times a second. Only where it is and how it's turned run on: what it's doing
+  // (a hop, a drift, a trick, a boost) changes on its tick.
+  kartBetween(into: number): KartState | null {
+    if (!this.kart) return null;
+    const on = cloneKart(this.kart);
+    stepKart(on, controlsOf(this.last), into, this.structures);
+    return { ...this.kart, pos: on.pos, yaw: on.yaw, wheel: on.wheel };
   }
 
   // Returns how far the corrected position moved, so the caller can smooth the pop. `kart` is the
