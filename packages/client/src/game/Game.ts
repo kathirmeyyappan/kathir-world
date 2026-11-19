@@ -12,6 +12,7 @@ import {
   WALL_FRAMES,
   INTERIOR_BUILDINGS,
   HOME_GROUND,
+  stranded,
   WORLD_GROUND,
   DOOR_REACH,
   lookVector,
@@ -101,6 +102,7 @@ import { AreaTitle } from '../ui/AreaTitle';
 import { Bubble } from '../ui/Bubble';
 import { CommandHint } from '../ui/CommandHint';
 import { CommandsMenu } from '../ui/CommandsMenu';
+import { Alert } from '../ui/Alert';
 import { Condition } from '../ui/Condition';
 import { KartGauge } from '../ui/KartGauge';
 import { EdgeFlash } from '../ui/EdgeFlash';
@@ -270,6 +272,7 @@ export class Game {
   private readonly gearHud = new GearHud();
   private readonly condition = new Condition();
   private readonly kartGauge = new KartGauge();
+  private readonly alert = new Alert();
   private readonly commandHint = new CommandHint();
   private readonly areaTitle = new AreaTitle();
   private readonly commandsMenu = new CommandsMenu();
@@ -363,6 +366,7 @@ export class Game {
     this.commandsMenu.onCommand = (text) => this.hud.onChat?.(text);
     this.commandsMenu.onDraft = (text) => this.hud.openChat(text);
     this.commandsMenu.onPoint = (text) => this.wantCommand(text, false);
+    this.commandsMenu.onNotice = (text) => this.alert.flash(text);
     // Chat, the commands and the menu are what the nudge points at: one found, it's done with.
     // The commands free the mouse for their buttons; the world has it back when they go.
     this.commandsMenu.onOpenChange = (open) => {
@@ -723,7 +727,9 @@ export class Game {
         this.hud.system(m.text);
         return;
       case 'refused':
-        this.hud.refuse(m.text);
+        // The reason goes in the log like any system line, and in the red box.
+        this.hud.system(m.text);
+        this.alert.flash(m.text);
         return;
       case 'shot':
         if (m.id !== this.myId) this.pendingShots.push({ shooter: m.id, hitMe: false });
@@ -1165,6 +1171,11 @@ export class Game {
     this.gearHud.set(this.dead ? null : self.gear);
     this.condition.set(this.dead ? 0 : self.chilled);
     this.kartGauge.set(driving ? this.prediction.kartPace() : null);
+    // Driving a kart that's down past the world's edge, there's nothing left to do but get out.
+    const lost = !this.dead && !!self.riding && !!this.prediction.kart && stranded(this.prediction.kart);
+    this.alert.hold(
+      lost ? `you're off the map!\n${IS_TOUCH ? 'tap OUT' : 'press E'} to exit and seal your fate` : null,
+    );
     this.commandHint.update(this.isBlocked());
     this.minimap.update({
       me: { x: p.x, y: p.y, z: p.z, yaw: this.input.yaw },

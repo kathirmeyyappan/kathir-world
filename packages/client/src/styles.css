@@ -1230,19 +1230,22 @@ body {
   border: 2px solid rgba(159, 212, 255, 0.85);
   box-shadow: 3px 3px 0 #000;
 }
-/* Why what the player just asked for can't be done, over the middle of the view for a moment. */
-#refusal {
+/* The red box over the view (ui/Alert.ts): something's wrong or can't be done, for a moment or
+   for as long as it's so. */
+#alert {
   position: fixed;
   top: 28%;
   left: 50%;
   transform: translateX(-50%);
+  width: max-content;
   max-width: min(560px, calc(100vw - 32px));
   padding: 6px 12px 7px;
-  z-index: 100;
+  z-index: 160;
   pointer-events: none;
   font: 18px var(--mono);
   letter-spacing: 1px;
   text-align: center;
+  white-space: pre-line;
   color: #fff;
   background: rgba(150, 18, 32, 0.88);
   border: 2px solid #ff3b4e;
@@ -1250,7 +1253,7 @@ body {
   opacity: 0;
   transition: opacity 0.4s;
 }
-#refusal.on {
+#alert.on {
   opacity: 1;
   transition: none;
 }
@@ -2730,28 +2733,6 @@ body {
   #commands .guide {
     font-size: 13px;
   }
-}
-/* A greyed button's notice, at the top of the screen for a moment over the chat it opened. */
-#command-notice {
-  position: fixed;
-  top: 14px;
-  left: 50%;
-  z-index: 160;
-  pointer-events: none;
-  max-width: 90vw;
-  transform: translateX(-50%);
-  padding: 8px 14px;
-  background: #3a0d0d;
-  border: 2px solid #e57373;
-  box-shadow: 3px 3px 0 #000;
-  font: 10px/1.6 var(--pixel);
-  color: #ffcdd2;
-  text-align: center;
-  opacity: 0;
-  transition: opacity 0.25s;
-}
-#command-notice.on {
-  opacity: 1;
 }
 /* Pictures the browser draws at full resolution under the 3D canvas (render/CrispPanels.ts), each
    placed from the screen's middle by its transform; never takes the mouse. */
