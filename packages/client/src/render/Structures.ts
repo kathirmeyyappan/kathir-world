@@ -83,10 +83,12 @@ export function buildStructures(engine: Engine, structures: readonly Structure[]
     group.pieces.push({ s, i });
     groups.set(key, group);
   });
-  for (const [key, { look, x, z, pieces }] of groups)
+  for (const [key, { look, x, z, pieces }] of groups) {
+    let merged: Mesh | null = null;
     loader.add({
       x,
       z,
+      r: (REGION * Math.SQRT2) / 2,
       // A piece a step, so a crowded region is built over a few frames, then joined in one.
       load: function* () {
         const placedPieces: VertexData[] = [];
@@ -95,13 +97,19 @@ export function buildStructures(engine: Engine, structures: readonly Structure[]
           yield;
         }
         const [first, ...rest] = placedPieces;
-        const merged = new Mesh(`structures-${key}`, scene);
+        merged = new Mesh(`structures-${key}`, scene);
         first.merge(rest, true).applyToMesh(merged);
         merged.material = structureMaterial(scene, look);
         merged.isPickable = false;
         merged.freezeWorldMatrix();
       },
+      // The mesh alone: its look's material is shared, and kept.
+      unload: () => {
+        merged?.dispose();
+        merged = null;
+      },
     });
+  }
 }
 
 function material(scene: Scene, look: Look): StandardMaterial {

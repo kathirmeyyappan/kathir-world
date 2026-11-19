@@ -8,9 +8,9 @@
 // (sim/doors.ts) over DOOR_SWING_SECONDS; a door of two leaves has a node for each. A part of a
 // floor of rooms is fetched while that floor is wanted, drawn only while it could be seen, and let
 // go once it's far off and long unseen (Interiors.ts): its interior is `<model>:<floor>`. The parts
-// outside are the model's full detail, drawn near and let go far off, a shell standing in for them
-// there (Shells.ts): a few thousand triangles in its own colours, from the shape the content
-// already has.
+// outside are the model's full detail, kept within the loader's reach and let go past it, a shell
+// standing in for them there: a few thousand triangles in its own colours, from the shape the
+// content already has, made at once and kept for good.
 import { Color3, Mesh, StandardMaterial, Texture, TransformNode, VertexData, type Scene } from '@babylonjs/core';
 import {
   DOOR_SWING_SECONDS,
@@ -24,10 +24,8 @@ import {
   PINEAPPLE_PROFILE,
 } from '@world/shared';
 import type { Engine } from '../Engine';
-import type { Part as Detail } from '../Held';
 import type { Interiors } from '../Interiors';
 import { wait, type Loader } from '../Loader';
-import type { Shells } from '../Shells';
 import { placed } from '../Structures';
 import { KRUSTY_KRAB_PARTS } from './krustyKrabParts';
 import { PINEAPPLE_PARTS } from './pineappleParts';
@@ -116,7 +114,7 @@ export class Models {
   // Each of the sim's doors: its hinges, whether it stands open, and when it last began to swing.
   private readonly doors = new Map<string, { hinges: Hinge[]; open: boolean; at: number }>();
 
-  constructor(engine: Engine, loader: Loader, interiors: Interiors, shells: Shells) {
+  constructor(engine: Engine, loader: Loader, interiors: Interiors) {
     const scene = engine.scene;
     for (const model of MODELS) {
       const root = new TransformNode(`model-${model.name}`, scene);
@@ -124,7 +122,6 @@ export class Models {
       root.rotation.y = model.placement.yaw;
       const { x, z } = model.placement;
       const hinges = new Map<string, TransformNode>();
-      const outside: Detail[] = [];
       for (const hinge of model.hinges) {
         const node = new TransformNode(`model-${model.name}-door-${hinge.name}`, scene);
         node.parent = root;
@@ -134,39 +131,62 @@ export class Models {
         door.hinges.push({ node, swing: hinge.swing });
         this.doors.set(hinge.door, door);
       }
+      // The parts outside, drawn only once every one of them is here, all at once in the shell's
+      // place, so the two never overlap and the shell stands in while they're on their way.
+      const shell = shellMesh(scene, model);
+      const outside: (Mesh | null)[] = [];
+      const whole = () => {
+        const all = outside.every((mesh) => mesh !== null);
+        shell.setEnabled(!all);
+        for (const mesh of outside) mesh?.setEnabled(all);
+      };
       for (const part of model.parts) {
         const parent = part.door ? hinges.get(part.door)! : root;
-        // Fetched through the loader whenever it's wanted: a part inside with its floor (Interiors),
-        // one outside with the model's full detail (Shells).
+        if (!part.floor) {
+          // Within the loader's reach of the model, and let go past it.
+          const k = outside.push(null) - 1;
+          loader.add({
+            x,
+            z,
+            r: model.shell.r,
+            load: function* () {
+              outside[k] = yield* fetchPart(scene, model.name, part, parent);
+              whole();
+            },
+            // Its material and texture with it; the texture's image stays in the browser's cache.
+            unload: () => {
+              outside[k]?.dispose(false, true);
+              outside[k] = null;
+              whole();
+            },
+          });
+          continue;
+        }
+        // Fetched through the loader whenever its floor is wanted, and let go with it (Interiors).
         let mesh: Mesh | null = null;
-        const load = () =>
-          new Promise<void>((done, fail) =>
-            loader.add({
-              x,
-              z,
-              load: function* () {
-                try {
-                  mesh = yield* fetchPart(scene, model.name, part, parent);
-                  done();
-                } catch (e: unknown) {
-                  fail(e);
-                }
-              },
-            }),
-          );
-        const detail: Detail = {
-          load,
-          // Its material and texture with it; the texture's image stays in the browser's cache.
+        interiors.add(`${model.name}:${part.floor}`, {
+          load: () =>
+            new Promise<void>((done, fail) =>
+              loader.add({
+                x,
+                z,
+                load: function* () {
+                  try {
+                    mesh = yield* fetchPart(scene, model.name, part, parent);
+                    done();
+                  } catch (e: unknown) {
+                    fail(e);
+                  }
+                },
+              }),
+            ),
           unload: () => {
             mesh?.dispose(false, true);
             mesh = null;
           },
           show: (on) => mesh?.setEnabled(on),
-        };
-        if (part.floor) interiors.add(`${model.name}:${part.floor}`, detail);
-        else outside.push(detail);
+        });
       }
-      shells.add({ name: model.name, x, z, r: model.shell.r, shell: shellMesh(scene, model), parts: outside });
     }
   }
 
