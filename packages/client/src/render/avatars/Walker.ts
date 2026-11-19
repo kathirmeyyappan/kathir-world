@@ -560,7 +560,7 @@ function jointsOf(root: TransformNode, figure: Figure): Joints {
 
 // Works out the world matrices from `root` down to `node`, each from its parent's as it's posed
 // now: the renderer hasn't yet this frame.
-function fresh(node: TransformNode, root: TransformNode): void {
+export function fresh(node: TransformNode, root: TransformNode): void {
   const chain: TransformNode[] = [];
   for (let n: TransformNode | null = node; n; n = n === root ? null : (n.parent as TransformNode | null)) chain.push(n);
   for (let i = chain.length - 1; i >= 0; i--) chain[i].computeWorldMatrix(true);
