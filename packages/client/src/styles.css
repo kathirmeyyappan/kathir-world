@@ -12,8 +12,9 @@
   --mono: 'VT323', 'Courier New', monospace;
   --pixel: 'Press Start 2P', 'VT323', monospace;
   --panel: #0b0d14;
-  /* Where what stands under the hearts starts (the area's title, the condition's banner): lower
-     while a kart's wrenches and gauge stand there first (#wrenches). */
+  /* Where what stands under the hearts starts (the area's title, the condition's banner, the corner
+     on a narrow upright screen): lower while a kart's wrenches stand there first, and on a mouse
+     device its gauge under them (#wrenches). */
   --under-hearts: 84px;
 }
 
@@ -1071,6 +1072,10 @@ body {
 }
 #kart-gauge .accel {
   min-width: 11ch;
+}
+/* Under the wrenches (--under-hearts), and on a mouse device under the gauge too. */
+body:has(#wrenches:not([hidden])) {
+  --under-hearts: 121px;
 }
 @media not (pointer: coarse) {
   body:has(#wrenches:not([hidden])) {
@@ -2184,9 +2189,14 @@ body {
   border-color: var(--accent);
   box-shadow: 0 0 12px var(--accent);
 }
+/* FIRE (or SELECT, or SCOPE TO FIRE) and SCOPE: as wide as JUMP, the label centred across all of it. */
+#action-button,
+#scope-button {
+  width: 84px;
+  padding: 0;
+}
 #action-button {
   bottom: 122px;
-  width: 84px;
 }
 #action-button.fire {
   color: #ff3b4e;
@@ -2195,13 +2205,14 @@ body {
 #action-button.fire.active {
   background: rgba(255, 59, 78, 0.3);
 }
+/* SCOPE TO FIRE: smaller, and padded so it breaks a word to a line. */
 #action-button.disabled {
   opacity: 0.5;
+  padding: 0 14px;
   font-size: 8px;
 }
 #scope-button {
   bottom: 178px;
-  width: 84px;
 }
 /* SWAP, on a ladder, and a look's own move (CROUCH, or POUND in the air): a square beside JUMP, to its left. */
 #swap-button,
@@ -2278,8 +2289,9 @@ body {
   #pad {
     display: block;
   }
+  /* Smaller, and close under the hearts. */
   #area-title {
-    top: 66px;
+    top: calc(var(--under-hearts) - 18px);
     font-size: 18px;
     line-height: 24px;
     letter-spacing: 3px;
@@ -2443,6 +2455,7 @@ body {
     right: 16px;
   }
   #action-button.disabled {
+    padding: 0 10px;
     line-height: 11px;
   }
   #scope-button {
@@ -2527,6 +2540,11 @@ body {
     grid-template-columns: repeat(var(--heart-row, 5), 24px);
     gap: 2px;
   }
+  /* The wrenches are smaller here and end at 70px: the area's title, 18px above this, starts just
+     under them. */
+  body:has(#wrenches:not([hidden])) {
+    --under-hearts: 89px;
+  }
   .heart {
     width: 18px;
     height: 16px;
@@ -2545,16 +2563,29 @@ body {
   }
 }
 
-/* Narrow and upright, the hearts fill the middle of the top, so the corner starts under them, and on
-   a phone the banners that come and go under the hearts start under the corner. */
+/* Narrow and upright, the hearts fill the middle of the top, so the corner starts under them (and
+   under a kart's wrenches while they show), a little nearer than a banner would, and on a phone the
+   banners that come and go under the hearts start under the corner. */
 @media (max-width: 660px) and (orientation: portrait) {
   #corner {
-    top: 76px;
+    top: calc(var(--under-hearts) - 8px);
   }
 }
 @media (pointer: coarse) and (max-width: 660px) and (orientation: portrait) {
+  /* Where what stands under the corner starts: the corner is 96px tall as a phone starts with it,
+     the room panel shut. */
+  body {
+    --under-corner: calc(var(--under-hearts) + 92px);
+  }
   #area-title {
-    top: 176px;
+    top: var(--under-corner);
+  }
+  /* The condition's banner stands where the title does, and under it while it shows. */
+  #condition {
+    top: calc(var(--under-corner) + 2px);
+  }
+  body:has(#area-title.on) #condition {
+    top: calc(var(--under-corner) + 28px);
   }
   /* Small enough for each of the nudge's lines to stay on one row. */
   #command-hint .text {
@@ -2569,10 +2600,13 @@ body {
   }
   #item-hint,
   #move-hint {
-    top: 214px;
+    top: calc(var(--under-corner) + 38px);
   }
   #command-hint {
-    top: max(22%, 176px);
+    top: max(22%, var(--under-corner));
+  }
+  #refusal {
+    top: max(28%, var(--under-corner));
   }
 }
 
