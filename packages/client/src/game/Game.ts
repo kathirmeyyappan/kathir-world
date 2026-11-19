@@ -49,8 +49,10 @@ import {
   type Vec3,
   EYE_HEIGHT,
   KARTS,
+  KART_ACTIONS,
   SEATED,
   eyeOf,
+  seatedAt,
   statureOf,
   walkSpeedOf,
   SCOPED_SIGHT,
@@ -982,7 +984,6 @@ export class Game {
     this.syncBlocked();
     this.input.update();
     this.holdLook(dt);
-    this.driving.follow(this.input, this.prediction.state.riding ? this.prediction.kart : null, dt);
     const sampled = this.interp.sample(performance.now(), this.myId);
     // Off the eyes the camera's centre ray and theirs differ, so the look sent (the shot, the head's
     // turn) is the eyes' at what the crosshair is on, from where the camera was last frame.
@@ -1020,7 +1021,10 @@ export class Game {
     this.correction.scaleInPlace(decay);
     this.stepEase *= Math.pow(0.5, dt / STEP_EASE_HALF_LIFE);
     const self = this.prediction.state;
-    const p = self.pos;
+    // A driver is where their kart is drawn, between its ticks, and their look turns with it.
+    const driven = self.riding ? this.prediction.kartBetween(this.accumulator) : null;
+    this.driving.follow(this.input, driven, dt);
+    const p = driven ? seatedAt(driven) : self.pos;
     const eye = new Vector3(p.x + this.correction.x, p.y + this.correction.y, p.z + this.correction.z);
     // The camera sits at the avatar's own eyes with its own width of view, easing there when the
     // look changes, and never up through a lintel or ceiling the body fits under.
@@ -1110,10 +1114,12 @@ export class Game {
     this.viewmodel.swing(this.view.atEyes && !this.dead ? self.strike : null, strikeOf(self.avatar), dt);
     this.viewmodel.update(dt);
     const showHint = held && !this.dead;
+    // A driver, their hands empty, is told how to get out; on touch the OUT button says it.
+    const driving = !!self.riding && !this.dead && !IS_TOUCH;
     this.hud.setItemHint(
-      showHint ? itemHint(held.id, !IS_TOUCH, this.scoped, classOf(self.avatar)) : '',
+      driving ? EXIT_HINT : showHint ? itemHint(held.id, !IS_TOUCH, this.scoped, classOf(self.avatar)) : '',
       held && !ITEMS[held.id].own ? itemStats(held.id) : '',
-      showHint ? held.id : '',
+      driving ? 'kart' : showHint ? held.id : '',
       held ? ITEMS[held.id].element : null,
     );
     // A look's own moves get their hint as the look is taken, once the start press (main.ts
@@ -1194,7 +1200,6 @@ export class Game {
     }
     // The kart the player drives is drawn where they predict it, eased as they are. Karts are drawn
     // before bodies, so a driver sits in their kart where it's drawn this frame.
-    const driven = self.riding ? this.prediction.kart : null;
     const c = this.correction;
     const karts = sampled.karts.map((k) =>
       driven && k.id === self.riding
@@ -1529,6 +1534,8 @@ export class Game {
 
 // A key as the hint bar draws one: its name in square brackets (ui/Hud.ts).
 const keyed = (code: string): string => `[${keyLabel(code)}]`;
+
+const EXIT_HINT = actionHelp({ exit: KART_ACTIONS.exit }, ', ', keyed);
 
 // The hint bar's text. A look's own weapon (a dragon's breath) is its name alone: a click fires it
 // as anywhere, and the look's keys are in the legend. A scope-only weapon leads with the step

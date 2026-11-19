@@ -950,15 +950,16 @@ for a bigger one grown as many times as they're bigger, by up to `GROWTH` (a fif
 see karts come in sizes; everything about its box is read at that size through `bodyOf`. `stepKart` (`kart.ts`)
 is how every kart drives, a pure step of its `KartState` by its driver's `KartControls` (gas or
 brake, the wheel, the drift key) that the Room runs and the driver's client predicts with: the gas
-and the brake along it (the brake backing it up once it stops), a turn as tight at any speed,
+and the brake along it (the brake backing it up once it stops; with neither it slows fast, to a
+stop from flat out in under two seconds, `COAST`), a turn as tight at any speed,
 the wheels taking back what slides across, rolling up anything within a kerb's height and
 flying off a ramp's lip, and walls in the way, which it meets as two circles, at its nose and its
 tail, so a corner hit turns it; it reports how fast it ran into what it hit and how fast it came
 down when it lands. A drift is Space: a press hops it, and landing with the key held and the
 wheel over at speed it drifts that way, tighter or wider by the wheel, a spark blue, yellow and
-purple at one, two and three `miniTurboTime`s of it on the ground; let go on a spark, it's a
-mini-turbo, its top speed raised by half over `TURBO.rise`, held for `TURBO.holds` by the spark
-and let down over `TURBO.fall`. A press in the air, off a ramp or a ledge but not its own hop (or
+purple at 1, 2.25 and 3.5 `miniTurboTime`s of it on the ground (`SPARKS`); let go on a spark, it's a
+mini-turbo, its top speed raised by half over `TURBO.rise`, held as long as the spark gives
+and let down over `TURBO.fall`, the kart slowing with it, so a boost is over when it says. A press in the air, off a ramp or a ledge but not its own hop (or
 every hop would be a boost), is a trick (`KartState.trick`), left or right the way the wheel is
 held, else either by where the kart is (so the driver's client predicts the same way), and landing
 after one is a boost like a mini-turbo's held for `TRICK.hold`; `turbo` is either, by how long it
@@ -974,12 +975,12 @@ out with E (the `exit` action), whatever move they were in stops, and they ride 
 (`PlayerState.riding`), their frames driving it (`my` the gas, `mx` the wheel, the `drift`
 action held) and only what stands out of the seat hit by shots (`SEATED`); kit and bodies that
 can't sit are refused till they get out. Everything that hurts is judged by how fast two things
-close square to where they touch (`IMPACT`: nothing under 10 m/s, 5 at 20 and on in step):
-hearts off a player on foot a kart runs into, who is thrown back hard (and 5 off one it comes
-down on), credited to its driver, else whoever last drove or dropped it; and wrenches off a kart
-from a wall or another kart (which also part by their `weight`s), from the ground it lands on more
-gently (`LANDING`: half how fast it comes down counts, so it's worn only from a 10 m drop and a
-40 m one takes every wrench), and a
+close square to where they touch, nothing under 10 m/s and in step with the speed from there:
+hearts off a player on foot a kart runs into (`IMPACT`, 5 at 20 m/s), who is thrown back hard (and
+5 off one it comes down on), credited to its driver, else whoever last drove or dropped it; and
+wrenches off a kart (`WEAR`, 2 at 20 m/s, so it takes crash after crash flat out) from a wall or
+another kart (which also part by their `weight`s) and from the ground it lands on, more gently
+still (`LANDING`: half how fast it comes down counts, so it's worn only from a 10 m drop), and a
 shot's damage from anyone, a shot stopping at a kart nearer than whoever it would have hit. At
 no wrenches it explodes (`boom`): it's gone, its driver is thrown out of it, and everyone on foot
 within `BLAST.reach` with nothing between takes `BLAST.damage` and is thrown away, credited to
@@ -1004,14 +1005,20 @@ draws one: its tires rolled by how far it went and the front pair steered, its s
 turned, the body tipped to the ground under its tires, all at its size, eased there; its files are
 sent for ahead (see Client loading), and it's drawn once they're here. `game/Driving.ts` is
 the rest of driving on the client: every kart drawn, the driven one where its driver's prediction
-has it (`Prediction` rides it as the Room does, rewinding and replaying it with them); the kart
+has it (`Prediction` rides it as the Room does, rewinding and replaying it with them), run on
+between its ticks by a part of a step on the keys of their last frame (`Prediction.kartBetween`),
+so it, its driver's eye and their look move on every frame drawn rather than thirty times a
+second; the kart
 under the crosshair, which a click gets in (the same prompt and `use` as a door's); the look
 turned with the kart and settled back behind it once the mouse is let be; and the drift on Space
-and E to get out. A driver is watched along `KART_BOOM`, their legend is the kart's keys, and on
-touch the pad steers alone, GAS and BRAKE hold W and S, the jump button drifts and OUT gets out.
+and E to get out (`KART_ACTIONS`). A driver is watched along `KART_BOOM`, their legend is the
+kart's keys and the hint bar says how to get out, and on touch the pad steers alone, GAS (red) and
+BRAKE hold W and S, the jump button (grey) drifts and OUT gets out.
 Their kart's wrenches are a row of pixel wrenches under their hearts (`Hearts` with the `wrench`
-sprite). A frame the Room steps a driver without (one arriving late) drives on with the keys as
-their last frame held them. A kart's meshes and its paint's materials are made once per scene and
+sprite). A tick the Room steps a driver's kart with no frame (theirs is late) is taken on the keys
+of their last, ahead of the frame it stood in for, which is then taken for its keys alone
+(`Garage.drive`): a kart steps once for each of its driver's frames, as their client predicted,
+however late they come. Past `AHEAD_TICKS` of that its keys are let go and it rolls to a stop. A kart's meshes and its paint's materials are made once per scene and
 shared by every kart of that model and paint, so a kart let go disposes its own nodes alone.
 
 A kart is in every menu a command or a key is: the commands card's `drop kart` group (its

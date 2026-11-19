@@ -7,6 +7,7 @@ import {
   OUTSIDE_HEIGHT,
   HEADSHOT_MULTIPLIER,
   INPUT_WAIT_TICKS,
+  MAX_INPUTS_PER_TICK,
   ITEMS,
   MAX_HEARTS,
   poundOf,
@@ -1293,6 +1294,26 @@ test('a kart is got into with a click, driven, and got out of with E, what the d
   assert.equal(room.garage.list[0].id, kart);
 });
 
+test("a driver's late frames step their kart once each, however long the Room drove it on without them", () => {
+  // Twenty-five frames on the gas: all on time, or the last fifteen held up past INPUT_WAIT_TICKS
+  // and then come at once, to be run several to a tick.
+  const driven = (late: boolean): number => {
+    const { room, ids } = kartRoom({ x: 0, y: 0, z: 0 });
+    const [id] = ids;
+    getIn(room, id);
+    for (let i = 0; i < 10; i++) driving(room, id, 1);
+    const held = INPUT_WAIT_TICKS + 5;
+    if (late) for (let i = 0; i < held; i++) room.step();
+    for (let i = 0; i < held; i++) {
+      room.receive(id, { t: 'input', f: { ...frame(0, []), my: 1 } });
+      if (!late) room.step();
+    }
+    if (late) for (let i = 0; i < held / MAX_INPUTS_PER_TICK; i++) room.step();
+    return room.garage.list[0].pos.z;
+  };
+  assert.equal(driven(true), driven(false));
+});
+
 test('a kart hurts whoever it runs into by how fast they closed, credited to its driver', () => {
   const { room, ids, inboxes } = kartRoom({ x: 0, y: 0, z: 0 }, { x: 20, y: 0, z: 0 });
   const [driver, victim] = ids;
@@ -1313,6 +1334,7 @@ test("a kart worn out by a wall blows up, hurting its driver and everyone near b
   const [driver, near] = ids;
   getIn(room, driver);
   const k = room.garage.list[0];
+  k.wrenches = 1;
   k.pos.z = 30;
   k.vel = { x: 0, y: 0, z: 20 };
   const carol = room.players.find((p) => p.id === near)!;
@@ -1343,7 +1365,7 @@ test('a shot that reaches a kart first wears it, and one over it hits the driver
   // on with no drift and no mini-turbo, slowing.
   for (let i = 0; i < ITEMS.gun.cooldownTicks; i++) tick(room);
   k.vel = { x: -15, y: 0, z: 0 }; // away from the shooter, along the line of the shot
-  k.drift = { way: 1, t: 3 * KARTS.standard.miniTurboTime };
+  k.drift = { way: 1, t: 4 * KARTS.standard.miniTurboTime };
   them.hearts = 1;
   const head = them.pos.y - EYE_HEIGHT + AVATARS[them.avatar].hitbox.top * SEATED - 0.1;
   me.pos = { x: them.pos.x + 8, y: EYE_HEIGHT, z: them.pos.z };
