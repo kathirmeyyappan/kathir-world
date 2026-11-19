@@ -65,7 +65,7 @@ void main() {
 }
 `;
 
-// Signed distance to the world's edge, mirroring worldDistance() in shared: discs are (x, z, r),
+// Signed distance to the world's edge, mirroring Ground.edge in shared: discs are (x, z, r),
 // bridges are (ax, az, bx, bz) with a half width, and sectors are (x, z, r) with the bearings
 // between their sides. Counts are capped so the loops stay constant.
 export const MAX_DISCS = 8;

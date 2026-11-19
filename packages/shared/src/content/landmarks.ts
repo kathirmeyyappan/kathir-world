@@ -1,5 +1,5 @@
 // What every map of the world draws on its floor (ui/MapCanvas.ts: the HUD's minimap, the menu's and
-// the guide's), besides the outline (sim/world.ts WORLD_SHAPE): footprints filled in grey, so the big
+// the guide's), besides the outline (sim/outline.ts WORLD_OUTLINE): footprints filled in grey, so the big
 // structures show on the map. Only what you'd navigate by belongs here: a keep, not the decks and
 // rails around it. A disc can carry `rings`, circles drawn evenly inside it (Tung Tung Tower has one
 // per floor above the ground, which marks it out from the one-storey buildings), or an `inner`
@@ -8,7 +8,7 @@
 //
 // Up past HIGH_UP the map greys in HIGH_LANDMARKS as well: the walkways up there, which would only
 // clutter the map on the ground.
-import type { Bridge, Disc } from '../sim/world';
+import type { Bridge, Disc } from '../sim/ground';
 import { STANDING_KEEPS } from './buildings';
 import { KRUSTY_KRAB_FOOTPRINT } from './krustyKrab';
 import { PINEAPPLE_DECK, PINEAPPLE_FOOTPRINT } from './pineapple';

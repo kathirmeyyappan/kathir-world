@@ -205,8 +205,10 @@ wire: server and client both build the world from that file.
   The terrace (`content/terrace.ts`) is reached from the keeps:
   the tower's sky bridge, and a staircase from each keep's roof. A piece you'll reuse (a
   staircase, a round wall) is a function returning `Structure[]` in `sim/structures.ts`.
-- Coordinates are world metres, yaw 0 facing +z. The playable outline is `WORLD_SHAPE` in
-  `sim/world.ts`, with its parts in `sim/outline.ts`: the main disc (r 50 at the origin), the annex
+- Coordinates are world metres, yaw 0 facing +z. The playable outline is `WORLD_OUTLINE` in
+  `sim/outline.ts`, the ground (`WORLD_GROUND`, `sim/ground.ts`) that every part of the game asks
+  where the floor ends, through `Structures.ground` in the sim: its parts indexed by `CHUNK` (48 m)
+  square, so a question about a spot looks only at the parts near it. Its parts: the main disc (r 50 at the origin), the annex
   (r 30 at x 112) and the bridge between them (16 m wide), the four buildings' grounds (discs the
   annex's size round the main disc at 70°, 125°, 235° and 290°, the keeps' 100 m out and SpongeBob's house's further out, at 124 m, on much wider grounds, r 52, so its dune and the sand round it sits on
   the floor with room round it), the Krusty Krab's grounds between Buildings 2 and 3 (r 32 at 180°,
@@ -562,7 +564,7 @@ a body walks or collides needs no rebuild from you: `deploy.sh` builds the map i
 is off (`npm run bot-map -- --if-stale`), and CI keeps what a deploy built for the next one.
 
 Cubes don't know about structures. Every map (the HUD's minimap, the menu's and the guide's) draws
-through `ui/MapCanvas.ts`, which reads the outline (`WORLD_SHAPE`) and `content/landmarks.ts` itself,
+through `ui/MapCanvas.ts`, which reads the outline (`WORLD_GROUND`) and `content/landmarks.ts` itself,
 so they all show one world and a map change is a change there: footprints grey on the floor (a disc's
 `rings` drawn inside it: Tung Tung Tower has one per floor above the ground), SpongeBob's house as
 itself (a `PineappleMark`: the fruit hatched, its leaves in the middle, on the sand of its dune), the

@@ -11,7 +11,7 @@ import {
   INPUT_WAIT_TICKS,
   WALL_FRAMES,
   INTERIOR_BUILDINGS,
-  WORLD_SHAPE,
+  WORLD_GROUND,
   DOOR_REACH,
   lookVector,
   movesHelp,
@@ -274,7 +274,7 @@ export class Game {
   ) {
     const canvas = canvasEl;
     this.engine = new Engine(canvas, true);
-    this.environment = new Environment(this.engine, WORLD_SHAPE, WORLD_STRUCTURES.top);
+    this.environment = new Environment(this.engine, WORLD_GROUND, WORLD_STRUCTURES.top);
     buildStructures(this.engine, WORLD_STRUCTURES.list, this.loader);
     this.frost = new FrostLayer(this.engine, WORLD_STRUCTURES.list);
     this.interiors = new Interiors(INTERIOR_BUILDINGS, (door) => this.models.ajar(door));
@@ -587,10 +587,10 @@ export class Game {
         this.myId = m.id;
         // The sky is seeded by the room's key (the Modal session id), which welcome carries, so
         // everyone in a session shares one sky and a new session gets a new one.
-        for (const sky of placeSkyObjects(this.engine, SKY_OBJECTS, WORLD_SHAPE, createRng(hashSeed(m.room))))
+        for (const sky of placeSkyObjects(this.engine, SKY_OBJECTS, WORLD_GROUND, createRng(hashSeed(m.room))))
           this.skyByMesh.set(sky.mesh.name, sky);
         const me = m.players.find((p) => p.id === m.id)!;
-        this.prediction = new Prediction(me, WORLD_SHAPE, WORLD_STRUCTURES);
+        this.prediction = new Prediction(me, WORLD_STRUCTURES);
         this.input.yaw = me.yaw;
         this.input.pitch = me.pitch;
         this.interp.push(m, now);

@@ -24,7 +24,7 @@ import {
   Structures,
   TICK_DT,
   TICK_RATE,
-  worldDistance,
+  WORLD_GROUND,
   CIRCLE_LOOKS,
   DOOR_SWING_SECONDS,
   DUNE_HEIGHT,
@@ -737,7 +737,7 @@ test('a bot stands where it asks, looking how it asks; a person only chooses a l
 
   const outside = room.join('circle-bot', link(), { bot: true, spawn: { x: 0, y: 30, z: 500 } })!;
   const lost = room.players.find((p) => p.id === outside)!;
-  assert.ok(worldDistance(lost.pos.x, lost.pos.z) <= -1 + 1e-9, 'clamped inside the outline');
+  assert.ok(WORLD_GROUND.edge(lost.pos.x, lost.pos.z) <= -1 + 1e-9, 'clamped inside the outline');
   assert.equal(lost.pos.y, 30 + EYE_HEIGHT, 'at the height it asked for, to fall from there');
 });
 

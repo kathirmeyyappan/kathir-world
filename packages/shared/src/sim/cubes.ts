@@ -1,6 +1,7 @@
 // Floating info cubes. Simulated on the server only; clients interpolate the broadcast positions.
 // All cubes live in the main disc and wander it evenly: each new target is uniform over the disc,
-// far from where the cube is now, and away from the other cubes' targets.
+// far from where the cube is now, and away from the other cubes' targets. A cube goes straight
+// from one point in the disc to another, so it never leaves it.
 import {
   CUBE_BASE_Y,
   CUBE_BOUNDARY,
@@ -10,13 +11,14 @@ import {
 } from './constants';
 import type { Rng } from './rng';
 import type { CubeState } from './types';
-import { WORLD_SHAPE, clampToWorld, randomPointInDisc, worldDiscs, type Disc, type WorldPart } from './world';
+import type { Disc } from './ground';
+import { MAIN_DISC } from './outline';
+import { randomPointInDisc } from './regions';
 
 const MIN_TARGET_TRAVEL = 20; // a new target is at least this far away, so cubes cross the area
 const MIN_TARGET_SPACING = 12; // and this far from the other cubes' targets, so they spread out
 
-export function createCubes(ids: string[], shape: WorldPart[], rng: Rng): CubeState[] {
-  const home = mainDisc(shape);
+export function createCubes(ids: string[], rng: Rng, home: Disc = MAIN_DISC): CubeState[] {
   const positions = distribute(ids.length, home, rng);
   const cubes: CubeState[] = ids.map((id, i) => ({
     id,
@@ -32,7 +34,7 @@ export function createCubes(ids: string[], shape: WorldPart[], rng: Rng): CubeSt
   return cubes;
 }
 
-export function stepCubes(cubes: CubeState[], dt: number, shape: WorldPart[] = WORLD_SHAPE, rng: Rng): void {
+export function stepCubes(cubes: CubeState[], dt: number, rng: Rng, home: Disc = MAIN_DISC): void {
   for (const c of cubes) {
     c.time += dt;
     c.pos.y = CUBE_BASE_Y + Math.sin(c.time * c.floatFrequency) * CUBE_FLOAT_AMPLITUDE;
@@ -43,20 +45,13 @@ export function stepCubes(cubes: CubeState[], dt: number, shape: WorldPart[] = W
     const dz = c.target.z - c.pos.z;
     const dist = Math.hypot(dx, dz);
     if (dist < 0.5) {
-      c.target = pickTarget(c, cubes, mainDisc(shape), rng);
+      c.target = pickTarget(c, cubes, home, rng);
     } else {
       const speed = c.wanderSpeed * Math.min(dist / 5, 1);
       c.pos.x += (dx / dist) * speed * dt;
       c.pos.z += (dz / dist) * speed * dt;
-      clampToWorld(c.pos, CUBE_BOUNDARY, shape);
     }
   }
-}
-
-function mainDisc(shape: WorldPart[]): Disc {
-  const disc = worldDiscs(shape)[0];
-  if (!disc) throw new Error('world shape has no discs');
-  return disc;
 }
 
 // Uniform over the disc, but rejected when too close to the cube's current spot or to another

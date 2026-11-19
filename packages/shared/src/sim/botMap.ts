@@ -33,7 +33,8 @@ import { ladderRun, surfaceOf, type Structure } from './structures';
 import type { Vec3 } from './types';
 import { STRUCTURES } from '../content/structures';
 import { Structures } from './collision';
-import { WORLD_SHAPE, worldBounds, worldDistance, type Disc } from './world';
+import type { Disc } from './ground';
+import { WORLD_GROUND, WORLD_OUTLINE } from './outline';
 
 // The world without its doors (doors.ts): bots can't open them, so they walk as if every one stood open.
 const MAP_STRUCTURES = new Structures(STRUCTURES.filter((s) => !s.door));
@@ -112,7 +113,7 @@ export function botMapSource(): number {
     LOOKOUT_FLOOR,
     KEEP_REACH,
   ];
-  return hashSeed(JSON.stringify([WORLD_SHAPE, shapes(), physics, settings, hitboxes(), eyes(), moves(), BUILDINGS]));
+  return hashSeed(JSON.stringify([WORLD_OUTLINE, shapes(), physics, settings, hitboxes(), eyes(), moves(), BUILDINGS]));
 }
 
 function hitboxes(): Record<string, Hitbox> {
@@ -210,11 +211,11 @@ const NEIGHBOURS = [
 // Every grid column's standing heights: the floor and each top there that a player settles on
 // (nothing higher within a step), with room for their head and not inside or against a wall.
 function walkableNodes(): Vec3[] {
-  const b = worldBounds();
+  const b = WORLD_GROUND.bounds;
   const nodes: Vec3[] = [];
   for (let x = Math.ceil(b.minX / SPACING) * SPACING; x <= b.maxX; x += SPACING) {
     for (let z = Math.ceil(b.minZ / SPACING) * SPACING; z <= b.maxZ; z += SPACING) {
-      if (worldDistance(x, z) > -PLAYER_PADDING) continue;
+      if (WORLD_GROUND.edge(x, z) > -PLAYER_PADDING) continue;
       const heights = new Set([0, ...MAP_STRUCTURES.list.flatMap((s) => topAt(s, x, z))]);
       for (const y of heights) {
         if (Math.abs(MAP_STRUCTURES.groundAt(x, z, y + STEP_UP) - y) > 1e-9) continue;

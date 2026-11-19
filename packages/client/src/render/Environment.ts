@@ -13,7 +13,7 @@ import {
   VertexData,
   type Scene,
 } from '@babylonjs/core';
-import { EYE_HEIGHT, OUTSIDE_HEIGHT, partDistance, worldBounds, type WorldPart, worldReach } from '@world/shared';
+import { EYE_HEIGHT, OUTSIDE_HEIGHT, partDistance, type Ground, type WorldPart } from '@world/shared';
 import { BASE_FOG_DENSITY, Engine, FOG_COLOR } from './Engine';
 import {
   GROUND_FOG,
@@ -58,17 +58,19 @@ export class Environment {
   private fogTarget = 1;
   private readonly bounds;
   private readonly span: number;
+  private readonly shape: readonly WorldPart[];
   private time = 0;
   private groundWall!: Mesh; // the outline a walker is kept inside, set in createWalls
   private skyWall!: Mesh; // the circle round all of it a dragon is kept inside
 
   constructor(
     private readonly engine: Engine,
-    private readonly shape: WorldPart[],
+    private readonly ground: Ground,
     private readonly ceiling = 0, // the top of the tallest structure
   ) {
     ENVIRONMENTS.set(engine.scene, this);
-    this.bounds = worldBounds(shape);
+    this.shape = ground.parts;
+    this.bounds = ground.bounds;
     this.span = Math.max(this.bounds.maxX - this.bounds.minX, this.bounds.maxZ - this.bounds.minZ);
     Effect.ShadersStore['worldGroundVertexShader'] = GROUND_VERTEX;
     Effect.ShadersStore['worldGroundFragmentShader'] = GROUND_FRAGMENT;
@@ -317,17 +319,12 @@ export class Environment {
     mat.disableDepthWrite = true;
     this.materials.push(mat);
     this.groundWall = this.createWall('wall', this.shape, this.ceiling + WALL_ABOVE, mat);
-    this.skyWall = this.createWall(
-      'sky-wall',
-      [{ kind: 'disc', x: 0, z: 0, r: worldReach(this.shape) }],
-      SKY_WALL_TOP,
-      mat,
-    );
+    this.skyWall = this.createWall('sky-wall', [{ kind: 'disc', x: 0, z: 0, r: this.ground.reach }], SKY_WALL_TOP, mat);
     this.skyWall.setEnabled(false);
   }
 
   // A vertical ribbon along a shape's outline, `top` metres tall.
-  private createWall(name: string, shape: WorldPart[], top: number, mat: ShaderMaterial): Mesh {
+  private createWall(name: string, shape: readonly WorldPart[], top: number, mat: ShaderMaterial): Mesh {
     const scene = this.engine.scene;
     const positions: number[] = [];
     const uvs: number[] = [];
@@ -363,7 +360,7 @@ export class Environment {
   // fall inside another part dropped (that's where parts join), and each run carried on to the exact
   // point where its edge goes into the other part, so two parts' stretches meet in the corner
   // between them.
-  private exposedRuns(shape: WorldPart[]): { part: WorldPart; points: Point[] }[] {
+  private exposedRuns(shape: readonly WorldPart[]): { part: WorldPart; points: Point[] }[] {
     const runs: { part: WorldPart; points: Point[] }[] = [];
     for (const part of shape) {
       const exposed = (p: Point) => shape.every((other) => other === part || partDistance(p.x, p.z, other) > 0);

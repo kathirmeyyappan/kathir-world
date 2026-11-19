@@ -1,6 +1,6 @@
-// The parts of the walkable outline (world.ts), in a module of their own so content can place
-// things relative to them without importing world.ts, which imports the content.
-import type { Bridge, Disc, Sector } from './world';
+// The world's outline: the parts of the floor (ground.ts), in a module of their own so content can
+// place things relative to them without importing the structures, which import the content.
+import { Ground, type Bridge, type Disc, type Sector, type WorldPart } from './ground';
 
 export const MAIN_DISC: Disc = { kind: 'disc', x: 0, z: 0, r: 50 }; // the cubes' home
 export const ANNEX: Disc = { kind: 'disc', x: 112, z: 0, r: 30 }; // Tung Tung Tower's grounds
@@ -66,3 +66,18 @@ const FAN_SIDE = 10;
 export const FAN_SIDES: Bridge[] = [BUILDING_GROUNDS[0], BUILDING_GROUNDS[BUILDING_GROUNDS.length - 1]].map(
   ({ x, z }) => ({ kind: 'bridge', ax: MAIN_DISC.x, az: MAIN_DISC.z, bx: x, bz: z, halfWidth: FAN_SIDE }),
 );
+
+// The main disc first: it's the cubes' home (sim/cubes.ts).
+export const WORLD_OUTLINE: WorldPart[] = [
+  MAIN_DISC,
+  ANNEX,
+  FLOOR_BRIDGE,
+  ...BUILDING_GROUNDS,
+  KRUSTY_KRAB_GROUNDS,
+  KRUSTY_KRAB_ROAD,
+  ROAD_PLATEAU,
+  BUILDING_FAN,
+  ...FAN_SIDES,
+];
+
+export const WORLD_GROUND = new Ground(WORLD_OUTLINE);

@@ -1,6 +1,6 @@
 // A map of the world drawn onto a canvas: every map there is draws through this, the HUD's minimap
 // (Minimap.ts), the menu's (menu/Map.ts) and the guide's, so they all show the one world, the
-// outline (WORLD_SHAPE) and the landmarks (content/landmarks.ts) as shared has them. Three views:
+// outline (WORLD_GROUND) and the landmarks (content/landmarks.ts) as shared has them. Three views:
 // CLOSE and WIDE keep you centred and turn so you always face up, CLOSE round you and WIDE further
 // out; WORLD shows the whole outline north-up.
 // Everything is drawn each frame as shapes in world metres through the view's transform, at the
@@ -15,8 +15,7 @@ import {
   HIGH_LANDMARKS,
   HIGH_UP,
   LANDMARKS,
-  WORLD_SHAPE,
-  worldBounds,
+  WORLD_GROUND,
   type KrustyKrabMark,
   type Landmark,
   type PineappleMark,
@@ -101,8 +100,8 @@ export class MapCanvas {
 
   constructor(readonly canvas: HTMLCanvasElement) {
     this.ctx = canvas.getContext('2d')!;
-    this.parts = WORLD_SHAPE.map(partPath);
-    this.bounds = worldBounds(WORLD_SHAPE);
+    this.parts = WORLD_GROUND.parts.map(partPath);
+    this.bounds = WORLD_GROUND.bounds;
   }
 
   // The frame in `view`, filling the canvas at the size it's shown at.

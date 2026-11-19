@@ -10,7 +10,7 @@ import type { Structure } from '../sim/structures';
 import { BUILDING_GROUNDS } from '../sim/outline';
 import type { Region } from '../sim/regions';
 import type { RoundRoom } from '../sim/wallFrames';
-import type { Disc } from '../sim/world';
+import type { Disc } from '../sim/ground';
 import { keep } from './keep';
 import type { InteriorBuilding } from '../sim/interiors';
 import { PINEAPPLE_FOOTPRINT, PINEAPPLE_HOUSE, PINEAPPLE_INTERIORS, PINEAPPLE_LEVELS } from './pineapple';

@@ -43,7 +43,7 @@ import { doorPieces, type DoorSpec } from '../sim/doors';
 import { roofOpening, wallOpening, type InteriorBuilding } from '../sim/interiors';
 import { BUILDING_GROUNDS } from '../sim/outline';
 import type { Region } from '../sim/regions';
-import type { Disc } from '../sim/world';
+import type { Disc } from '../sim/ground';
 import type { Vec3 } from '../sim/types';
 import { PINEAPPLE_BOXES } from './pineappleInterior';
 import { PINEAPPLE_PROFILE as SHAPE } from './pineappleProfile';

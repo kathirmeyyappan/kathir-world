@@ -9,7 +9,7 @@ import { ANNEX } from '../sim/outline';
 import type { Region } from '../sim/regions';
 import type { RoundRoom } from '../sim/wallFrames';
 import type { Vec3 } from '../sim/types';
-import type { Bridge, Disc } from '../sim/world';
+import type { Bridge, Disc } from '../sim/ground';
 import { OUTER, RAIL, ROOF_WALL, SILL, STOREY, WALL_LADDER, WALL_LADDER_R, deg, keep } from './keep';
 import { DECK, TERRACE_RING, WALKWAY } from './terrace';
 
