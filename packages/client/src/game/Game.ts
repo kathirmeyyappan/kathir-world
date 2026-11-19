@@ -89,6 +89,7 @@ import { Bubble } from '../ui/Bubble';
 import { CommandHint } from '../ui/CommandHint';
 import { CommandsMenu } from '../ui/CommandsMenu';
 import { Condition } from '../ui/Condition';
+import { KartGauge } from '../ui/KartGauge';
 import { EdgeFlash } from '../ui/EdgeFlash';
 import { Death } from '../ui/Death';
 import { Fuel } from '../ui/Fuel';
@@ -255,6 +256,7 @@ export class Game {
   private readonly fuel = new Fuel();
   private readonly gearHud = new GearHud();
   private readonly condition = new Condition();
+  private readonly kartGauge = new KartGauge();
   private readonly commandHint = new CommandHint();
   private readonly areaTitle = new AreaTitle();
   private readonly commandsMenu = new CommandsMenu();
@@ -1130,6 +1132,7 @@ export class Game {
     );
     this.gearHud.set(this.dead ? null : self.gear);
     this.condition.set(this.dead ? 0 : self.chilled);
+    this.kartGauge.set(self.riding && !this.dead && !IS_TOUCH ? this.prediction.kartPace() : null);
     this.commandHint.update(this.isBlocked());
     this.minimap.update({
       me: { x: p.x, y: p.y, z: p.z, yaw: this.input.yaw },
