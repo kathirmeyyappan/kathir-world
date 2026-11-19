@@ -5,6 +5,6 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 MODAL_SYNC_ENTRYPOINT=1 modal deploy -m infra.app
-# About five minutes, so only when the map there wasn't built from this world by this sim code.
-npm run bot-map -- --if-stale
+# Builds only the stages of the map not already built from this world by this sim code.
+npm run bot-map
 modal deploy modal-bots/app.py

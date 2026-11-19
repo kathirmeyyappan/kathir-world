@@ -568,16 +568,20 @@ means prediction and the server disagree). A new kind is different: add a case i
 the client's `build` (the compiler asks for both), a check in `validateStructure` for any new fields,
 and one test of its surface in `packages/shared/test/sim.test.ts`.
 
-Bots read the world from `modal-bots/common/world_map.json.gz`, which `npm run bot-map` builds with
-the real sim (`sim/botMap.ts`, about five minutes): the structures, the walkable graph, the
-lookouts, every avatar's hitbox and walk, and the jumps for each way a look on foot moves (each
-distinct walk and jump power is simulated over the whole graph). Rebuild it and commit the new map with the change whenever any of those
-inputs move: a structure or landmark added or changed, the world's outline, the player's body or
-movement constants, or an avatar added or its hitbox resized. A test in `sim.test.ts` fails until
-you do (the map carries a fingerprint of all of them). The map also carries `code`, a hash of the
-sim files its builder runs (`scripts/botMapCode.ts`), which no test holds it to, so a change to how
-a body walks or collides needs no rebuild from you: `deploy.sh` builds the map itself when either
-is off (`npm run bot-map -- --if-stale`), and CI keeps what a deploy built for the next one.
+Bots read the world from the map in `modal-bots/common/map/`, which `npm run bot-map` builds with
+the real sim (`sim/botMap.ts`) in three stages, a file each, each with a fingerprint of what it was
+built from, so only the stages a change touches are built again: the ground (the structures, the
+walkable graph, the standard body's jumps, the lookouts and the insides; minutes, after a structure
+or landmark added or changed, the world's outline, or the player's body or movement constants), the
+moves (the jumps of each way a look on foot moves, each distinct walk and jump power simulated over
+the whole graph once; a look that moves as one already there adds nothing, and one that moves its
+own way only its own jumps) and the bodies (every avatar's hitbox, eyes, walk and way of moving; at
+once). `common/world.py` joins them into one `WorldMap`. Run it and commit what it writes with the
+change whenever any of those inputs move; a test in `sim.test.ts` fails until you do. The ground
+and the moves also carry `code`, a hash of the sim files their builder runs
+(`scripts/botMapCode.ts`), which no test holds them to, so a change to how a body walks or collides
+needs no rebuild from you: `deploy.sh` runs `npm run bot-map` too, building a stage whose source or
+code is off, and CI keeps what a deploy built for the next one.
 
 Cubes don't know about structures. Every map (the HUD's minimap, the menu's and the guide's) draws
 through `ui/MapCanvas.ts`, which reads the outline (`WORLD_GROUND`) and `content/landmarks.ts` itself,
