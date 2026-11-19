@@ -47,6 +47,7 @@ export function createPlayer(id: string, name: string, color: string, spawn: Vec
     avatar: 'standard',
     dragon: null,
     avatarLocked: false,
+    riding: null,
     hearts: heartsOf('standard'),
     kills: 0,
     dead: false,
@@ -133,18 +134,22 @@ function stepItem(p: PlayerState, input: InputFrame | null, dt: number): void {
 // Advances one player by `dt`. A null input means no frame arrived: the class's own physics still
 // apply. Returns how fast they were falling if they landed this step (m/s, downward), else 0; the
 // Room turns that into fall damage.
+// What a frame says that isn't movement: where the player looks (the client's say), the cube it's
+// reading, and that it's been taken.
+export function takeLook(p: PlayerState, input: InputFrame): void {
+  p.lastSeq = input.seq;
+  p.yaw = input.yaw;
+  p.pitch = Math.max(-MAX_PITCH, Math.min(MAX_PITCH, input.pitch));
+  p.reading = input.reading;
+}
+
 export function stepPlayer(
   p: PlayerState,
   input: InputFrame | null,
   dt: number,
   structures: Structures = WORLD_STRUCTURES,
 ): number {
-  if (input) {
-    p.lastSeq = input.seq;
-    p.yaw = input.yaw;
-    p.pitch = Math.max(-MAX_PITCH, Math.min(MAX_PITCH, input.pitch));
-    p.reading = input.reading;
-  }
+  if (input) takeLook(p, input);
   stepItem(p, input, dt);
   p.walk = 0; // a class that walks sets it
   const landing = classOf(p.avatar).step(p, input, dt, structures);

@@ -39,6 +39,7 @@ import {
   type ItemAction,
   type ItemId,
   type ItemState,
+  type KillItem,
   type ClassSpec,
   type PlayerClass,
   type PlayerState,
@@ -682,13 +683,18 @@ export class Game {
       case 'kill':
         this.hud.announceKill(m.shooter, m.victim, m.item, m.headshot);
         this.hud.setDead(m.victim);
-        if (m.victim === this.myId) this.die(`shot by ${this.hud.playerName(m.shooter)}`);
+        if (m.victim === this.myId) this.die(`${KILLED_BY[m.item] ?? 'shot'} by ${this.hud.playerName(m.shooter)}`);
         this.say(m.shooter, 'kill', GLOAT_DELAY);
         return;
       case 'fell':
         this.hud.announceFall(m.victim);
         this.hud.setDead(m.victim);
         if (m.victim === this.myId) this.die('you fell');
+        return;
+      case 'crashed':
+        this.hud.announceCrash(m.victim);
+        this.hud.setDead(m.victim);
+        if (m.victim === this.myId) this.die('you crashed');
         return;
       case 'pong':
         this.hud.setPing(now - m.at);
@@ -1297,6 +1303,7 @@ export class Game {
         dead: this.dead,
         avatar: self.avatar,
         dragon: self.dragon,
+        riding: self.riding,
         bot: false,
         grounded: isGrounded(self),
       },
@@ -1411,6 +1418,9 @@ function boomLength(avatar: RemotePlayer['avatar']): number {
   return Math.hypot(boom.back, boom.right, boom.up);
 }
 
+// How the death screen says a kill was done, where it isn't a shot.
+const KILLED_BY: Partial<Record<KillItem, string>> = { kart: 'run over', explosion: 'blown up' };
+
 function targets(players: RemotePlayer[]) {
   return players.map((p) => ({
     id: p.id,
@@ -1418,6 +1428,7 @@ function targets(players: RemotePlayer[]) {
     dead: p.dead,
     avatar: p.avatar,
     dragon: p.dragon,
+    riding: p.riding,
   }));
 }
 

@@ -2,7 +2,8 @@
 import type { FrostCell } from './sim/frost';
 import { isItemAction, type ItemAction, type ItemId } from './sim/items';
 import type { PickupKind } from './sim/pickups';
-import type { InputFrame, PlayerState } from './sim/types';
+import type { InputFrame, PlayerState, Vec3 } from './sim/types';
+import type { Kart } from './sim/vehicles/garage';
 
 export interface CubeSnapshot {
   id: string;
@@ -23,6 +24,9 @@ export interface PickupSnapshot {
   ry: number;
 }
 
+// What a kill was done with: an item, or a move, or a kart.
+export type KillItem = ItemId | 'pound' | 'strike' | 'kart' | 'explosion';
+
 export type ClientMessage =
   | { t: 'input'; f: InputFrame }
   | { t: 'chat'; text: string }
@@ -40,8 +44,16 @@ export type ServerMessage =
       pickups: PickupSnapshot[];
       doors: { id: string; open: boolean }[]; // every door (sim/doors.ts) and which way it stands
       frost: FrostCell[]; // every frosted cell (sim/frost.ts)
+      karts: Kart[]; // every kart in the room (sim/vehicles/garage.ts)
     }
-  | { t: 'snap'; tick: number; players: PlayerState[]; cubes: CubeSnapshot[]; pickups: PickupSnapshot[] }
+  | {
+      t: 'snap';
+      tick: number;
+      players: PlayerState[];
+      cubes: CubeSnapshot[];
+      pickups: PickupSnapshot[];
+      karts: Kart[];
+    }
   | { t: 'join'; p: PlayerState }
   | { t: 'leave'; id: string; name: string }
   | { t: 'chat'; id: string; name: string; color: string; text: string }
@@ -53,8 +65,12 @@ export type ServerMessage =
   | { t: 'frost'; on: FrostCell[]; off: FrostCell[] } // a spray froze cells or melted them (sim/frost.ts); clients follow
   // Hearts came off: a shot landed, or with no shooter, a fall.
   | { t: 'hit'; shooter: string | null; victim: string; damage: number; headshot: boolean; hearts: number }
-  | { t: 'kill'; shooter: string; victim: string; item: ItemId | 'pound' | 'strike'; headshot: boolean } // by an item, a ground pound or a strike; clients announce it
+  // By an item, a ground pound, a strike, a kart that ran them over or one blown up beside them;
+  // clients announce it.
+  | { t: 'kill'; shooter: string; victim: string; item: KillItem; headshot: boolean }
   | { t: 'fell'; victim: string } // a fall killed them
+  | { t: 'crashed'; victim: string } // their own kart killed them: driven into a wall, blown up under them
+  | { t: 'boom'; at: Vec3 } // a kart blew up there
   | { t: 'pong'; at: number }
   | { t: 'error'; message: string };
 

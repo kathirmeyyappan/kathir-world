@@ -309,6 +309,7 @@ export class BodyView {
       dead: false,
       avatar: shown.avatar,
       dragon: body,
+      riding: null,
       bot: false,
       grounded: !dragon,
     };

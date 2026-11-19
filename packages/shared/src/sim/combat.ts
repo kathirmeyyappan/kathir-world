@@ -25,6 +25,7 @@ export interface Target {
   dead: boolean;
   avatar: AvatarId;
   dragon: Pick<DragonState, 'spine' | 'risen' | 'shattered'> | null;
+  riding: string | null; // sat in a kart (vehicles/garage.ts): only what stands out of the seat is hit
 }
 
 export interface Shooter {
