@@ -229,6 +229,7 @@ export class Game {
   private readonly wornClocks = new Map<SoundId, number>();
   // When each building's theme began (ms; `running`): it runs on from then for the rest of the visit.
   private readonly placeClocks = new Map<SoundId, number>();
+  private mourningUntil = 0; // when the look's death sound, played as the player died, ends (performance.now)
   private bobbing = 0; // share of the full head bob in play: eased up with the walk and down when it stops
   private readonly skyByMesh = new Map<string, SkyObject>();
   private readonly bubble = new Bubble();
@@ -734,8 +735,14 @@ export class Game {
     this.setScoped(false);
     this.syncBlocked();
     this.death.show(how);
-    // The look's death plays over the death screen, a moment on so the last hit is heard first.
-    this.say(this.myId, 'death', DEATH_SOUND_DELAY);
+    // The look's death plays over the death screen, a moment on so the last hit is heard first, and
+    // over that hit's cry rather than cutting it, as the look's other lines cut its last. For as long
+    // as it lasts it's the player's own music: the theme playing is gone by the time it starts, and
+    // none comes back under it (`music`).
+    const said = this.line(this.myId, 'death');
+    if (!said || !this.sfx.play(said.sound, null, { delay: DEATH_SOUND_DELAY })) return;
+    this.sfx.endLoops('music', DEATH_SOUND_DELAY);
+    this.mourningUntil = performance.now() + (DEATH_SOUND_DELAY + this.sfx.seconds(said.sound)) * 1000;
   }
 
   // A shot landed, or with no shooter, a fall hurt. The victim's client flashes red, plays the
@@ -807,7 +814,8 @@ export class Game {
 
   // One of a player's lines in their own voice (voices.ts), `delay` seconds from now, from where
   // their head is, or the local player's own, from nowhere. False if their look has no such line.
-  private say(id: string, line: Line, delay = 0): boolean {
+  // A death is the dying player's own, played by `die`.
+  private say(id: string, line: Exclude<Line, 'death'>, delay = 0): boolean {
     // An intro runs until its player takes another look, whose own takes its place if it has one.
     if (line === 'enter') this.sfx.hush(id);
     const said = this.line(id, line);
@@ -817,9 +825,8 @@ export class Game {
       this.sfx.soon(said.sound, said.at, undefined, id);
       return true;
     }
-    // Each line cuts its speaker's last but the death, which plays over the cry of the hit that killed them.
-    const by = line === 'death' ? undefined : id;
-    if (this.sfx.play(said.sound, said.at, { delay, by })) return true;
+    // Each line cuts its speaker's last.
+    if (this.sfx.play(said.sound, said.at, { delay, by: id })) return true;
     // A kill line not here yet (lazy in SOUNDS, sent for in wantVoice) is played as it arrives.
     if (line === 'kill') this.sfx.soon(said.sound, said.at, undefined, id);
     return line === 'kill';
@@ -1229,7 +1236,8 @@ export class Game {
     }
   }
 
-  // The one theme the player hears. Their own look's, if it has one (voices.ts `Theme`), wherever
+  // The one theme the player hears. None while their look's death sound plays: that's all the music
+  // there is until it ends. Their own look's, if it has one (voices.ts `Theme`), wherever
   // they are: nothing plays over a character's theme. Without one, the nearest of the themes round
   // them: a living player's that everyone hears (a dragon's, from its head), or a building's
   // (PLACE_THEMES) from its walls across its grounds, the only one heard from inside them; kept
@@ -1247,6 +1255,10 @@ export class Game {
     for (const sound of this.wornClocks.keys()) if (!sounds.has(sound)) this.wornClocks.delete(sound);
     const elapsed = new Map([...sounds].map((sound) => [sound, this.running(this.wornClocks, sound, now)]));
 
+    if (now < this.mourningUntil) {
+      this.themeOf = null;
+      return null;
+    }
     const mine = worn.find((w) => w.id === this.myId);
     if (mine) {
       this.themeOf = mine.id;

@@ -761,7 +761,9 @@ hears it over the hurt sound, which sounds at every hit whatever the look; a spr
 and ice's, come too fast for a voice and are the hurt sound alone, `Game.sprayed`) and a moment after a kill (`Game.say`); and its `death`,
 which its own player alone hears over the death screen (cut to its ten seconds; the reload ends
 it), `DEATH_SOUND_DELAY` after dying so the hit that killed them sounds first, as any hit does,
-and over that hit's cry rather than cutting it as a look's other lines cut its last. A
+and over that hit's cry rather than cutting it as a look's other lines cut its last. While it
+plays it's the player's only music: the theme they were hearing is gone by the time it starts
+(`Sfx.endLoops`) and none comes back until it ends (`Game.music`). A
 hurt, a kill and a death are `lazy` too, sent for (`Sfx.want`, `Game.wantVoice`) as a look is
 first seen worn, a death by its own player alone, since they have to be there the moment they're
 said; a hurt or a death that hasn't arrived is left out, and a kill not here yet is played as it
@@ -872,7 +874,8 @@ the cry it rises with, each a `Call` with a take heard up close and, where the r
 recorded from afar that plays instead past `FAR` metres) and its theme in its row in `VOICES`, and
 how far back it's watched from in `DRAGON_BOOMS` (`game/View.ts`).
 
-A player hears one theme at a time (`Game.ts` `music`). A look can have a theme of its own
+A player hears one theme at a time (`Game.ts` `music`), and none while their look's death plays
+(see Avatars). A look can have a theme of its own
 (`VOICES`' `theme`, a loop, with an intro if it has one), and to whoever wears it that's the only
 music there is, wherever they go: no dragon's or building's plays over it. Its `heardBy` says who
 else hears it: `everyone` round the wearer, from where they are (a dragon's, so one is heard

@@ -592,6 +592,15 @@ interface Voice {
   stop: () => void;
   wanted: number; // when it was last asked for, in the audio clock
   fade: number; // seconds it takes to go out
+  channel: Channel;
+}
+
+// Takes a loop's voice out over `seconds` from `t` (the audio clock), then stops it.
+function release(voice: Voice, t: number, seconds: number): void {
+  voice.gain.gain.cancelScheduledValues(t);
+  voice.gain.gain.setValueAtTime(voice.gain.gain.value, t);
+  voice.gain.gain.linearRampToValueAtTime(0, t + seconds);
+  setTimeout(voice.stop, seconds * 1000 + 100);
 }
 
 export class Sfx {
@@ -803,10 +812,18 @@ export class Sfx {
     }
     for (const [key, voice] of this.loops) {
       if (t - voice.wanted < LINGER) continue;
-      voice.gain.gain.cancelScheduledValues(t);
-      voice.gain.gain.setValueAtTime(voice.gain.gain.value, t);
-      voice.gain.gain.linearRampToValueAtTime(0, t + voice.fade);
-      setTimeout(voice.stop, voice.fade * 1000 + 100);
+      release(voice, t, voice.fade);
+      this.loops.delete(key);
+    }
+  }
+
+  // Fades every loop on `channel` out over `seconds`, sooner than its own fade, for a sound that
+  // has to be heard alone (a death's song over the music).
+  endLoops(channel: Channel, seconds: number): void {
+    if (!this.ctx) return;
+    for (const [key, voice] of this.loops) {
+      if (voice.channel !== channel) continue;
+      release(voice, this.ctx.currentTime, seconds);
       this.loops.delete(key);
     }
   }
@@ -849,7 +866,8 @@ export class Sfx {
     const gain = new GainNode(ctx, { gain: spec.volume * level });
     const near = new GainNode(ctx, { gain: at ? falloff(distance(at, this.heard), spec) : 1 });
     gain.connect(near);
-    const channel = this.channels![spec.music ? 'music' : 'effects'];
+    const on: Channel = spec.music ? 'music' : 'effects';
+    const channel = this.channels![on];
     let panner: PannerNode | null = null;
     if (at) {
       panner = new PannerNode(ctx, { panningModel: 'equalpower', rolloffFactor: 0 });
@@ -858,7 +876,7 @@ export class Sfx {
     } else {
       near.connect(channel);
     }
-    return { gain, near, panner, stop: () => {}, wanted: ctx.currentTime, fade: spec.fade ?? FADE };
+    return { gain, near, panner, stop: () => {}, wanted: ctx.currentTime, fade: spec.fade ?? FADE, channel: on };
   }
 
   // A sound's recording, if it has arrived; a lazy one (and its intro) is sent for the first time
