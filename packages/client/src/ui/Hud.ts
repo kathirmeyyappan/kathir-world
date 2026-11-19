@@ -12,7 +12,6 @@ import type { LegendCell } from './legend';
 
 const CHAT_LINES = 8;
 const CHAT_FADE_MS = 12_000;
-const REFUSAL_MS = 3000; // how long a refusal's red box stands
 // Lines sent from this tab, oldest first, that Up and Down step back through like a shell's history.
 // Kept in sessionStorage, since dying reloads the page.
 const HISTORY_KEY = 'world.chat-history';
@@ -53,8 +52,6 @@ export class Hud {
   private readonly hearts = document.getElementById('hearts')!;
   private readonly condition = document.getElementById('condition')!;
   private readonly areaTitle = document.getElementById('area-title')!;
-  private readonly refusal = document.getElementById('refusal')!;
-  private refusalTimer = 0;
   private moveHintText = '';
   private moveHintTimer = 0;
   private moveHintBottom = 0; // CSS pixels down the view the move hint reaches, with its gap; 0 with none up
@@ -406,16 +403,6 @@ export class Hud {
     li.className = 'system';
     li.textContent = text;
     this.pushLine(li);
-  }
-
-  // Something the player asked for can't be done: the reason goes in the log like any system line
-  // and stands in a red box over the view for REFUSAL_MS, a newer one taking its place.
-  refuse(text: string): void {
-    this.system(text);
-    this.refusal.textContent = text;
-    this.refusal.classList.add('on');
-    clearTimeout(this.refusalTimer);
-    this.refusalTimer = window.setTimeout(() => this.refusal.classList.remove('on'), REFUSAL_MS);
   }
 
   // A small note beside the thing that was just done (the copied room code), gone in a moment.

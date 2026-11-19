@@ -1079,7 +1079,10 @@ sprite), and on a mouse device a gauge under those (`ui/KartGauge.ts`) says how 
 going along its nose and how fast that's changing (`Prediction.kartPace`: a tick taken ahead on
 the keys held, so it's the kart's acceleration now, not a difference between frames); what else
 stands under the hearts (the area's title, the condition's banner) stands under them both
-(`--under-hearts`). A tick the Room steps a driver's kart with no frame (theirs is late) is taken on the keys
+(`--under-hearts`). A kart driven off the floor lands on the ground past the edge with its driver alive in it
+and no way back up (`stranded` in `kart.ts`); the red box (`ui/Alert.ts`) tells the driver they're
+off the map and that getting out, the one thing left to do, is the end of them, as it is for
+anyone on foot down there. A tick the Room steps a driver's kart with no frame (theirs is late) is taken on the keys
 of their last, ahead of the frame it stood in for, which is then taken for its keys alone
 (`Garage.drive`): a kart steps once for each of its driver's frames, as their client predicted,
 however late they come. Past `AHEAD_TICKS` of that its keys are let go and it rolls to a stop. A kart's meshes and its paint's materials are made once per scene and
@@ -1189,6 +1192,13 @@ of (`completionsOf`, by name then by shortcut) stand up from the box's top over 
 nearest the box, Up picks from the bottom, Down goes back toward the text, Enter or Tab fills the
 box with the pick; with no completions the arrows recall what was sent, as ever. Nothing else
 completes anything.
+
+Whatever says something's wrong or can't be done says it in the red box over the view
+(`ui/Alert.ts`, `#alert`): `flash` for a moment (a command the Room refused, its reason in the chat
+log too; a commands button that needs its options typed), `hold` for as long as it's so (a kart
+driven off the map), a flash standing over what's held. A new warning is a call to one of those,
+never a box, a colour or a timer of its own; what a click would do (`HitNotice.prompt`) and how
+the player is (`Condition`) are not warnings and keep their own.
 
 Anything that scrolls (the menu's and the commands' bodies, the cube card's body under its
 bar) stands in a `.scroller` beside the rail of `ui/scrollRail.ts`, in place of the browser's

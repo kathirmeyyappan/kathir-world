@@ -1,22 +1,19 @@
 // The commands card: every chat command (commands.ts) as a button. Toggled with C or the touch
 // button, it frees the mouse, as the menu does, so a button can be clicked; a button sends its
 // command as a chat message and the card goes, so what it did is in view, and one that needs
-// arguments is greyed and opens chat with it typed, to finish there. Q or C closes it, as does a
+// arguments is greyed and opens chat with it typed, to finish there, saying so (`onNotice`). Q or C closes it, as does a
 // click beside the card or, on touch, any tap. Blocks game input while open, like the cube card.
 import { IS_TOUCH, onTap } from '../input/touch';
 import { commandGroups, type Group } from './commands';
 import { railScroll } from './scrollRail';
 
-const NOTICE_MS = 2600; // how long a greyed button's notice stays up
-
 export class CommandsMenu {
   private readonly el = document.getElementById('commands')!;
   private open = false;
-  private readonly noticeEl = document.createElement('div');
-  private noticeTimer = 0;
   onCommand: ((text: string) => void) | null = null;
   onDraft: ((text: string) => void) | null = null; // opens chat with this typed
   onPoint: ((text: string) => void) | null = null; // a button pointed at, before it's pressed
+  onNotice: ((text: string) => void) | null = null; // what a greyed button says as it opens the chat
   onOpenChange: ((open: boolean) => void) | null = null;
 
   constructor() {
@@ -46,9 +43,6 @@ export class CommandsMenu {
       const button = e.target instanceof Element ? e.target.closest<HTMLElement>('.cmd-button') : null;
       if (button?.dataset.tap) this.onPoint?.(button.dataset.tap);
     });
-    // Outside the card, so it stays up over the chat a greyed button opens.
-    this.noticeEl.id = 'command-notice';
-    document.body.append(this.noticeEl);
   }
 
   get isOpen(): boolean {
@@ -85,10 +79,7 @@ export class CommandsMenu {
     }
     this.onDraft?.(text);
     this.set(false);
-    this.noticeEl.textContent = 'add the options in chat, then send';
-    this.noticeEl.classList.add('on');
-    clearTimeout(this.noticeTimer);
-    this.noticeTimer = window.setTimeout(() => this.noticeEl.classList.remove('on'), NOTICE_MS);
+    this.onNotice?.('add the options in chat, then send');
   }
 }
 
