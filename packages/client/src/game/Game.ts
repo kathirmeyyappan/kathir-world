@@ -60,7 +60,17 @@ import {
 } from '@world/shared';
 import { Footsteps } from '../audio/Footsteps';
 import { Driving } from './Driving';
-import { ITEM_SOUNDS, KART_SOUNDS, heard, loopsOf, PLACE_THEMES, Sfx, voiceOf, type SoundId } from '../audio/Sfx';
+import {
+  ITEM_SOUNDS,
+  KART_SOUNDS,
+  heard,
+  kartLoops,
+  loopsOf,
+  PLACE_THEMES,
+  Sfx,
+  voiceOf,
+  type SoundId,
+} from '../audio/Sfx';
 import { swingOf, take, twirlOf, VOICES } from '../audio/voices';
 import { InputManager } from '../input/InputManager';
 import { MobileActions, type MobileActionState } from '../input/MobileActions';
@@ -312,6 +322,7 @@ export class Game {
     this.models = new Models(this.engine, this.loader, this.interiors);
     this.driving = new Driving(this.engine);
     this.driving.onKnock = (at) => this.sfx.play(KART_SOUNDS.knock, at);
+    this.driving.onBoost = (at) => this.sfx.play(KART_SOUNDS.boost, at);
     this.wallFrames = new WallFrames(this.engine, WALL_FRAMES, this.interiors);
     this.camera = new UniversalCamera('camera', new Vector3(0, 1.7, 0), this.engine.scene);
     this.camera.minZ = NEAR;
@@ -1302,6 +1313,7 @@ export class Game {
         at: null,
       })),
       ...sampled.players.flatMap((rp) => loopsOf(rp).map((id) => ({ key: rp.id, id, at: rp }))),
+      ...karts.flatMap((k) => this.kartLoops(k)),
       ...stepLoops,
       ...(music ? [music] : []),
     ]);
@@ -1312,6 +1324,17 @@ export class Game {
       cube.setReaders(readers.get(cs.id) ?? 0);
       cube.update(cs);
     }
+  }
+
+  // What's heard of kart `k` this frame: its loops, flat for the one the player drives (keyed apart,
+  // so getting in or out crosses over between the two) and from where it is for any other, those
+  // within earshot only, so a room full of karts costs the few that are near.
+  private kartLoops(k: Kart): { key: string; id: SoundId; at: Vec3 | null; level: number; rate: number }[] {
+    const mine = k.driver === this.myId;
+    const away = Vector3.Distance(this.camera.position, new Vector3(k.pos.x, k.pos.y, k.pos.z));
+    return kartLoops(k)
+      .filter((loop) => mine || heard(loop.id, away) > 0)
+      .map((loop) => ({ ...loop, key: mine ? `${k.id}:driven` : k.id, at: mine ? null : k.pos }));
   }
 
   // Every dragon with a voice rises out of the ground with its cry, kept trying until the recording

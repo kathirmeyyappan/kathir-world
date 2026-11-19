@@ -8,7 +8,9 @@
 // everything else come through a channel each, so either can be muted on its own, and the device
 // keeps the choice.
 import {
+  forwardSpeed,
   isDragonAvatar,
+  KARTS,
   toKrustyKrab,
   toPineapple,
   toTower,
@@ -17,6 +19,7 @@ import {
   type GearId,
   type ItemAction,
   type ItemId,
+  type KartState,
   type Vec3,
 } from '@world/shared';
 
@@ -172,6 +175,10 @@ export type SoundId =
   | 'spongebob-death'
   | 'mike-death'
   | 'boat-horn'
+  | 'kart-idle'
+  | 'kart-engine'
+  | 'kart-drift'
+  | 'kart-boost'
   | 'kart-crash'
   | 'kart-boom'
   | 'land'
@@ -375,8 +382,42 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'spongebob-death': { file: 'spongebob-death.mp3', half: 6, reach: 30, volume: 0.25, swell: 0.8, lazy: true },
   'mike-death': { file: 'mike-death.mp3', half: 6, reach: 30, volume: 0.25, swell: 0.15, fade: 0.15, lazy: true },
   'boat-horn': { file: 'boat-horn.mp3', half: 10, reach: 40, volume: 0.3, lazy: true }, // the foghorn alarm clock in SpongeBob's bedroom, at a click
-  // A kart's (KART_SOUNDS), sent for as the first kart is seen: a knock that costs it wrenches, and
-  // its blowing up, which carries as far as a gunshot's whizz doesn't.
+  // A kart's (KART_SOUNDS), sent for as the first kart is seen. Its engine is two loops crossed over
+  // by its revs (kartLoops): the idle, all but unheard except from its seat, and the running, played
+  // faster and slower by them. Its drift's skid is kept quiet, and a boost's rush dies away into its
+  // end, the recording being cut from one that held on. Then a knock that costs it wrenches, and its
+  // blowing up, which carries as far as a gunshot's whizz doesn't.
+  'kart-idle': {
+    file: 'kart-idle.mp3',
+    half: 2,
+    reach: 15,
+    volume: 0.05,
+    loop: true,
+    swell: 0.3,
+    fade: 0.3,
+    lazy: true,
+  },
+  'kart-engine': {
+    file: 'kart-engine.mp3',
+    half: 6,
+    reach: 60,
+    volume: 0.1,
+    loop: true,
+    swell: 0.15,
+    fade: 0.3,
+    lazy: true,
+  },
+  'kart-drift': {
+    file: 'kart-drift.mp3',
+    intro: 'kart-drift-start.mp3',
+    half: 5,
+    reach: 30,
+    volume: 0.07,
+    loop: true,
+    fade: 0.15,
+    lazy: true,
+  },
+  'kart-boost': { file: 'kart-boost.mp3', half: 10, reach: 60, volume: 0.12, fade: 0.6, lazy: true },
   'kart-crash': { file: 'kart-crash.mp3', half: 10, reach: 60, volume: 0.3, lazy: true },
   'kart-boom': { file: 'kart-boom.mp3', half: 16, reach: 150, volume: 0.4, lazy: true },
   land: { file: 'land.mp3', half: 8, reach: 35, volume: 0.1 },
@@ -518,9 +559,46 @@ export const GEAR_SOUNDS: Record<GearId, { thrusting?: SoundId }> = {
   jetpack: { thrusting: 'jet' },
 };
 
-// What's heard of a kart: a knock that costs it wrenches (a wall, another kart, a shot), and its
-// blowing up.
-export const KART_SOUNDS = { knock: 'kart-crash', boom: 'kart-boom' } satisfies Record<string, SoundId>;
+// What's heard of a kart: its engine idling and running, its drift, a boost beginning, a knock that
+// costs it wrenches (a wall, another kart, a shot), and its blowing up.
+export const KART_SOUNDS = {
+  idle: 'kart-idle',
+  running: 'kart-engine',
+  drift: 'kart-drift',
+  boost: 'kart-boost',
+  knock: 'kart-crash',
+  boom: 'kart-boom',
+} satisfies Record<string, SoundId>;
+
+// A kart's engine. Its revs are its speed's share of its top speed (past 1 through a boost), and no
+// less than `pedal` of how far the pedal is down, so the gas is heard the moment it's pressed, before
+// the kart has got anywhere. Up to `running` revs the idle crosses over into the running loop, which
+// from there is at least `low` of its volume, rising to all of it flat out, and is played from
+// `slow` times its recorded pace at no revs to `fast` times it at 1, and on in step past that.
+const ENGINE = { pedal: 0.25, running: 0.3, low: 0.55, slow: 0.85, fast: 1.5 };
+
+// A loop a kart is making: which, how much of its volume, and how fast it plays.
+export interface KartLoop {
+  id: SoundId;
+  level: number;
+  rate: number;
+}
+
+// The loops a kart is making this frame: its engine by its revs, and its drift's skid on the ground.
+export function kartLoops(k: KartState): KartLoop[] {
+  const revs = Math.max(Math.abs(forwardSpeed(k)) / KARTS[k.kart].speed, ENGINE.pedal * Math.abs(k.gas));
+  const running = Math.min(1, revs / ENGINE.running);
+  const loops: KartLoop[] = [
+    { id: KART_SOUNDS.idle, level: 1 - running, rate: 1 },
+    {
+      id: KART_SOUNDS.running,
+      level: running * (ENGINE.low + (1 - ENGINE.low) * Math.min(1, revs)),
+      rate: ENGINE.slow + (ENGINE.fast - ENGINE.slow) * revs,
+    },
+  ];
+  if (k.drift && k.grounded) loops.push({ id: KART_SOUNDS.drift, level: 1, rate: 1 });
+  return loops.filter((loop) => loop.level > 0);
+}
 
 // A call: the take heard up close and, where there is one, the take heard from FAR metres off.
 export interface Call {
@@ -597,7 +675,8 @@ const MUTED_KEY = 'world.muted'; // localStorage: the channels muted on this dev
 
 interface Voice {
   gain: GainNode; // its volume, and its fades in and out
-  near: GainNode; // how close it is (falloff)
+  near: GainNode; // how close it is (falloff), and for a loop how much of its volume it's at (its level)
+  pace: AudioParam | null; // a loop's: how fast it plays
   panner: PannerNode | null;
   stop: () => void;
   wanted: number; // when it was last asked for, in the audio clock
@@ -797,27 +876,30 @@ export class Sfx {
   }
 
   // The loops that should be sounding this frame, each keyed by who's making it, and where (null
-  // for one played flat, at `level` of its volume, followed from frame to frame). A loop that hasn't been
-  // listed for LINGER fades out, over its `fade`. `elapsed` is how far into it a loop already is
-  // when it starts: a theme that has been running since it began, heard again from where it has
-  // got to rather than from the top.
-  setLoops(wanted: { key: string; id: SoundId; at: Vec3 | null; elapsed?: number; level?: number }[]): void {
+  // for one played flat), at `level` of its volume and `rate` times its recorded pace (an engine's
+  // revs; a loop with an intro keeps to 1, or the two wouldn't join), all followed from frame to
+  // frame. A loop that hasn't been listed for LINGER fades out, over its `fade`. `elapsed` is how
+  // far into it a loop already is when it starts: a theme that has been running since it began,
+  // heard again from where it has got to rather than from the top.
+  setLoops(
+    wanted: { key: string; id: SoundId; at: Vec3 | null; elapsed?: number; level?: number; rate?: number }[],
+  ): void {
     if (!this.ctx) return;
     const t = this.ctx.currentTime;
     for (const w of wanted) {
       const key = `${w.key}:${w.id}`;
+      const level = w.level ?? 1;
+      const rate = w.rate ?? 1;
       const voice = this.loops.get(key);
       if (voice) {
         voice.wanted = t;
-        if (voice.panner && w.at) {
-          place(voice.panner, w.at, t);
-          voice.near.gain.setTargetAtTime(falloff(distance(w.at, this.heard), SOUNDS[w.id]), t, 0.05);
-        } else if (!voice.panner) {
-          voice.near.gain.setTargetAtTime(w.level ?? 1, t, 0.05);
-        }
+        if (voice.panner && w.at) place(voice.panner, w.at, t);
+        const near = voice.panner && w.at ? falloff(distance(w.at, this.heard), SOUNDS[w.id]) : 1;
+        voice.near.gain.setTargetAtTime(near * level, t, 0.05);
+        voice.pace?.setTargetAtTime(rate, t, 0.05);
         continue;
       }
-      const started = this.startLoop(w.id, w.at, w.elapsed ?? 0, w.level ?? 1);
+      const started = this.startLoop(w.id, w.at, w.elapsed ?? 0, level, rate);
       if (started) this.loops.set(key, started);
     }
     for (const [key, voice] of this.loops) {
@@ -838,9 +920,10 @@ export class Sfx {
     }
   }
 
-  // A loop fading in to `level` of its volume, `elapsed` seconds along: in its intro, if it has
-  // one, or round its body as many times as that takes; null until its files have arrived.
-  private startLoop(id: SoundId, at: Vec3 | null, elapsed: number, level: number): Voice | null {
+  // A loop fading in to `level` of its volume at `rate` times its pace, `elapsed` seconds along: in
+  // its intro, if it has one, or round its body as many times as that takes; null until its files
+  // have arrived.
+  private startLoop(id: SoundId, at: Vec3 | null, elapsed: number, level: number, rate: number): Voice | null {
     const ctx = this.ctx!;
     const spec = SOUNDS[id];
     const buffer = this.buffer(id);
@@ -848,10 +931,11 @@ export class Sfx {
     const intro = spec.intro ? this.buffers.get(spec.intro) : undefined;
     const t = ctx.currentTime;
     const voice = this.voice(id, at, 0);
-    if (!at) voice.near.gain.value = level;
+    voice.near.gain.value *= level;
     voice.gain.gain.linearRampToValueAtTime(spec.volume, t + (spec.swell ?? FADE));
     const sources: AudioBufferSourceNode[] = [];
-    const loop = new AudioBufferSourceNode(ctx, { buffer, loop: true });
+    const loop = new AudioBufferSourceNode(ctx, { buffer, loop: true, playbackRate: rate });
+    voice.pace = loop.playbackRate;
     const lead = intro?.duration ?? 0;
     if (intro && elapsed < lead) {
       const lead = new AudioBufferSourceNode(ctx, { buffer: intro });
@@ -886,7 +970,16 @@ export class Sfx {
     } else {
       near.connect(channel);
     }
-    return { gain, near, panner, stop: () => {}, wanted: ctx.currentTime, fade: spec.fade ?? FADE, channel: on };
+    return {
+      gain,
+      near,
+      pace: null,
+      panner,
+      stop: () => {},
+      wanted: ctx.currentTime,
+      fade: spec.fade ?? FADE,
+      channel: on,
+    };
   }
 
   // A sound's recording, if it has arrived; a lazy one (and its intro) is sent for the first time
