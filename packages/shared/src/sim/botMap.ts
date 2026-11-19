@@ -1,11 +1,13 @@
 // The world as the Python bots (modal-bots/) see it: the structures, for line of sight, and a graph
 // of where a player can walk, for finding a way anywhere (up the tower's stair included). Bots run
-// no sim of their own, so the graph is worked out here with the real one: every walkable spot on a
-// 1 m grid is a node, and an edge joins two neighbouring nodes when stepPlayer, walking straight
-// from one, arrives at the other; where only a running jump gets there (over the tower stair's
-// rail onto a floor), that's a jump edge. With them come the lookouts (high spots with a view) and
-// the place each is in, each avatar's hitbox, for aiming, and the buildings' insides (their floors,
-// and every spot within their walls), where a sniper starts out and lies in wait.
+// no sim of their own, so the graph is worked out here with the real one: round whatever stands,
+// every walkable spot on a 1 m grid is a node, and the open floor between (`openFloor`) is a few
+// rectangles, a node each at its middle, with a node in the middle of every stretch two of them
+// share; an edge joins two nodes when stepPlayer, walking straight from one, arrives at the other.
+// Where only a running jump gets there (over the tower stair's rail onto a floor), that's a jump
+// edge. With them come the lookouts (high spots with a view) and the place each is in, each
+// avatar's hitbox, for aiming, and the buildings' insides (their floors, and every spot within
+// their walls), where a sniper starts out and lies in wait.
 //
 // It's built in three stages, each its own file in modal-bots/common/map/ with a fingerprint of
 // what it was built from (its `source`), so a change rebuilds only the stages it touches:
@@ -53,6 +55,9 @@ const EDGE_MARGIN = 1;
 const SPACING = 1; // metres between grid columns: under a doorway's clear width (1.2 m less a body)
 const WALL_CLEARANCE = 0.05; // metres a node's body may be pushed by a wall before it doesn't count
 const MAX_RISE = 1.5; // metres between neighbouring nodes worth trying an edge across
+// Metres round open floor that nothing stands in (`openFloor`), so the way onto it from a spot
+// beside it (a diagonal step, 1.4 m, off at most) is clear of everything too.
+const CLEARANCE = 2;
 const SIGHT_CHECKS = 64;
 // A lookout stands this high or more, on floor (walks to at least LOOKOUT_FLOOR of its eight
 // neighbours, so not along a rail or parapet top), and at eye level sees this far out along this many of a ring of level sight
@@ -83,10 +88,14 @@ interface Simulated {
 export interface GroundMap extends Simulated {
   structures: Structure[]; // as content/structures.ts lists them, without their looks
   nodes: [number, number, number][]; // feet x, y, z
+  spots: number; // how many of the nodes, from the first, are spots on the grid; the rest are the open floor's
   edges: number[][]; // per node, the nodes a player walking straight from it reaches
   jumps: number[][]; // per node, the ones only the standard body's running jump toward them reaches
   lookouts: number[]; // nodes well up with a wide view out, all reachable on foot from the ground
   lookoutPlaces: LookoutPlace[]; // each lookout's place, in the same order
+  // The open floor's rectangles: each one's node, its corner with the least x and z, and its metres
+  // along x and z.
+  areas: [number, number, number, number, number][];
   insides: Region[]; // the floors indoors, inside the tower's wall and the keeps': where a sniper starts and lies in wait
   indoors: number[]; // every node inside a building's wall, the stairs between its floors included
   // Segments the sim answered for (a x, y, z, b x, y, z, 1 when nothing stands between): the
@@ -144,6 +153,7 @@ export function groundMapSource(): number {
     SPACING,
     WALL_CLEARANCE,
     MAX_RISE,
+    CLEARANCE,
     SIGHT_CHECKS,
     LOOKOUT_HEIGHT,
     LOOKOUT_RANGE,
@@ -184,43 +194,60 @@ function shapes(): Structure[] {
 }
 
 export function buildGroundMap(code: number): GroundMap {
-  const nodes = walkableNodes();
-  const columns = columnsOf(nodes);
-  const edges: number[][] = [];
-  const jumps: number[][] = [];
-  for (const a of nodes) {
-    const walk: number[] = [];
-    const jump: number[] = [];
+  const open = openFloor();
+  const spots = walkableNodes(open);
+  // The open floor's nodes come after the spots': each rectangle's middle, then each stretch's.
+  const first = spots.length;
+  const middles = open.areas.map((a) => ({ x: a.x + a.w / 2, y: 0, z: a.z + a.d / 2 }));
+  const nodes = [...spots, ...middles, ...open.stretches.map((s) => ({ x: s.x, y: 0, z: s.z }))];
+  const columns = columnsOf(spots);
+  const edges: number[][] = nodes.map(() => []);
+  const jumps: number[][] = nodes.map(() => []);
+  spots.forEach((a, i) => {
     for (const j of neighbours(a, nodes, columns)) {
-      if (reaches(a, nodes[j], false, 'standard')) walk.push(j);
-      else if (reaches(a, nodes[j], true, 'standard')) jump.push(j);
+      if (reaches(a, nodes[j], false, 'standard')) edges[i].push(j);
+      else if (reaches(a, nodes[j], true, 'standard')) jumps[i].push(j);
     }
-    edges.push(walk);
-    jumps.push(jump);
-  }
+  });
+  // Each rectangle's middle to the middles of the stretches it shares and to the spots beside it,
+  // each way the sim walks it.
+  const join = (i: number, j: number) => {
+    if (reaches(nodes[i], nodes[j], false, 'standard')) edges[i].push(j);
+    if (reaches(nodes[j], nodes[i], false, 'standard')) edges[j].push(i);
+  };
+  open.stretches.forEach((s, k) => {
+    for (const area of s.between) join(first + area, first + middles.length + k);
+  });
+  spots.forEach((n, i) => {
+    if (n.y !== 0) return;
+    const beside = new Set(NEIGHBOURS.map(([di, dj]) => open.at(n.x + di * SPACING, n.z + dj * SPACING)));
+    for (const area of beside) if (area !== null) join(i, first + area);
+  });
   const found = lookouts(nodes, edges, jumps);
   return {
     source: groundMapSource(),
     code,
     structures: shapes(),
     nodes: nodes.map((n) => [n.x, Math.round(n.y * 100) / 100, n.z]),
+    spots: spots.length,
     edges,
     jumps,
     lookouts: found,
     lookoutPlaces: found.map((i) => placeOf(nodes[i])),
+    areas: open.areas.map((a, k) => [first + k, a.x, a.z, a.w, a.d]),
     insides: INSIDES,
     indoors: nodes.flatMap((n, i) => (indoors(n) ? [i] : [])),
     sightChecks: sightChecks(nodes),
   };
 }
 
-// For every way of moving, its jumps between the ground's neighbouring nodes that walking doesn't
+// For every way of moving, its jumps between the ground's neighbouring spots that walking doesn't
 // join: the standard body's the ground's own, and any `kept` from a build over the same ground by
 // the same code taken as they are, so only a new way of moving is worked out.
 export function buildMovesMap(ground: GroundMap, code: number, kept?: MovesMap): MovesMap {
   // Written to the centimetre: each node is the top within that of where it's written.
   const nodes = ground.nodes.map(([x, y, z]) => ({ x, y: MAP_STRUCTURES.groundAt(x, z, y + 0.01), z }));
-  const columns = columnsOf(nodes);
+  const columns = columnsOf(nodes.slice(0, ground.spots));
   const known: Record<Move, number[][]> = { [moveOf('standard')]: ground.jumps };
   if (kept && kept.ground === ground.source && kept.code === code) Object.assign(known, kept.jumps);
   const jumps: Record<Move, number[][]> = {};
@@ -228,7 +255,11 @@ export function buildMovesMap(ground: GroundMap, code: number, kept?: MovesMap):
     jumps[move] =
       known[move] ??
       nodes.map((a, i) =>
-        neighbours(a, nodes, columns).filter((j) => !ground.edges[i].includes(j) && reaches(a, nodes[j], true, avatar)),
+        i < ground.spots
+          ? neighbours(a, nodes, columns).filter(
+              (j) => !ground.edges[i].includes(j) && reaches(a, nodes[j], true, avatar),
+            )
+          : [],
       );
   return { source: movesMapSource(), code, ground: ground.source, jumps };
 }
@@ -278,14 +309,139 @@ const NEIGHBOURS = [
   [1, -1],
 ];
 
-// Every grid column's standing heights: the floor and each top there that a player settles on
-// (nothing higher within a step), with room for their head and not inside or against a wall.
-function walkableNodes(): Vec3[] {
+// A rectangle of open floor: its corner with the least x and z, and its metres along x and z.
+interface Area {
+  x: number;
+  z: number;
+  w: number;
+  d: number;
+}
+
+// The open floor: bare floor that nothing stands within CLEARANCE of, at least EDGE_MARGIN inside
+// the edge, where a body walks straight from anywhere to anywhere, laid out in cells of the grid
+// (SPACING a side, each holding the column on its corner with the least x and z) gathered into
+// rectangles, the largest first. Two rectangles side by side share a stretch of that side, its
+// middle at (x, z), and a walk from either's middle to it keeps to that rectangle. Round whatever
+// stands are the cells with spots; the rest, along the edge, have neither.
+interface OpenFloor {
+  areas: Area[];
+  stretches: { x: number; z: number; between: [number, number] }[];
+  at(x: number, z: number): number | null; // the rectangle whose cells hold (x, z), if one does
+  crowded(x: number, z: number): boolean; // whether anything stands within CLEARANCE of the cell holding (x, z)
+}
+
+function openFloor(): OpenFloor {
+  const b = WORLD_GROUND.bounds;
+  const i0 = Math.floor(b.minX / SPACING);
+  const j0 = Math.floor(b.minZ / SPACING);
+  const cols = Math.floor(b.maxX / SPACING) - i0 + 1;
+  const rows = Math.floor(b.maxZ / SPACING) - j0 + 1;
+  const cell = (x: number, z: number) => {
+    const [i, j] = [Math.floor(x / SPACING) - i0, Math.floor(z / SPACING) - j0];
+    return i < 0 || j < 0 || i >= cols || j >= rows ? -1 : j * cols + i;
+  };
+  const crowded = new Uint8Array(cols * rows);
+  for (const s of [...shapes(), ...STRUCTURES.filter((s) => s.door)]) {
+    const reach = Math.hypot(s.w, s.d) / 2 + CLEARANCE;
+    for (let x = Math.floor((s.x - reach) / SPACING) * SPACING; x <= s.x + reach; x += SPACING)
+      for (let z = Math.floor((s.z - reach) / SPACING) * SPACING; z <= s.z + reach; z += SPACING) {
+        const k = cell(x, z);
+        const dx = Math.max(x - s.x, 0, s.x - x - SPACING);
+        const dz = Math.max(z - s.z, 0, s.z - z - SPACING);
+        if (k >= 0 && Math.hypot(dx, dz) < reach) crowded[k] = 1;
+      }
+  }
+  // Inside the edge by the margin at the cell's corners, plus half its diagonal: the edge's
+  // distance changes by no more than the distance moved.
+  const deep = -(EDGE_MARGIN + SPACING * Math.SQRT1_2);
+  const owner = new Int32Array(cols * rows).fill(-1);
+  const free = new Uint8Array(cols * rows);
+  for (let j = 0; j < rows; j++)
+    for (let i = 0; i < cols; i++) {
+      const [x, z] = [(i + i0) * SPACING, (j + j0) * SPACING];
+      const corners = [0, SPACING].flatMap((dx) => [0, SPACING].map((dz) => WORLD_GROUND.edge(x + dx, z + dz)));
+      free[j * cols + i] = !crowded[j * cols + i] && corners.every((e) => e <= deep) ? 1 : 0;
+    }
+  const areas: Area[] = [];
+  for (let found = largestRectangle(free, cols, rows); found; found = largestRectangle(free, cols, rows)) {
+    const { i, j, w, d } = found;
+    for (let r = j; r < j + d; r++)
+      for (let c = i; c < i + w; c++) ((free[r * cols + c] = 0), (owner[r * cols + c] = areas.length));
+    areas.push({ x: (i + i0) * SPACING, z: (j + j0) * SPACING, w: w * SPACING, d: d * SPACING });
+  }
+  // Each pair of rectangles side by side, by the cells across each one's +x and +z sides.
+  const stretches: OpenFloor['stretches'] = [];
+  areas.forEach((a, k) => {
+    const sides = [
+      { along: 'z', at: a.x + a.w, from: a.z, to: a.z + a.d },
+      { along: 'x', at: a.z + a.d, from: a.x, to: a.x + a.w },
+    ] as const;
+    for (const { along, at, from, to } of sides) {
+      const shared = new Map<number, [number, number]>();
+      for (let v = from; v < to; v += SPACING) {
+        const other = owner[along === 'z' ? cell(at, v) : cell(v, at)] ?? -1;
+        if (other < 0) continue;
+        const [lo, hi] = shared.get(other) ?? [v, v];
+        shared.set(other, [Math.min(lo, v), Math.max(hi, v + SPACING)]);
+      }
+      for (const [other, [lo, hi]] of shared) {
+        const mid = (lo + hi) / 2;
+        stretches.push({ x: along === 'z' ? at : mid, z: along === 'z' ? mid : at, between: [k, other] });
+      }
+    }
+  });
+  return {
+    areas,
+    stretches,
+    at: (x, z) => {
+      const k = cell(x, z);
+      return k < 0 || owner[k] < 0 ? null : owner[k];
+    },
+    crowded: (x, z) => {
+      const k = cell(x, z);
+      return k >= 0 && crowded[k] === 1;
+    },
+  };
+}
+
+// A rectangle of a grid's cells: its corner cell, and its cells along each way.
+interface Cells {
+  i: number;
+  j: number;
+  w: number;
+  d: number;
+}
+
+// The largest rectangle of set cells in a grid of them, `cols` by `rows`: its corner cell and its
+// cells along each way, or null when none is set. Row by row, each column's run of set cells up to
+// that row is a bar, and the widest stretch of bars at least as tall as each one is a rectangle.
+function largestRectangle(set: Uint8Array, cols: number, rows: number): Cells | null {
+  const heights = new Int32Array(cols + 1);
+  let best: Cells | null = null;
+  for (let j = 0; j < rows; j++) {
+    for (let i = 0; i < cols; i++) heights[i] = set[j * cols + i] ? heights[i] + 1 : 0;
+    const stack: number[] = [];
+    for (let i = 0; i <= cols; i++) {
+      while (stack.length > 0 && heights[stack[stack.length - 1]] >= heights[i]) {
+        const d = heights[stack.pop() as number];
+        const from = stack.length > 0 ? stack[stack.length - 1] + 1 : 0;
+        if (d > 0 && (!best || (i - from) * d > best.w * best.d)) best = { i: from, j: j - d + 1, w: i - from, d };
+      }
+      stack.push(i);
+    }
+  }
+  return best;
+}
+
+// The standing heights in every grid column round what stands (OpenFloor.crowded): the floor and
+// each top there that a player settles on (nothing higher within a step), with room for their head
+// and not inside or against a wall.
+function walkableNodes(open: OpenFloor): Vec3[] {
   const b = WORLD_GROUND.bounds;
   const nodes: Vec3[] = [];
   for (let x = Math.ceil(b.minX / SPACING) * SPACING; x <= b.maxX; x += SPACING) {
     for (let z = Math.ceil(b.minZ / SPACING) * SPACING; z <= b.maxZ; z += SPACING) {
-      if (WORLD_GROUND.edge(x, z) > -EDGE_MARGIN) continue;
+      if (WORLD_GROUND.edge(x, z) > -EDGE_MARGIN || !open.crowded(x, z)) continue;
       const heights = new Set([0, ...MAP_STRUCTURES.list.flatMap((s) => topAt(s, x, z))]);
       for (const y of heights) {
         if (Math.abs(MAP_STRUCTURES.groundAt(x, z, y + STEP_UP) - y) > 1e-9) continue;
@@ -348,7 +504,8 @@ function reaches(a: Vec3, b: Vec3, jump: boolean, avatar: AvatarId): boolean {
 
 // The high spots with a view (LOOKOUT_*) that a walk from the middle of the world reaches.
 function lookouts(nodes: Vec3[], edges: number[][], jumps: number[][]): number[] {
-  const start = nodes.findIndex((n) => n.x === 0 && n.y === 0 && n.z === 0);
+  const middle = (i: number) => (nodes[i].y === 0 ? Math.hypot(nodes[i].x, nodes[i].z) : Infinity);
+  const start = nodes.reduce((best, _, i) => (middle(i) < middle(best) ? i : best), 0);
   const reached = new Set([start]);
   const queue = [start];
   for (let i = queue.pop(); i !== undefined; i = queue.pop())

@@ -571,7 +571,8 @@ and one test of its surface in `packages/shared/test/sim.test.ts`.
 Bots read the world from the map in `modal-bots/common/map/`, which `npm run bot-map` builds with
 the real sim (`sim/botMap.ts`) in three stages, a file each, each with a fingerprint of what it was
 built from, so only the stages a change touches are built again: the ground (the structures, the
-walkable graph, the standard body's jumps, the lookouts and the insides; minutes, after a structure
+walkable graph, a spot every metre round whatever stands and the open floor between as a few
+rectangles, so a lawn or a road costs a few nodes however big it is, the standard body's jumps, the lookouts and the insides; minutes, after a structure
 or landmark added or changed, the world's outline, or the player's body or movement constants), the
 moves (the jumps of each way a look on foot moves, each distinct walk and jump power simulated over
 the whole graph once; a look that moves as one already there adds nothing, and one that moves its
@@ -1140,9 +1141,11 @@ Bots must use the modules under `modal-bots/common/`:
 - `load_world_map()` (`common/world.py`) is the world's structures and walkable ground, shared by
   every bot in the process. `world.clear(a, b)` is the sim's line of sight (what a shot can pass);
   `world.node_at(feet)` and `world.path(start, goal, avatar)` find a way between the spots a player
-  can stand on a 1 m grid, up the stair and over the rail where only a jump gets there, and only by
-  the jumps that avatar's walk and jump power make (`world.jumps_of`).
-  `Route(world, path, tick, avatar)` (`common/navigation.py`) walks it: call `route.steer(me.pos, tick,
+  can stand on a 1 m grid round whatever stands and the rectangles of open floor between
+  (`world.areas`), up the stair and over the rail where only a jump gets there, and only by the
+  jumps that avatar's walk and jump power make (`world.jumps_of`).
+  `Route(world, path, tick, avatar)` (`common/navigation.py`) walks it, across open floor straight
+  for the furthest node of it in reach (`world.straight`): call `route.steer(me.pos, tick,
   controls)` on every snapshot after `look`, and plan again when `route.stuck(tick)`.
   `controls.walk_toward(origin, target)` moves toward a point whichever way the bot is looking.
   `world.lookouts` are the high spots with a wide view (balconies, decks), `world.places` the

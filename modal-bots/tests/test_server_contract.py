@@ -291,12 +291,16 @@ def test_sniper_fires_at_a_person_in_sight_then_waits_out_its_cooldown(
     async def scenario() -> tuple[list[int], dict[str, Any]]:
         person = await seat_person(room_server, "python-sniper")
         me = next(p for p in person.welcome.players if p.id == person.id)
-        # It starts on a floor indoors; here the only one is a patch of the open main disc, 20 m
-        # nearer its middle than the person, with nothing in the way, and the only place it may
-        # perch, so it stands its ground there.
+        # It starts on a floor indoors; here the only one is the spot on the main disc's floor
+        # nearest a point 20 m nearer its middle than the person, with nothing in the way, and the
+        # only place it may perch, so it stands its ground there.
         away = 20 / max(1.0, math.hypot(me.pos.x, me.pos.z))
+        near = (me.pos.x * (1 - away), me.pos.z * (1 - away))
         world = copy.copy(load_world_map())
-        world.insides = (Region("disc", me.pos.x * (1 - away), me.pos.z * (1 - away), 0, r=2),)
+        floor = (n for i, n in enumerate(world.nodes) if i not in world.areas and n.y == 0)
+        nearest = sorted(floor, key=lambda n: math.hypot(n.x - near[0], n.z - near[1]))
+        spot = next(n for n in nearest if world.clear(Vec3(n.x, n.y + 1.7, n.z), me.pos))
+        world.insides = (Region("disc", spot.x, spot.z, 0, r=0.5),)
         sniper = asyncio.create_task(run_sniper_bot("python-sniper", seconds=8, world=world, direct_ws_url=room_server))
         shot_ticks: list[int] = []
         tick = person.welcome.tick
