@@ -69,6 +69,7 @@ export type ServerMessage =
   // clients announce it.
   | { t: 'kill'; shooter: string; victim: string; item: KillItem; headshot: boolean }
   | { t: 'fell'; victim: string } // a fall killed them
+  | { t: 'out'; victim: string } // they came down on the ground past the world's edge
   | { t: 'crashed'; victim: string } // their own kart killed them: driven into a wall, blown up under them
   | { t: 'boom'; at: Vec3 } // a kart blew up there
   | { t: 'pong'; at: number }

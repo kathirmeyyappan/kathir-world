@@ -442,7 +442,7 @@ test('a hard landing hurts like a shot with no shooter, a fatal one is announced
   };
   for (let i = 0; i < TICK_RATE; i++) room.step();
   assert.ok(bob.dead);
-  assert.ok(b.inbox.some((m) => m.t === 'fell' && m.victim === bobId));
+  assert.ok(b.inbox.some((m) => m.t === 'out' && m.victim === bobId));
 });
 
 test('commands and their shortcuts swap items freely, gear goes on beside, items stay, and the gun only reaches 20 m', () => {
@@ -1181,6 +1181,14 @@ test('a ground pound: pressed in the air it hangs, drops faster than a fall, pla
   room.receive(ida, { t: 'input', f: frame(0, ['pound']) });
   for (let i = 0; i < 60 && stage() !== 'land'; i++) tick(room);
   assert.ok(stage() === 'land' && alice.hearts === MAX_HEARTS, 'a pound begun low breaks the fall');
+  // From past a fatal fall it still goes off, killing bob as it kills alice.
+  for (let i = 0; i < 4 * TICK_RATE && alice.pound; i++) room.step();
+  alice.pos = { x: 0, y: EYE_HEIGHT + 100, z: 0 };
+  bob.pos = { x: 2, y: EYE_HEIGHT, z: 0 };
+  room.step();
+  room.receive(ida, { t: 'input', f: frame(0, ['pound']) });
+  for (let i = 0; i < 4 * TICK_RATE && !alice.dead; i++) room.step();
+  assert.ok(alice.dead && bob.dead, 'a kamikaze');
 });
 
 test('a strike: a windup after the press its blow lands once on whoever on foot is in front of the body within its reach, a weapon in hand or none, and throws them back', () => {

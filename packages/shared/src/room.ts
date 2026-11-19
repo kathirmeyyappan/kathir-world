@@ -443,7 +443,7 @@ export class Room {
     victim: PlayerState,
     damage: number,
     by: { shooter: Seat; headshot: boolean; move?: 'pound' | 'strike' | 'kart' | 'explosion' } | null,
-    death: 'fell' | 'crashed' = 'fell',
+    death: 'fell' | 'out' | 'crashed' = 'fell',
   ): void {
     const killed = applyDamage(victim, damage);
     const shooter = by?.shooter.state ?? null;
@@ -466,17 +466,23 @@ export class Room {
     this.broadcast({ t: 'kill', shooter: shooter.id, victim: victim.id, item, headshot });
   }
 
-  // What the end of a step does: a landing at `speed` m/s hurts by its speed, and a ground pound
-  // landing this tick (avatars.ts `Pound`) hurts everyone else on foot within its reach across the
-  // floor, about level with it and in its sight, so not through a wall or a floor, and throws them
-  // back from it, harder and further the higher it began (`poundPower`).
+  // What the end of a step does: a ground pound landing this tick goes off, then a landing at
+  // `speed` m/s hurts by its speed, so a pound from high enough to kill its player still lands.
   private land(seat: Seat, speed: number): void {
     const me = seat.state;
+    this.pound(seat);
     const damage = fallDamage(speed);
     if (damage > 0 && !me.dead) this.damage(me, damage, null);
     // Down on the ground past the edge (ground.ts), a body on foot is done for, whatever the fall.
     if (!me.dead && classOf(me.avatar).id === 'walker' && me.pos.y - EYE_HEIGHT <= OUTSIDE_HEIGHT + 1e-6)
-      this.damage(me, me.hearts, null);
+      this.damage(me, me.hearts, null, 'out');
+  }
+
+  // A ground pound landing this tick (avatars.ts `Pound`) hurts everyone else on foot within its
+  // reach across the floor, about level with it and in its sight, so not through a wall or a floor,
+  // and throws them back from it, harder and further the higher it began (`poundPower`).
+  private pound(seat: Seat): void {
+    const me = seat.state;
     const pound = poundOf(me.avatar);
     if (!pound || me.dead || me.pound?.stage !== 'land' || me.pound.t !== 0) return;
     const { damage: hurt, reach } = poundPower(pound, me.pound.from - me.pos.y);
