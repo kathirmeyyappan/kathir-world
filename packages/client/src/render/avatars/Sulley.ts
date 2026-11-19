@@ -21,6 +21,7 @@ const BOB = 0.04; // metres the body rises mid-stride
 const HEAD_FOLLOW = 0.5; // how much of the look's pitch the head takes
 const TAIL_SWAY = 0.25; // radians each way, all the time
 const TAIL_SWAY_MS = 1600;
+const TAIL_RAISED = 1.2; // radians the tail is raised in a kart
 // Lying on its back: radians the legs and arms drop toward the ground and the head tips back.
 const DEAD_LEGS = 1.0;
 const DEAD_ARMS = 1.2;
@@ -71,8 +72,10 @@ export function buildSulley(engine: Engine, id: string, base: TransformNode): Fi
     bob: BOB,
     sway: ROLL,
     lie: { onto: 'back', height: SULLEY_MODEL.lie, legs: DEAD_LEGS, arms: DEAD_ARMS, head: DEAD_HEAD },
-    // The tail sways on its own; dead, it lies out to one side, out of the floor.
-    extra: (p) => {
+    // The tail sways on its own, raised up behind the back in a kart, clear of the seat; dead, it
+    // lies out to one side, out of the floor.
+    extra: (p, { on }) => {
+      tail.rotation.x = on === 'kart' ? TAIL_RAISED : 0;
       tail.rotation.y = p.dead
         ? Math.PI / 2
         : Math.sin(((performance.now() + swayOffset) / TAIL_SWAY_MS) * 2 * Math.PI) * TAIL_SWAY;

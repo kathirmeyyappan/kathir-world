@@ -1,9 +1,10 @@
 // A kart's model, as scripts/kart-model.py writes it from a rip of Mario Kart 8 (<id>KartModel.ts):
 // its folder of parts under /assets/models (`body`, `steer`, `emblem` and one `tire`, with their
 // pictures), the steering wheel's middle, the axis it turns round and its rim's radius, the grips a
-// driver's hands take as the wheel turns (left, then right), the seat a driver sits on, its tires,
-// and each driver's paint: the two colours its body is painted in and its emblem. All in the kart's
-// own frame: x to its right, y up, z ahead, the middle of its footprint on the ground at the origin.
+// driver's hands take as the wheel turns (left, then right), the seat a driver sits on, where their
+// right foot rests (the left's across the middle from it), its tires, and each driver's paint: the
+// two colours its body is painted in and its emblem. All in the kart's own frame: x to its right,
+// y up, z ahead, the middle of its footprint on the ground at the origin.
 import type { AvatarId, KartId } from '@world/shared';
 import { STANDARD_KART } from './standardKartModel';
 
@@ -19,6 +20,7 @@ export interface KartModel {
   steer: { at: Point; axis: Point; radius: number };
   grips: [Point, Point];
   seat: Point;
+  feet: Point;
   tire: { radius: number; width: number };
   tires: { at: Point; front: boolean }[];
   paints: Partial<Record<AvatarId, KartPaint>> & { mario: KartPaint };

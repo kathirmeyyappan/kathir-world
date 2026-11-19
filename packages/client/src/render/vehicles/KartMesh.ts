@@ -1,8 +1,9 @@
 // A kart as it's drawn (a Kart from the room, sim/vehicles/garage.ts): its model's body in its paint,
 // its emblem, its four tires turning as it rolls (the front two steering), its steering wheel
-// turning, and the body tipped to the ground under its tires. Its model's parts are fetched the
-// first time a kart of that model is drawn, and each paint is made the first time one wears it:
-// until both are here it's drawn as a box of its size in its paint's first colour.
+// turning, and the body tipped to the ground under its tires; and its seat as it's drawn, for its
+// driver to sit in. Its model's parts are fetched the first time a kart of that model is drawn, and
+// each paint is made the first time one wears it: until both are here it's drawn as a box of its
+// size in its paint's first colour.
 import {
   Color3,
   Mesh,
@@ -19,6 +20,7 @@ import { KARTS, WORLD_STRUCTURES, noseOf, type AvatarId, type Kart, type KartId 
 import { fetchMesh, meshData } from '../models/meshFile';
 import { perScene } from '../perScene';
 import { KART_MODELS, paintOf, type KartModel, type KartPaint } from './kartModel';
+import { Seat } from './Seat';
 
 const GLOW = 0.3; // how much a kart lights itself, as the landmarks' models do (models/Models.ts)
 const MAX_TURN = 0.5; // radians the front tires turn with the wheel full over
@@ -40,6 +42,8 @@ export class KartMesh {
   private readonly root: TransformNode; // where it stands, turned its way
   private readonly tilt: TransformNode; // tipped with the ground under its tires
   private readonly model: KartModel;
+  private readonly axis: Vector3; // what its steering wheel turns round
+  readonly seat: Seat;
   private steer: TransformNode | null = null;
   private tires: { spin: TransformNode; steer: TransformNode; front: boolean }[] = [];
   private standIn: Mesh | null;
@@ -55,6 +59,8 @@ export class KartMesh {
     paint: AvatarId,
   ) {
     this.model = KART_MODELS[kart];
+    this.axis = Vector3.FromArray(this.model.steer.axis);
+    this.seat = new Seat(this.model);
     this.root = new TransformNode(`kart-${id}`, scene);
     this.tilt = new TransformNode(`kart-${id}-tilt`, scene);
     this.tilt.parent = this.root;
@@ -70,7 +76,8 @@ export class KartMesh {
     );
   }
 
-  // Draws it where `kart` is, its tires rolled on by how far it went in `dt` seconds.
+  // Draws it where `kart` is, its tires rolled on by how far it went in `dt` seconds, and puts its
+  // seat there.
   update(kart: Kart, dt: number): void {
     this.root.position.set(kart.pos.x, kart.pos.y, kart.pos.z);
     this.root.rotation.y = kart.yaw;
@@ -83,11 +90,10 @@ export class KartMesh {
       tire.spin.rotation.x = this.rolled;
       if (tire.front) tire.steer.rotation.y = kart.wheel * MAX_TURN;
     }
-    if (this.steer)
-      this.steer.rotationQuaternion = Quaternion.RotationAxis(
-        new Vector3(...this.model.steer.axis),
-        -kart.wheel * WHEEL_TURN,
-      );
+    Quaternion.RotationAxisToRef(this.axis, -kart.wheel * WHEEL_TURN, STEER);
+    if (this.steer) (this.steer.rotationQuaternion ??= new Quaternion()).copyFrom(STEER);
+    Quaternion.RotationYawPitchRollToRef(kart.yaw, this.pitch, this.roll, TURN);
+    this.seat.place(this.root.position, TURN, kart.yaw, STEER, kart.wheel, along);
   }
 
   dispose(): void {
@@ -154,6 +160,10 @@ export class KartMesh {
     });
   }
 }
+
+// Scratch for a frame's turns, shared by every kart: none of it survives a call.
+const STEER = new Quaternion();
+const TURN = new Quaternion();
 
 function parts(scene: Scene, kart: KartId, model: KartModel): Promise<Parts> {
   const made = partsIn(scene);

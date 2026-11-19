@@ -122,7 +122,7 @@ export class BodyView {
     this.frame(visible, (engine, now) => {
       this.dropThing();
       const avatar = this.body3d(engine, shown);
-      avatar.update(this.state(shown, this.stage!, now), 0);
+      avatar.update(this.state(shown, this.stage!, now), 0, null);
     });
   }
 

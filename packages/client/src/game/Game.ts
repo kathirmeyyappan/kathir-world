@@ -1154,6 +1154,16 @@ export class Game {
       this.pounding(rp.id, rp.avatar, rp.pound, { x: rp.x, y: rp.y, z: rp.z }, rp.poundHeight);
       this.striking(rp.id, rp.avatar, rp.strike, { x: rp.x, y: rp.y, z: rp.z });
     }
+    // The kart the player drives is drawn where they predict it, eased as they are. Karts are drawn
+    // before bodies, so a driver sits in their kart where it's drawn this frame.
+    const driven = self.riding ? this.prediction.kart : null;
+    const c = this.correction;
+    const karts = sampled.karts.map((k) =>
+      driven && k.id === self.riding
+        ? { ...k, ...driven, pos: { x: driven.pos.x + c.x, y: driven.pos.y + c.y, z: driven.pos.z + c.z } }
+        : k,
+    );
+    this.driving.draw(karts, dt);
     const readers = new Map<string, number>();
     const seen = new Set<string>();
     for (const rp of sampled.players) {
@@ -1167,21 +1177,11 @@ export class Game {
         this.wantVoice(rp.avatar, false);
         if (was && was !== rp.avatar) this.say(rp.id, 'enter');
       }
-      if (rp.riding) avatar.hide();
-      else avatar.update(rp, this.footsteps.phase(rp.id));
+      avatar.update(rp, this.footsteps.phase(rp.id), rp.riding ? this.driving.seatOf(rp.riding) : null);
       if (rp.reading) readers.set(rp.reading, (readers.get(rp.reading) ?? 0) + 1);
     }
     for (const [id, avatar] of this.avatars) if (!seen.has(id)) avatar.hide();
     this.updateOwnAvatar({ x: eye.x, y: p.y + this.correction.y, z: eye.z }, held);
-    // The kart the player drives is drawn where they predict it, eased as they are.
-    const driven = self.riding ? this.prediction.kart : null;
-    const c = this.correction;
-    const karts = sampled.karts.map((k) =>
-      driven && k.id === self.riding
-        ? { ...k, ...driven, pos: { x: driven.pos.x + c.x, y: driven.pos.y + c.y, z: driven.pos.z + c.z } }
-        : k,
-    );
-    this.driving.draw(karts, dt);
     this.pins.update(sampled.players, this.engine.scene, this.camera, this.canvasEl);
     this.nameTags.update(sampled.players, this.engine.scene, this.camera, this.canvasEl);
     this.bubble.update(this.engine.scene, this.camera, this.canvasEl);
@@ -1313,7 +1313,7 @@ export class Game {
     }
     const own: Avatar = avatar;
     const shown = this.view.showsBody;
-    if (self.riding || (!shown && !own.setHeadless)) {
+    if (!shown && !own.setHeadless) {
       own.hide();
       return;
     }
@@ -1352,6 +1352,7 @@ export class Game {
         grounded: isGrounded(self),
       },
       this.footsteps.phase(this.myId),
+      self.riding ? this.driving.seatOf(self.riding) : null,
     );
   }
 

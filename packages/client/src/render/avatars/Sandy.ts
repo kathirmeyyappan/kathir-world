@@ -18,6 +18,7 @@ const BOB = 0.065; // metres the body rises mid-stride
 const HEAD_FOLLOW = 0.5; // how much of the look's pitch the head takes
 const TAIL_SWAY = 0.18; // radians each way, all the time
 const TAIL_SWAY_MS = 1400;
+const TAIL_RAISED = 1.2; // radians the tail is raised in a kart
 // Lying on her back: radians the legs and arms drop toward the ground.
 const DEAD_LEGS = 1.0;
 const DEAD_ARMS = 1.2;
@@ -90,8 +91,10 @@ export function buildSandy(engine: Engine, id: string, base: TransformNode): Fig
     // On her back she lies on her suit, as far up as its back is behind her, not propped on the
     // helmet or the tail, which reach further back.
     lie: { onto: 'back', height: -SANDY_MODEL.back[2], legs: DEAD_LEGS, arms: DEAD_ARMS },
-    // The tail sways on its own; dead, it lies out to one side, out of the floor.
-    extra: (p) => {
+    // The tail sways on its own, raised up behind the back in a kart, clear of the seat; dead, it
+    // lies out to one side, out of the floor.
+    extra: (p, { on }) => {
+      tail.rotation.x = on === 'kart' ? TAIL_RAISED : 0;
       tail.rotation.y = p.dead
         ? Math.PI / 2
         : Math.sin(((performance.now() + swayOffset) / TAIL_SWAY_MS) * 2 * Math.PI) * TAIL_SWAY;

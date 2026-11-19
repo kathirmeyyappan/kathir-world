@@ -9,6 +9,7 @@ export const STANDARD_KART: KartModel = {
     [0.222, 0.821, 0.262],
   ],
   seat: [-0.0, 0.409, -0.083],
+  feet: [0.19, 0.338, 0.382],
   tire: { radius: 0.356, width: 0.217 },
   tires: [
     { at: [0.895, 0.356, 0.433], front: true },

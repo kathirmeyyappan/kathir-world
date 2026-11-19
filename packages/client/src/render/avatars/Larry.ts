@@ -74,9 +74,9 @@ export function buildLarry(engine: Engine, id: string, base: TransformNode): Fig
     // On his back he lies on his shell, as far up as it is behind him; the tail, which reaches
     // further back, lies out to one side.
     lie: { onto: 'back', height: -LARRY_MODEL.back[2], legs: DEAD_LEGS, arms: DEAD_ARMS },
-    // The tail swings against the left leg.
-    extra: (p) => {
-      tail.rotation.y = p.dead ? Math.PI / 2 : -(legL.rotation.x / LEG_SWING) * TAIL_SWAY;
+    // The tail swings against the left leg as he walks.
+    extra: (p, { on }) => {
+      tail.rotation.y = p.dead ? Math.PI / 2 : on === 'foot' ? -(legL.rotation.x / LEG_SWING) * TAIL_SWAY : 0;
     },
     dispose: () => skin.dispose(),
   };

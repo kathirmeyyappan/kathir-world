@@ -1,8 +1,8 @@
 // Driving a kart, as the player sees it (sim/vehicles/): every kart drawn, the one they drive from
-// its prediction and the rest from the snapshots; the kart under the crosshair, which a click gets
-// them into; the look carried round with the kart they drive and, once the mouse has been let be a
-// moment, settled back behind it; and the keys that drive it besides the movement keys: the drift
-// held on Space, and E to get out.
+// its prediction and the rest from the snapshots, with its seat for its driver's body to sit in;
+// the kart under the crosshair, which a click gets them into; the look carried round with the kart
+// they drive and, once the mouse has been let be a moment, settled back behind it; and the keys
+// that drive it besides the movement keys: the drift held on Space, and E to get out.
 import type { Scene } from '@babylonjs/core';
 import {
   KART_REACH,
@@ -15,6 +15,7 @@ import {
 } from '@world/shared';
 import type { InputManager } from '../input/InputManager';
 import { KartMesh } from '../render/vehicles/KartMesh';
+import type { Seat } from '../render/vehicles/Seat';
 
 const SETTLE_AFTER = 0.8; // seconds of the look let be before it settles back behind the kart
 const SETTLE_RATE = 3; // per second: how fast it settles
@@ -42,6 +43,11 @@ export class Driving {
         mesh.dispose();
         this.drawn.delete(id);
       }
+  }
+
+  // The seat of the kart `id` as it was last drawn, for its driver's body to sit in.
+  seatOf(id: string): Seat | null {
+    return this.drawn.get(id)?.seat ?? null;
   }
 
   // The kart a click from `eye` along unit `dir` gets into: the nearest of `karts` within

@@ -14,12 +14,15 @@ import { WORLD_STRUCTURES, type AvatarId, type ItemAction } from '@world/shared'
 import type { RemotePlayer } from '../../net/Interpolation';
 import type { Engine } from '../Engine';
 import { perScene } from '../perScene';
+import type { Seat } from '../vehicles/Seat';
 
 export interface Avatar {
   readonly id: string;
   readonly kind: AvatarId;
   readonly color?: string; // the player's colour it is painted in, when it is: a change means a new body
-  update(p: RemotePlayer, step: number): void; // `step` is where they are in their stride (Footsteps.phase)
+  // Draws them as `p` is: `step` is where they are in their stride (Footsteps.phase), and `seat` the
+  // seat of the kart they drive, as it's drawn this frame, while they drive one.
+  update(p: RemotePlayer, step: number, seat: Seat | null): void;
   flash(): void; // took a hit: blink red
   fire(): void; // shot a tap weapon: muzzle flash
   scaleWeapons(factor: number): void; // its guns drawn this much bigger: the player's own body

@@ -5,7 +5,7 @@
 import { TransformNode, Vector3 } from '@babylonjs/core';
 import type { AvatarId } from '@world/shared';
 import { SkinnedBody, type SkinnedModel } from './skinned';
-import type { Build, Figure } from './Walker';
+import type { Build, Figure, WalkerAvatar } from './Walker';
 
 export type BodyBone = 'body' | 'armL' | 'armR' | 'legL' | 'legR';
 const PARENTS: Record<BodyBone, BodyBone | null> = {
@@ -31,6 +31,9 @@ export interface BodySpec extends Pick<
   // weapon arm's `hold` and `roll` (Figure.armR).
   hold?: readonly [number, number, number];
   roll?: number;
+  // What poses it, where it moves by a rule of its own in some phase (Walker.ts): WalkerAvatar
+  // unless given.
+  avatar?: typeof WalkerAvatar;
 }
 
 const AIR_LEGS = 0.4; // radians the legs are held apart in the air
@@ -39,7 +42,7 @@ const DEAD_LEGS = 1.0;
 const DEAD_ARMS = 1.2;
 
 export function bodyBuilder(spec: BodySpec): Build {
-  const { kind, model, follow, doubleSided, hold, roll, ...walk } = spec;
+  const { kind, model, follow, doubleSided, hold, roll, avatar: _, ...walk } = spec;
   return (engine, id, base) => {
     const skin = new SkinnedBody(engine, `${kind}-${id}`, model, kind, PARENTS, base);
     const body = skin.node('body');

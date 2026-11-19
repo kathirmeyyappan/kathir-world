@@ -17,7 +17,8 @@ simplified to what reads at a kart's size; and their textures, the body's once w
 painted colours left white (`body.png`) and where they go (`paint.png`, red the first and green
 the second), so the client paints it in any driver's colours from one picture. And it writes
 render/vehicles/<id>KartModel.ts: what the client needs to put it together and drive it (where
-each tire stands, the wheel's middle, the axis it turns round and the grips on it, the seat) and
+each tire stands, the wheel's middle, the axis it turns round and the grips on it, the seat and
+where a driver's right foot rests) and
 each driver's paint, and prints the box the sim drives it as, for its row in KARTS
 (sim/vehicles/karts.ts).
 
@@ -47,6 +48,8 @@ EMBLEM_TEXTURE = 64  # px: an emblem's picture, each side
 TIRE_KEEP = 0.5  # of a tire's triangles kept: a tread's bevels are lost at its size
 PAINT_DIFFERS = 24  # 0-255: a pixel some driver's albedo has this far from another's is painted
 TIRE_GAP = 0.03  # metres between a tire and the body beside it
+FEET_APART = 0.19  # metres each foot rests out from the middle line: on its pedal, where there are pedals
+FOOT_ROOM = 0.25  # metres over the floor a foot needs: the feet go forward as far as that's clear
 
 # The drivers whose own paint and emblem a kart they drop wears (their albedo's and emblem's
 # names); anyone else's wears the first's.
@@ -245,6 +248,7 @@ def main(kart_id: str, body_dir: Path, tire_dir: Path) -> None:
     across = np.array([1.0, 0, 0])
     grips = [middle - across * radius, middle + across * radius]
     seat = seat_of(body_pos, rest)
+    feet = feet_of(body_pos, rest, middle)
 
     emit_part(out / "body.bin", triangles(body_pos, body_uv, rest), {})
     emit_part(out / "steer.bin", triangles(body_pos - middle, body_uv, wheel), {})
@@ -283,6 +287,7 @@ def main(kart_id: str, body_dir: Path, tire_dir: Path) -> None:
         f"    {game(grips[0])},",
         "  ],",
         f"  seat: {game(seat)},",
+        f"  feet: {game(feet)},",
         f"  tire: {{ radius: {tire_radius:.3f}, width: {tire_width:.3f} }},",
         "  tires: [",
         *[f"    {{ at: {game(at)}, front: {'true' if front else 'false'} }}," for at, front in tires],
@@ -337,6 +342,43 @@ def seat_of(pos: np.ndarray, which: np.ndarray) -> np.ndarray:
     assert near.any(), "no seat cushion"
     seat = (middle[near] * area[near, None]).sum(axis=0) / area[near].sum()
     return np.array([0, seat[1], seat[2]])  # on the middle line, as the body is even about it
+
+
+def feet_of(pos: np.ndarray, which: np.ndarray, wheel: np.ndarray) -> np.ndarray:
+    """Where a driver's right foot rests (the left's is across the middle line from it): on the
+    floor, FEET_APART out from the middle, from under the steering `wheel`'s middle as far forward
+    as FOOT_ROOM over the floor is clear: up against its pedal, or under the nose. The floor is the
+    highest upward face a line down from the wheel crosses there; what stops the foot, any face a
+    line up from the floor crosses lower than FOOT_ROOM."""
+    a, b, c = pos[3 * which], pos[3 * which + 1], pos[3 * which + 2]
+    up = np.cross(b - a, c - a)[:, 1]
+    x = -FEET_APART  # the right, before MIRROR
+
+    def crossed(z: float) -> tuple[np.ndarray, np.ndarray]:
+        # The heights at which an upright line at (x, z) crosses each face, and whether it does.
+        e0, e1 = b - a, c - a
+        det = e0[:, 0] * e1[:, 2] - e0[:, 2] * e1[:, 0]
+        ok = np.abs(det) > 1e-12
+        safe = np.where(ok, det, 1)
+        px, pz = x - a[:, 0], z - a[:, 2]
+        v = (px * e1[:, 2] - pz * e1[:, 0]) / safe
+        w = (pz * e0[:, 0] - px * e0[:, 2]) / safe
+        inside = ok & (v >= 0) & (w >= 0) & (v + w <= 1)
+        return a[:, 1] + v * e0[:, 1] + w * e1[:, 1], inside
+
+    def floor_at(z: float) -> float:
+        y, inside = crossed(z)
+        under = inside & (up > 0) & (y < wheel[1])
+        assert under.any(), f"no floor under the feet at z {z:.2f}"
+        return float(y[under].max())
+
+    floor = floor_at(wheel[2])
+    z = float(wheel[2])
+    while True:
+        y, inside = crossed(z + 0.01)
+        if (inside & (y > floor + 1e-3) & (y < floor + FOOT_ROOM)).any():
+            return np.array([x, floor, z])
+        z += 0.01
 
 
 if __name__ == "__main__":

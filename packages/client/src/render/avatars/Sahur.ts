@@ -162,8 +162,9 @@ export function buildSahur(engine: Engine, id: string, base: TransformNode): Fig
     lie: { onto: 'back', height: LIE_HEIGHT, arms: DEAD_ARMS, legs: DEAD_LEGS },
     // The log sways slowly and, every few seconds, jerks sideways for a moment. The bat arm is
     // posed here over the walk's: its swing while a strike runs, else its hold on a ladder or the
-    // walk's own swing, with the bat kept as it's carried whichever way the arm has turned.
-    extra: (p, { climbing }) => {
+    // walk's own swing (or, in a kart, its hand on the grip), with the bat kept as it's carried
+    // whichever way the arm has turned.
+    extra: (p, { on }) => {
       const now = performance.now();
       const dt = Math.min(0.1, (now - lastNow) / 1000);
       lastNow = now;
@@ -175,9 +176,11 @@ export function buildSahur(engine: Engine, id: string, base: TransformNode): Fig
         log.rotation.z = Math.sin(now / 1700 + twitchOffset) * 0.03 + twitch;
       }
 
-      // The arm as the walk left it (the hand a ladder's rungs would take is the right's alone),
-      // gone over to its hold on a ladder as far as it has got to.
+      // The arm as the walk or the seat left it (the hand a ladder's rungs would take is the
+      // right's alone), gone over to its hold on a ladder as far as it has got to.
+      const climbing = on === 'ladder';
       if (climbing) ARM.set(0, 0, 0, 1);
+      else if (on === 'kart' && armL.rotationQuaternion) ARM.copyFrom(armL.rotationQuaternion);
       else Quaternion.FromEulerAnglesToRef(armL.rotation.x, armL.rotation.y, armL.rotation.z, ARM);
       onLadder = p.dead ? 0 : onLadder + ((climbing ? 1 : 0) - onLadder) * ease;
       Quaternion.SlerpToRef(ARM, ladder.arm, onLadder, ARM);
