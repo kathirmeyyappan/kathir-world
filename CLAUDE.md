@@ -226,14 +226,17 @@ wire: server and client both build the world from that file.
   `room.ts` `land`), with nothing dropped where it lies. The one barrier is a circle round the
   world's reach (`Ground.keepWithin`, the red wall shown as you come near it), the same for a
   walker and a dragon. Keep structures inside the outline.
-  Along the edge runs a bold kerb (`KERB_WIDTH` across inside it, `KERB_HEIGHT` up, its top lit),
-  rounded where two parts' edges meet, whose outer face drops to the ground past the edge, with a
-  toe as bold along its foot (both rims of the drop lit grey, the kerb's top green, so the border
-  reads from the drop too), `OUTSIDE_HEIGHT` (10 m) down
-  (`render/Environment.ts`), so where you can't go reads from afar; the grid carries on down that
-  drop, each face gridded across the two axes its normal lies furthest from (`surfaceGridLine`, so
-  one family of lines runs over any surface, terrain included). The floor and that ground both end under the
-  kerb, so every edge in sight is real geometry rather than a shader's cut. The kerb is only drawn:
+  The slab is drawn a `CHUNK` at a time (`render/Floor.ts`, one mesh each, streamed in by the
+  loader): its floor, and along its edge a bold kerb (`KERB_WIDTH` across inside it, `KERB_HEIGHT`
+  up, its top lit) whose outer face drops to the ground past the edge, with a toe as bold along its
+  foot (both rims of the drop lit grey, the kerb's top green, so the border reads from the drop
+  too), `OUTSIDE_HEIGHT` (10 m) down, so where the floor ends reads from afar. Each chunk's edge is
+  traced from the ground's distance to it, sampled every metre on one grid for the whole world, so
+  neighbouring chunks meet without a seam and nothing about the outline reaches a shader. The ground
+  past the edge is one plane under everything (`render/Environment.ts`). The grid carries on down
+  the drop, each face gridded across the two axes its normal lies furthest from
+  (`surfaceGridLine`, so one family of lines runs over any surface, terrain included). The floor
+  ends under the kerb, so every edge in sight is real geometry rather than a shader's cut. The kerb is only drawn:
   the sim's floor is flat to the edge, and a foot sinks its 8 cm into it unseen. A dragon can fly
   down into the drop, where the floor's rim is a wall it climbs before coming back in
   (`dragon.ts`), and a walker it turns back into there, or anywhere out over the void, falls where
@@ -421,7 +424,8 @@ already has (the pineapple's profile turned on a lathe, the Krusty Krab's hidden
 wedges), in its own colours, in its vertices.
 
 Nothing is fetched at startup. `render/Loader.ts` streams the world in: anything heavy that stands
-somewhere (a region's structure meshes to build, a model part to fetch) registers with where it is,
+somewhere (a region's structure meshes to build, a chunk of the ground's slab, a model part to
+fetch) registers with where it is,
 and the nearest things not yet begun are begun first, so the player is in the world at once and it
 fills in round them nearest first, the far side within a second or two. Nothing outside waits on
 distance short of a shell's (a scope sees the far side as sharp as the near); the loader only sets
