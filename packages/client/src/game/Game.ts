@@ -106,7 +106,7 @@ import { NameTags } from '../ui/NameTags';
 import { Pins } from '../ui/Pins';
 import { Menu, toggleFullscreen } from '../ui/menu/Menu';
 import { rideGround } from './ride';
-import { KART_BOOM, VIEWS, View, boomOf, screenBoom, screenFov, type Boom } from './View';
+import { KART_VIEW, VIEWS, View, boomOf, kartBoom, screenBoom, screenFov, type Boom } from './View';
 
 const CORRECTION_HALF_LIFE = 0.06;
 // Seconds for the camera to catch up when it goes from riding the ground (ride.ts) to following the
@@ -574,9 +574,10 @@ export class Game {
     document.getElementById('scope')!.classList.toggle('hidden', !on);
   }
 
-  // The view the worn avatar has when not scoped: its class's, for a walker a little wider or
-  // narrower by its stature, and widened for a portrait screen.
+  // The view the player has when not scoped: driving, their kart's; else the worn avatar's class's,
+  // for a walker a little wider or narrower by its stature. Either is widened for a portrait screen.
   private wornFov(): number {
+    if (this.prediction?.kart) return screenFov(KART_VIEW.fov, this.aspect());
     const cls = this.prediction ? classOf(this.prediction.state.avatar) : null;
     const fov = (cls ? VIEWS[cls.id].fov : VIEWS.walker.fov) * Math.pow(this.stature ?? 1, -FOV_SHRINK);
     return screenFov(fov, this.aspect());
@@ -591,10 +592,17 @@ export class Game {
     return this.engine.scene.getEngine().getAspectRatio(this.camera);
   }
 
-  // The boom the camera hangs on in third person: the worn look's, scaled to a walker's stature and
-  // fitted to a portrait screen.
+  // Metres a driver's eyes are over their kart's seat: the share of the worn body's height that
+  // stands out of it.
+  private seatedEyes(): number {
+    return (this.stature ?? 1) * EYE_HEIGHT * SEATED;
+  }
+
+  // The boom the camera hangs on in third person: a driver's kart's, else the worn look's scaled to
+  // a walker's stature, fitted to a portrait screen.
   private boom(): Boom {
-    if (this.prediction!.state.riding) return screenBoom(KART_BOOM, this.wornFov(), this.aspect());
+    const kart = this.prediction!.kart;
+    if (kart) return screenBoom(kartBoom(kart.size, this.seatedEyes()), this.wornFov(), this.aspect());
     const avatar = this.prediction!.state.avatar;
     const boom = boomOf(avatar);
     const scale = classOf(avatar).id === 'walker' ? (this.stature ?? 1) : 1;
@@ -1069,7 +1077,7 @@ export class Game {
     }
     // Metres the eyes are above the body's eye point: sat in a kart, its feet on the seat, they're
     // down at the share of its height that stands out of it.
-    const lift = self.riding ? this.stature * EYE_HEIGHT * SEATED - EYE_HEIGHT : (this.stature - 1) * EYE_HEIGHT;
+    const lift = self.riding ? this.seatedEyes() - EYE_HEIGHT : (this.stature - 1) * EYE_HEIGHT;
     this.camera.minZ = Math.min(NEAR, this.stature * EYE_HEIGHT * NEAR_SHARE);
     // On its feet, the camera rides the ground (ride.ts) rather than the sim's feet; a change
     // between the two is eased like a step.

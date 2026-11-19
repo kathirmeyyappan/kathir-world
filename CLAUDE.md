@@ -1022,10 +1022,12 @@ so it, its driver's eye and their look move on every frame drawn rather than thi
 second; the kart
 under the crosshair, which a click gets in (the same prompt and `use` as a door's); the look
 turned with the kart and settled back behind it once the mouse is let be; and the drift on Space
-and E to get out (`KART_ACTIONS`). A driver is watched along `KART_BOOM`, their legend is the
+and E to get out (`KART_ACTIONS`). A driver is watched as their kart is (`KART_VIEW`,
+`game/View.ts`: a boom from its seat at its size, low and far enough back that all of it shows,
+and one field of view, so a kart sits in one place on screen whoever drives it), their legend is the
 kart's keys and the hint bar says how to get out, and on touch the pad steers alone and the
 jump button gives way to the pedals, GAS (red, a bar over the other two), BRAKE and DRIFT (grey),
-holding W, S and Space, with OUT up under CHAT.
+holding W, S and Space, with OUT up under CHAT and no SELECT (a tap on the view opens a cube).
 Their kart's wrenches are a row of pixel wrenches under their hearts (`Hearts` with the `wrench`
 sprite), and on a mouse device a gauge under those (`ui/KartGauge.ts`) says how fast the kart is
 going along its nose and how fast that's changing (`Prediction.kartPace`: a tick taken ahead on
