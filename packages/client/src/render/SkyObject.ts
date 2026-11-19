@@ -53,11 +53,18 @@ export class SkyObject {
   }
 }
 
-// Spread the objects around the sky beyond the world's edge, well apart, at a distance where
-// they read as scenery. Driven by a seeded rng so everyone in a room sees the same sky.
-export function placeSkyObjects(engine: Engine, contents: SkyContent[], ground: Ground, rng: Rng): SkyObject[] {
+// Spread the objects around the sky beyond the edge of `home`, the floor people are mostly on, well
+// apart, at a distance where they read as scenery, and clear of the rest of the `ground` too.
+// Driven by a seeded rng so everyone in a room sees the same sky.
+export function placeSkyObjects(
+  engine: Engine,
+  contents: SkyContent[],
+  home: Ground,
+  ground: Ground,
+  rng: Rng,
+): SkyObject[] {
   const placed: Vector3[] = [];
-  const b = ground.bounds;
+  const b = home.bounds;
   const pad = MAX_OUTSIDE;
   return contents.map((content) => {
     let position = Vector3.Zero();
@@ -65,8 +72,8 @@ export function placeSkyObjects(engine: Engine, contents: SkyContent[], ground: 
       const x = b.minX - pad + rng() * (b.maxX - b.minX + pad * 2);
       const z = b.minZ - pad + rng() * (b.maxZ - b.minZ + pad * 2);
       // Further out than the ground measures (`Ground.edge`), so every part is asked, once, at load.
-      const outside = Math.min(...ground.parts.map((part) => partDistance(x, z, part)));
-      if (outside < MIN_OUTSIDE || outside > MAX_OUTSIDE) continue;
+      const outside = Math.min(...home.parts.map((part) => partDistance(x, z, part)));
+      if (outside < MIN_OUTSIDE || outside > MAX_OUTSIDE || ground.edge(x, z) < MIN_OUTSIDE) continue;
       position = new Vector3(x, 25 + rng() * 45, z);
       if (placed.every((p) => Vector3.Distance(p, position) >= MIN_SPACING)) break;
     }

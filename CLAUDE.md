@@ -133,8 +133,9 @@ of a few thousand triangles in its own colours, made at once from the shape the 
 has and kept for good, that keeps its outline against the sky wherever its parts aren't all here,
 and they're drawn only once every one of them is, all at once in the shell's place, so the two
 never overlap. A landmark of structures (the keeps, the tower, the terrace) has none: past 700 m
-it's lost in the fog. With the road the world is about 510 m across, so today everything is always
-loaded once it's in.
+it's lost in the fog. With its roads the world is about 600 m by 760 m: from the buildings all of
+it is within reach, so everything is loaded once it's in, and from out on a road's far corner the
+other end of the world is let go and comes back as it's driven toward.
 
 The distances that decide what's fetched, drawn and let go are one system, and each is set
 against the others, scoped and unscoped alike. Whenever one changes or a new one is added, audit
@@ -229,12 +230,14 @@ wire: server and client both build the world from that file.
   annex's size round the main disc at 70°, 125°, 235° and 290°, the keeps' 100 m out and SpongeBob's house's further out, at 124 m, on much wider grounds, r 52, so its dune and the sand round it sits on
   the floor with room round it), the Krusty Krab's grounds between Buildings 2 and 3 (r 32 at 180°,
   100 m out, so the five sites are 55° apart), a road 10 m wide straight out from behind it, 200 m
-  past its grounds, to a plateau r 20 at its end (`KRUSTY_KRAB_ROAD`, `ROAD_PLATEAU`), and the fan
-  between them all, a slice of the main
+  past its grounds, to a plateau r 20 at its end (`KRUSTY_KRAB_ROAD`, `ROAD_PLATEAU`), the islands
+  and roads out past them all (`ISLANDS`, `ROADS`, see Roads below), and the fan
+  between the buildings, a slice of the main
   disc's middle out to the keeps' from the first building's bearing round to the last's, its two
   straight sides held 10 m out, parallel to those bearings, by a strip of floor along each (`FAN_SIDES`),
   so the bridge to the tower is the only corridor and everything between the buildings is open floor. A part is a disc,
-  a straight `bridge` or a pie-slice `sector`. The ground is a solid slab: its top the floor, its
+  a straight `bridge` (its ends round, or `square`: cut straight across), a `bend` (a corridor round
+  an arc, its ends square) or a pie-slice `sector`. The ground is a solid slab: its top the floor, its
   sides a drop of `OUTSIDE_HEIGHT` (10 m) to the ground past the edge, all three of them solid to
   bodies and to rays (`Structures` stands bodies on it, holds a body below the floor off the drop's
   face as a wall, and stops shots and sprays on it). Nothing keeps a walker on the floor: one walks
@@ -292,14 +295,47 @@ wire: server and client both build the world from that file.
   `worldTop: true` on them so their tops map alike. The same goes for anything else the client
   draws: never lay a decal, glow or second mesh exactly on a surface.
 - Client cost: the renderer merges pieces with the same look in the same 48 m square into one mesh,
-  so draw calls stay in the tens however many pieces there are. The world's 13,336 pieces (5,645
+  so draw calls stay in the tens however many pieces there are. The world's 13,347 pieces (5,656
   drawn; the house's rooms and shell are 7,516 hidden pieces and the Krusty Krab 175) render as
-  83 meshes (about 15 in view at once), and a raycast tries the pieces a stretch of grid cells at a
+  about 100 meshes (about 15 in view at once; the roads' banks are 38 pieces in 20 of them, and
+  the floor is 104 chunks), and a raycast tries the pieces a stretch of grid cells at a
   time, so one across open floor costs a few µs, one through the Krusty Krab about 10 µs and one
   through the house about 130 µs. The sim's grid has height bands as well as cells, so a walker's
   tick pays only for the pieces at its own height (about 70 µs inside the house, 27 µs inside the
   Krusty Krab). Check both numbers in the PR when a landmark adds a lot.
   Everything heavy is streamed in through `render/Loader.ts` (see Models below).
+
+### Roads
+
+A road (`sim/roads.ts`) is a strip of floor laid through the points it's given: straight from each
+to the next, and round a bend at each one between (left without a radius, the two runs just meet,
+as they do in the middle of a disc). The floor under a road is flat like all the floor, so its
+height is its bank, structures stood on that floor: a wedge under a stretch that climbs or drops, a
+block under one that runs level up off the floor, each a `SHOULDER` in from the floor's edge so its
+sides rise out of the kerb. A gap is a stretch with neither floor nor bank, to be jumped; `jump(run,
+rise, across)` is one with a ramp either side, so it's jumped both ways. A road is authored as runs,
+each cut into stretches (`level`, `climb`, `gap`; one with no length takes an even share of what the
+others leave), and `layRoad` turns it into its floor (square bridges and bends, for the outline),
+its bank (for `content/roads.ts`) and its slopes (for the maps, which mark each with arrowheads
+pointing up it). It throws on a road that can't be laid: stretches that don't fill their run, a
+bend too tight, an end left up off the floor.
+
+The world's roads and islands are in `sim/outline.ts` (`ROADS`, `ISLANDS`): two arms from the
+plateau at the Krusty Krab road's end, the north one round by the north island to Building 2's
+grounds and the south one by the southwest and south islands to Building 3's, so with that road and
+the floor between the keeps they're one lap of about 2 km. Each island is a disc r 36 with nothing
+on it yet, a site for a building. `HOME_OUTLINE` is the floor without them, where people mostly
+are, which the sky's objects float round. A walker can't cross a gap: every island is reached on
+foot from one side.
+
+Size a road to the karts (see Karts): a ramp no steeper than about 0.4 (a kart rolls up what's
+within a kerb's height each quarter of its width), a gap the Standard Kart clears well short of
+its top speed (`JUMP` is cleared from 16 m/s of its 20, and flat out it lands at the far ramp's
+foot), and a bend of 60 m or more, taken flat out. A slope's top a sixth or more steeper than what
+follows is left in the air at a kart's speed (`LIFT` in `kart.ts`), so a `hump` and the steep side
+of a hill are flown off and a gentle ridge isn't. After changing one, drive every road both ways
+with `stepKart` in a scratch script, flat out and boosted, and check nothing is hit and no landing
+costs a wrench.
 
 ### Ladders
 
@@ -599,7 +635,8 @@ needs no rebuild from you: `deploy.sh` runs `npm run bot-map` too, building a st
 code is off, and CI keeps what a deploy built for the next one.
 
 Cubes don't know about structures. Every map (the HUD's minimap, the menu's and the guide's) draws
-through `ui/MapCanvas.ts`, which reads the outline (`WORLD_GROUND`) and `content/landmarks.ts` itself,
+through `ui/MapCanvas.ts`, which reads the outline (`WORLD_GROUND`) and `content/landmarks.ts` itself
+(a road's climbs among them, each drawn as arrowheads pointing up it),
 drawing only the parts, landmarks and grid lines its view covers (`Ground.partsIn`), so a frame
 costs what's on the map however big the world is, and they all show one world and a map change is a
 change there: footprints grey on the floor (a disc's
@@ -954,8 +991,12 @@ and the brake along it (the brake backing it up once it stops; with neither it s
 stop from flat out in under two seconds, `COAST`), a turn as tight at any speed,
 the wheels taking back what slides across, rolling up anything within a kerb's height and
 flying off a ramp's lip, and walls in the way, which it meets as two circles, at its nose and its
-tail, so a corner hit turns it; it reports how fast it ran into what it hit and how fast it came
-down when it lands. A drift is Space: a press hops it, and landing with the key held and the
+tail, so a corner hit turns it. Each circle, and its middle, rolls along the ground under it a
+quarter of its width at a time, up onto whatever is within a kerb's height of where it was, so a
+slope is climbed however fast it's taken and only a face taller than a kerb is a wall; and it
+leaves the ground at a lip, or over a crest it's going `LIFT` faster upward than the ground past
+it would carry it, whichever tick it crosses on; it reports how fast it ran into what it hit and
+how fast it came down when it lands. A drift is Space: a press hops it, and landing with the key held and the
 wheel over at speed it drifts that way, by the wheel from all but straight (held out of its way)
 to tighter than any turn without one (held into it, `DRIFT_TURN`), a spark blue, yellow and
 purple at 1, 2.25 and 3.5 `miniTurboTime`s of it on the ground (`SPARKS`); let go on a spark, it's a

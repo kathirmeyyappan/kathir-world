@@ -3,11 +3,13 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { gunzipSync } from 'node:zlib';
 import { bodiesMapSource, groundMapSource, movesMapSource } from '../src/sim/botMap';
+import { gap, layRoad, level } from '../src/sim/roads';
 import {
   CHILL_SECONDS,
   CHILLED_SPEED_MULTIPLIER,
   CLIMB_SHARE,
   EYE_HEIGHT,
+  Ground,
   LADDER_GAP,
   LADDER_GIRTH,
   OUTSIDE_HEIGHT,
@@ -106,6 +108,33 @@ test('movement is yaw-relative, and walking off the edge falls to the ground pas
   for (let i = 1; i < 300; i++) stepPlayer(q, frame(i, { my: 1, yaw: Math.PI / 2 - out }), TICK_DT);
   assert.ok(Math.hypot(q.pos.x, q.pos.z) > 100, 'past the edge');
   assert.equal(q.pos.y, OUTSIDE_HEIGHT + EYE_HEIGHT, 'on the ground below it');
+});
+
+test("a road's floor runs straight and round its bend, stops square at a gap, and keeps a spot clamped inside it", () => {
+  // East 100 m with a 10 m gap from 40 to 50, round a bend of radius 30, then north.
+  const road = layRoad({
+    name: 'test',
+    from: { x: 0, z: 0 },
+    width: 10,
+    runs: [{ to: { x: 130, z: 0 }, radius: 30, stretches: [level(40), gap(10), level()] }, { to: { x: 130, z: 100 } }],
+  });
+  const ground = new Ground(road.floor);
+  const near = (a: number, b: number) => Math.abs(a - b) < 1e-6;
+  assert.ok(near(ground.edge(20, 0), -5) && near(ground.edge(20, 7), 2), 'a straight, from its sides');
+  assert.ok(near(ground.edge(39, 0), -1) && near(ground.edge(42, 0), 2), 'cut square at the gap');
+  assert.ok(near(ground.edge(43, 9), Math.hypot(3, 4)), 'and from its corner');
+  // The bend's middle is (100, 30): halfway round, 30 m out along the diagonal.
+  const [mx, mz] = [100 + 30 * Math.SQRT1_2, 30 - 30 * Math.SQRT1_2];
+  assert.ok(near(ground.edge(mx, mz), -5), 'the middle of the bend');
+  assert.ok(near(ground.edge(100 + 37 * Math.SQRT1_2, 30 - 37 * Math.SQRT1_2), 2), 'past its outer side');
+  assert.ok(ground.inside(130, 60) && !ground.inside(130, -1), 'on north, and not straight on past the corner');
+  for (const spot of [
+    { x: 44, y: 0, z: 9 },
+    { x: 140, y: 0, z: -10 },
+  ]) {
+    ground.clamp(spot, 1);
+    assert.ok(ground.edge(spot.x, spot.z) <= -1 + 1e-9, `clamped a metre inside: ${ground.edge(spot.x, spot.z)}`);
+  }
 });
 
 test('jump only from the ground, and gravity brings you back', () => {

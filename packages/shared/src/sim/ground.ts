@@ -1,10 +1,10 @@
-// The world's ground: a slab whose top is the floor the outline draws (discs, straight bridges and
-// pie slices, all unioned, authored in outline.ts), whose sides drop to the ground past the edge,
-// OUTSIDE_HEIGHT down, and all of it solid. A body stands on the floor, walks off its edge, falls
-// down the drop's face (a wall to anything below the floor) and lands on the ground beyond, which
-// is the end of it (room.ts). Everything that cares where the floor ends asks this: the sim (server
-// and client alike, through Structures.ground), the renderers, the sky objects, the bots' map and
-// every map.
+// The world's ground: a slab whose top is the floor the outline draws (discs, straight bridges,
+// bends and pie slices, all unioned, authored in outline.ts), whose sides drop to the ground past
+// the edge, OUTSIDE_HEIGHT down, and all of it solid. A body stands on the floor, walks off its
+// edge, falls down the drop's face (a wall to anything below the floor) and lands on the ground
+// beyond, which is the end of it (room.ts). Everything that cares where the floor ends asks this:
+// the sim (server and client alike, through Structures.ground), the renderers, the sky objects,
+// the bots' map and every map.
 //
 // The parts are indexed by CHUNK-metre square, each square listing every part within NEAR of it,
 // so a question about a spot looks only at the few parts near it, however many the world has.
@@ -17,13 +17,29 @@ export interface Disc {
   r: number;
 }
 
-// A straight corridor between two points. Its ends should sit inside the discs it joins.
+// A straight corridor between two points. Its ends are round, so they should sit inside the discs
+// it joins, unless it's `square`: cut straight across at both points, as a road is where it stops
+// at a gap or carries on into a bend.
 export interface Bridge {
   kind: 'bridge';
   ax: number;
   az: number;
   bx: number;
   bz: number;
+  halfWidth: number;
+  square?: boolean;
+}
+
+// A corridor round a bend: everything within halfWidth of the arc of radius r about (x, z) from
+// bearing `from` round to `to` (radians from +x toward +z, `to` past `from` by less than a whole
+// turn), cut straight across at both ends. r is more than halfWidth.
+export interface Bend {
+  kind: 'bend';
+  x: number;
+  z: number;
+  r: number;
+  from: number;
+  to: number;
   halfWidth: number;
 }
 
@@ -38,7 +54,7 @@ export interface Sector {
   to: number;
 }
 
-export type WorldPart = Disc | Bridge | Sector;
+export type WorldPart = Disc | Bridge | Bend | Sector;
 
 export interface Bounds {
   minX: number;
@@ -190,6 +206,32 @@ export class Ground {
       pos.z = q.z - (pos.z - q.z) * out * padding;
       return;
     }
+    if (best.kind === 'bend') {
+      // Round the bend's middle: its bearing kept `padding` short of each end, measured along the
+      // inner side, where an angle is the least metres, and its distance out kept between the sides.
+      const along = padding / (best.r - best.halfWidth);
+      const a = best.from + clamped(roundFrom(pos.x, pos.z, best), along, best.to - best.from - along);
+      const out =
+        best.r +
+        clamped(
+          Math.hypot(pos.x - best.x, pos.z - best.z) - best.r,
+          padding - best.halfWidth,
+          best.halfWidth - padding,
+        );
+      pos.x = best.x + out * Math.cos(a);
+      pos.z = best.z + out * Math.sin(a);
+      return;
+    }
+    if (best.kind === 'bridge' && best.square) {
+      // In the bridge's own frame: along it and across it, each kept `padding` inside.
+      const f = frameOf(best);
+      const [along, across] = f.local(pos.x, pos.z);
+      const u = clamped(along, padding, f.length - padding);
+      const v = clamped(across, padding - best.halfWidth, best.halfWidth - padding);
+      pos.x = best.ax + f.ux * u - f.uz * v;
+      pos.z = best.az + f.uz * u + f.ux * v;
+      return;
+    }
     let cx: number;
     let cz: number;
     let radius: number;
@@ -225,8 +267,61 @@ export function partDistance(x: number, z: number, part: WorldPart): number {
     const q = closestOnSectorEdge(x, z, part);
     return (inSector(x, z, part) ? -1 : 1) * Math.hypot(x - q.x, z - q.z);
   }
+  if (part.kind === 'bend') return bendDistance(x, z, part);
+  if (part.square) {
+    // A rectangle's: outside, to its nearest side or corner; inside, to its nearest side.
+    const f = frameOf(part);
+    const [along, across] = f.local(x, z);
+    const u = Math.abs(along - f.length / 2) - f.length / 2;
+    const v = Math.abs(across) - part.halfWidth;
+    return Math.hypot(Math.max(u, 0), Math.max(v, 0)) + Math.min(Math.max(u, v), 0);
+  }
   const q = closestOnSegment(x, z, part);
   return Math.hypot(x - q.x, z - q.z) - part.halfWidth;
+}
+
+// A bend's: between its ends, to the nearer of its sides, or inside it of an end's cut if that's
+// nearer; past an end, to that end's cut.
+function bendDistance(x: number, z: number, b: Bend): number {
+  const out = Math.hypot(x - b.x, z - b.z);
+  const round = roundFrom(x, z, b);
+  const span = b.to - b.from;
+  if (round <= span) {
+    const side = Math.abs(out - b.r) - b.halfWidth;
+    // Square to the line of each end's cut: with r past halfWidth, never nearer than a side
+    // wherever the cut itself is further than its line.
+    const toCut = (turn: number) => out * Math.sin(Math.min(turn, Math.PI / 2));
+    return Math.max(side, -Math.min(toCut(round), toCut(span - round)));
+  }
+  const cut = (a: number) => {
+    const [ux, uz] = [Math.cos(a), Math.sin(a)];
+    const q = closestOnSegment(x, z, {
+      ax: b.x + ux * (b.r - b.halfWidth),
+      az: b.z + uz * (b.r - b.halfWidth),
+      bx: b.x + ux * (b.r + b.halfWidth),
+      bz: b.z + uz * (b.r + b.halfWidth),
+    });
+    return Math.hypot(x - q.x, z - q.z);
+  };
+  return Math.min(cut(b.from), cut(b.to));
+}
+
+// A bridge's own frame: the unit way along it from a to b, its length, and a point's metres along
+// it from a and across it (to the left of the way along).
+function frameOf(b: Bridge): { ux: number; uz: number; length: number; local(x: number, z: number): [number, number] } {
+  const length = Math.hypot(b.bx - b.ax, b.bz - b.az);
+  const ux = (b.bx - b.ax) / length;
+  const uz = (b.bz - b.az) / length;
+  return {
+    ux,
+    uz,
+    length,
+    local: (x, z) => [(x - b.ax) * ux + (z - b.az) * uz, (z - b.az) * ux - (x - b.ax) * uz],
+  };
+}
+
+function clamped(v: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, v));
 }
 
 function chunkOf(v: number): number {
@@ -241,38 +336,62 @@ function chunkKey(cx: number, cz: number): number {
 function partBounds(part: WorldPart): Bounds {
   if (part.kind === 'disc')
     return { minX: part.x - part.r, maxX: part.x + part.r, minZ: part.z - part.r, maxZ: part.z + part.r };
-  if (part.kind === 'bridge')
+  if (part.kind === 'bridge' && !part.square)
     return {
       minX: Math.min(part.ax, part.bx) - part.halfWidth,
       maxX: Math.max(part.ax, part.bx) + part.halfWidth,
       minZ: Math.min(part.az, part.bz) - part.halfWidth,
       maxZ: Math.max(part.az, part.bz) + part.halfWidth,
     };
-  // A slice's middle, and its round side sampled: close enough to cover it.
-  const b = { minX: part.x, maxX: part.x, minZ: part.z, maxZ: part.z };
-  for (let i = 0; i <= 64; i++) {
-    const a = part.from + ((part.to - part.from) * i) / 64;
-    const [x, z] = [part.x + part.r * Math.cos(a), part.z + part.r * Math.sin(a)];
+  const b = { minX: Infinity, maxX: -Infinity, minZ: Infinity, maxZ: -Infinity };
+  for (const [x, z] of rimOf(part))
     [b.minX, b.maxX, b.minZ, b.maxZ] = [
       Math.min(b.minX, x),
       Math.max(b.maxX, x),
       Math.min(b.minZ, z),
       Math.max(b.maxZ, z),
     ];
-  }
   return b;
 }
 
 function partReach(part: WorldPart): number {
-  if (part.kind === 'bridge')
+  if (part.kind === 'disc') return Math.hypot(part.x, part.z) + part.r;
+  if (part.kind === 'bridge' && !part.square)
     return Math.max(Math.hypot(part.ax, part.az), Math.hypot(part.bx, part.bz)) + part.halfWidth;
-  return Math.hypot(part.x, part.z) + part.r;
+  return Math.max(...rimOf(part).map(([x, z]) => Math.hypot(x, z)));
+}
+
+// Points round the edge of a part with corners: a square bridge's four, and a slice's or a bend's
+// with its round sides sampled, close enough to cover it.
+function rimOf(part: Bridge | Bend | Sector): [number, number][] {
+  if (part.kind === 'bridge') {
+    const f = frameOf(part);
+    const w = part.halfWidth;
+    return [
+      [part.ax - f.uz * w, part.az + f.ux * w],
+      [part.ax + f.uz * w, part.az - f.ux * w],
+      [part.bx - f.uz * w, part.bz + f.ux * w],
+      [part.bx + f.uz * w, part.bz - f.ux * w],
+    ];
+  }
+  const radii = part.kind === 'bend' ? [part.r - part.halfWidth, part.r + part.halfWidth] : [0, part.r];
+  const rim: [number, number][] = [];
+  for (let i = 0; i <= 64; i++) {
+    const a = part.from + ((part.to - part.from) * i) / 64;
+    for (const r of radii) rim.push([part.x + r * Math.cos(a), part.z + r * Math.sin(a)]);
+  }
+  return rim;
+}
+
+// Radians round from a slice's or a bend's `from` to (x, z)'s bearing from its middle, up to a
+// whole turn.
+function roundFrom(x: number, z: number, s: Sector | Bend): number {
+  return (((Math.atan2(z - s.z, x - s.x) - s.from) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
 }
 
 // Whether (x, z)'s bearing from the slice's middle is between its sides.
 function withinSpan(x: number, z: number, s: Sector): boolean {
-  const round = (((Math.atan2(z - s.z, x - s.x) - s.from) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI); // from `from`
-  return round <= s.to - s.from;
+  return roundFrom(x, z, s) <= s.to - s.from;
 }
 
 function inSector(x: number, z: number, s: Sector): boolean {

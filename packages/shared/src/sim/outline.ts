@@ -1,6 +1,7 @@
 // The world's outline: the parts of the floor (ground.ts), in a module of their own so content can
 // place things relative to them without importing the structures, which import the content.
 import { Ground, type Bridge, type Disc, type Sector, type WorldPart } from './ground';
+import { climb, jump, layRoad, level, type Road } from './roads';
 
 export const MAIN_DISC: Disc = { kind: 'disc', x: 0, z: 0, r: 50 }; // the cubes' home
 export const ANNEX: Disc = { kind: 'disc', x: 112, z: 0, r: 30 }; // Tung Tung Tower's grounds
@@ -67,8 +68,60 @@ export const FAN_SIDES: Bridge[] = [BUILDING_GROUNDS[0], BUILDING_GROUNDS[BUILDI
   ({ x, z }) => ({ kind: 'bridge', ax: MAIN_DISC.x, az: MAIN_DISC.z, bx: x, bz: z, halfWidth: FAN_SIDE }),
 );
 
-// The main disc first: it's the cubes' home (sim/cubes.ts).
-export const WORLD_OUTLINE: WorldPart[] = [
+// Out past the buildings, islands of floor with nothing on them yet, each a site for a building
+// to come, wide enough for a keep with room to drive round it.
+const ISLAND_R = 36;
+const island = (x: number, z: number): Disc => ({ kind: 'disc', x, z, r: ISLAND_R });
+export const NORTH_ISLAND = island(-130, 350);
+export const SOUTHWEST_ISLAND = island(-410, -270);
+export const SOUTH_ISLAND = island(-150, -340);
+export const ISLANDS: Disc[] = [NORTH_ISLAND, SOUTHWEST_ISLAND, SOUTH_ISLAND];
+
+// The roads out to the islands and round the west of the world, for karts (roads.ts): two arms from
+// the plateau at the Krusty Krab road's end, each back to a keep's grounds, so with that road and
+// the floor between the keeps they're one lap. Every gap has a ramp either side and is jumped
+// either way at a kart's speed; the banks between are hills, the steeper sides of them drops a
+// kart flies off.
+// A gap the Standard Kart clears from four fifths of its speed up, off a ramp it leaves a third as
+// fast upward as along.
+const JUMP = { run: 14, rise: 5, across: 8 };
+const hop = () => jump(JUMP.run, JUMP.rise, JUMP.across);
+// A hill short and steep enough to leave the ground over.
+const hump = (rise: number) => [climb(rise * 4, rise), climb(rise * 4, -rise)];
+const [, KEEP_2_GROUNDS, KEEP_3_GROUNDS] = BUILDING_GROUNDS;
+// From Building 2's grounds north over a hill to the north island, then west across a gap and
+// round, south over a hump and a ridge, to the plateau.
+const NORTH_ROAD = layRoad({
+  name: 'north',
+  from: KEEP_2_GROUNDS,
+  width: ROAD_WIDTH,
+  runs: [
+    { to: { x: -150, z: 180 }, radius: 70, stretches: [level(45), climb(45, 6), level()] },
+    { to: NORTH_ISLAND, stretches: [level(30), climb(28, -6), level()] },
+    { to: { x: -390, z: 390 }, radius: 100, stretches: [level(), ...hop(), level()] },
+    { to: { x: -470, z: 210 }, radius: 100, stretches: [level(), ...hump(4), level()] },
+    { to: ROAD_PLATEAU, stretches: [level(20), climb(70, 9), level(), climb(45, -9), level(35)] },
+  ],
+});
+// From the plateau south over a ridge to the southwest island, east over a raised gap to the
+// south island, and round over a hump and a hill to Building 3's grounds.
+const SOUTH_ROAD = layRoad({
+  name: 'south',
+  from: ROAD_PLATEAU,
+  width: ROAD_WIDTH,
+  runs: [
+    { to: SOUTHWEST_ISLAND, stretches: [level(40), climb(60, 7), level(), climb(35, -7), level(60)] },
+    { to: SOUTH_ISLAND, stretches: [level(), climb(40, 4), level(12), ...hop(), level(12), climb(40, -4), level()] },
+    { to: { x: -30, z: -250 }, radius: 60, stretches: [level(), ...hump(3.5), level(15)] },
+    { to: KEEP_3_GROUNDS, stretches: [level(10), climb(40, 5), level(), climb(25, -5), level(40)] },
+  ],
+});
+export const ROADS: Road[] = [NORTH_ROAD, SOUTH_ROAD];
+
+// The floor the buildings stand on, with the Krusty Krab's road: where people mostly are, which
+// the sky's objects float round (the client's SkyObject.ts). The main disc first: it's the cubes'
+// home (sim/cubes.ts).
+export const HOME_OUTLINE: WorldPart[] = [
   MAIN_DISC,
   ANNEX,
   FLOOR_BRIDGE,
@@ -79,5 +132,7 @@ export const WORLD_OUTLINE: WorldPart[] = [
   BUILDING_FAN,
   ...FAN_SIDES,
 ];
+export const WORLD_OUTLINE: WorldPart[] = [...HOME_OUTLINE, ...ISLANDS, ...ROADS.flatMap((road) => road.floor)];
 
+export const HOME_GROUND = new Ground(HOME_OUTLINE);
 export const WORLD_GROUND = new Ground(WORLD_OUTLINE);

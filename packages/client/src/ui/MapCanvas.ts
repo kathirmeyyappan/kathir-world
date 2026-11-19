@@ -5,11 +5,12 @@
 // out; WORLD shows the whole outline north-up.
 // Everything is drawn each frame as shapes in world metres through the view's transform, at the
 // screen's own pixel density (RES canvas pixels to the CSS pixel), so edges stay smooth at any zoom
-// and as the near view turns: the outline's parts (discs, bridges and arcs), landmarks grey on the
-// floor (SpongeBob's house and the Krusty Krab as themselves), and up past HIGH_UP the walkways up
-// there too. Markers go on top: cubes as faint specks, people as smaller copies of your arrow
-// pointing their way, bots as squares, and anyone on another level (a floor above, a bridge below)
-// faded. The canvas can be any size and change it; each draw fits the view to the size it has.
+// and as the near view turns: the outline's parts (discs, bridges, bends and slices), landmarks grey
+// on the floor (SpongeBob's house and the Krusty Krab as themselves, a road's climbs as arrowheads
+// pointing up them), and up past HIGH_UP the walkways up there too. Markers go on top: cubes as
+// faint specks, people as smaller copies of your arrow pointing their way, bots as squares, and
+// anyone on another level (a floor above, a bridge below) faded. The canvas can be any size and
+// change it; each draw fits the view to the size it has.
 import {
   EYE_HEIGHT,
   HIGH_LANDMARKS,
@@ -20,6 +21,7 @@ import {
   type Landmark,
   type PineappleMark,
   type Bounds,
+  type Slope,
   type WorldPart,
 } from '@world/shared';
 
@@ -56,6 +58,11 @@ const GRID = `rgba(${ACCENT}, 0.27)`;
 const OUTLINE = `rgba(${ACCENT}, 0.9)`;
 const LANDMARK = 'rgba(150, 150, 158, 0.78)';
 const RING = 'rgb(70, 70, 78)'; // a landmark's inner circles
+const CLIMB = `rgba(${ACCENT}, 0.85)`; // the arrowheads up a road's slope
+// A slope's arrowheads: CSS pixels from one to the next at the least (and metres, zoomed in), and
+// how much of the road's width each spans.
+const CLIMB_SPACING = { px: 7, m: 5 };
+const CLIMB_SPAN = 0.6;
 const WOOD = 'rgb(138, 100, 64)'; // a wooden walkway's footprint (the terrace's staircases)
 // SpongeBob's house: its dune's sand, the fruit's skin and the diamonds hatched across it, and its
 // leaves, the outer ones darker.
@@ -240,7 +247,10 @@ export class MapCanvas {
     place(ctx);
     ctx.strokeStyle = OUTLINE;
     ctx.lineWidth = px(2 * EDGE);
-    for (const p of parts) ctx.stroke(p);
+    // Every part's outline in one stroke, so where two run together the line is no heavier.
+    const outlines = new Path2D();
+    for (const p of parts) outlines.addPath(p);
+    ctx.stroke(outlines);
     ctx.globalCompositeOperation = 'destination-out';
     for (const p of parts) ctx.fill(p);
     ctx.globalCompositeOperation = 'destination-over';
@@ -255,7 +265,14 @@ export class MapCanvas {
         ctx.stroke();
       }
     }
-    const marks = landmarks.filter((l): l is Footprint => l.kind !== 'pineapple' && l.kind !== 'krusty-krab');
+    ctx.strokeStyle = CLIMB;
+    ctx.lineWidth = px(1.2);
+    ctx.lineJoin = 'miter';
+    for (const l of landmarks)
+      if (l.kind === 'slope') ctx.stroke(climbPath(l, Math.max(CLIMB_SPACING.m, px(CLIMB_SPACING.px))));
+    const marks = landmarks.filter(
+      (l): l is Footprint => l.kind !== 'pineapple' && l.kind !== 'krusty-krab' && l.kind !== 'slope',
+    );
     const wooden = (l: Footprint) => l.kind === 'bridge' && !!l.wood;
     place(this.landmarkLayer);
     cover(this.landmarkLayer, marks.filter((l) => !wooden(l)).map(partPath));
@@ -385,8 +402,26 @@ function layer(): CanvasRenderingContext2D {
   return document.createElement('canvas').getContext('2d')!;
 }
 
-// A landmark filled in grey: any but the two drawn as themselves.
-type Footprint = Exclude<Landmark, PineappleMark | KrustyKrabMark>;
+// A landmark filled in grey: any but those drawn as themselves.
+type Footprint = Exclude<Landmark, PineappleMark | KrustyKrabMark | Slope>;
+
+// A road's climb as arrowheads across it, `spacing` metres apart at the least, each pointing up it.
+function climbPath(s: Slope, spacing: number): Path2D {
+  const path = new Path2D();
+  const length = Math.hypot(s.bx - s.ax, s.bz - s.az);
+  const [ux, uz] = [(s.bx - s.ax) / length, (s.bz - s.az) / length];
+  const count = Math.max(1, Math.floor(length / spacing));
+  const across = s.halfWidth * CLIMB_SPAN;
+  const deep = Math.min(across, length / count / 2);
+  for (let i = 0; i < count; i++) {
+    const at = ((i + 0.5) * length) / count;
+    const [x, z] = [s.ax + ux * at, s.az + uz * at];
+    path.moveTo(x - ux * (deep / 2) - uz * across, z - uz * (deep / 2) + ux * across);
+    path.lineTo(x + ux * (deep / 2), z + uz * (deep / 2));
+    path.lineTo(x - ux * (deep / 2) + uz * across, z - uz * (deep / 2) - ux * across);
+  }
+  return path;
+}
 
 // SpongeBob's house from above, in world metres: its dune's sand, the fruit hatched in diamonds as
 // its skin is, and its crown of leaves in the middle, a ring of long dark ones under a ring of short
@@ -489,7 +524,8 @@ function overlaps(a: Bounds, b: Bounds): boolean {
 }
 
 // A part of the outline, or a landmark, as one closed path in world metres (a landmark open in the
-// middle as a second circle, which an even-odd fill leaves out). Bridges have round ends.
+// middle as a second circle, which an even-odd fill leaves out). Bridges have round ends unless
+// they're square.
 function partPath(p: WorldPart | Footprint): Path2D {
   const path = new Path2D();
   if (p.kind === 'disc') {
@@ -506,8 +542,23 @@ function partPath(p: WorldPart | Footprint): Path2D {
     path.closePath();
     return path;
   }
+  if (p.kind === 'bend') {
+    path.arc(p.x, p.z, p.r + p.halfWidth, p.from, p.to);
+    path.arc(p.x, p.z, p.r - p.halfWidth, p.to, p.from, true);
+    path.closePath();
+    return path;
+  }
   const w = p.halfWidth;
   const side = Math.atan2(p.bz - p.az, p.bx - p.ax) + Math.PI / 2; // the bearing of one side from the middle line
+  if ('square' in p && p.square) {
+    const [sx, sz] = [w * Math.cos(side), w * Math.sin(side)];
+    path.moveTo(p.ax + sx, p.az + sz);
+    path.lineTo(p.bx + sx, p.bz + sz);
+    path.lineTo(p.bx - sx, p.bz - sz);
+    path.lineTo(p.ax - sx, p.az - sz);
+    path.closePath();
+    return path;
+  }
   path.arc(p.bx, p.bz, w, side, side - Math.PI, true);
   path.arc(p.ax, p.az, w, side - Math.PI, side, true);
   path.closePath();
