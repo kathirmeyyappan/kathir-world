@@ -7,6 +7,7 @@ import {
   OUTSIDE_HEIGHT,
   HEADSHOT_MULTIPLIER,
   INPUT_WAIT_TICKS,
+  MAX_INPUTS_PER_TICK,
   ITEMS,
   MAX_HEARTS,
   poundOf,
@@ -1291,6 +1292,26 @@ test('a kart is got into with a click, driven, and got out of with E, what the d
   assert.equal(room.garage.list[0].driver, null);
   assert.ok(Math.hypot(out.pos.x - k.pos.x, out.pos.z - k.pos.z) > KARTS.standard.body.width / 2, 'stood beside it');
   assert.equal(room.garage.list[0].id, kart);
+});
+
+test("a driver's late frames step their kart once each, however long the Room drove it on without them", () => {
+  // Twenty-five frames on the gas: all on time, or the last fifteen held up past INPUT_WAIT_TICKS
+  // and then come at once, to be run several to a tick.
+  const driven = (late: boolean): number => {
+    const { room, ids } = kartRoom({ x: 0, y: 0, z: 0 });
+    const [id] = ids;
+    getIn(room, id);
+    for (let i = 0; i < 10; i++) driving(room, id, 1);
+    const held = INPUT_WAIT_TICKS + 5;
+    if (late) for (let i = 0; i < held; i++) room.step();
+    for (let i = 0; i < held; i++) {
+      room.receive(id, { t: 'input', f: { ...frame(0, []), my: 1 } });
+      if (!late) room.step();
+    }
+    if (late) for (let i = 0; i < held / MAX_INPUTS_PER_TICK; i++) room.step();
+    return room.garage.list[0].pos.z;
+  };
+  assert.equal(driven(true), driven(false));
 });
 
 test('a kart hurts whoever it runs into by how fast they closed, credited to its driver', () => {

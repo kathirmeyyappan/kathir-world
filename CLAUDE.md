@@ -1001,14 +1001,19 @@ draws one: its tires rolled by how far it went and the front pair steered, its s
 turned, the body tipped to the ground under its tires, all at its size, eased there; its parts are fetched the first time a kart
 of that model is drawn (a box of its size in its paint stands in till then). `game/Driving.ts` is
 the rest of driving on the client: every kart drawn, the driven one where its driver's prediction
-has it (`Prediction` rides it as the Room does, rewinding and replaying it with them); the kart
+has it (`Prediction` rides it as the Room does, rewinding and replaying it with them), run on
+between its ticks by a part of a step on the keys of their last frame (`Prediction.kartBetween`),
+so it, its driver's eye and their look move on every frame drawn rather than thirty times a
+second; the kart
 under the crosshair, which a click gets in (the same prompt and `use` as a door's); the look
 turned with the kart and settled back behind it once the mouse is let be; and the drift on Space
 and E to get out. A driver is watched along `KART_BOOM`, their legend is the kart's keys, and on
 touch the pad steers alone, GAS and BRAKE hold W and S, the jump button drifts and OUT gets out.
 Their kart's wrenches are a row of pixel wrenches under their hearts (`Hearts` with the `wrench`
-sprite). A frame the Room steps a driver without (one arriving late) drives on with the keys as
-their last frame held them. A kart's meshes and its paint's materials are made once per scene and
+sprite). A tick the Room steps a driver's kart with no frame (theirs is late) is taken on the keys
+of their last, ahead of the frame it stood in for, which is then taken for its keys alone
+(`Garage.drive`): a kart steps once for each of its driver's frames, as their client predicted,
+however late they come. Past `AHEAD_TICKS` of that its keys are let go and it rolls to a stop. A kart's meshes and its paint's materials are made once per scene and
 shared by every kart of that model and paint, so a kart let go disposes its own nodes alone.
 
 A kart is in every menu a command or a key is: the commands card's `drop kart` group (its

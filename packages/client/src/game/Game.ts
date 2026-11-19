@@ -51,6 +51,7 @@ import {
   KARTS,
   SEATED,
   eyeOf,
+  seatedAt,
   statureOf,
   walkSpeedOf,
   SCOPED_SIGHT,
@@ -978,7 +979,6 @@ export class Game {
     this.syncBlocked();
     this.input.update();
     this.holdLook(dt);
-    this.driving.follow(this.input, this.prediction.state.riding ? this.prediction.kart : null, dt);
     const sampled = this.interp.sample(performance.now(), this.myId);
     // Off the eyes the camera's centre ray and theirs differ, so the look sent (the shot, the head's
     // turn) is the eyes' at what the crosshair is on, from where the camera was last frame.
@@ -1016,7 +1016,10 @@ export class Game {
     this.correction.scaleInPlace(decay);
     this.stepEase *= Math.pow(0.5, dt / STEP_EASE_HALF_LIFE);
     const self = this.prediction.state;
-    const p = self.pos;
+    // A driver is where their kart is drawn, between its ticks, and their look turns with it.
+    const driven = self.riding ? this.prediction.kartBetween(this.accumulator) : null;
+    this.driving.follow(this.input, driven, dt);
+    const p = driven ? seatedAt(driven) : self.pos;
     const eye = new Vector3(p.x + this.correction.x, p.y + this.correction.y, p.z + this.correction.z);
     // The camera sits at the avatar's own eyes with its own width of view, easing there when the
     // look changes, and never up through a lintel or ceiling the body fits under.
@@ -1190,7 +1193,6 @@ export class Game {
     }
     // The kart the player drives is drawn where they predict it, eased as they are. Karts are drawn
     // before bodies, so a driver sits in their kart where it's drawn this frame.
-    const driven = self.riding ? this.prediction.kart : null;
     const c = this.correction;
     const karts = sampled.karts.map((k) =>
       driven && k.id === self.riding
