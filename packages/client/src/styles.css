@@ -321,8 +321,9 @@ body {
   border-bottom-color: var(--accent);
   box-shadow: none;
 }
+/* The two tabs share one edge, each drawing its own over the other's, the selected one on top. */
 .card .home-tabs button + button {
-  border-left: none;
+  margin-left: -2px;
 }
 .card .home-tabs button:hover {
   color: #fff;
@@ -333,6 +334,7 @@ body {
   background: rgba(var(--accent-rgb), 0.12);
   border-color: var(--accent);
   border-bottom-color: transparent;
+  z-index: 1;
 }
 .home-tab-panel {
   padding: 24px 22px;
