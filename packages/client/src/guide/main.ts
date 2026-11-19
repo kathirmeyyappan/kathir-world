@@ -46,6 +46,7 @@ import {
   CHARACTERS,
   CONTROLS,
   GEAR_TEXT,
+  GALLERY,
   INTRO,
   KART_TEXT,
   PICKUP_TEXT,
@@ -376,7 +377,9 @@ function placeStats(place: Place): Stat[] {
   }
 }
 
-const PHOTOS = '/assets/guide/places';
+// Where the guide's photos are, a folder to an album: each photo full size, with a `-thumb` for its gallery.
+const PHOTOS = '/assets/guide';
+type Album = 'places' | 'gallery';
 
 // One photo at a time over the page, big, with its caption: arrows (or the keys) step through the
 // gallery it came from, and Esc, the X or a click beside it closes it.
@@ -384,6 +387,7 @@ class Lightbox {
   private readonly el = el('div', 'lightbox hidden');
   private readonly img = el('img');
   private readonly caption = el('p', 'caption');
+  private album: Album = 'places';
   private photos: Photo[] = [];
   private at = 0;
 
@@ -407,7 +411,8 @@ class Lightbox {
     });
   }
 
-  open(photos: Photo[], at: number): void {
+  open(album: Album, photos: Photo[], at: number): void {
+    this.album = album;
     this.photos = photos;
     this.at = at;
     this.show();
@@ -421,7 +426,7 @@ class Lightbox {
 
   private show(): void {
     const photo = this.photos[this.at];
-    this.img.src = `${PHOTOS}/${photo.file}.jpg`;
+    this.img.src = `${PHOTOS}/${this.album}/${photo.file}.jpg`;
     this.img.alt = photo.caption;
     this.caption.textContent = `${photo.caption} (${this.at + 1} of ${this.photos.length})`;
     this.el.classList.toggle('single', this.photos.length < 2);
@@ -432,17 +437,17 @@ class Lightbox {
   }
 }
 
-function gallery(photos: Photo[], lightbox: Lightbox): HTMLElement {
+function gallery(album: Album, photos: Photo[], lightbox: Lightbox): HTMLElement {
   const row = el('div', 'gallery');
   photos.forEach((photo, i) => {
     const b = el('button');
     const img = el('img');
-    img.src = `${PHOTOS}/${photo.file}-thumb.jpg`;
+    img.src = `${PHOTOS}/${album}/${photo.file}-thumb.jpg`;
     img.alt = photo.caption;
     img.loading = 'lazy';
     b.title = photo.caption;
     b.append(img);
-    b.addEventListener('click', () => lightbox.open(photos, i));
+    b.addEventListener('click', () => lightbox.open(album, photos, i));
     row.append(b);
   });
   return row;
@@ -554,7 +559,7 @@ class WorldMap {
 
 const FLASH_MS = 1600; // how long a picked place's card stays lit, as .card.flash's animation runs
 
-function worldPanel(): { panel: HTMLElement; map: WorldMap } {
+function worldPanel(lightbox: Lightbox): { panel: HTMLElement; map: WorldMap } {
   const panel = el('div', 'cards');
   const cards = new Map<Place['id'], HTMLElement>();
   const map = new WorldMap((id) => {
@@ -567,12 +572,11 @@ function worldPanel(): { panel: HTMLElement; map: WorldMap } {
     window.setTimeout(() => card.classList.remove('flash'), FLASH_MS);
   });
   panel.append(map.el);
-  const lightbox = new Lightbox();
   for (const place of PLACES) {
     const card = el('section', 'card');
     card.append(
       el('h2', '', placeTitle(place)),
-      gallery(place.photos, lightbox),
+      gallery('places', place.photos, lightbox),
       el('p', 'summary', place.summary),
       statTable(placeStats(place)),
       ...facts(place.facts),
@@ -581,6 +585,13 @@ function worldPanel(): { panel: HTMLElement; map: WorldMap } {
     panel.append(card);
   }
   return { panel, map };
+}
+
+// The photo gallery: the game as it's played, three to a row.
+function galleryPanel(lightbox: Lightbox): HTMLElement {
+  const panel = gallery('gallery', GALLERY, lightbox);
+  panel.classList.add('wall');
+  return panel;
 }
 
 function botPage(id: BotId): HTMLElement {
@@ -655,6 +666,7 @@ function main(): void {
     ['characters', 'CHARACTERS'],
     ['items', 'ITEMS'],
     ['world', 'WORLD'],
+    ['gallery', 'GALLERY'],
     ['bots', 'BOTS'],
     ['commands', 'COMMANDS'],
   ];
@@ -666,8 +678,10 @@ function main(): void {
   const catalogs = [new Catalog('characters', characters(), go), new Catalog('items', items(), go)];
   panels.set('characters', catalogs[0].el);
   panels.set('items', catalogs[1].el);
-  const { panel: world, map: worldMap } = worldPanel();
+  const lightbox = new Lightbox();
+  const { panel: world, map: worldMap } = worldPanel(lightbox);
   panels.set('world', world);
+  panels.set('gallery', galleryPanel(lightbox));
   panels.set('bots', botsPanel());
   panels.set('commands', commandsPanel());
   const buttons = new Map<string, HTMLButtonElement>();

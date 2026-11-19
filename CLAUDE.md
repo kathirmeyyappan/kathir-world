@@ -1226,7 +1226,10 @@ footsteps (`GAITS`) and a dragon's roars, rise and theme, leaving out what every
 a literal where it's played, so a look can't make a sound the guide doesn't show: a new look's or
 move's sound goes through one of those, or a new one, and into `linesOf`. The World tab opens on the world's map (`MapCanvas`, to drag about and zoom, `ui/mapControls.ts` as
 the menu's map is). Its photos are in `public/assets/guide/places/`, taken in the game offline with the
-boundary wall hidden, each with a `-thumb` for its gallery.
+boundary wall hidden, each with a `-thumb` for its gallery. The Gallery tab is the game as it's
+played, three photos to a row (`GALLERY` in `guide/content.ts`, `public/assets/guide/gallery/`, taken the
+same way with the HUD hidden, 1600 × 900 with a 480 × 270 `-thumb`), and the README's Photo Gallery
+shows the same files: a new one goes in both.
 
 A diagram in the guide (each bot's page has one but the observer's, `guide/botDiagrams.ts`, keyed
 by `BotId` so a new bot doesn't build until it has one or a null) shows what something does, seen from above, and is built from the

@@ -596,6 +596,19 @@ h2.command .args {
   object-fit: cover;
 }
 
+/* The photo gallery's own tab: the same photos big, three to a row. */
+.gallery.wall {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+
+@media (max-width: 720px) {
+  .gallery.wall {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 .lightbox {
   position: fixed;
   inset: 0;
