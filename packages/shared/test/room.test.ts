@@ -1182,7 +1182,7 @@ test('a ground pound: pressed in the air it hangs, drops faster than a fall, pla
   for (let i = 0; i < 60 && stage() !== 'land'; i++) tick(room);
   assert.ok(stage() === 'land' && alice.hearts === MAX_HEARTS, 'a pound begun low breaks the fall');
   // From past a fatal fall it still goes off, killing bob as it kills alice.
-  for (let i = 0; i < Math.round(pound.recover * TICK_RATE) + 1; i++) room.step();
+  for (let i = 0; i < 4 * TICK_RATE && alice.pound; i++) room.step();
   alice.pos = { x: 0, y: EYE_HEIGHT + 100, z: 0 };
   bob.pos = { x: 2, y: EYE_HEIGHT, z: 0 };
   room.step();
