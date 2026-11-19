@@ -10,9 +10,11 @@ import { VOICES, take } from '../audio/voices';
 import { LocalConnection, type Connection } from '../net/Connection';
 import {
   GLOBAL_ROOM,
+  HOME,
   LobbyUnavailableError,
   SERVED_BY_ROOM_HOST,
   forgetRoom,
+  homeUrl,
   joinRoom,
   rememberRoom,
   NAME_KEY,
@@ -96,12 +98,24 @@ export function showHome(): Promise<HomeResult> {
 
   // The page loads showing the loading screen. Only reveal the home screen when there is
   // nothing to auto-join (or an auto-join fails), so arriving via the lobby never flashes it.
+  // `why` is the line under it, and `roomId` the room that line is about.
+  //
+  // The room host never reveals it. Everything its page fetches (a look's chunk and atlas, a sound,
+  // the guide) goes through the room's session, which ends a minute after the room is left, and a
+  // form outliving it draws every look in Babylon's missing texture, a red checkerboard. So home
+  // opens on the launcher the player came from in this page's place, saying the same.
   let busy = false;
-  const showForm = () => {
+  const showForm = (why = '', roomId = roomInput.value) => {
+    if (HOME) {
+      forgetRoom();
+      location.replace(homeUrl(why ? new URLSearchParams({ error: why, tab: mode, code: roomId }) : undefined));
+      return;
+    }
     busy = false;
     buttons.forEach((b) => (b.disabled = false));
     loading.classList.add('hidden');
     root.classList.remove('hidden');
+    status.textContent = why;
     stage.start();
   };
   const hideForm = () => {
@@ -112,7 +126,6 @@ export function showHome(): Promise<HomeResult> {
   // waiting on a navigation that has already happened. Hand the form back.
   const restore = (e: PageTransitionEvent) => {
     if (!e.persisted) return;
-    status.textContent = '';
     showForm();
   };
   window.addEventListener('pageshow', restore);
@@ -129,8 +142,7 @@ export function showHome(): Promise<HomeResult> {
       const you = joiner();
       roomId = roomId.trim().toLowerCase();
       if (!isValidRoomId(roomId)) {
-        showForm();
-        status.textContent = 'room codes are 1-24 letters, digits or dashes';
+        showForm('room codes are 1-24 letters, digits or dashes', roomId);
         return;
       }
       busy = true;
@@ -150,12 +162,11 @@ export function showHome(): Promise<HomeResult> {
         }
         resolve({ connection, roomId, name: you.name });
       } catch (err) {
-        showForm();
         if (err instanceof LobbyUnavailableError) {
-          status.textContent = 'no multiplayer server here. play offline instead?';
+          showForm('no multiplayer server here. play offline instead?', roomId);
           offlineBtn.classList.remove('hidden');
         } else {
-          status.textContent = err instanceof Error ? err.message : 'could not connect';
+          showForm(err instanceof Error ? err.message : 'could not connect', roomId);
         }
       }
     };
@@ -189,8 +200,7 @@ export function showHome(): Promise<HomeResult> {
       // Turned away on the way to another room: this tab is out of the one it was in.
       forgetRoom();
       history.replaceState(null, '', location.pathname);
-      showForm();
-      status.textContent = refused;
+      showForm(refused);
       roomInput.focus();
     } else if (params.get('room')) attempt(params.get('room')!, SERVED_BY_ROOM_HOST ? null : 'join');
     else if (remembered) {
