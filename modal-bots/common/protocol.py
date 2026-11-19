@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping
-from dataclasses import asdict, dataclass, fields
+from dataclasses import asdict, dataclass, field, fields
 from typing import Any, TypeAlias, TypeVar
 
 
@@ -89,6 +89,7 @@ class Welcome:
     players: tuple[Player, ...]
     cubes: tuple[Cube, ...]
     pickups: tuple[Pickup, ...]
+    doors: Mapping[str, bool] = field(default_factory=dict)  # every door (sim/doors.ts) and whether it stands open
     t: str = "welcome"
 
 
@@ -125,6 +126,7 @@ def decode(payload: str | bytes) -> Message:
                 players=tuple(player(value) for value in data["players"]),
                 cubes=tuple(cube(value) for value in data["cubes"]),
                 pickups=tuple(_pick(Pickup, value) for value in data["pickups"]),
+                doors={str(d["id"]): bool(d["open"]) for d in data["doors"]},
             )
         if data["t"] == "snap":
             return Snapshot(

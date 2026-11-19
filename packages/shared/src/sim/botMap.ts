@@ -47,7 +47,8 @@ import { Structures } from './collision';
 import type { Disc } from './ground';
 import { WORLD_GROUND, WORLD_OUTLINE } from './outline';
 
-// The world without its doors (doors.ts): bots can't open them, so they walk as if every one stood open.
+// The world without its doors (doors.ts): the graph walks as if every one stood open, and a bot that
+// opens doors opens the shut ones in its way (`GroundMap.doors`).
 const MAP_STRUCTURES = new Structures(STRUCTURES.filter((s) => !s.door));
 
 // Metres inside the floor's edge the map stands its nodes, so a route never takes a bot over it.
@@ -86,7 +87,8 @@ interface Simulated {
 }
 
 export interface GroundMap extends Simulated {
-  structures: Structure[]; // as content/structures.ts lists them, without their looks
+  structures: Structure[]; // as content/structures.ts lists them, without their looks or doors
+  doors: Door[];
   nodes: [number, number, number][]; // feet x, y, z
   spots: number; // how many of the nodes, from the first, are spots on the grid; the rest are the open floor's
   edges: number[][]; // per node, the nodes a player walking straight from it reaches
@@ -101,6 +103,12 @@ export interface GroundMap extends Simulated {
   // Segments the sim answered for (a x, y, z, b x, y, z, 1 when nothing stands between): the
   // Python side's line of sight is checked against these.
   sightChecks: number[][];
+}
+
+// A door's slab where it stands shut, without its looks, by the door's id: a double door is two.
+interface Door {
+  id: string;
+  slab: Structure;
 }
 
 export interface MovesMap extends Simulated {
@@ -162,7 +170,7 @@ export function groundMapSource(): number {
     LOOKOUT_FLOOR,
     KEEP_REACH,
   ];
-  return hashSeed(JSON.stringify([WORLD_OUTLINE, shapes(), physics, settings, BUILDINGS]));
+  return hashSeed(JSON.stringify([WORLD_OUTLINE, shapes(), doors(), physics, settings, BUILDINGS]));
 }
 
 // What the moves depend on: the ground they're measured over, and the ways there are of moving.
@@ -173,6 +181,12 @@ export function movesMapSource(): number {
 // What the bodies depend on: nothing but what they are.
 export function bodiesMapSource(): number {
   return hashSeed(JSON.stringify(bodies()));
+}
+
+function doors(): Door[] {
+  return STRUCTURES.flatMap(({ material: _m, color: _c, ...slab }) =>
+    slab.door && !slab.door.open ? [{ id: slab.door.id, slab }] : [],
+  );
 }
 
 // The structures without their looks, which nothing here depends on; a leaning ladder as the
@@ -228,6 +242,7 @@ export function buildGroundMap(code: number): GroundMap {
     source: groundMapSource(),
     code,
     structures: shapes(),
+    doors: doors(),
     nodes: nodes.map((n) => [n.x, Math.round(n.y * 100) / 100, n.z]),
     spots: spots.length,
     edges,
@@ -472,7 +487,8 @@ function topAt(s: Structure, x: number, z: number): number[] {
 
 // Whether `avatar` heading straight for b from a at full speed (jumping as they set off, if
 // `jump`) and letting go once past b's column comes to stand there: within a hand of its line, at
-// its height, in about the time the walk and a jump take.
+// its height, in about the time the walk and a jump take. It walks the world without its doors, as
+// the rest of the map does.
 function reaches(a: Vec3, b: Vec3, jump: boolean, avatar: AvatarId): boolean {
   const p = createPlayer('map', 'map', '#000', { x: a.x, y: a.y + EYE_HEIGHT, z: a.z });
   p.avatar = avatar;
@@ -493,9 +509,9 @@ function reaches(a: Vec3, b: Vec3, jump: boolean, avatar: AvatarId): boolean {
     (jump ? Math.ceil((2 * jumpVelocityOf(avatar)) / GRAVITY / TICK_DT) : 0);
   let along = 0;
   for (let tick = 0; tick < ticks; tick++) {
-    stepPlayer(p, along < length ? frame(1, jump && tick === 0) : frame(0, false), TICK_DT);
+    stepPlayer(p, along < length ? frame(1, jump && tick === 0) : frame(0, false), TICK_DT, MAP_STRUCTURES);
     along = ((p.pos.x - a.x) * (b.x - a.x) + (p.pos.z - a.z) * (b.z - a.z)) / length;
-    if (along < length || p.vy !== 0 || !isGrounded(p)) continue;
+    if (along < length || p.vy !== 0 || !isGrounded(p, MAP_STRUCTURES)) continue;
     const off = Math.abs((p.pos.x - a.x) * (b.z - a.z) - (p.pos.z - a.z) * (b.x - a.x)) / length;
     return off < 0.2 && along < length + 0.4 && Math.abs(p.pos.y - EYE_HEIGHT - b.y) < 0.3;
   }

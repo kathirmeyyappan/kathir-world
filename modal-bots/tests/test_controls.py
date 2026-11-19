@@ -49,6 +49,7 @@ def test_controls_build_frames_and_reset_one_shot_inputs() -> None:
     controls.move(forward=1, right=1)
     controls.look_at(Vec3(0, 1.7, 0), Vec3(1, 1.7, 0))
     controls.jump()
+    controls.use("front")
     controls.fire_once()
     controls.scope()
     controls.read_cube(Cube("aws", 1, 2, 3, 0, 0))
@@ -63,11 +64,13 @@ def test_controls_build_frames_and_reset_one_shot_inputs() -> None:
     assert first["my"] == pytest.approx(1 / math.sqrt(2))
     assert first["yaw"] == pytest.approx(math.pi / 2)
     assert first["jump"] is True
+    assert first["use"] == "front"
     assert first["reading"] == "aws"
     assert first["actions"] == ["shoot", "scope"]
     assert first["view"] == 41, "the tick the bot aimed at, for lag compensation"
     assert second["seq"] == 9
     assert second["jump"] is False
+    assert second["use"] is None
     assert second["actions"] == ["scope"]
 
 

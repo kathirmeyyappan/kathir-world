@@ -448,8 +448,9 @@ marked with the door and its state, and `Structures.setDoor` turns them on and o
 and line of sight follow the door and prediction agrees. A click on a door within `DOOR_REACH`
 sends `InputFrame.use`; the Room checks the look reaches that door, swings it, and broadcasts
 `door`, which clients apply to their `WORLD_STRUCTURES` and to the model's door node (the swing
-plays over `DOOR_SWING_SECONDS`). Bots' map leaves doors out, so they walk as if every door stood
-open. A Room keeps its own `Structures` for this; the client's `WORLD_STRUCTURES` is its page's.
+plays over `DOOR_SWING_SECONDS`). Bots' map walks as if every door stood open and lists each
+door's slab; a bot's way keeps out of doorways unless it opens doors (the sniper), whose route
+stops at a shut one in its way, turns to it and sends the same `use`. A Room keeps its own `Structures` for this; the client's `WORLD_STRUCTURES` is its page's.
 
 ### Interiors
 
@@ -1173,13 +1174,16 @@ controls.scope(True)
 controls.thrust(True)               # hold a worn jetpack's lift (after /jetpack)
 controls.run(True)                  # hold the run: the walk 60% faster, except scoped
 controls.read_cube(cube_or_id)
+controls.use(door_id)               # one frame clicking the door it looks at (Route does this)
 await controls.chat("hello")
 await controls.command("sniper")    # sends /sniper
 ```
 
 There is no generic server-side click message. Browser cube clicks are local visual picking and
 become the `reading` field; use `read_cube`. Attack clicks become the `shoot` action; use
-`fire_once` or `shoot`. Sky-object clicks are entirely client-side and have no server interaction.
+`fire_once` or `shoot`. A door click is `use`, judged against where the bot looks. A way from
+`world.path` keeps out of doorways unless asked (`doors=True`), and a `Route` given
+`doors=state.doors` opens the shut doors on such a way. Sky-object clicks are entirely client-side and have no server interaction.
 
 Tap weapons require a press frame followed by a release frame. Hold weapons require `shoot` on
 every frame. Sniper shots require scope to remain enabled, and a scoped player walks at 30% speed
