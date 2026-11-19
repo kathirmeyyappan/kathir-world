@@ -160,11 +160,16 @@ export function bodyOf(k: KartState): KartBody {
   return { width: width * s, length: length * s, height: height * s, seat: { y: seat.y * s, z: seat.z * s } };
 }
 
-// Sits `p` in kart `k`'s seat, their feet on it, moving with it.
-export function seat(p: PlayerState, k: KartState): void {
+// The eye point of a driver sat in kart `k`, their feet on its seat.
+export function seatedAt(k: KartState): Vec3 {
   const { seat: at } = bodyOf(k);
   const f = noseOf(k.yaw);
-  p.pos = { x: k.pos.x + f.x * at.z, y: k.pos.y + at.y + EYE_HEIGHT, z: k.pos.z + f.z * at.z };
+  return { x: k.pos.x + f.x * at.z, y: k.pos.y + at.y + EYE_HEIGHT, z: k.pos.z + f.z * at.z };
+}
+
+// Sits `p` in kart `k`'s seat, moving with it.
+export function seat(p: PlayerState, k: KartState): void {
+  p.pos = seatedAt(k);
   p.vx = k.vel.x;
   p.vy = k.vel.y;
   p.vz = k.vel.z;

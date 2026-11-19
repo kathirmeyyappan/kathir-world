@@ -12,6 +12,7 @@ import { EYE_HEIGHT, STEP_UP, TICK_RATE } from '../constants';
 import { lookVector } from '../doors';
 import type { GearState } from '../gear';
 import type { ItemState } from '../items';
+import { takeLook } from '../player';
 import type { InputFrame, PlayerState, Vec3 } from '../types';
 import { throwWalker } from '../walker';
 import {
@@ -55,6 +56,9 @@ const DROP_AHEAD = 7; // metres in front of whoever asks for one that a kart dro
 const DROP_HEIGHT = 2; // metres over their feet it drops from: landing under what wears it (LANDING)
 const IDLE_SECONDS = 120; // an empty kart is taken away after this long
 const STRUCK_SECONDS = 0.5; // a kart hurts the same player again no sooner than this
+// Steps a driven kart takes on the keys of its driver's last frame while their next is late, at
+// the most (a third of a second): past them the driver is taken to be away and the keys let go.
+const AHEAD_TICKS = 10;
 const DROP_DAMAGE = 5; // hearts off someone a kart comes down on
 const DROP_SPEED = 2; // m/s down: a kart coming down on someone, not resting on them
 // The throw a run-over gives, Colgera's storm's (avatars.ts) and harder for a harder hit: away
@@ -67,8 +71,9 @@ const BUMP = 0.3; // of the speed two karts closed at that they part at
 
 // What only the Room keeps of a kart: who's credited with what it does (its driver, else whoever
 // last drove or dropped it), the ticks it has stood empty, when it last hurt each player, what its
-// driver put away to drive, who took its last wrench, and its driver's last frame, whose keys it
-// keeps to on a tick their frame is late for.
+// driver put away to drive, who took its last wrench, its driver's last frame, whose keys it
+// keeps to on a tick their frame is late for, and how many steps it has taken that way, ahead of
+// the frames they stood in for.
 interface Keep {
   owner: string | null;
   empty: number;
@@ -76,6 +81,7 @@ interface Keep {
   stowed: { item: ItemState | null; gear: GearState | null };
   breaker: string | null;
   frame: InputFrame | null;
+  ahead: number;
 }
 
 export class Garage {
@@ -125,6 +131,7 @@ export class Garage {
       stowed: { item: null, gear: null },
       breaker: null,
       frame: null,
+      ahead: 0,
     });
     return k;
   }
@@ -147,6 +154,7 @@ export class Garage {
     keep.owner = p.id;
     keep.empty = 0;
     keep.frame = null;
+    keep.ahead = 0;
     seat(p, k);
     return true;
   }
@@ -171,9 +179,12 @@ export class Garage {
     p.vx = p.vy = p.vz = 0;
   }
 
-  // One step of `p`'s kart by their frame (or with none, the keys as their last frame held them, as
-  // their own client went on predicting), built to seat them, them sat in it, and it worn by what
-  // it ran into.
+  // One step of `p`'s kart by their frame, built to seat them, them sat in it, and it worn by what
+  // it ran into. With no frame (theirs is late) it steps on the keys of their last, ahead of the
+  // frame that step stood in for, which is then taken for its look and its keys alone: so a kart
+  // has stepped once for each of its driver's frames, as their client predicted it, and late frames
+  // never run it on further than they would have in time. Past AHEAD_TICKS of that its keys are let
+  // go, and it rolls to a stop.
   drive(p: PlayerState, frame: InputFrame | null, dt: number): void {
     const k = p.riding ? this.karts.get(p.riding) : undefined;
     const keep = p.riding ? this.keeps.get(p.riding) : undefined;
@@ -181,7 +192,15 @@ export class Garage {
       p.riding = null;
       return;
     }
-    if (frame) keep.frame = frame;
+    if (frame) {
+      keep.frame = frame;
+      if (keep.ahead > 0) {
+        keep.ahead--;
+        takeLook(p, frame);
+        return;
+      }
+    } else if (keep.ahead < AHEAD_TICKS) keep.ahead++;
+    else keep.frame = null;
     k.size = sizeFor(p.avatar);
     this.worn(k, ride(p, k, keep.frame, dt, this.structures));
   }
