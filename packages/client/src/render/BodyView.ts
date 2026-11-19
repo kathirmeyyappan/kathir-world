@@ -53,6 +53,9 @@ export interface Thing {
   // It draws with the scene's materials, kept for whatever else draws with them (a kart's paint), so
   // they outlive it; otherwise what it draws with is its own, let go with it.
   shared?: boolean;
+  // The box it fills as it first stands, where its meshes may not be here to measure when it's
+  // built (a kart's are fetched).
+  bounds?: { min: Vector3; max: Vector3 };
 }
 
 const PIXELS = 1.5; // CSS pixels per rendered one: the world's grid on a mouse device, whatever the picture is set to
@@ -140,7 +143,7 @@ export class BodyView {
         const node = new TransformNode(`thing-${thing.key}`, engine.scene);
         this.thing = { key: thing.key, node, move: thing.build(engine, node), born: now, shared: !!thing.shared };
         this.thing.move(0);
-        const { min, max } = node.getHierarchyBoundingVectors();
+        const { min, max } = thing.bounds ?? node.getHierarchyBoundingVectors();
         const across = Vector3.Distance(min, max);
         const size = Math.max(CELL, Math.ceil((across * THING_STAGE) / CELL) * CELL);
         const centre = new Vector3(0, (min.y + max.y) / 2, 0);

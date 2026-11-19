@@ -8,6 +8,7 @@ import type { RemotePlayer } from '../../net/Interpolation';
 import type { Engine } from '../Engine';
 import type { Seat } from '../vehicles/Seat';
 import { bodyBuilder, type BodySpec } from './Body';
+import { begin, type Fetch } from '../fetchOnce';
 import { DragonAvatar } from './Dragon';
 import { DRAGONS, type DragonAvatarId } from './dragons';
 import { buildElizabeth } from './Elizabeth';
@@ -96,28 +97,9 @@ const LOOKS: Record<AvatarId, Look> = {
   colgera: ofDragon('colgera'),
 };
 
-// A fetch begun once, whose result can be read without waiting once it's done. A maker that fails
-// to arrive is forgotten, so the next want tries again; an atlas that fails counts as done, and the
-// body is drawn with what there is.
-interface Fetch<T> {
-  promise: Promise<T>;
-  done: boolean;
-  value: T | undefined;
-}
-function begin<K, T>(fetches: Map<K, Fetch<T>>, key: K, start: () => Promise<T>): Fetch<T> {
-  let entry = fetches.get(key);
-  if (!entry) {
-    const begun: Fetch<T> = { promise: start(), done: false, value: undefined };
-    begun.promise.then(
-      (value) => Object.assign(begun, { done: true, value }),
-      () => fetches.delete(key),
-    );
-    fetches.set(key, (entry = begun));
-  }
-  return entry;
-}
-
-// Makers fetched in chunks of their own, for every scene; atlases per scene, since a texture is.
+// Makers fetched in chunks of their own, for every scene; atlases per scene, since a texture is. A
+// maker that fails to arrive is sent for again by the next want (fetchOnce.ts); an atlas that fails
+// counts as done, and the body is drawn with what there is.
 const makers = new Map<AvatarId, Fetch<Make>>();
 const atlases = new WeakMap<Engine['scene'], Map<AtlasName, Fetch<void>>>();
 

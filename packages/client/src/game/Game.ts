@@ -68,6 +68,7 @@ import type { Connection } from '../net/Connection';
 import { Interpolation, type RemotePlayer } from '../net/Interpolation';
 import { Prediction } from '../net/Prediction';
 import { createAvatar, wantLook, type Avatar } from '../render/avatars';
+import { wantKart } from '../render/vehicles/KartMesh';
 import { CubeMesh } from '../render/CubeMesh';
 import { Engine } from '../render/Engine';
 import { Environment } from '../render/Environment';
@@ -897,10 +898,13 @@ export class Game {
     for (const id of lines.flatMap((l) => l ?? [])) this.sfx.want(id);
   }
 
-  // A look the player may be about to put on: its body is sent for as its command is pointed at,
-  // and its voice too once it's `sent`, so the switch the server answers with finds them here.
+  // What a command pointed at or `sent` is about to need, sent for ahead of the server's answer: a
+  // look's body, and its voice too once it's sent, so the switch finds them here; a kart's files, in
+  // the paint the player would drop it in, so it's drawn from the moment it drops.
   private wantCommand(text: string, sent: boolean): void {
     const command = parseCommand(text);
+    if (command?.name === 'kart' && this.prediction)
+      wantKart(this.engine.scene, command.kart, this.prediction.state.avatar);
     if (command?.name !== 'avatar') return;
     void wantLook(this.engine, command.avatar).catch(() => {});
     if (sent) this.wantVoice(command.avatar, true);
