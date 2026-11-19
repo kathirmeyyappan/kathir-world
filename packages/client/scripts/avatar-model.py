@@ -9,6 +9,9 @@
     python packages/client/scripts/avatar-model.py squidward path/to/squidward_tentacles.glb
     python packages/client/scripts/avatar-model.py gary path/to/gary_spongebob.glb
     python packages/client/scripts/avatar-model.py plankton path/to/bfbbr_-_plankton.glb
+    python packages/client/scripts/avatar-model.py sandy path/to/bfbbr_-_sandy_updated.glb
+    python packages/client/scripts/avatar-model.py puff path/to/bfbbr_-_mrs_puff.glb
+    python packages/client/scripts/avatar-model.py larry path/to/bfbbr_-_larry_the_lobster.glb
 
 Each is a skinned mesh (or a few) on a rig of a hundred-odd joints, or rigid parts on a tree of
 nodes, with no animation. This poses it
@@ -46,13 +49,25 @@ Joint = str | int
 
 @dataclass(frozen=True)
 class Piece:
-    """One of the separate pieces of a rigid node's mesh, where it holds several limbs (four legs in
-    one mesh): the one whose middle is on this side of the body in the avatar's frame, `x` to its
-    right and `z` forward, each 1, -1 or 0 for either side."""
+    """Some of the separate pieces of a rigid node's mesh, where it holds several limbs (four legs in
+    one mesh, or a whole body): the ones whose middle is on this side of the body in the avatar's
+    frame, `x` to its right and `z` forward, each 1, -1 or 0 for either side; at least `off` of the
+    model's height out that way; and, with `y`, between those shares of the model's height from its
+    feet. A piece no bone takes stays with its node's bone. The bone turns on the `end` of what it
+    takes: its top, its bottom, the end nearest the body's middle from side to side (`inner`, an arm
+    held straight out), under that end where it comes out of the side of the torso (`armpit`, an
+    arm whose root is sunk in a wide trunk, so hung down it hangs beside the trunk rather than in
+    it) or its front (a tail). With `blend`, it fades in from its node's bone between those shares
+    of the model's height out from the body's middle, so a limb sunk in the trunk bends out of it,
+    never opening a gap between them as a hinge would."""
 
     node: Joint
     x: int = 0
     z: int = 0
+    y: tuple[float, float] | None = None
+    off: float = 0
+    end: str = "top"
+    blend: tuple[float, float] | None = None
 
 
 @dataclass(frozen=True)
@@ -103,7 +118,24 @@ class Model:
     # Metres below the shoulders the tank hangs: a person's back is a hand's width down, a tiny
     # body's a fraction of that.
     back_drop: float = 0.2
+    # Nodes whose meshes are left out: glass, which the avatar draws its own way, round the middle
+    # and to the size the model file gives as `glass`.
+    skip: tuple[Joint, ...] = ()
+    # Each separate piece of a mesh counted as a part of its own when the model is decimated, so a
+    # mesh that is a whole body in pieces keeps its small ones and thins each closed one alike.
+    apart: bool = False
+    # Joints whose skin is left out, every triangle with a corner that mostly follows one of them or
+    # anything on it: eyelids the rig binds shut over the eyes.
+    bare: tuple[Joint, ...] = ()
+    # Patches of the model's texture, each (u0, v0, u1, v1) with v down the image, whose pale pixels
+    # are painted white: eyeballs the texture has cream.
+    whitened: tuple[tuple[float, float, float, float], ...] = ()
+    # And patches whose marks (whatever is much paler than the rest of the patch) are painted over
+    # in the patch's own colour: a shine drawn on a claw.
+    plain: tuple[tuple[float, float, float, float], ...] = ()
 
+
+PALER = 12  # of 255: this much more green than its patch's middle is a mark on a plain patch
 
 BIPED_PALM = ("Bip001_R_Hand", "Bip001_R_Finger0", "Bip001_R_Finger1", "Bip001_R_Finger2")
 
@@ -247,7 +279,88 @@ MODELS = {
         texture_size=256,
         back_drop=0.02,
     ),
+    # Not rigged at all: one mesh (node 2) in a T-pose, in separate pieces, so every bone is the
+    # pieces that lie where it is. Her suit, the flower on her helmet and the acorn on her chest stay
+    # with the body; the head is everything in the helmet under the flower. The helmet's glass (node
+    # 3) is left out: the avatar draws it (Sandy.ts).
+    "sandy": Model(
+        "BFBBR - Sandy (Updated)",
+        "Cheryl Hill",
+        2.85,  # as tall as Patrick, to the top of her helmet's flower
+        (
+            ("body", 2),
+            ("head", Piece(2, y=(0.58, 0.88), end="bottom")),
+            ("armL", Piece(2, x=-1, y=(0.3, 0.58), off=0.1, end="armpit", blend=(0.12, 0.2))),
+            ("armR", Piece(2, x=1, y=(0.3, 0.58), off=0.1, end="armpit", blend=(0.12, 0.2))),
+            ("legL", Piece(2, x=-1, y=(0, 0.25))),
+            ("legR", Piece(2, x=1, y=(0, 0.25))),
+            ("tail", Piece(2, z=-1, off=0.15, end="front")),
+        ),
+        ("body",),
+        "armR",
+        budget=3600,
+        open_shells_too=True,  # every rim (a neck, a cuff, the tail's root) is inside the piece it meets
+        texture_size=256,
+        skip=(3,),
+        apart=True,
+    ),
+    # Battle for Bikini Bottom Rehydrated's rig, as Plankton's: a hip the legs hang from under her
+    # skirt, a spine up to the head with its hat and hair, and an arm a side.
+    "puff": Model(
+        "BFBBR - Mrs Puff",
+        "Cheryl Hill",
+        2.55,  # to the top of her hat
+        (
+            ("body", "jt_hip"),
+            ("head", "jt_head"),
+            ("armL", "jt_shoulder_L"),
+            ("armR", "jt_shoulder_R"),
+            ("legL", "jt_leg_L"),
+            ("legR", "jt_leg_R"),
+        ),
+        ("body",),
+        ("jt_hand_R", "jt_finger_R"),
+        budget=3600,
+        open_shells_too=True,
+        texture_size=256,
+        bare=("joint6", "joint8", "joint10", "joint12"),  # her lids, upper and lower
+        whitened=((0.42, 0.0, 0.59, 0.11),),  # her eyeballs
+    ),
+    # The same game's rig with its joints half unnamed: joint2 is the hip, with the legs and the
+    # tail on it, joint6 the head with its eyestalks and antennae, and each arm ends in a claw.
+    "larry": Model(
+        "BFBBR - Larry The Lobster",
+        "Cheryl Hill",
+        3.65,  # to the tips of his antennae; his head is 2.9 m up
+        (
+            ("body", "joint2"),
+            ("head", "joint6"),
+            ("armL", "jt_shoulder_L"),
+            ("armR", "jt_shoulder_R"),
+            ("legL", "jt_leg_L"),
+            ("legR", "jt_leg_R"),
+            ("tail", "jt_tail1"),
+        ),
+        ("body",),
+        ("jt_clawUpEnd_R", "jt_clawDwEnd_R"),  # between the tips of its pincers
+        budget=4000,
+        open_shells_too=True,
+        texture_size=256,
+        plain=((0.13, 0.11, 0.22, 0.24),),  # the shine on each claw
+    ),
 }
+
+
+def posed_height(doc: dict, blob: bytes, transform, index: int) -> tuple[float, float]:
+    """How low and how high a rigid node's meshes reach in the scene."""
+    heights = np.concatenate(
+        [
+            (np.c_[p, np.ones(len(p))] @ transform(index).T)[:, 1]
+            for prim in doc["meshes"][doc["nodes"][index]["mesh"]]["primitives"]
+            for p in [accessor(doc, blob, prim["attributes"]["POSITION"]).astype(np.float64)]
+        ]
+    )
+    return float(heights.min()), float(heights.max())
 
 
 def main(name: str, glb: str) -> None:
@@ -277,7 +390,6 @@ def main(name: str, glb: str) -> None:
         # its own node wholly, so its skinning matrix is just the node's transform.
         joints = list(range(len(nodes)))
         inverse_bind = np.broadcast_to(np.eye(4), (len(nodes), 4, 4))
-    skinning = np.array([transform(j) @ inverse_bind[k] for k, j in enumerate(joints)])
     names = [name_of(nodes[j]["name"]) for j in joints]
     joint_index = {j: k for k, j in enumerate(joints)}
     joint_parent = [joint_index.get(parent.get(j), -1) for j in joints]
@@ -287,6 +399,8 @@ def main(name: str, glb: str) -> None:
             return ref
         assert names.count(ref) == 1, f"{ref}: {names.count(ref)} joints of that name"
         return names.index(ref)
+
+    skinning = np.array([transform(j) @ inverse_bind[k] for k, j in enumerate(joints)])
 
     # Fold the rig onto the avatar's bones: a joint belongs to the first bone whose subtree holds it,
     # else to the root bone; a piece's bone takes it from whichever bone has its node.
@@ -313,6 +427,17 @@ def main(name: str, glb: str) -> None:
 
     joint_bone = np.array([bone_of(k) for k in range(len(joints))])
 
+    bare_roots = {joint(ref) for ref in model.bare}
+
+    def is_bare(k: int) -> bool:
+        while k >= 0:
+            if k in bare_roots:
+                return True
+            k = joint_parent[k]
+        return False
+
+    joint_bare = np.array([is_bare(k) for k in range(len(joints))])
+
     def pieces_of(k: int) -> list[tuple[int, Piece]]:
         while k >= 0:
             if k in pieces:
@@ -322,8 +447,11 @@ def main(name: str, glb: str) -> None:
 
     # Every primitive of every skinned mesh, posed, with its weights folded onto the avatar's bones.
     parts = []
+    skipped = {joints[joint(ref)] for ref in model.skip}
+    whole = [posed_height(doc, blob, transform, i) for i, node in enumerate(nodes) if "mesh" in node and i not in skipped]
+    floor, tall = min(lo for lo, _ in whole), max(hi for _, hi in whole) - min(lo for lo, _ in whole)
     for index, node in enumerate(nodes):
-        if "mesh" not in node:
+        if "mesh" not in node or index in skipped:
             continue
         for prim in doc["meshes"][node["mesh"]]["primitives"]:
             attrs = prim["attributes"]
@@ -339,6 +467,9 @@ def main(name: str, glb: str) -> None:
                 # A part its node mirrors (a negative scale) comes out wound inside out.
                 if np.linalg.det(skinning[joint_index[index]][:3, :3]) < 0:
                     triangles = triangles[:, ::-1]
+            if bare_roots:
+                on_bare = (w * joint_bare[j]).sum(axis=1) > 0.5 * w.sum(axis=1)
+                triangles = triangles[~on_bare[triangles].any(axis=1)]
             homogeneous = np.c_[p, np.ones(len(p))]
             posed = np.zeros_like(p)
             posed_normals = np.zeros_like(n)
@@ -351,13 +482,29 @@ def main(name: str, glb: str) -> None:
                 )
                 np.add.at(folded, (np.arange(len(p)), joint_bone[j[:, k]]), w[:, k])
             limbs = pieces_of(joint_index.get(index, -1))
-            for vertices in components({"positions": posed, "triangles": triangles}) if limbs else []:
+            separate = components({"positions": posed, "triangles": triangles}) if limbs or model.apart else []
+            for vertices in separate if limbs else []:
                 # The rig's left is +x, the avatar's right (see below).
-                x, _, z = hip - posed[vertices].mean(axis=0)
-                bones = [i for i, piece in limbs if piece.x * x >= 0 and piece.z * z <= 0]
-                assert len(bones) == 1, f"node {index}: a piece at x {x:.2f}, z {-z:.2f} is {len(bones)} bones"
-                folded[vertices] = 0
-                folded[vertices, bones[0]] = 1
+                middle = posed[vertices].mean(axis=0)
+                x, _, z = hip - middle
+                up = (middle[1] - floor) / tall
+                bones = [
+                    i
+                    for i, piece in limbs
+                    if piece.x * x >= piece.off * tall * abs(piece.x)
+                    and piece.z * z <= -piece.off * tall * abs(piece.z)
+                    and (piece.y is None or piece.y[0] <= up < piece.y[1])
+                ]
+                assert len(bones) <= 1, f"node {index}: a piece at x {x:.2f}, z {-z:.2f} is {len(bones)} bones"
+                if not bones:
+                    continue
+                piece = dict(limbs)[bones[0]]
+                share = np.ones(len(vertices))
+                if piece.blend:
+                    across = abs(posed[vertices, 0] - hip[0]) / tall
+                    share = np.clip((across - piece.blend[0]) / (piece.blend[1] - piece.blend[0]), 0, 1)
+                folded[vertices] *= (1 - share)[:, None]
+                folded[vertices, bones[0]] += share
                 for i, lower in lowers.get(bones[0], []):
                     ys = posed[vertices, 1]
                     height = ys.max() - ys.min()
@@ -365,16 +512,28 @@ def main(name: str, glb: str) -> None:
                     share = np.clip((cut + (lower.blend * height) / 2 - ys) / (lower.blend * height), 0, 1)
                     folded[vertices, i] = share
                     folded[vertices, bones[0]] -= share
-            parts.append(
-                {
-                    "positions": posed,
-                    "normals": posed_normals,
-                    "uvs": accessor(doc, blob, attrs["TEXCOORD_0"]).astype(np.float64),
-                    "bones": folded,
-                    "triangles": triangles,
-                    "material": prim["material"],
-                }
-            )
+            part = {
+                "positions": posed,
+                "normals": posed_normals,
+                "uvs": accessor(doc, blob, attrs["TEXCOORD_0"]).astype(np.float64),
+                "bones": folded,
+                "triangles": triangles,
+                "material": prim["material"],
+            }
+            if not model.apart:
+                parts.append(part)
+                continue
+            for vertices in separate:
+                renumbered = np.full(len(posed), -1)
+                renumbered[vertices] = np.arange(len(vertices))
+                own = renumbered[triangles]
+                parts.append(
+                    {
+                        **{key: part[key][vertices] for key in ("positions", "normals", "uvs", "bones")},
+                        "triangles": own[(own >= 0).all(axis=1)],
+                        "material": prim["material"],
+                    }
+                )
     total = sum(len(part["triangles"]) for part in parts)
     if model.budget and model.budget < total:
         big = [
@@ -435,14 +594,30 @@ def main(name: str, glb: str) -> None:
     }
     # A hinge, a piece or a lower part swings from the middle of the top of its own geometry, a neck
     # turns on the middle of the bottom of its: the band within a twentieth of its height of that end.
+    # An arm turning at its armpit keeps the height of its middle as its shoulder's, for the tank.
+    shoulders: dict[str, float] = {}
     for bone, ref in model.bones:
         if bone not in model.hinges and bone not in model.necks and not isinstance(ref, (Piece, Lower)):
             continue
-        own = posed[order[:, 0] == bone_names.index(bone)]
-        top, bottom = own[:, 1].max(), own[:, 1].min()
-        end = bottom if bone in model.necks else top
-        pivots[bone] = own[abs(own[:, 1] - end) < (top - bottom) / 20].mean(axis=0)
-        pivots[bone][1] = end
+        # A piece blended into its node is all it moves, however little; anything else what it moves most.
+        blended = isinstance(ref, Piece) and ref.blend
+        own = posed[folded[:, bone_names.index(bone)] > 0 if blended else order[:, 0] == bone_names.index(bone)]
+        # Along which axis its end is, and which way along it: up, down, toward the body's middle, ahead.
+        turns_on = "bottom" if bone in model.necks else ref.end if isinstance(ref, Piece) else "top"
+        axis = {"top": 1, "bottom": 1, "inner": 0, "armpit": 0, "front": 2}[turns_on]
+        far = turns_on in ("top", "front") or (turns_on in ("inner", "armpit") and own[:, 0].mean() < 0)
+        low, high = own[:, axis].min(), own[:, axis].max()
+        end = high if far else low
+        pivots[bone] = own[abs(own[:, axis] - end) < (high - low) / 20].mean(axis=0)
+        pivots[bone][axis] = end
+        if turns_on == "armpit":
+            # Under the arm, out at the side of the torso as wide as it is at that height.
+            shoulders[bone] = pivots[bone][1]
+            under = own[:, 1].min()
+            trunk = np.isin(order[:, 0], [bone_names.index(b) for b in model.torso])
+            side = posed[trunk & (abs(posed[:, 1] - under) < 0.02 * model.height)]
+            pivots[bone][0] = np.sign(own[:, 0].mean()) * abs(side[:, 0]).max()
+            pivots[bone][1] = under
     if isinstance(model.palm, str):
         # The far end of the arm: the middle of what lies within a tenth of its length of its tip.
         own = posed[order[:, 0] == bone_names.index(model.palm)]
@@ -457,7 +632,7 @@ def main(name: str, glb: str) -> None:
         back = np.array([0, middle, own[abs(own[:, 1] - middle) < 0.05][:, 2].min() - 0.03])
     else:
         # The tank hangs on the back a little below the shoulders: as far back as the trunk goes there.
-        shoulder_y = (pivots["armL"][1] + pivots["armR"][1]) / 2 - model.back_drop
+        shoulder_y = sum(shoulders.get(arm, pivots[arm][1]) for arm in ("armL", "armR")) / 2 - model.back_drop
         trunk = np.isin(order[:, 0], [bone_names.index(b) for b in model.torso])
         back_z = (
             posed[trunk & (abs(posed[:, 1] - shoulder_y) < 1.5 * model.back_drop)][:, 2].min() - model.back_drop / 4
@@ -467,7 +642,56 @@ def main(name: str, glb: str) -> None:
     # behind the root bone's pivot.
     lie = -posed[:, 2].min()
 
+    # What was left out, as the box it fills: its middle and its size across, up and through.
+    glass = None
+    if skipped:
+        left_out = avatar(
+            np.vstack(
+                [
+                    (np.c_[p, np.ones(len(p))] @ transform(index).T)[:, :3]
+                    for index in skipped
+                    for prim in doc["meshes"][nodes[index]["mesh"]]["primitives"]
+                    for p in [accessor(doc, blob, prim["attributes"]["POSITION"]).astype(np.float64)]
+                ]
+            )
+        )
+        glass = ((left_out.min(axis=0) + left_out.max(axis=0)) / 2, left_out.max(axis=0) - left_out.min(axis=0))
+
+    drawn = uv
     atlas, uv = pack_atlas(doc, blob, uv, material, model.colours, model.texture_size)
+    if model.whitened or model.plain:
+        pixels = np.asarray(atlas.convert("RGB")).copy()
+
+        def patch(u0: float, v0: float, u1: float, v1: float) -> np.ndarray:
+            """A patch of the model's texture, where the atlas has it: a texture goes into the atlas
+            scaled and moved, so where its vertices went says where the patch's corners did."""
+            there = (drawn[:, 0] >= u0) & (drawn[:, 0] <= u1) & (drawn[:, 1] >= v0) & (drawn[:, 1] <= v1)
+            same = material == np.bincount(material[there]).argmax()
+            box = []
+            for axis, (low, high) in enumerate(((u0, u1), (v0, v1))):
+                scale, moved = np.polyfit(drawn[same, axis], uv[same, axis], 1)
+                assert np.abs(drawn[same, axis] * scale + moved - uv[same, axis]).max() < 1e-3
+                box.append(sorted(((low * scale + moved) * atlas.size[axis], (high * scale + moved) * atlas.size[axis])))
+            (x0, x1), (y0, y1) = box
+            return pixels[max(0, int(np.floor(y0))) : int(np.ceil(y1)), max(0, int(np.floor(x0))) : int(np.ceil(x1))]
+
+        for box in model.whitened:
+            there = patch(*box)
+            light = there[..., :2].min(axis=2)
+            pale = (light > 180) & (there[..., 2] < light)
+            there[..., 2][pale] = light[pale]
+        for box in model.plain:
+            there = patch(*box)
+            green = there[..., 1].astype(int)
+            marked = green > np.median(green) + PALER
+            # And a pixel round it, where the mark's edge fades into the patch.
+            rim = marked.copy()
+            rim[1:] |= marked[:-1]
+            rim[:-1] |= marked[1:]
+            rim[:, 1:] |= marked[:, :-1]
+            rim[:, :-1] |= marked[:, 1:]
+            there[rim] = np.median(there[~rim], axis=0)
+        atlas = Image.fromarray(pixels)
 
     def b64(a: np.ndarray) -> str:
         return base64.b64encode(a.tobytes()).decode()
@@ -483,11 +707,17 @@ def main(name: str, glb: str) -> None:
         "// image), triangles (Uint16) and, per vertex, the four bones it follows (Uint8 indices into `bones`) and",
         "// how much (Uint8, summing to 255); all base64. `bones` is each bone's pivot in metres, in index order.",
         "// `hand` is the right palm, `back` where the tank hangs, `lie` how high the hips lie when it is on its back.",
+        *(
+            ["// `glass` is what the mesh leaves out for the avatar to draw: the middle and the size of the box it fills."]
+            if glass
+            else []
+        ),
         f"export const {name.upper()}_MODEL = {{",
         f"  height: {model.height},",
         f"  hand: {vec(palm)},",
         f"  back: {vec(back)},",
         f"  lie: {lie:.4f},",
+        *([f"  glass: {{ at: {vec(glass[0])}, size: {vec(glass[1])} }},"] if glass else []),
         "  bones: {",
         *(f"    {bone}: {vec(pivots[bone])}," for bone in bone_names),
         "  },",

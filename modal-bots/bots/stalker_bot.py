@@ -1,4 +1,4 @@
-"""Stand still and turn to face the nearest person (never another bot)."""
+"""Stand still and turn to face the nearest person (never another bot), as Tung Tung Tung Sahur."""
 
 from __future__ import annotations
 
@@ -20,6 +20,10 @@ from common import (
 )
 from common.deployment import validate_duration
 
+# A stalker is always Tung Tung Tung Sahur (`look` in packages/shared/src/sim/bots.ts): a standing
+# body is drawn facing the way it last walked, and only his, with no head to turn, faces its look.
+LOOK = "sahur"
+
 
 async def run_stalker_bot(
     room: str,
@@ -29,7 +33,7 @@ async def run_stalker_bot(
     lobby_url: str | None = None,
     direct_ws_url: str | None = None,
     spawn: Vec3 | None = None,
-    avatar: str | None = None,
+    avatar: str | None = None,  # ignored: it wears LOOK
 ) -> dict[str, Any]:
     validate_duration(seconds)
     connect_started = time.monotonic()
@@ -39,7 +43,7 @@ async def run_stalker_bot(
         name,
         direct_url=direct_ws_url,
         spawn=spawn,
-        avatar=avatar,
+        avatar=LOOK,
     )
     connected_at = time.monotonic()
     state = WorldState(connection.welcome, connection.room)

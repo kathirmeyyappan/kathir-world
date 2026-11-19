@@ -1,10 +1,11 @@
 """The world's structures and walkable ground, for bots that need to see past walls or find a way
 somewhere (up the tower's stair, say).
 
-It reads ``world_map.json.gz``, which ``npm run bot-map`` builds from the TypeScript content and
-sim (``packages/shared/src/sim/botMap.ts``): the structures, the same list the server collides
-with, and a graph of the spots a player can stand on a 1 m grid, joined where the sim walks
-between neighbours. ``clear`` mirrors the sim's line of sight (``Structures.clear``), and the map's
+It reads the map in ``map/``, which ``npm run bot-map`` builds from the TypeScript content and
+sim (``packages/shared/src/sim/botMap.ts``) in three stages, a file each, and joins them: the
+ground (the structures, the same list the server collides with, and a graph of the spots a player
+can stand on a 1 m grid round whatever stands and of the rectangles of open floor between, joined
+where the sim walks between them), the jumps of each way of moving, and each avatar's body. ``clear`` mirrors the sim's line of sight (``Structures.clear``), and the map's
 own sight checks pin it to the sim's answers.
 """
 
@@ -23,10 +24,15 @@ from typing import Any
 
 from .protocol import Player, Vec3
 
-MAP_PATH = Path(__file__).with_name("world_map.json.gz")
+MAP_DIR = Path(__file__).with_name("map")
 EYE_HEIGHT = 1.7  # metres from feet to eyes (EYE_HEIGHT in packages/shared/src/sim/constants.ts)
 CELL = 8.0  # metres per side of the grid that sight lines look structures up in
 RAY_STEP = 0.05  # metres between samples where a sight line crosses a sloped top (collision.ts)
+OPEN_STEP = 0.5  # metres between the spots a straight walk across open floor is checked at
+ONTO = 1.5  # metres at either end of a straight walk it may take to get onto open floor: a diagonal step
+FLOOR = 0.6  # metres up or down from the floor that still stand on it
+CHEST = 1.0  # metres up from the feet that a walk runs into a door at
+BY_DOOR = 2.0  # metres round a door's slab that a spot whose ways out may go through its doorway is within
 JUMP_COST = 2.0  # metres of walking a route would rather take than one jump
 
 
@@ -72,6 +78,25 @@ class Hitbox:
 
 
 @dataclass(frozen=True, slots=True)
+class Area:
+    """A rectangle of open floor (``openFloor`` in packages/shared/src/sim/botMap.ts): its corner
+    with the least x and z, and its metres along x and z. Nothing stands on it or near it, so a body
+    walks straight from anywhere on it to anywhere else, and onto it from a step off it."""
+
+    x: float
+    z: float
+    w: float
+    d: float
+
+    def holds(self, x: float, z: float) -> bool:
+        return self.x <= x < self.x + self.w and self.z <= z < self.z + self.d
+
+    def off(self, x: float, z: float) -> float:
+        """Metres from (x, z) to the rectangle, 0 on it."""
+        return math.hypot(max(self.x - x, 0, x - self.x - self.w), max(self.z - z, 0, z - self.z - self.d))
+
+
+@dataclass(frozen=True, slots=True)
 class Piece:
     """One structure placed in the world: a w x d footprint turned by yaw, from ``base`` up to
     ``top(lx, lz)`` above it at each local point."""
@@ -93,31 +118,42 @@ class Piece:
 
 
 class WorldMap:
-    def __init__(self, data: Mapping[str, Any]):
-        self.pieces = tuple(_piece(s) for s in data["structures"])
+    def __init__(self, ground: Mapping[str, Any], moves: Mapping[str, Any], bodies: Mapping[str, Any]):
+        self.pieces = tuple(_piece(s) for s in ground["structures"])
+        # Every door's slab where it stands shut, by the door's id (a double door has two); the
+        # graph walks through each as if it stood open.
+        self.doors = tuple((str(d["id"]), _piece(d["slab"])) for d in ground["doors"])
         # Where a player can stand (feet); for each, the neighbours they can walk straight to, and
         # the ones only a running jump reaches.
-        self.nodes = tuple(Vec3(float(x), float(y), float(z)) for x, y, z in data["nodes"])
-        self.edges = tuple(tuple(int(j) for j in out) for out in data["edges"])
+        self.nodes = tuple(Vec3(float(x), float(y), float(z)) for x, y, z in ground["nodes"])
+        self.edges = tuple(tuple(int(j) for j in out) for out in ground["edges"])
+        # The rectangles of open floor by their nodes, and by the cells of the sight grid they cover.
+        self.areas = {int(i): Area(float(x), float(z), float(w), float(d)) for i, x, z, w, d in ground["areas"]}
+        self._area_cells: dict[tuple[int, int], list[int]] = {}
+        for i, a in self.areas.items():
+            for key in _cells_over(a.x, a.z, a.x + a.w, a.z + a.d):
+                self._area_cells.setdefault(key, []).append(i)
         # Per node, the nodes only a running jump reaches: for each way a look on foot moves (its
         # walk and jump power), and which of those each avatar's is. ``jumps`` is the standard body's.
-        self._jump_sets = tuple(tuple(frozenset(int(j) for j in out) for out in jumps) for jumps in data["jumpSets"])
-        self._jump_set = {avatar: int(k) for avatar, k in data["jumpSet"].items()}
+        self._jump_sets = {
+            str(move): tuple(frozenset(int(j) for j in out) for out in jumps) for move, jumps in moves["jumps"].items()
+        }
+        self._moves = {str(avatar): str(move) for avatar, move in bodies["moves"].items()}
         self.jumps = self.jumps_of("standard")
         # Spots well up with a wide view out (the balconies and decks), all reachable on foot.
-        self.lookouts = tuple(int(i) for i in data["lookouts"])
+        self.lookouts = tuple(int(i) for i in ground["lookouts"])
         # The lookouts by where they are: "tower" (its balconies and roof), "building" (a building's
         # roof and the foot of its staircase) or "elsewhere" (the terrace and the ways up to it).
         self.places: dict[str, tuple[int, ...]] = {}
-        for i, place in zip(self.lookouts, data["lookoutPlaces"], strict=True):
+        for i, place in zip(self.lookouts, ground["lookoutPlaces"], strict=True):
             self.places[str(place)] = (*self.places.get(str(place), ()), i)
         self.hitboxes = {
             avatar: Hitbox(float(h["top"]), float(h["radius"]), float(h["head"]))
-            for avatar, h in data["hitboxes"].items()
+            for avatar, h in bodies["hitboxes"].items()
         }
-        self.eyes = {avatar: float(e) for avatar, e in data["eyes"].items()}
+        self.eyes = {avatar: float(e) for avatar, e in bodies["eyes"].items()}
         # How fast each avatar walks at full input, m/s.
-        self.walks = {avatar: float(w) for avatar, w in data["walks"].items()}
+        self.walks = {avatar: float(w) for avatar, w in bodies["walks"].items()}
         # The floors indoors: the tower's four inside its wall, ground floor first, then each keep's.
         self.insides = tuple(
             Region(
@@ -129,11 +165,11 @@ class WorldMap:
                 w=float(r.get("w", 0)),
                 d=float(r.get("d", 0)),
             )
-            for r in data["insides"]
+            for r in ground["insides"]
         )
         # Every node inside a building's wall, the stairs between its floors included.
-        self.indoors = frozenset(int(i) for i in data["indoors"])
-        self.sight_checks = tuple(tuple(float(v) for v in check) for check in data["sightChecks"])
+        self.indoors = frozenset(int(i) for i in ground["indoors"])
+        self.sight_checks = tuple(tuple(float(v) for v in check) for check in ground["sightChecks"])
         self._cells: dict[tuple[int, int], list[int]] = {}
         for i, p in enumerate(self.pieces):
             r = math.hypot(p.hw, p.hd)
@@ -142,6 +178,10 @@ class WorldMap:
         self._columns: dict[tuple[int, int], list[int]] = {}
         for i, n in enumerate(self.nodes):
             self._columns.setdefault((round(n.x), round(n.z)), []).append(i)
+        # The spots by a door, whose ways out may go through its doorway, and the door each of
+        # those ways goes through, as asked.
+        self._by_doors = frozenset(i for _, slab in self.doors for i in self._nodes_by(slab))
+        self._doorways: dict[tuple[int, int], tuple[str, Piece] | None] = {}
 
     def hitbox(self, avatar: str) -> Hitbox:
         """An avatar's hitbox, the standard one's for an avatar the map doesn't know."""
@@ -150,7 +190,7 @@ class WorldMap:
     def jumps_of(self, avatar: str) -> tuple[frozenset[int], ...]:
         """Per node, the nodes only ``avatar``'s running jump reaches; the standard body's for an
         avatar the map doesn't know."""
-        return self._jump_sets[self._jump_set.get(avatar, self._jump_set["standard"])]
+        return self._jump_sets[self._moves.get(avatar, self._moves["standard"])]
 
     def walk_speed(self, avatar: str) -> float:
         """How fast an avatar walks at full input, m/s; the standard one's for an avatar the map
@@ -170,8 +210,55 @@ class WorldMap:
         d = ((b.x - a.x) / length, (b.y - a.y) / length, (b.z - a.z) / length)
         return all(not self._hits(self.pieces[i], a, d, length) for i in self._along(a, b))
 
+    def area_at(self, feet: Vec3) -> int | None:
+        """The node of the rectangle of open floor ``feet`` stands on, if it's on one."""
+        if abs(feet.y) > FLOOR:
+            return None
+        cell = (math.floor(feet.x / CELL), math.floor(feet.z / CELL))
+        return next((i for i in self._area_cells.get(cell, ()) if self.areas[i].holds(feet.x, feet.z)), None)
+
+    def straight(self, a: Vec3, b: Vec3) -> bool:
+        """Whether a walk straight from ``a`` to ``b`` (feet) keeps to open floor, but for a step
+        onto it at either end."""
+        if abs(a.y) > FLOOR or abs(b.y) > FLOOR:
+            return False
+        length = math.hypot(b.x - a.x, b.z - a.z)
+        steps = math.ceil(length / OPEN_STEP)
+        return all(
+            self.area_at(Vec3(a.x + (b.x - a.x) * k / steps, 0, a.z + (b.z - a.z) * k / steps)) is not None
+            for k in range(1, steps)
+            if ONTO < length * k / steps < length - ONTO
+        )
+
+    def doorway(self, i: int, j: int) -> tuple[str, Piece] | None:
+        """The door, and its slab, whose doorway the way from node ``i`` to node ``j`` goes
+        through: what stands across it when the door is shut."""
+        if i not in self._by_doors:
+            return None
+        if (i, j) not in self._doorways:
+            a, b = self.nodes[i], self.nodes[j]
+            length = math.hypot(b.x - a.x, b.z - a.z)
+            chest = Vec3(a.x, a.y + CHEST, a.z)
+            d = ((b.x - a.x) / length, 0.0, (b.z - a.z) / length)
+            self._doorways[(i, j)] = next(
+                ((door, slab) for door, slab in self.doors if self._hits(slab, chest, d, length)), None
+            )
+        return self._doorways[(i, j)]
+
+    def _nodes_by(self, slab: Piece) -> Iterator[int]:
+        """The nodes within BY_DOOR of a door's slab, about its height."""
+        span = math.ceil(math.hypot(slab.hw, slab.hd) + BY_DOOR)
+        for dx in range(-span, span + 1):
+            for dz in range(-span, span + 1):
+                for i in self._columns.get((round(slab.x) + dx, round(slab.z) + dz), ()):
+                    n = self.nodes[i]
+                    lx, lz = slab.local(n.x, n.z)
+                    if abs(lx) <= slab.hw + BY_DOOR and abs(lz) <= slab.hd + BY_DOOR and abs(n.y - slab.base) < FLOOR:
+                        yield i
+
     def node_at(self, feet: Vec3, reach: float = 3) -> int | None:
-        """The node nearest ``feet`` (a player's ``pos`` less EYE_HEIGHT) within ``reach`` metres."""
+        """The node nearest ``feet`` (a player's ``pos`` less EYE_HEIGHT) within ``reach`` metres,
+        a rectangle of open floor as near as the nearest of it."""
         best: int | None = None
         best_distance = reach
         span = math.ceil(reach)
@@ -181,8 +268,17 @@ class WorldMap:
                 for i in self._columns.get((cx + dx, cz + dz), ()):
                     n = self.nodes[i]
                     distance = math.dist((n.x, n.y, n.z), (feet.x, feet.y, feet.z))
-                    if distance < best_distance:
+                    if distance < best_distance and i not in self.areas:
                         best, best_distance = i, distance
+        if abs(feet.y) <= FLOOR:
+            for i in {
+                i
+                for key in _cells_over(feet.x - reach, feet.z - reach, feet.x + reach, feet.z + reach)
+                for i in self._area_cells.get(key, ())
+            }:
+                distance = self.areas[i].off(feet.x, feet.z)
+                if distance < best_distance:
+                    best, best_distance = i, distance
         return best
 
     def nodes_in(self, region: Region, rise: float = 0.6) -> list[int]:
@@ -203,10 +299,11 @@ class WorldMap:
             and abs(self.nodes[i].y - feet.y) <= rise
         ]
 
-    def path(self, start: int, goal: int, avatar: str = "standard") -> list[int] | None:
+    def path(self, start: int, goal: int, avatar: str = "standard", doors: bool = False) -> list[int] | None:
         """The shortest way from node ``start`` to node ``goal`` (both ends included) for a body
         that moves as ``avatar`` does, or None when there's none. It jumps only where walking
-        can't get there, and only where that avatar's jump does (``jumps_of``)."""
+        can't get there, and only where that avatar's jump does (``jumps_of``), and goes through a
+        doorway only with ``doors``, for a bot whose ``Route`` opens them."""
         jumps = self.jumps_of(avatar)
         target = self.nodes[goal]
         frontier = [(0.0, start)]
@@ -221,6 +318,8 @@ class WorldMap:
                 return route[::-1]
             here = self.nodes[i]
             for j in (*self.edges[i], *jumps[i]):
+                if not doors and self.doorway(i, j) is not None:
+                    continue
                 there = self.nodes[j]
                 step = cost[i] + math.dist((here.x, here.y, here.z), (there.x, there.y, there.z))
                 if j in jumps[i]:
@@ -271,8 +370,12 @@ class WorldMap:
 @cache
 def load_world_map() -> WorldMap:
     """The world, read once per process and shared by every bot in it."""
-    with gzip.open(MAP_PATH, "rt", encoding="utf-8") as f:
-        return WorldMap(json.load(f))
+    return WorldMap(*(_stage(name) for name in ("ground", "moves", "bodies")))
+
+
+def _stage(name: str) -> Any:
+    with gzip.open(MAP_DIR / f"{name}.json.gz", "rt", encoding="utf-8") as f:
+        return json.load(f)
 
 
 def _piece(s: Mapping[str, Any]) -> Piece:

@@ -6,7 +6,7 @@
 import { LADDER_GIRTH, ringLadder, roundFloor, roundWall, stairs, type Structure } from '../sim/structures';
 import { ANNEX } from '../sim/outline';
 import type { Region } from '../sim/regions';
-import type { Bridge } from '../sim/world';
+import type { Bridge } from '../sim/ground';
 import { KEEP_GROUNDS } from './buildings';
 import { OUTER, RAIL, SILL, STOREY, deg } from './keep';
 

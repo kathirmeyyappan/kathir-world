@@ -2,7 +2,7 @@
 // the chat offers the commands it could be the start of (commands.ts), listed above the box with
 // the best nearest it: Up picks from the bottom, Down comes back, Enter or Tab (or a click) puts
 // the pick in the box, where Enter sends it as anything else.
-import { MAX_CHAT_LENGTH, MAX_HEARTS, heartsOf, type AvatarId, type Element, type ItemId } from '@world/shared';
+import { MAX_CHAT_LENGTH, MAX_HEARTS, heartsOf, type AvatarId, type Element, type KillItem } from '@world/shared';
 import { HEART, KNIFE, ROBOT, SKULL, pixelSvg } from './pixelIcons';
 
 import { IS_TOUCH } from '../input/touch';
@@ -12,6 +12,7 @@ import type { LegendCell } from './legend';
 
 const CHAT_LINES = 8;
 const CHAT_FADE_MS = 12_000;
+const REFUSAL_MS = 3000; // how long a refusal's red box stands
 // Lines sent from this tab, oldest first, that Up and Down step back through like a shell's history.
 // Kept in sessionStorage, since dying reloads the page.
 const HISTORY_KEY = 'world.chat-history';
@@ -19,7 +20,7 @@ const HISTORY_LINES = 50;
 // What a kill by a look's own move is said to be with (the kill's `item` on the wire): a strike is
 // Tung Tung Tung Sahur's bat, the one strike there is.
 const MOVE_KILLS = { pound: 'ground pound', strike: 'bat' };
-const MOVE_HINT_MS = 20_000; // how long the move hint is up: its animation's length (#move-hint)
+const MOVE_HINT_MS = 15_000; // how long the move hint is up: its animation's length (#move-hint)
 const HINT_GAP = 8; // CSS pixels between the move hint and what it stacks against
 // The layout where the item hint is at the top of the screen, under the touch buttons (styles.css).
 const COARSE = window.matchMedia('(pointer: coarse)');
@@ -52,6 +53,8 @@ export class Hud {
   private readonly hearts = document.getElementById('hearts')!;
   private readonly condition = document.getElementById('condition')!;
   private readonly areaTitle = document.getElementById('area-title')!;
+  private readonly refusal = document.getElementById('refusal')!;
+  private refusalTimer = 0;
   private moveHintText = '';
   private moveHintTimer = 0;
   private moveHintBottom = 0; // CSS pixels down the view the move hint reaches, with its gap; 0 with none up
@@ -405,6 +408,16 @@ export class Hud {
     this.pushLine(li);
   }
 
+  // Something the player asked for can't be done: the reason goes in the log like any system line
+  // and stands in a red box over the view for REFUSAL_MS, a newer one taking its place.
+  refuse(text: string): void {
+    this.system(text);
+    this.refusal.textContent = text;
+    this.refusal.classList.add('on');
+    clearTimeout(this.refusalTimer);
+    this.refusalTimer = window.setTimeout(() => this.refusal.classList.remove('on'), REFUSAL_MS);
+  }
+
   // A small note beside the thing that was just done (the copied room code), gone in a moment.
   // Local feedback like this stays out of the chat log.
   tip(anchor: HTMLElement, text: string): void {
@@ -417,12 +430,25 @@ export class Hud {
     setTimeout(() => el.remove(), 1600);
   }
 
-  // A kill, worded and coloured like an announcement: "ann killed bob with a sniper headshot".
-  announceKill(shooter: string, victim: string, item: ItemId | keyof typeof MOVE_KILLS, headshot: boolean): void {
+  // A kill, worded and coloured like an announcement: "ann killed bob with a sniper headshot", "ann
+  // ran over bob and killed them".
+  announceKill(shooter: string, victim: string, item: KillItem, headshot: boolean): void {
     const li = document.createElement('li');
     li.className = 'kill';
-    const how = item === 'pound' || item === 'strike' ? MOVE_KILLS[item] : item;
-    li.textContent = `${this.playerName(shooter)} killed ${this.playerName(victim)} with a ${how}${headshot ? ' headshot' : ''}`;
+    const [a, b] = [this.playerName(shooter), this.playerName(victim)];
+    if (item === 'kart') li.textContent = `${a} ran over ${b} and killed them`;
+    else if (item === 'explosion') li.textContent = `${a} blew up ${b}`;
+    else {
+      const how = item === 'pound' || item === 'strike' ? MOVE_KILLS[item] : item;
+      li.textContent = `${a} killed ${b} with a ${how}${headshot ? ' headshot' : ''}`;
+    }
+    this.pushLine(li);
+  }
+
+  announceCrash(victim: string): void {
+    const li = document.createElement('li');
+    li.className = 'kill';
+    li.textContent = `${this.playerName(victim)} drove into a wall and died`;
     this.pushLine(li);
   }
 

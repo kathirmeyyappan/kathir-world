@@ -3,7 +3,9 @@
 // whether the texture repeats (coordinates run past 1) or is an atlas, whether it has clear pixels,
 // whether it's drawn as painted rather than lit (the rooms, which the sun never reaches), how solid
 // it's drawn if it's see-through, whether only its outside is drawn (the skin, sealed all round,
-// so nothing looks at its inside), and the door it hangs on, if it swings (content/pineappleProfile.ts).
+// so nothing looks at its inside), the door it hangs on, if it swings (content/pineappleProfile.ts),
+// and the floor of the rooms it belongs to, drawn only while that floor could be seen (none for
+// the outside, the doors in the shell's doorways among it; content/pineapple.ts).
 export interface PineapplePart {
   name: string;
   texture: string;
@@ -13,6 +15,7 @@ export interface PineapplePart {
   opacity?: number;
   oneSided?: boolean;
   door?: string;
+  floor?: string;
 }
 
 export const PINEAPPLE_PARTS: readonly PineapplePart[] = [
@@ -22,17 +25,59 @@ export const PINEAPPLE_PARTS: readonly PineapplePart[] = [
   { name: 'flowers', texture: 'flowers', wrap: false, alpha: false, unlit: false, opacity: 0.75 },
   { name: 'path', texture: 'path', wrap: false, alpha: false, unlit: false },
   { name: 'door-front', texture: 'door', wrap: false, alpha: false, unlit: false, door: 'front' },
-  { name: 'interior', texture: 'interior', wrap: false, alpha: true, unlit: true },
-  { name: 'hatch', texture: 'slide', wrap: true, alpha: false, unlit: true },
-  { name: 'slide-floor', texture: 'slide-floor', wrap: true, alpha: false, unlit: true },
-  { name: 'hatch-rim', texture: 'hatch-rim', wrap: true, alpha: false, unlit: true },
-  { name: 'door-closet', texture: 'interior', wrap: false, alpha: true, unlit: true, door: 'closet' },
-  { name: 'door-bedroom-east', texture: 'interior', wrap: false, alpha: true, unlit: true, door: 'bedroom-east' },
-  { name: 'door-bedroom-west', texture: 'interior', wrap: false, alpha: true, unlit: true, door: 'bedroom-west' },
-  { name: 'door-bathroom', texture: 'interior', wrap: false, alpha: true, unlit: true, door: 'bathroom' },
-  { name: 'door-bathroom-up', texture: 'interior', wrap: false, alpha: true, unlit: true, door: 'bathroom-up' },
-  { name: 'door-hatch', texture: 'hatch-door', wrap: false, alpha: false, unlit: true, door: 'hatch' },
-  { name: 'door-back', texture: 'interior', wrap: false, alpha: true, unlit: true, door: 'back' },
-  { name: 'door-hall', texture: 'interior', wrap: false, alpha: true, unlit: true, door: 'hall' },
-  { name: 'door-side', texture: 'interior', wrap: false, alpha: true, unlit: true, door: 'side' },
+  { name: 'interior-ground', texture: 'interior', wrap: false, alpha: true, unlit: true, floor: 'ground' },
+  { name: 'interior-upstairs', texture: 'interior', wrap: false, alpha: true, unlit: true, floor: 'upstairs' },
+  { name: 'interior-library', texture: 'interior', wrap: false, alpha: true, unlit: true, floor: 'library' },
+  { name: 'hatch', texture: 'slide', wrap: true, alpha: false, unlit: true, floor: 'library' },
+  { name: 'slide-floor', texture: 'slide-floor', wrap: true, alpha: false, unlit: true, floor: 'library' },
+  { name: 'hatch-rim', texture: 'hatch-rim', wrap: true, alpha: false, unlit: true, floor: 'library' },
+  { name: 'door-closet', texture: 'interior', wrap: false, alpha: true, unlit: true, door: 'closet', floor: 'ground' },
+  {
+    name: 'door-bedroom-east',
+    texture: 'interior',
+    wrap: false,
+    alpha: true,
+    unlit: true,
+    door: 'bedroom-east',
+    floor: 'upstairs',
+  },
+  {
+    name: 'door-bedroom-west',
+    texture: 'interior',
+    wrap: false,
+    alpha: true,
+    unlit: true,
+    door: 'bedroom-west',
+    floor: 'upstairs',
+  },
+  {
+    name: 'door-bathroom',
+    texture: 'interior',
+    wrap: false,
+    alpha: true,
+    unlit: true,
+    door: 'bathroom',
+    floor: 'ground',
+  },
+  {
+    name: 'door-bathroom-up',
+    texture: 'interior',
+    wrap: false,
+    alpha: true,
+    unlit: true,
+    door: 'bathroom-up',
+    floor: 'upstairs',
+  },
+  {
+    name: 'door-hatch',
+    texture: 'hatch-door',
+    wrap: false,
+    alpha: false,
+    unlit: true,
+    door: 'hatch',
+    floor: 'library',
+  },
+  { name: 'door-back', texture: 'doors', wrap: false, alpha: true, unlit: true, door: 'back' },
+  { name: 'door-hall', texture: 'doors', wrap: false, alpha: true, unlit: true, door: 'hall' },
+  { name: 'door-side', texture: 'doors', wrap: false, alpha: true, unlit: true, door: 'side' },
 ];

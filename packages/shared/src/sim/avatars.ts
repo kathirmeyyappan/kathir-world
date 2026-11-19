@@ -24,6 +24,9 @@ export type AvatarId =
   | 'squidward'
   | 'gary'
   | 'plankton'
+  | 'sandy'
+  | 'puff'
+  | 'larry'
   | 'sahur'
   | 'mike'
   | 'sulley'
@@ -141,7 +144,7 @@ const LIGHT_DRAGON_SIZE = 1.15;
 const COLGERA_SIZE = 1.15;
 
 // The moves Super Mario 64's Mario has, which every look of his family starts from: a row spreads
-// these, sets its own over them (Wario's heavier pound) and adds what is its alone (Peach's float).
+// these, sets its own over them (Wario's and Waluigi's heavier pound) and adds what is its alone (Peach's float).
 const SM64_MOVES = {
   leap: { rise: 0.5, speed: 1.25, float: 0.5, grip: 6 }, // at twice its walk, a quarter over its run, and half its jump's height
   // The twirl as long as its clip (Jointed.ts); the knock a hop back, a third of a second off the ground.
@@ -149,6 +152,9 @@ const SM64_MOVES = {
   chain: { jumps: 3, gap: 0.3, rise: 1.2 }, // a jump, a double and a triple
   crouch: { crawl: 0.3, flip: 1.5 },
 } satisfies Partial<Moves>;
+
+// Wario's and Waluigi's pound: heavier than the brothers', it lands harder and wider.
+const HEAVY_POUND: Pound = { ...SM64_MOVES.pound, damage: 2.5, reach: 4 };
 
 const LOOKS = {
   standard: {
@@ -201,7 +207,7 @@ const LOOKS = {
     walk: 6.5,
     jump: 1.3,
     ...SM64_MOVES,
-    pound: { ...SM64_MOVES.pound, damage: 2.5, reach: 4 }, // heavier than the brothers', it lands harder and wider
+    pound: HEAVY_POUND,
   },
   waluigi: {
     id: 'waluigi',
@@ -215,6 +221,7 @@ const LOOKS = {
     walk: 8,
     jump: 1.5,
     ...SM64_MOVES,
+    pound: HEAVY_POUND,
   },
   peach: {
     id: 'peach',
@@ -317,6 +324,42 @@ const LOOKS = {
     walk: 3.5,
     jump: 1,
     life: { hearts: 3, row: 5, sprite: 'heart' }, // under a third of a walker's: he's the smallest target there is
+  },
+  sandy: {
+    id: 'sandy',
+    class: 'walker',
+    item: null,
+    regen: false,
+    blurb: 'become sandy cheeks',
+    command: 'sandy',
+    eye: 2.16,
+    hitbox: { top: 2.85, radius: 0.65, head: 1.2 }, // as tall as Patrick, to the flower on her helmet, which is 1.3 m across: the head is the helmet
+    walk: 8,
+    jump: 1.2, // a squirrel
+  },
+  puff: {
+    id: 'puff',
+    class: 'walker',
+    item: null,
+    regen: false,
+    blurb: 'become mrs. puff',
+    command: 'puff',
+    eye: 1.96,
+    hitbox: { top: 2.55, radius: 0.9, head: 1.0 }, // to the top of her hat; 1.55 m across the body and 2 m across the skirt: the head is everything from the mouth up
+    walk: 6,
+    jump: 0.8,
+  },
+  larry: {
+    id: 'larry',
+    class: 'walker',
+    item: null,
+    regen: false,
+    blurb: 'become larry the lobster',
+    command: 'larry',
+    eye: 2.86,
+    hitbox: { top: 2.95, radius: 0.75, head: 0.6 }, // to the top of his eyestalks, the antennae 3.65 m up; 1.6 m across the chest: the head is everything over the shoulders
+    walk: 9,
+    jump: 1.2,
   },
   sahur: {
     id: 'sahur',

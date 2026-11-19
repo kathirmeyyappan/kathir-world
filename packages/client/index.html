@@ -26,8 +26,10 @@
       <div id="heal-flash" class="edge-flash"></div>
       <div id="frost"></div>
       <div id="hearts" translate="no"></div>
+      <div id="wrenches" translate="no" hidden></div>
       <div id="condition" class="hidden" translate="no"></div>
       <div id="area-title" translate="no"></div>
+      <div id="refusal" translate="no"></div>
 
       <div id="hud">
         <div id="name-tags" translate="no"></div>
@@ -97,6 +99,9 @@
       <button id="action-button" class="touch-button hidden" translate="no"></button>
       <button id="scope-button" class="touch-button hidden" translate="no">SCOPE</button>
       <button id="swap-button" class="touch-button hidden" translate="no">SWAP</button>
+      <button id="out-button" class="touch-button hidden" translate="no">OUT</button>
+      <button id="gas-button" class="touch-button hidden" translate="no">GAS</button>
+      <button id="brake-button" class="touch-button hidden" translate="no">BRAKE</button>
       <button id="pound-button" class="touch-button hidden" translate="no">POUND</button>
       <button id="chat-button" class="touch-button" translate="no">CHAT</button>
       <button id="commands-button" class="touch-button" translate="no">CMDS</button>
@@ -122,7 +127,7 @@
         <div id="minimap" translate="yes">
           <div id="minimap-hint"><kbd translate="no">P</kbd>TO TOGGLE</div>
           <div id="minimap-toggle" translate="no">
-            <span data-view="near">NEAR</span><span data-view="world">WORLD</span>
+            <span data-view="close">CLOSE</span><span data-view="wide">WIDE</span><span data-view="world">WORLD</span>
           </div>
           <div class="minimap-view">
             <canvas id="minimap-canvas"></canvas>

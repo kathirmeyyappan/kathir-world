@@ -1,6 +1,7 @@
 // GLSL for the environment. Kept in one place so the ground, sky and boundary share helpers.
 import { EYE_HEIGHT, OUTSIDE_HEIGHT } from '@world/shared';
 import { BASE_FOG_DENSITY } from './Engine';
+import { KERB_HEIGHT, KERB_WIDTH } from './Floor';
 
 // The floor's fog: 1 - exp(-d² × GROUND_FOG × fogScale) at d metres from the camera, the scene's
 // own EXP2 fog, so the floor under anything far off fades exactly as much as it does.
@@ -53,90 +54,40 @@ export const GROUND_VERTEX = `
 precision highp float;
 attribute vec3 position;
 attribute vec3 normal;
+attribute vec2 uv;
 uniform mat4 worldViewProjection;
 uniform mat4 world;
 varying vec3 vWorld;
 varying vec3 vNormal;
+varying float vRim;
+varying float vSide;
 void main() {
   vec4 wp = world * vec4(position, 1.0);
   vWorld = wp.xyz;
   vNormal = mat3(world) * normal;
+  vRim = uv.x;
+  vSide = uv.y;
   gl_Position = worldViewProjection * vec4(position, 1.0);
 }
 `;
 
-// Signed distance to the world's edge, mirroring worldDistance() in shared: discs are (x, z, r),
-// bridges are (ax, az, bx, bz) with a half width, and sectors are (x, z, r) with the bearings
-// between their sides. Counts are capped so the loops stay constant.
-export const MAX_DISCS = 8;
-export const MAX_BRIDGES = 8;
-export const MAX_SECTORS = 2;
-export const WORLD_SDF = `
-uniform vec3 discs[${MAX_DISCS}];
-uniform vec4 bridges[${MAX_BRIDGES}];
-uniform float bridgeWidths[${MAX_BRIDGES}];
-uniform vec3 sectors[${MAX_SECTORS}];
-uniform vec2 sectorSpans[${MAX_SECTORS}];
-uniform int discCount;
-uniform int bridgeCount;
-uniform int sectorCount;
-
-float segmentDistance(vec2 p, vec2 a, vec2 b) {
-  vec2 v = b - a;
-  float t = clamp(dot(p - a, v) / max(dot(v, v), 1.0e-6), 0.0, 1.0);
-  return length(p - (a + v * t));
-}
-
-float worldDistance(vec2 p) {
-  float d = 1.0e9;
-  for (int i = 0; i < ${MAX_DISCS}; i++) {
-    if (i >= discCount) break;
-    d = min(d, length(p - discs[i].xy) - discs[i].z);
-  }
-  for (int i = 0; i < ${MAX_BRIDGES}; i++) {
-    if (i >= bridgeCount) break;
-    d = min(d, segmentDistance(p, bridges[i].xy, bridges[i].zw) - bridgeWidths[i]);
-  }
-  for (int i = 0; i < ${MAX_SECTORS}; i++) {
-    if (i >= sectorCount) break;
-    vec2 c = sectors[i].xy;
-    float r = sectors[i].z;
-    vec2 span = sectorSpans[i];
-    vec2 q = p - c;
-    bool within = mod(atan(q.y, q.x) - span.x, 6.2831853) <= span.y - span.x;
-    float edge = min(
-      segmentDistance(p, c, c + r * vec2(cos(span.x), sin(span.x))),
-      segmentDistance(p, c, c + r * vec2(cos(span.y), sin(span.y)))
-    );
-    if (within) edge = min(edge, abs(length(q) - r));
-    d = min(d, within && length(q) <= r ? -edge : edge);
-  }
-  return d;
-}
-`;
-
-// Metres past the world's edge the kerb's outer face stands, clear of the boundary wall on the edge
-// itself.
-export const STEP_GAP = 0.02;
-// The kerb along the edge (render/Environment.ts): metres across, inside the edge, and up. The floor
-// and the ground past the edge each stop halfway across under it, so neither's cut edge shows. It
-// lies inside the margin players are kept in by (PLAYER_PADDING), so no foot reaches it.
-export const KERB_WIDTH = 0.5;
-export const KERB_HEIGHT = 0.08;
-
 // Two-scale grid, anti-aliased with screen-space derivatives, fading with distance into the sky's
-// colour in that direction, so the floor meets the horizon wherever you're standing. It's drawn as
-// three parts of the world's edge (side): the floor inside it, the ground past it OUTSIDE_HEIGHT
-// down, and the kerb between them; past the edge the grid dims and turns grey, and the kerb is drawn
-// as a bold line of the grid along the top of the drop (green on its top, grey down the face) and
-// along its toe at the foot (grey), so where you can't go reads from afar. The
-// kerb's outer face, the drop, carries the grid on down from the floor to the ground below
-// (surfaceGridLine).
+// colour in that direction, so the floor meets the horizon wherever you're standing. It's drawn on
+// three parts (side): the floor, the ground past the edge OUTSIDE_HEIGHT down, and the kerb along
+// the edge between them (Floor.ts); past the edge the grid dims and turns grey, and the kerb is
+// drawn as a bold line of the grid along the top of the drop (green on its top, grey down the face)
+// and along its toe at the foot (grey), so where the floor ends reads from afar, its inner face
+// (vRim) the grid's own colour. The kerb's face down the drop carries the grid on down from the
+// floor to the ground below (surfaceGridLine).
 export const GROUND_FRAGMENT = `
 precision highp float;
 varying vec3 vWorld;
 varying vec3 vNormal;
-uniform float side; // 0 the floor, 1 the ground past the edge, 2 the kerb
+varying float vRim;
+varying float vSide;
+// 0 the floor, 1 the ground past the edge, 2 the kerb; below 0 each vertex's own (vSide, the slab's
+// meshes carrying the floor and the kerb both, Floor.ts).
+uniform float sideOf;
 uniform vec3 cameraPos;
 uniform vec3 lineColor;
 uniform vec3 majorColor;
@@ -155,7 +106,6 @@ uniform vec3 reliefGlow;
 uniform vec2 reliefCentre;
 uniform float reliefRadius;
 uniform float reliefStrength;
-${WORLD_SDF}
 ${SKY_GRADIENT}
 
 float gridLine1(float v, float spacing, float width) {
@@ -188,17 +138,16 @@ float surfaceGridLine(vec3 w, vec3 normal, float spacing, float width) {
 ${RELIEF_SHADE}
 
 void main() {
+  float side = sideOf < -0.5 ? floor(vSide + 0.5) : sideOf;
   vec2 p = vWorld.xz;
   float dist = length(p - cameraPos.xz);
-  float sd = worldDistance(p);
-  if (side < 0.5 ? sd > ${-KERB_WIDTH / 2} : side < 1.5 && sd < ${-KERB_WIDTH / 2}) discard;
   // On the kerb: lit along both rims of the drop, the top with the band of the face under it and
   // the toe with the band over it, so the border reads as bold seen from above or from the drop;
   // its inner face the grid's colour; and the drop between them gridded.
   float lit = 0.0;
   float rim = 0.0;
   if (side > 1.5) {
-    rim = step(sd, ${-KERB_WIDTH / 2}) * step(vWorld.y, ${(KERB_HEIGHT - 0.001).toFixed(3)});
+    rim = vRim;
     lit = (1.0 - rim) * max(step(${-KERB_WIDTH / 2}, vWorld.y), step(vWorld.y, ${(OUTSIDE_HEIGHT + KERB_HEIGHT + KERB_WIDTH / 2).toFixed(3)}));
   }
   float minor;
@@ -212,7 +161,8 @@ void main() {
     minor = gridLine(p, 2.0, 0.045);
     major = gridLine(p, 10.0, 0.09);
   }
-  float inside = 1.0 - smoothstep(-2.0, 6.0, sd);
+  // How bright the grid is: all of it on the floor, dim on the ground past the edge, and between on the kerb.
+  float inside = side < 0.5 ? 1.0 : side < 1.5 ? 0.0 : 0.8;
   float pulse = 0.85 + 0.15 * sin(time * 1.5 - length(p) * 0.15);
   vec3 col = floorColor;
   col = mix(col, lineColor * pulse, minor * 0.55 * (0.4 + 0.6 * inside));

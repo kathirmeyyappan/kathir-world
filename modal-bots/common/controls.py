@@ -26,6 +26,7 @@ class Controls:
         self.pitch = me.pitch
         self.reading: str | None = None
         self._jump = False
+        self._use: str | None = None
         self._shoot = False
         self._shoot_once = False
         self._shot_look: tuple[float, float] | None = None
@@ -72,6 +73,11 @@ class Controls:
 
     def jump(self) -> None:
         self._jump = True
+
+    def use(self, door: str) -> None:
+        """Click the door the bot is looking at, as a person does, for one frame: the room swings it
+        if it's ``door`` and within reach along the look (``DOOR_REACH``, sim/doors.ts)."""
+        self._use = door
 
     def shoot(self, held: bool = True) -> None:
         self._shoot = held
@@ -123,12 +129,14 @@ class Controls:
             "jump": self._jump,
             "reading": self.reading,
             "actions": actions,
+            "use": self._use,
         }
         # The tick this bot is aiming at; the server judges its shots there (lag compensation).
         if self.connection.view_tick is not None:
             frame["view"] = self.connection.view_tick
         await self.connection.send({"t": "input", "f": frame})
         self._jump = False
+        self._use = None
         self._shoot_once = False
         self._shot_look = None
 

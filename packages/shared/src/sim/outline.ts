@@ -1,6 +1,6 @@
-// The parts of the walkable outline (world.ts), in a module of their own so content can place
-// things relative to them without importing world.ts, which imports the content.
-import type { Bridge, Disc, Sector } from './world';
+// The world's outline: the parts of the floor (ground.ts), in a module of their own so content can
+// place things relative to them without importing the structures, which import the content.
+import { Ground, type Bridge, type Disc, type Sector, type WorldPart } from './ground';
 
 export const MAIN_DISC: Disc = { kind: 'disc', x: 0, z: 0, r: 50 }; // the cubes' home
 export const ANNEX: Disc = { kind: 'disc', x: 112, z: 0, r: 30 }; // Tung Tung Tower's grounds
@@ -33,6 +33,21 @@ export const BUILDING_GROUNDS: Disc[] = BUILDING_SITES.map(({ bearing, out, r = 
 // The Krusty Krab's grounds, on the fan's rim like the keeps': wide enough to walk all the way round
 // the building (36 m by 24 m, content/krustyKrab.ts) with ten metres to spare at its corners.
 export const KRUSTY_KRAB_GROUNDS: Disc = { kind: 'disc', ...turned(KRUSTY_KRAB_BEARING, KEEP_OUT, 0), r: 32 };
+// A road straight out from behind the Krusty Krab, ROAD_WIDTH across and ROAD_LENGTH long past its
+// grounds, to a round plateau at the floor's height at its end.
+const ROAD_WIDTH = 10;
+const ROAD_LENGTH = 200;
+const PLATEAU_R = 20;
+const plateauOut = KEEP_OUT + KRUSTY_KRAB_GROUNDS.r + ROAD_LENGTH + PLATEAU_R;
+export const ROAD_PLATEAU: Disc = { kind: 'disc', ...turned(KRUSTY_KRAB_BEARING, plateauOut, 0), r: PLATEAU_R };
+export const KRUSTY_KRAB_ROAD: Bridge = {
+  kind: 'bridge',
+  ax: KRUSTY_KRAB_GROUNDS.x,
+  az: KRUSTY_KRAB_GROUNDS.z,
+  bx: ROAD_PLATEAU.x,
+  bz: ROAD_PLATEAU.z,
+  halfWidth: ROAD_WIDTH / 2,
+};
 // The open floor between them all: a slice of the main disc's middle out to the keeps' middles,
 // from the first building's bearing round to the last's, so the only way out of it is the bridge to
 // the tower.
@@ -51,3 +66,18 @@ const FAN_SIDE = 10;
 export const FAN_SIDES: Bridge[] = [BUILDING_GROUNDS[0], BUILDING_GROUNDS[BUILDING_GROUNDS.length - 1]].map(
   ({ x, z }) => ({ kind: 'bridge', ax: MAIN_DISC.x, az: MAIN_DISC.z, bx: x, bz: z, halfWidth: FAN_SIDE }),
 );
+
+// The main disc first: it's the cubes' home (sim/cubes.ts).
+export const WORLD_OUTLINE: WorldPart[] = [
+  MAIN_DISC,
+  ANNEX,
+  FLOOR_BRIDGE,
+  ...BUILDING_GROUNDS,
+  KRUSTY_KRAB_GROUNDS,
+  KRUSTY_KRAB_ROAD,
+  ROAD_PLATEAU,
+  BUILDING_FAN,
+  ...FAN_SIDES,
+];
+
+export const WORLD_GROUND = new Ground(WORLD_OUTLINE);

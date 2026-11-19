@@ -817,9 +817,9 @@ export const PINEAPPLE_PROFILE = {
     [8.122, -2.977, 8.514, -1.531, 17.207, 2.4, 0.02],
   ],
   doorways: [
-    { bearing: 3.089, width: 3, bottom: 0, top: 3.6 },
-    { bearing: 1.92, width: 3, bottom: 7.731, top: 11.331 },
-    { bearing: 4.928, width: 2.6, bottom: 0, top: 3.4 },
+    { door: 'back', bearing: 3.089, width: 3, bottom: 0, top: 3.6 },
+    { door: 'hall', bearing: 1.92, width: 3, bottom: 7.731, top: 11.331 },
+    { door: 'side', bearing: 4.928, width: 2.6, bottom: 0, top: 3.4 },
   ],
   doors: [
     { id: 'front', hinge: [-2, 14.671], y: 0, bearing: 0, reach: 4, height: 6, thickness: 0.3, swing: 1.571 },

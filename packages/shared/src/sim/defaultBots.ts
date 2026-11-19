@@ -31,6 +31,9 @@ export const CIRCLE_LOOKS: readonly AvatarId[] = [
   'squidward',
   'gary',
   'plankton',
+  'sandy',
+  'puff',
+  'larry',
   'mike',
   'sulley',
   'elizabeth',
@@ -51,7 +54,6 @@ const TOWER_STALKERS: DefaultBot[] = TUNG_TUNG_TOWER_FLOORS.slice(0, 3).map((spa
   bot: 'stalker',
   seconds: STAY,
   spawn,
-  avatar: 'sahur',
 }));
 
 export function defaultBotsFor(room: string, rng: Rng = Math.random): DefaultBot[] {

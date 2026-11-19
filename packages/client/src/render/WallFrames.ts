@@ -1,13 +1,15 @@
 // Frames on the tower's walls (sim/wallFrames.ts): each a picture or a live widget, drawn sharp by
 // the browser through a hole in the scene (CrispPanels), on a wood border set a little further
 // back, and for one played like an old screen its bands and static a little further forward
-// (OldScreen), all following the wall round segment by segment. The picture's mesh is pickable as
-// `frame-<n>`, for the hover line; the rest isn't.
+// (OldScreen), all following the wall round segment by segment, a picture fetched while the room it
+// hangs in is wanted, drawn only while that room could be seen and let go with it (Interiors.ts). The picture's mesh is pickable as `frame-<n>`, for the
+// hover line; the rest isn't.
 import { Color3, Mesh, StandardMaterial, Vector3, VertexData, type Camera } from '@babylonjs/core';
 import { layoutWallFrame, OFF_WALL, type FramePanel, type WallFrame } from '@world/shared';
 import { WIDGETS } from '../widgets';
 import { CrispPanels } from './CrispPanels';
 import type { Engine } from './Engine';
+import type { Interiors } from './Interiors';
 import { OldScreen } from './OldScreen';
 
 const BORDER = 0.48; // metres of wood showing round every picture
@@ -27,7 +29,7 @@ export class WallFrames {
   private readonly crisp: CrispPanels;
   private readonly oldScreen: OldScreen;
 
-  constructor(engine: Engine, frames: readonly WallFrame[]) {
+  constructor(engine: Engine, frames: readonly WallFrame[], interiors: Interiors) {
     const scene = engine.scene;
     this.crisp = new CrispPanels(engine);
     this.oldScreen = new OldScreen(scene);
@@ -46,10 +48,19 @@ export class WallFrames {
       }
       const { show } = frame;
       let scroll: HungFrame['scroll'];
+      // A picture is fetched while its room is wanted; a widget fetches only while it's shown.
+      let load: (() => Promise<void>) | undefined;
+      let unload: (() => void) | undefined;
       if (show.kind === 'image') {
-        const img = new Image();
-        img.src = show.src;
-        this.crisp.add(mesh, picture.panels, img, { screen });
+        load = () =>
+          new Promise((done, fail) => {
+            const img = new Image();
+            img.onload = () => done();
+            img.onerror = fail;
+            img.src = show.src;
+            this.crisp.add(mesh, picture.panels, img, { screen });
+          });
+        unload = () => this.crisp.remove(mesh);
       } else {
         const widget = WIDGETS[show.widget](show.aspect);
         widget.onPaint = this.crisp.add(mesh, picture.panels, widget.canvas, { onShown: widget.setShown, screen });
@@ -63,6 +74,16 @@ export class WallFrames {
       );
       border.material = wood;
       border.isPickable = false;
+      mesh.setEnabled(false);
+      border.setEnabled(false);
+      interiors.add(frame.room.interior, {
+        load,
+        unload,
+        show: (on) => {
+          mesh.setEnabled(on);
+          border.setEnabled(on);
+        },
+      });
       const { x, z } = picture.centre;
       this.byMesh.set(mesh.name, { frame, above: new Vector3(x, picture.top + BORDER + LINE_GAP, z), scroll });
     });

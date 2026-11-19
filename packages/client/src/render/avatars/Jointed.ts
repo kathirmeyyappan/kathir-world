@@ -5,11 +5,12 @@
 // its feet have got to, its jump, its fall and its landing, blended from one into the next. So it
 // moves as whoever animated the clips moved it, and a new character is a model and its clips. The
 // walker still places and turns the body, counts its stride, aims what it holds and lays it down dead.
-import { Quaternion, TransformNode, Vector3 } from '@babylonjs/core';
+import { Matrix, Quaternion, TransformNode, Vector3 } from '@babylonjs/core';
 import { GRAVITY, chainOf, crouchOf, jumpVelocityOf, poundOf, walkSpeedOf, type AvatarId } from '@world/shared';
 import type { RemotePlayer } from '../../net/Interpolation';
 import type { Engine } from '../Engine';
 import { Sparkles } from '../Sparkles';
+import type { Seat } from '../vehicles/Seat';
 import {
   ARMS,
   CLIP_BONES,
@@ -56,7 +57,17 @@ import {
 } from './motion';
 import { bytes, SkinnedBody, type SkinnedModel } from './skinned';
 import { bellOf, Skirt, Tail } from './soft';
-import { HEAD_LIMIT, headShare, limbLead, MOVING, rungHeld, WalkerAvatar, type Figure, type Pose } from './Walker';
+import {
+  fresh,
+  HEAD_LIMIT,
+  headShare,
+  limbLead,
+  MOVING,
+  rungHeld,
+  WalkerAvatar,
+  type Figure,
+  type Pose,
+} from './Walker';
 
 export type JointedBone =
   | 'hips'
@@ -135,7 +146,7 @@ export interface JointedModel extends SkinnedModel<JointedBone> {
 
 // The clips only a look with the move has.
 type Moves =
-  'leap' | 'pound' | 'pounded' | 'double' | 'doubleFall' | 'triple' | 'crouch' | 'crawl' | 'backflip' | 'float';
+  'leap' | 'pound' | 'pounded' | 'double' | 'doubleFall' | 'triple' | 'crouch' | 'crawl' | 'backflip' | 'float' | 'die';
 
 // How a character moves: its clips, and the few numbers round them.
 export interface Style {
@@ -162,6 +173,9 @@ export interface Style {
     crawl?: RawClip;
     backflip?: RawClip;
     float?: RawClip; // a float (sim/avatars.ts `Float`): held up in the air, looped
+    // Dying where it stands, played once and held at its end, where it lies. A body without one
+    // goes over in the walker's leap and lies as `dead` has it.
+    die?: RawClip;
   };
   flutter?: number; // strides a second its legs run on at in the air: a scuttle
   landSpeed: number; // m/s of fall that lands all the way into the landing's crouch
@@ -173,10 +187,19 @@ export interface Style {
   waddle?: number; // radians it rocks over each foot as that foot comes down: a heavy body's walk
 }
 
+// How a body drives a kart: Mario Kart 8 Deluxe's own animations of it (<name>KartClips.ts, made by
+// scripts/kart-clips.py), at the wheel, backing up, drifting each way, on a boost and in the hop into
+// a drift, each steered (its frames from the wheel full over to the right to full over to the left);
+// hit, played through; waiting, stopped, looped; and a trick each way, played through the trick.
+export type KartMove =
+  'drive' | 'back' | 'driftL' | 'driftR' | 'dash' | 'hop' | 'damage' | 'wait' | 'trickL' | 'trickR';
+export type KartClips = Record<KartMove, RawClip>;
+
 export interface JointedSpec {
   kind: AvatarId;
   model: JointedModel;
   style: Style;
+  kart: KartClips;
   shadow: number; // metres across
   // With a tail of hair's bones: the way each of its links runs as the hair is dressed, from the
   // head to its tip, by the way the head faces: ahead of it (z) and up (soft.ts `Tail`).
@@ -198,6 +221,7 @@ const LAND_IN = 0.05; // seconds a landing takes to drop into its crouch
 const SPARKLES_ACROSS = 0.7;
 const SPARKLES_UP = 0.15;
 const FLOAT_SECONDS = 0.2; // seconds it takes to settle into a float, and to drop out of one
+const DIE_IN = 0.15; // seconds it takes to go from whatever it was doing into its dying
 const CROUCH_SECONDS = 0.15; // seconds it takes to sink into a crouch, and to rise out of one
 const EASE_DIRECTION = 0.09; // seconds its stride takes to come round to a new way of going
 const EASE_KICKING = 0.15; // seconds its legs take to stop fluttering as a jet takes its weight, and to start again
@@ -230,14 +254,37 @@ const STEP_UP = 0.2; // metres up from where it stands the middle of a foot's st
 const RUNG_EDGE = 0.1; // metres this side of a rung's middle a fist closes on it
 const CLIMB_SWAY = 0.03; // metres its hips go over the foot that bears it
 const CLIMB_TILT = 0.05; // radians its hips tip with that
+// In a kart: the hips' pivot this share of a thigh over the seat; seconds it takes to go from one
+// way of driving into another, and into waiting or being hit; seconds stopped, under STOPPED m/s,
+// before it waits; and m/s backing up over which it looks round behind to.
+const SAT_HIPS = 0.35;
+const KART_EASE = 0.12;
+const KART_SETTLE = 0.3;
+const WAIT_AFTER = 1;
+const STOPPED = 0.5;
+const BACKING = 0.5;
+const TRICK_EASE = 0.15; // the share of a trick it takes to go into the trick's clip, and to come out
+// The hands each of the kart's clips keeps on the wheel, left and right, which the rig then closes
+// on the kart's own grips: backing up, the left is on the seat behind, and hit or tricking, both come off.
+const HOLDS: Record<KartMove, readonly [number, number]> = {
+  drive: [1, 1],
+  back: [0, 1],
+  driftL: [1, 1],
+  driftR: [1, 1],
+  dash: [1, 1],
+  hop: [1, 1],
+  damage: [0, 0],
+  wait: [1, 1],
+  trickL: [0, 0],
+  trickR: [0, 0],
+};
+// The clips steered by the wheel that each take over from the drive while the kart does what they're of.
+const STEERED = ['back', 'driftL', 'driftR', 'dash', 'hop'] as const;
 // A fist: radians the fingers fold under the palm, and the thumb turns in and down after them.
 const FINGER_CURL = 1.7;
 const THUMB_FOLD = 0.6;
 const THUMB_CURL = 1.3;
 const FIST = 0.05; // metres a fist's middle is from the palm's, on the palm's side
-// Where a held item's own origin (the top of its handle) goes from the fist's middle, in the grip's
-// frame: the handle's middle in the fist, so the barrel runs over the top of the hand.
-const HOLD = new Vector3(0, 0.02, 0.06);
 const FLIP_SHARE = 0.9; // the share of a triple jump's flight on the flat its somersault takes
 const POUND_IN = 0.07; // seconds a ground pound takes to pull the body into its turn
 const GETS_UP = 0.5; // the share of a ground pound's landing after which it's on its feet, and eases into what it does next
@@ -250,7 +297,18 @@ export class JointedAvatar extends WalkerAvatar {
   private readonly out = motion();
   private readonly other = motion();
   private readonly third = motion();
-  private readonly onLadder = pose(); // a pose worked out, not played: on a ladder
+  private readonly worked = pose(); // a pose worked out, not played: on a ladder
+  private readonly kart: Record<KartMove, Clip>;
+  private readonly steering: Record<(typeof STEERED)[number], number> = {
+    back: 0,
+    driftL: 0,
+    driftR: 0,
+    dash: 0,
+    hop: 0,
+  }; // how far each is in
+  private stopped = 0; // seconds its kart has stood still
+  private waiting = 0; // how far into waiting it is
+  private hurt = Infinity; // seconds since it was last hit
   private peak = 0; // the highest its feet have been since it left the ground, metres
   private falling = 0; // how far over the top of its jump it is: 0 going up, 1 coming down
   private grounded = true;
@@ -316,11 +374,25 @@ export class JointedAvatar extends WalkerAvatar {
       crawl: raw.crawl ? clip(raw.crawl) : null,
       backflip: raw.backflip ? clip(raw.backflip) : null,
       float: raw.float ? clip(raw.float) : null,
+      die: raw.die ? clip(raw.die) : null,
     };
     const chain = chainOf(kind);
     const third = jumpVelocityOf(kind) * Math.sqrt((chain?.rise ?? 1) ** 2);
     this.flip = FLIP_SHARE * ((2 * third) / GRAVITY);
     this.backflip = FLIP_SHARE * ((2 * jumpVelocityOf(kind) * Math.sqrt(crouchOf(kind)?.flip ?? 1)) / GRAVITY);
+    const k = spec.kart;
+    this.kart = {
+      drive: clip(k.drive),
+      back: clip(k.back),
+      driftL: clip(k.driftL),
+      driftR: clip(k.driftR),
+      dash: clip(k.dash),
+      hop: clip(k.hop),
+      damage: clip(k.damage),
+      wait: clip(k.wait),
+      trickL: clip(k.trickL),
+      trickR: clip(k.trickR),
+    };
     sample(this.third, this.clips.idle, 0, true);
     this.ahead = this.third.slice(HEAD_AT, HEAD_AT + 4);
     this.rest = this.third.slice();
@@ -488,7 +560,7 @@ export class JointedAvatar extends WalkerAvatar {
     const posed = super.climb(p, feetY, dt);
     this.moving = this.airborne = this.impact = 0;
     const { rig, climbed, rungsAhead: ahead } = this;
-    const held = this.onLadder;
+    const held = this.worked;
     held.set(CLIMB);
     held[HIP_Z] = Math.max(-CLIMB_BACK, ahead - RUNG_EDGE - rig.shoulder.z - CLIMB_NEAR * rig.armLength);
     const over = Math.sin((climbed - limbLead(1, true)) * (Math.PI / 2));
@@ -508,6 +580,72 @@ export class JointedAvatar extends WalkerAvatar {
     return posed;
   }
 
+  // In a kart, where the walker has put it, driving as Mario Kart 8 has it drive: at the wheel,
+  // backing up, drifting, boosting or hopping as its kart is, each steered by the wheel and eased
+  // into the next; stopped a while, waiting; hit, its hands off the wheel; and through a trick, the
+  // trick's way. Its hips are on the seat, and the hands each clip keeps on the wheel are closed on
+  // the kart's own grips.
+  protected override sit(p: RemotePlayer, seat: Seat, dt: number): Pose {
+    this.place(seat);
+    this.base.rotation.set(0, 0, 0);
+    this.base.position.set(0, 0, 0);
+    this.moving = this.airborne = this.impact = this.bank = 0;
+    const { kart, out, other, rig } = this;
+    const steer = (1 - seat.wheel) / 2;
+    const now: KartMove = seat.hop
+      ? 'hop'
+      : seat.drift < 0
+        ? 'driftL'
+        : seat.drift > 0
+          ? 'driftR'
+          : seat.boost
+            ? 'dash'
+            : seat.speed < -BACKING
+              ? 'back'
+              : 'drive';
+    sample(out, kart.drive, steer, false);
+    let [left, right] = HOLDS.drive;
+    const over = (move: KartMove, weight: number) => {
+      blend(out, out, other, weight);
+      left += (HOLDS[move][0] - left) * weight;
+      right += (HOLDS[move][1] - right) * weight;
+    };
+    for (const move of STEERED) {
+      this.steering[move] = eased(this.steering[move], move === now ? 1 : 0, dt, KART_EASE);
+      if (this.steering[move] < 1e-3) continue;
+      sample(other, kart[move], steer, false);
+      over(move, smooth(this.steering[move]));
+    }
+    this.stopped = Math.abs(seat.speed) < STOPPED && now === 'drive' ? this.stopped + dt : 0;
+    this.waiting = eased(this.waiting, this.stopped > WAIT_AFTER ? 1 : 0, dt, KART_SETTLE);
+    if (this.waiting > 1e-3) {
+      sample(other, kart.wait, this.stood / kart.wait.seconds, true);
+      over('wait', smooth(this.waiting));
+    }
+    this.hurt += dt;
+    const { seconds } = kart.damage;
+    if (this.hurt < seconds) {
+      sample(other, kart.damage, this.hurt / seconds, false);
+      over('damage', smooth(this.hurt / KART_EASE) * smooth((seconds - this.hurt) / KART_SETTLE));
+    }
+    if (seat.trick) {
+      const { way, through } = seat.trick;
+      const move = way < 0 ? 'trickL' : 'trickR';
+      sample(other, kart[move], through, false);
+      over(move, smooth(Math.min(through, 1 - through) / TRICK_EASE));
+    }
+    rig.seat(seat, out);
+    const off = wrap(p.yaw - this.facing);
+    rig.play(out, GRIP_RUN, 0, 0, Math.max(-HEAD_LIMIT, Math.min(HEAD_LIMIT, off)), p.pitch * this.style.follow);
+    rig.grasp(seat.grips, left, right);
+    return { phase: this.gait.phase, effort: 0, on: 'kart' };
+  }
+
+  override flash(): void {
+    super.flash();
+    this.hurt = 0;
+  }
+
   override hide(): void {
     super.hide();
     this.sparkles?.set(false, this.root.position);
@@ -519,8 +657,18 @@ export class JointedAvatar extends WalkerAvatar {
   }
 
   protected override lie(): void {
-    super.lie();
-    this.rig.apply(this.style.dead);
+    const { die } = this.clips;
+    if (!die) {
+      super.lie();
+      this.rig.apply(this.style.dead);
+      return;
+    }
+    // The clip takes the body over itself, from standing where it stood.
+    this.base.rotation.set(0, 0, 0);
+    this.base.position.set(0, 0, 0);
+    sample(this.third, die, this.gone / die.seconds, false);
+    blend(this.out, this.out, this.third, smooth(this.gone / DIE_IN));
+    this.rig.play(this.out, 0, 0, 0, 0, 0);
   }
 
   // With something in its hand, the weapon arm, straight, along the look.
@@ -544,6 +692,22 @@ function cloth(model: JointedModel): [number, number, number][] {
       out.push([at[v * 3] / 1000 - top[0], at[v * 3 + 1] / 1000 - top[1], at[v * 3 + 2] / 1000 - top[2]]);
   return out;
 }
+
+// How far ahead of the hips' pivot the trunk reaches standing, in metres: the furthest of the
+// vertices that follow the hips, the spine or the chest before any other bone, below the shoulders.
+function trunkFront(model: JointedModel): number {
+  const names = Object.keys(model.bones);
+  const at = new Int16Array(bytes(model.positions).buffer);
+  const follows = bytes(model.boneIndices);
+  const shoulders = model.bones.armR[1];
+  const hips = model.bones.hips[2];
+  let front = 0;
+  for (let v = 0; v < at.length / 3; v++)
+    if (TRUNK.has(names[follows[v * 4]]) && at[v * 3 + 1] / 1000 < shoulders)
+      front = Math.max(front, at[v * 3 + 2] / 1000 - hips);
+  return front;
+}
+const TRUNK = new Set(['hips', 'spine', 'chest']);
 
 // `value` on its way to `target`, `dt` seconds on, most of the way there after `seconds`.
 function eased(value: number, target: number, dt: number, seconds: number): number {
@@ -582,6 +746,7 @@ class Rig {
   private readonly mitt: Float32Array;
   private readonly wrist: number; // metres, elbow to wrist
   readonly armLength: number; // metres from a shoulder to its fist's middle, the arm straight
+  private readonly front: number; // metres its trunk reaches ahead of the hips' pivot, below the shoulders
   private readonly upper: number; // metres, shoulder to elbow
   private readonly fore: number; // elbow to the fist's middle
   // Each leg's hip joint from the hips' pivot, and where its ankle stands.
@@ -590,7 +755,12 @@ class Rig {
   private readonly standL: Vector3;
   private readonly standR: Vector3;
 
-  constructor(engine: Engine, id: string, spec: JointedSpec, base: TransformNode) {
+  constructor(
+    engine: Engine,
+    id: string,
+    spec: JointedSpec,
+    private readonly base: TransformNode,
+  ) {
     const { kind, model } = spec;
     const skin = new SkinnedBody<RigBone>(engine, `${kind}-${id}`, model, kind, PARENTS, base);
     this.skin = skin;
@@ -619,6 +789,7 @@ class Rig {
     this.upper = Vector3.Distance(at('armR'), at('forearmR'));
     this.fore = Vector3.Distance(at('forearmR'), Vector3.FromArray(model.hand as number[]));
     this.armLength = this.upper + this.fore;
+    this.front = trunkFront(model);
 
     // A held item goes in the right palm, which the walker points along the look from the shoulder:
     // the arm's own length, straight, is its reach.
@@ -657,7 +828,7 @@ class Rig {
         )
       : null;
     this.figure = {
-      armR: { node: armR, grip, hold: HOLD, reach: at('handR').subtract(at('armR')).normalize() },
+      armR: { node: armR, grip, reach: at('handR').subtract(at('armR')).normalize() },
       back: { node: chest, at: skin.offset('chest', model.back) },
       materials: [skin.material],
       shadow: spec.shadow,
@@ -893,6 +1064,55 @@ class Rig {
     return low + (high - low) * (r - row);
   }
 
+  // Moves the hips of `m` onto `seat`, whose frame is the body's: their pivot SAT_HIPS of a thigh
+  // over the middle of the seat's top, or back from it as far as keeps the trunk behind the steering
+  // wheel's middle (a belly the wheel would be lost in), the clip's own movement from sitting kept.
+  seat(seat: Seat, m: Motion): void {
+    const leg = this.thigh + this.shin;
+    m[0] -= this.hipsAt.x / leg;
+    m[1] += (SAT_HIPS * this.thigh - this.hipsAt.y) / leg;
+    m[2] += (Math.min(0, seat.hub.z - this.front) - this.hipsAt.z) / leg;
+  }
+
+  // Closes each fist on its grip (`grips` in the body's frame, left then right), `left` and `right`
+  // of the way from where the frame's pose has the arm: swung from the shoulder and bent at the elbow,
+  // which goes out and down, the hand turned on the forearm as the pose turns it.
+  grasp(grips: Seat['grips'], left: number, right: number): void {
+    const chest = this.skin.node('chest');
+    const root = this.base.parent as TransformNode;
+    fresh(chest, root);
+    chest.getWorldMatrix().invertToRef(INTO);
+    const { upper, fore } = this;
+    for (const side of [-1, 1] as const) {
+      const weight = side < 0 ? left : right;
+      if (weight < 1e-3) continue;
+      // The fist's middle, from the shoulder, in the chest's frame, which the arm turns in.
+      Vector3.TransformCoordinatesToRef(grips[side < 0 ? 0 : 1], root.getWorldMatrix(), ALONG);
+      Vector3.TransformCoordinatesToRef(ALONG, INTO, ALONG).subtractInPlace(side < 0 ? this.shoulderL : this.shoulderR);
+      const span = Math.min(upper + fore - 1e-4, Math.max(Math.abs(upper - fore) + 1e-4, ALONG.length()));
+      ALONG.normalize();
+      POLE.set(side, -1, 0);
+      POLE.subtractInPlace(ALONG.scaleToRef(Vector3.Dot(POLE, ALONG), STEP)).normalize();
+      const along = (upper * upper + span * span - fore * fore) / (2 * span);
+      const off = Math.sqrt(Math.max(0, upper * upper - along * along));
+      ALONG.scaleToRef(along, ELBOW).addInPlace(POLE.scaleToRef(off, STEP));
+      ALONG.scaleToRef(span, FOREARM).subtractInPlace(ELBOW);
+      // Each bone's up square to the arm's triangle, the way that bends the elbow as the rig's
+      // elbows bend: its forearm toward the upper arm's front.
+      Vector3.CrossToRef(ELBOW, FOREARM, AWAY).normalize();
+      ELBOW.scaleToRef(side, HINGE);
+      if (Vector3.Dot(Vector3.CrossToRef(HINGE, AWAY, STEP), FOREARM) < 0) AWAY.scaleInPlace(-1);
+      alongArm(ELBOW, side, AWAY, THIGH);
+      alongArm(FOREARM, side, AWAY, SHIN);
+      const [a, f] = side < 0 ? LEFT_ARM : RIGHT_ARM;
+      const arm = this.skin.node(a).rotationQuaternion!;
+      Quaternion.SlerpToRef(arm, THIGH, weight, arm);
+      THIGH.conjugateToRef(B).multiplyToRef(SHIN, A);
+      const forearm = this.skin.node(f).rotationQuaternion!;
+      Quaternion.SlerpToRef(forearm, A, weight, forearm);
+    }
+  }
+
   // Puts a foot of `pose` with the ball of its sole at a point in the body's frame, as `reach` does
   // a fist.
   tread(pose: BodyPose, side: 1 | -1, x: number, y: number, z: number): void {
@@ -1001,6 +1221,7 @@ const NEAR = new Vector3();
 const FOREARM = new Vector3();
 const ALONG = new Vector3();
 const HAND = new Quaternion();
+const INTO = new Matrix(); // from the world into the chest's frame
 const LEFT_ARM = ['armL', 'forearmL', 'handL', 'fingersL', 'thumbL'] as const;
 const RIGHT_ARM = ['armR', 'forearmR', 'handR', 'fingersR', 'thumbR'] as const;
 const CLASP_CLEAR = 0.02; // metres a hand resting on the head is held off it

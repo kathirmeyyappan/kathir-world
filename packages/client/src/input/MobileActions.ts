@@ -14,6 +14,7 @@ export interface MobileActionState {
   scoped: boolean;
   canFire: boolean; // false for a scope-only weapon that isn't scoped
   climbing: boolean; // on a ladder: SWAP goes round to its other face
+  driving: boolean; // in a kart: OUT gets out of it
   move: { label: 'CROUCH' | 'POUND' | 'BAT'; on: boolean } | null; // what a look's own move is where it stands, and whether it's on
 }
 
@@ -22,6 +23,7 @@ export interface MobileActionHandlers {
   onActionUp: () => void;
   onScope: () => void;
   onSwap: () => void;
+  onOut: () => void;
   onPound: () => void;
   onChat: () => void;
   onCommands: () => void;
@@ -31,6 +33,7 @@ export class MobileActions {
   private readonly action = document.getElementById('action-button') as HTMLButtonElement | null;
   private readonly scope = document.getElementById('scope-button') as HTMLButtonElement | null;
   private readonly swap = document.getElementById('swap-button') as HTMLButtonElement | null;
+  private readonly out = document.getElementById('out-button') as HTMLButtonElement | null;
   private readonly pound = document.getElementById('pound-button') as HTMLButtonElement | null;
   private readonly chat = document.getElementById('chat-button') as HTMLButtonElement | null;
   private readonly commands = document.getElementById('commands-button') as HTMLButtonElement | null;
@@ -41,6 +44,7 @@ export class MobileActions {
     tap(this.action, handlers.onActionDown, handlers.onActionUp);
     tap(this.scope, handlers.onScope);
     tap(this.swap, handlers.onSwap);
+    tap(this.out, handlers.onOut);
     tap(this.pound, handlers.onPound);
     tap(this.chat, handlers.onChat);
     tap(this.commands, handlers.onCommands);
@@ -60,6 +64,7 @@ export class MobileActions {
     this.scope.classList.toggle('hidden', !canScope);
     this.scope.classList.toggle('on', state.scoped);
     this.swap?.classList.toggle('hidden', !state.climbing);
+    this.out?.classList.toggle('hidden', !state.driving);
     if (this.pound) {
       this.pound.classList.toggle('hidden', !state.move);
       this.pound.classList.toggle('on', !!state.move?.on);

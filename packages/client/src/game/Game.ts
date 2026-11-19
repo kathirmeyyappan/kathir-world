@@ -5,10 +5,13 @@ import {
   CUBES,
   GEAR,
   ITEMS,
+  parseCommand,
   SKY_OBJECTS,
   TICK_DT,
+  INPUT_WAIT_TICKS,
   WALL_FRAMES,
-  WORLD_SHAPE,
+  INTERIOR_BUILDINGS,
+  WORLD_GROUND,
   DOOR_REACH,
   lookVector,
   movesHelp,
@@ -36,19 +39,27 @@ import {
   type ItemAction,
   type ItemId,
   type ItemState,
+  type Kart,
+  type KillItem,
+  type LifeSpec,
   type ClassSpec,
   type PlayerClass,
   type PlayerState,
   type ServerMessage,
   type Vec3,
   EYE_HEIGHT,
+  KARTS,
+  SEATED,
   eyeOf,
   statureOf,
   walkSpeedOf,
+  SCOPED_SIGHT,
+  SIGHT,
 } from '@world/shared';
 import { Footsteps } from '../audio/Footsteps';
+import { Driving } from './Driving';
 import { ITEM_SOUNDS, heard, loopsOf, PLACE_THEMES, Sfx, voiceOf, type SoundId } from '../audio/Sfx';
-import { take, VOICES } from '../audio/voices';
+import { swingOf, take, twirlOf, VOICES } from '../audio/voices';
 import { InputManager } from '../input/InputManager';
 import { MobileActions, type MobileActionState } from '../input/MobileActions';
 import { MobileControls } from '../input/MobileControls';
@@ -56,10 +67,11 @@ import { IS_TOUCH, onTap } from '../input/touch';
 import type { Connection } from '../net/Connection';
 import { Interpolation, type RemotePlayer } from '../net/Interpolation';
 import { Prediction } from '../net/Prediction';
-import { createAvatar, preloadAvatars, type Avatar } from '../render/avatars';
+import { createAvatar, wantLook, type Avatar } from '../render/avatars';
 import { CubeMesh } from '../render/CubeMesh';
 import { Engine } from '../render/Engine';
 import { Environment } from '../render/Environment';
+import { Interiors } from '../render/Interiors';
 import { FrostLayer } from '../render/Frost';
 import { Loader } from '../render/Loader';
 import { Models } from '../render/models/Models';
@@ -89,9 +101,8 @@ import { NameTags } from '../ui/NameTags';
 import { Pins } from '../ui/Pins';
 import { Menu, toggleFullscreen } from '../ui/menu/Menu';
 import { rideGround } from './ride';
-import { VIEWS, View, boomOf, screenBoom, screenFov, type Boom } from './View';
+import { KART_BOOM, VIEWS, View, boomOf, screenBoom, screenFov, type Boom } from './View';
 
-const MAX_TICKS_PER_FRAME = 5;
 const CORRECTION_HALF_LIFE = 0.06;
 // Seconds for the camera to catch up when it goes from riding the ground (ride.ts) to following the
 // body through the air, or back.
@@ -125,7 +136,12 @@ const BOB_EASE = 0.15; // seconds the bob takes to come and go with the walk
 const CUBE_SELECT_RANGE = 25; // cubes only from close by, so a far one isn't opened by accident
 const FRAME_RANGE = 40; // metres from a frame you can read its line: the tower's width, wall to wall
 const SCOPED_FOV = 0.3;
-const SCOPED_FOG_SCALE = 0.05; // thin the fog while scoped so the sniper can see across the world
+// The scope's clear circle across the shorter side of the screen (35vmin either way, `#scope` in
+// styles.css); everything outside it is black.
+const SCOPE_CIRCLE = 0.7;
+// The fog's density is scaled by the root of this: thinned while scoped to be as thick at
+// SCOPED_SIGHT as it is at SIGHT unscoped.
+const SCOPED_FOG_SCALE = (SIGHT / SCOPED_SIGHT) ** 2;
 const HIP_KICK = 0.02;
 const SCOPED_KICK = 0.035;
 const KICK_HALF_LIFE = 0.06;
@@ -138,25 +154,37 @@ const OWN_WEAPON_SCALE = 2.2; // your own guns, seen from the boom: at true size
 const ECHO_DELAY = 0.5;
 const ECHO_LEVEL = 0.3;
 const GLOAT_DELAY = 0.4; // seconds after a kill that the killer's own line for one starts, clear of the shot
-const STRIKE_RATE = 0.7; // how fast the jump's swoosh is played for a strike's swing: slower and lower, a heavy bat's
 const OWN_MOVE = 0.6; // the share of its volume the player's own ground pound turns over at, as their own steps do (Footsteps.ts)
 const DEATH_SOUND_DELAY = 0.5; // seconds from dying to the look's death sound: the hurt sound or cry of the last hit, played out
 const CRY_GAP_MS = 600; // a player's cries at being hit come no closer together than this, however short the cry
 type Line = 'hurt' | 'kill' | 'enter' | 'death'; // the lines of a look's voice that are a list of takes (voices.ts)
-// Metres nearer than the dragon whose theme is playing another has to be to take the theme over,
-// so two at a like distance don't trade it back and forth.
+// Metres nearer than the player or building whose theme is playing another has to be to take the
+// theme over, so two at a like distance don't trade it back and forth.
 const THEME_HYSTERESIS = 15;
 
-// A theme that could be playing: a dragon's, or a building's. `metres` is how far the ear is from
-// it, `holder` the dragon or building it comes from, and `inside` whether the player is within the
-// building's walls, where nothing else may play over it.
-interface Theme {
+// A living player as the music and a dragon's cries take them: who, in what look, where (the eye
+// point), and for a dragon whether it has risen out of the ground yet (null for anyone on foot).
+interface Living {
+  id: string;
+  avatar: AvatarId;
+  at: Vec3;
+  risen: boolean | null;
+}
+
+// A theme as Sfx.setLoops plays it (Game `music`).
+interface Music {
   key: string;
   id: SoundId;
-  metres: number;
   at: Vec3 | null;
   elapsed: number;
   level: number;
+}
+
+// One of the themes round a player with none of their own: `metres` from the ear, `holder` the
+// player or building it comes from, and `inside` whether the player is within the building's walls,
+// where nothing else may play over it.
+interface Contender extends Music {
+  metres: number;
   inside: boolean;
   holder: string;
 }
@@ -169,10 +197,13 @@ export class Game {
   private readonly loader = new Loader(); // streams the world in round the player
   private readonly models: Models;
   private readonly frost: FrostLayer; // the ice sprayed over the world's surfaces (sim/frost.ts)
-  private hoveredDoor: string | null = null; // the door under the crosshair within reach (sim/doors.ts)
+  // What a click uses, under the crosshair within reach: a door (sim/doors.ts) or a kart to get
+  // into (sim/vehicles/garage.ts).
+  private hoveredUse: string | null = null;
   private introduced = false; // the look the player came in as has said its intro
   private hoveredHorn = false; // the bedroom's foghorn is under the crosshair within reach
-  private useDoor: string | null = null; // a door clicked since the last input frame
+  private use: string | null = null; // a door or kart clicked since the last input frame
+  private readonly driving: Driving;
   private readonly camera: UniversalCamera;
   private readonly input: InputManager;
   private readonly mobile: MobileControls;
@@ -201,19 +232,24 @@ export class Game {
   private readonly strikes = new Map<string, number>(); // how far into a strike each player striking was last seen
   private readonly cried = new Set<string>(); // the dragons heard crying on their way out of the ground
   private readonly criedOut = new Map<string, number>(); // when each player may next cry out at a hit (performance.now)
-  private themeOf: string | null = null; // the dragon or building whose theme is playing (Theme.holder)
-  // When the first dragon of each theme rose (ms): its theme has been running since, heard or not.
-  private readonly themeClocks = new Map<SoundId, number>();
-  // When each building's theme was first heard (ms): it runs on from then for the rest of the visit.
+  private themeOf: string | null = null; // the player or building whose theme is playing (Contender.holder)
+  // When each theme worn round the player began (ms; `running`): it runs on from then for as long as
+  // anyone the player could hear it from wears it.
+  private readonly wornClocks = new Map<SoundId, number>();
+  // When each building's theme began (ms; `running`): it runs on from then for the rest of the visit.
   private readonly placeClocks = new Map<SoundId, number>();
+  private mourningUntil = 0; // when the look's death sound, played as the player died, ends (performance.now)
   private bobbing = 0; // share of the full head bob in play: eased up with the walk and down when it stops
   private readonly skyByMesh = new Map<string, SkyObject>();
   private readonly bubble = new Bubble();
   private readonly frameBubble = new Bubble('plain'); // a frame's line, over the frame
   private readonly wallFrames: WallFrames;
+  private readonly interiors: Interiors;
   private readonly minimap = new Minimap();
   private readonly death = new Death();
   private readonly hearts = new Hearts();
+  // The wrenches of the kart they drive, under the hearts while they drive one.
+  private readonly wrenches = new Hearts(document.getElementById('wrenches')!, WRENCHES);
   private readonly fuel = new Fuel();
   private readonly gearHud = new GearHud();
   private readonly condition = new Condition();
@@ -262,12 +298,13 @@ export class Game {
   ) {
     const canvas = canvasEl;
     this.engine = new Engine(canvas, true);
-    this.environment = new Environment(this.engine, WORLD_SHAPE, WORLD_STRUCTURES.top);
+    this.environment = new Environment(this.engine, WORLD_GROUND, this.loader);
     buildStructures(this.engine, WORLD_STRUCTURES.list, this.loader);
     this.frost = new FrostLayer(this.engine, WORLD_STRUCTURES.list);
-    this.models = new Models(this.engine, this.loader);
-    preloadAvatars(this.engine);
-    this.wallFrames = new WallFrames(this.engine, WALL_FRAMES);
+    this.interiors = new Interiors(INTERIOR_BUILDINGS, (door) => this.models.ajar(door));
+    this.models = new Models(this.engine, this.loader, this.interiors);
+    this.driving = new Driving(this.engine.scene);
+    this.wallFrames = new WallFrames(this.engine, WALL_FRAMES, this.interiors);
     this.camera = new UniversalCamera('camera', new Vector3(0, 1.7, 0), this.engine.scene);
     this.camera.minZ = NEAR;
     this.camera.fov = VIEWS.walker.fov;
@@ -292,17 +329,20 @@ export class Game {
       onActionUp: () => (this.input.fireHeld = false),
       onScope: () => this.setScoped(!this.scoped),
       onSwap: () => (this.swapRequested = true),
+      onOut: () => this.input.tap('KeyE'),
       onPound: () => (this.poundRequested = true),
       onChat: () => this.hud.openChat(),
       onCommands: () => this.commandsMenu.toggle(),
     });
     this.hud = new Hud(roomId);
     this.hud.onChat = (text) => {
+      this.wantCommand(text, true);
       conn.send({ t: 'chat', text });
       this.commandsMenu.set(false); // typed over the commands: the card goes, so what it did is in view
     };
     this.commandsMenu.onCommand = (text) => this.hud.onChat?.(text);
     this.commandsMenu.onDraft = (text) => this.hud.openChat(text);
+    this.commandsMenu.onPoint = (text) => this.wantCommand(text, false);
     // Chat, the commands and the menu are what the nudge points at: one found, it's done with.
     // The commands free the mouse for their buttons; the world has it back when they go.
     this.commandsMenu.onOpenChange = (open) => {
@@ -373,7 +413,7 @@ export class Game {
     // that uses the door under the crosshair; the FIRE button, when there is one, uses it too.
     onTap(canvas, () => {
       if (this.isBlocked()) return;
-      if (this.hoveredDoor) this.useDoor = this.hoveredDoor;
+      if (this.hoveredUse) this.use = this.hoveredUse;
       if (this.hoveredHorn) this.sfx.play('boat-horn', HORN_AT);
     });
 
@@ -410,14 +450,15 @@ export class Game {
     if (mouse && !this.mouseWasHeld) {
       // A press on a door uses it, one on the foghorn sounds it, and one on a cube selects it; none
       // is a shot.
-      if (this.hoveredDoor) this.useDoor = this.hoveredDoor;
+      if (this.hoveredUse) this.use = this.hoveredUse;
       if (this.hoveredHorn) this.sfx.play('boat-horn', HORN_AT);
-      this.mouseFiring = !this.hovered && !this.hoveredDoor && !this.hoveredHorn;
+      this.mouseFiring = !this.hovered && !this.hoveredUse && !this.hoveredHorn;
     }
     if (!mouse) this.mouseFiring = false;
     this.mouseWasHeld = mouse;
 
     if (this.dead) return [];
+    if (this.prediction?.state.riding) return this.driving.actions(this.input);
     const actions: ItemAction[] = [];
     const held = this.held;
     if (held) {
@@ -533,6 +574,11 @@ export class Game {
     return screenFov(fov, this.aspect());
   }
 
+  // Radians from the look to the scope's circle's edge.
+  private scopeCone(): number {
+    return Math.atan(SCOPE_CIRCLE * Math.tan(SCOPED_FOV / 2) * Math.min(1, this.aspect()));
+  }
+
   private aspect(): number {
     return this.engine.scene.getEngine().getAspectRatio(this.camera);
   }
@@ -540,6 +586,7 @@ export class Game {
   // The boom the camera hangs on in third person: the worn look's, scaled to a walker's stature and
   // fitted to a portrait screen.
   private boom(): Boom {
+    if (this.prediction!.state.riding) return screenBoom(KART_BOOM, this.wornFov(), this.aspect());
     const avatar = this.prediction!.state.avatar;
     const boom = boomOf(avatar);
     const scale = classOf(avatar).id === 'walker' ? (this.stature ?? 1) : 1;
@@ -568,10 +615,14 @@ export class Game {
         this.myId = m.id;
         // The sky is seeded by the room's key (the Modal session id), which welcome carries, so
         // everyone in a session shares one sky and a new session gets a new one.
-        for (const sky of placeSkyObjects(this.engine, SKY_OBJECTS, WORLD_SHAPE, createRng(hashSeed(m.room))))
+        for (const sky of placeSkyObjects(this.engine, SKY_OBJECTS, WORLD_GROUND, createRng(hashSeed(m.room))))
           this.skyByMesh.set(sky.mesh.name, sky);
         const me = m.players.find((p) => p.id === m.id)!;
-        this.prediction = new Prediction(me, WORLD_SHAPE, WORLD_STRUCTURES);
+        this.prediction = new Prediction(me, WORLD_STRUCTURES);
+        this.prediction.reconcile(
+          me,
+          m.karts.find((k) => k.id === me.riding),
+        );
         this.input.yaw = me.yaw;
         this.input.pitch = me.pitch;
         this.interp.push(m, now);
@@ -598,11 +649,20 @@ export class Game {
           // A pickup's worth of hearts flashes; a regen's trickle each tick doesn't.
           if (me.hearts - this.hearts.count >= 1 && !this.dead) this.healFlash.flash();
           this.hearts.set(me.hearts);
+          const kart = m.karts.find((k) => k.id === me.riding);
+          this.wrenches.show(!!kart);
+          if (kart) {
+            this.wrenches.setLife({ ...WRENCHES, hearts: KARTS[kart.kart].wrenches }, kart.wrenches);
+            this.wrenches.set(kart.wrenches);
+          }
         }
         this.hud.updateStats(m.players);
         this.hearShots(m.players);
         if (me && this.prediction) {
-          const d = this.prediction.reconcile(me);
+          const d = this.prediction.reconcile(
+            me,
+            m.karts.find((k) => k.id === me.riding),
+          );
           const dist = Math.hypot(d.dx, d.dy, d.dz);
           if (dist > SNAP_DISTANCE) this.correction.set(0, 0, 0);
           else if (dist > 1e-4) this.correction.addInPlace(new Vector3(d.dx, d.dy, d.dz));
@@ -634,6 +694,9 @@ export class Game {
       case 'system':
         this.hud.system(m.text);
         return;
+      case 'refused':
+        this.hud.refuse(m.text);
+        return;
       case 'shot':
         if (m.id !== this.myId) this.pendingShots.push({ shooter: m.id, hitMe: false });
         return;
@@ -662,13 +725,18 @@ export class Game {
       case 'kill':
         this.hud.announceKill(m.shooter, m.victim, m.item, m.headshot);
         this.hud.setDead(m.victim);
-        if (m.victim === this.myId) this.die(`shot by ${this.hud.playerName(m.shooter)}`);
+        if (m.victim === this.myId) this.die(`${KILLED_BY[m.item] ?? 'shot'} by ${this.hud.playerName(m.shooter)}`);
         this.say(m.shooter, 'kill', GLOAT_DELAY);
         return;
       case 'fell':
         this.hud.announceFall(m.victim);
         this.hud.setDead(m.victim);
         if (m.victim === this.myId) this.die('you fell');
+        return;
+      case 'crashed':
+        this.hud.announceCrash(m.victim);
+        this.hud.setDead(m.victim);
+        if (m.victim === this.myId) this.die('you crashed');
         return;
       case 'pong':
         this.hud.setPing(now - m.at);
@@ -700,8 +768,14 @@ export class Game {
     this.setScoped(false);
     this.syncBlocked();
     this.death.show(how);
-    // The look's death plays over the death screen, a moment on so the last hit is heard first.
-    this.say(this.myId, 'death', DEATH_SOUND_DELAY);
+    // The look's death plays over the death screen, a moment on so the last hit is heard first, and
+    // over that hit's cry rather than cutting it, as the look's other lines cut its last. For as long
+    // as it lasts it's the player's own music: the theme playing is gone by the time it starts, and
+    // none comes back under it (`music`).
+    const said = this.line(this.myId, 'death');
+    if (!said || !this.sfx.play(said.sound, null, { delay: DEATH_SOUND_DELAY })) return;
+    this.sfx.endLoops('music', DEATH_SOUND_DELAY);
+    this.mourningUntil = performance.now() + (DEATH_SOUND_DELAY + this.sfx.seconds(said.sound)) * 1000;
   }
 
   // A shot landed, or with no shooter, a fall hurt. The victim's client flashes red, plays the
@@ -752,8 +826,8 @@ export class Game {
     if (stage === was) return;
     this.pounds.set(id, stage);
     const mine = id === this.myId;
-    if (stage === 'twirl')
-      this.sfx.play(VOICES[avatar].twirl ?? 'pound-twirl', mine ? null : at, { level: mine ? OWN_MOVE : 1 });
+    const twirl = twirlOf(avatar);
+    if (stage === 'twirl' && twirl) this.sfx.play(twirl, mine ? null : at, { level: mine ? OWN_MOVE : 1 });
     const pound = poundOf(avatar);
     const reach = pound && poundPower(pound, height).reach;
     if (stage === 'land' && reach) poundRing(this.engine, new Vector3(at.x, at.y - EYE_HEIGHT, at.z), reach);
@@ -761,18 +835,20 @@ export class Game {
 
   // A player's strike (sim/avatars.ts `Strike`), `strike` being how far into one they are and `at`
   // their eye point: its swing is heard as it starts.
-  private striking(id: string, strike: number | null, at: Vec3): void {
+  private striking(id: string, avatar: AvatarId, strike: number | null, at: Vec3): void {
     const was = this.strikes.get(id);
     if (strike === null) this.strikes.delete(id);
     else this.strikes.set(id, strike);
     if (strike === null || (was !== undefined && strike >= was)) return;
+    const swing = swingOf(avatar);
     const mine = id === this.myId;
-    this.sfx.play('jump', mine ? null : at, { level: mine ? OWN_MOVE : 1, rate: STRIKE_RATE });
+    if (swing) this.sfx.play(swing.sound, mine ? null : at, { level: mine ? OWN_MOVE : 1, rate: swing.rate });
   }
 
   // One of a player's lines in their own voice (voices.ts), `delay` seconds from now, from where
   // their head is, or the local player's own, from nowhere. False if their look has no such line.
-  private say(id: string, line: Line, delay = 0): boolean {
+  // A death is the dying player's own, played by `die`.
+  private say(id: string, line: Exclude<Line, 'death'>, delay = 0): boolean {
     // An intro runs until its player takes another look, whose own takes its place if it has one.
     if (line === 'enter') this.sfx.hush(id);
     const said = this.line(id, line);
@@ -782,9 +858,10 @@ export class Game {
       this.sfx.soon(said.sound, said.at, undefined, id);
       return true;
     }
-    if (this.sfx.play(said.sound, said.at, { delay })) return true;
+    // Each line cuts its speaker's last.
+    if (this.sfx.play(said.sound, said.at, { delay, by: id })) return true;
     // A kill line not here yet (lazy in SOUNDS, sent for in wantVoice) is played as it arrives.
-    if (line === 'kill') this.sfx.soon(said.sound, said.at);
+    if (line === 'kill') this.sfx.soon(said.sound, said.at, undefined, id);
     return line === 'kill';
   }
 
@@ -798,13 +875,30 @@ export class Game {
     return sound && (mine || at) ? { sound, at } : null;
   }
 
-  // Sends for a look's hurts and kills (lazy in SOUNDS) as it's first seen worn, so they're here
-  // by the time it's hit or gloats, and with `mine` its death too, which only its own player hears.
-  // A hurt that hasn't arrived by its hit is left out.
+  // Sends for a look's jumps, hurts and kills (lazy in SOUNDS) as it's first seen worn, so they're
+  // here by the time it hops, is hit or gloats, and with `mine` its death and its theme too, which
+  // its own player hears whatever happens. A hurt that hasn't arrived by its hit is left out, and a
+  // jump is the swoosh; a theme starts from the top as it arrives.
   private wantVoice(avatar: AvatarId, mine: boolean): void {
     const voice = VOICES[avatar];
-    for (const id of [...(voice.hurt ?? []), ...(voice.kill ?? []), ...(mine ? (voice.death ?? []) : [])])
-      this.sfx.want(id);
+    const lines = [
+      voice.jump,
+      voice.leap,
+      voice.hurt,
+      voice.kill,
+      mine ? voice.death : undefined,
+      mine && voice.theme ? [voice.theme.sound] : undefined,
+    ];
+    for (const id of lines.flatMap((l) => l ?? [])) this.sfx.want(id);
+  }
+
+  // A look the player may be about to put on: its body is sent for as its command is pointed at,
+  // and its voice too once it's `sent`, so the switch the server answers with finds them here.
+  private wantCommand(text: string, sent: boolean): void {
+    const command = parseCommand(text);
+    if (command?.name !== 'avatar') return;
+    void wantLook(this.engine, command.avatar).catch(() => {});
+    if (sent) this.wantVoice(command.avatar, true);
   }
 
   // A player's cry at a hit. False if their look has none, or their last is still sounding: no
@@ -813,7 +907,7 @@ export class Game {
     const now = performance.now();
     if (now < (this.criedOut.get(id) ?? 0)) return false;
     const said = this.line(id, 'hurt');
-    if (!said || !this.sfx.play(said.sound, said.at)) return false;
+    if (!said || !this.sfx.play(said.sound, said.at, { by: id })) return false;
     this.criedOut.set(id, now + Math.max(CRY_GAP_MS, this.sfx.seconds(said.sound) * 1000));
     return true;
   }
@@ -879,6 +973,7 @@ export class Game {
     this.syncBlocked();
     this.input.update();
     this.holdLook(dt);
+    this.driving.follow(this.input, this.prediction.state.riding ? this.prediction.kart : null, dt);
     const sampled = this.interp.sample(performance.now(), this.myId);
     // Off the eyes the camera's centre ray and theirs differ, so the look sent (the shot, the head's
     // turn) is the eyes' at what the crosshair is on, from where the camera was last frame.
@@ -892,7 +987,9 @@ export class Game {
       WORLD_STRUCTURES,
     );
 
-    this.accumulator += Math.min(dt, TICK_DT * MAX_TICKS_PER_FRAME);
+    // After a long frame the ticks it covered are all sent, up to as many as the server waits for
+    // (each stepped in its own place there); time past that is let go, and the server has stepped on.
+    this.accumulator += Math.min(dt, TICK_DT * INPUT_WAIT_TICKS);
     while (this.accumulator >= TICK_DT) {
       this.accumulator -= TICK_DT;
       const frame = this.input.sampleFrame(
@@ -900,11 +997,12 @@ export class Game {
         this.overlay.reading,
         this.itemActions(),
         this.interp.viewTick,
+        !!this.prediction.state.riding,
       );
       frame.yaw = this.aim.yaw;
       frame.pitch = this.aim.pitch;
-      frame.use = this.useDoor;
-      this.useDoor = null;
+      frame.use = this.use;
+      this.use = null;
       this.prediction.apply(frame);
       this.conn.send({ t: 'input', f: frame });
     }
@@ -924,10 +1022,10 @@ export class Game {
     if (cls !== this.classId) {
       if (cls === 'asian-dragon') this.view.set('third');
       this.mobile.setClass(cls);
-      this.environment.setBounds(cls === 'asian-dragon' ? 'sky' : 'ground');
       this.classId = cls;
     }
     this.hud.setKeys(legendOf(self));
+    this.mobile.setDriving(!!self.riding);
     if (self.avatar !== this.look) {
       if (this.look) this.say(this.myId, 'enter');
       this.look = self.avatar;
@@ -947,7 +1045,9 @@ export class Game {
       this.wearing = wearing;
       this.setScoped(false);
     }
-    const lift = (this.stature - 1) * EYE_HEIGHT; // metres the eyes are above the body's eye point
+    // Metres the eyes are above the body's eye point: sat in a kart, its feet on the seat, they're
+    // down at the share of its height that stands out of it.
+    const lift = self.riding ? this.stature * EYE_HEIGHT * SEATED - EYE_HEIGHT : (this.stature - 1) * EYE_HEIGHT;
     this.camera.minZ = Math.min(NEAR, this.stature * EYE_HEIGHT * NEAR_SHARE);
     // On its feet, the camera rides the ground (ride.ts) rather than the sim's feet; a change
     // between the two is eased like a step.
@@ -959,7 +1059,7 @@ export class Game {
     }
     this.lastPos = { x: p.x, z: p.z };
     const feet = p.y - EYE_HEIGHT;
-    const rides = cls === 'walker' && !this.dead && !self.climb && isGrounded(self);
+    const rides = cls === 'walker' && !this.dead && !self.climb && !self.riding && isGrounded(self);
     const riding = rides ? rideGround(WORLD_STRUCTURES, p.x, p.z, this.walkDir, feet) - feet : null;
     if ((this.riding === null) !== (riding === null)) this.stepEase += (this.riding ?? 0) - (riding ?? 0);
     this.riding = riding;
@@ -992,6 +1092,7 @@ export class Game {
     this.environment.setVisibility(this.scoped ? SCOPED_FOG_SCALE : 1);
     this.environment.update(dt, eye);
     this.frost.update(dt, this.camera.position);
+    this.interiors.update(this.camera, this.scoped ? this.scopeCone() : null);
     this.wallFrames.update(this.camera);
     const held = this.held;
     if (!held) this.setScoped(false);
@@ -1008,7 +1109,8 @@ export class Game {
     );
     // A look's own moves get their hint as the look is taken, once the start press (main.ts
     // showStart, which takes #start away) has let the player in to read it.
-    const moves = this.dead || document.getElementById('start') ? [] : movesHelp(self.avatar, IS_TOUCH);
+    // None while driving: a kart's keys are its own.
+    const moves = this.dead || self.riding || document.getElementById('start') ? [] : movesHelp(self.avatar, IS_TOUCH);
     this.hud.setMoveHint(self.avatar.toUpperCase(), moves);
     const fuelMax = held && ITEMS[held.id].fuelSeconds;
     this.fuel.set(
@@ -1076,11 +1178,21 @@ export class Game {
       self.pos,
       self.pound ? self.pound.from - self.pos.y : 0,
     );
-    this.striking(this.myId, self.strike, self.pos);
+    this.striking(this.myId, self.avatar, self.strike, self.pos);
     for (const rp of sampled.players) {
       this.pounding(rp.id, rp.avatar, rp.pound, { x: rp.x, y: rp.y, z: rp.z }, rp.poundHeight);
-      this.striking(rp.id, rp.strike, { x: rp.x, y: rp.y, z: rp.z });
+      this.striking(rp.id, rp.avatar, rp.strike, { x: rp.x, y: rp.y, z: rp.z });
     }
+    // The kart the player drives is drawn where they predict it, eased as they are. Karts are drawn
+    // before bodies, so a driver sits in their kart where it's drawn this frame.
+    const driven = self.riding ? this.prediction.kart : null;
+    const c = this.correction;
+    const karts = sampled.karts.map((k) =>
+      driven && k.id === self.riding
+        ? { ...k, ...driven, pos: { x: driven.pos.x + c.x, y: driven.pos.y + c.y, z: driven.pos.z + c.z } }
+        : k,
+    );
+    this.driving.draw(karts, dt);
     const readers = new Map<string, number>();
     const seen = new Set<string>();
     for (const rp of sampled.players) {
@@ -1088,17 +1200,13 @@ export class Game {
       let avatar = this.avatars.get(rp.id);
       // A new look, or a new colour on the figure that wears it, is a new avatar.
       const was = avatar?.kind;
-      if (avatar && (was !== rp.avatar || (avatar.color !== undefined && avatar.color !== rp.color))) {
-        avatar.dispose();
-        avatar = undefined;
-      }
-      if (!avatar) {
-        avatar = createAvatar(this.engine, rp);
+      if (!avatar || was !== rp.avatar || (avatar.color !== undefined && avatar.color !== rp.color)) {
+        avatar = createAvatar(this.engine, rp, avatar ?? null);
         this.avatars.set(rp.id, avatar);
         this.wantVoice(rp.avatar, false);
         if (was && was !== rp.avatar) this.say(rp.id, 'enter');
       }
-      avatar.update(rp, this.footsteps.phase(rp.id));
+      avatar.update(rp, this.footsteps.phase(rp.id), rp.riding ? this.driving.seatOf(rp.riding) : null);
       if (rp.reading) readers.set(rp.reading, (readers.get(rp.reading) ?? 0) + 1);
     }
     for (const [id, avatar] of this.avatars) if (!seen.has(id)) avatar.hide();
@@ -1111,7 +1219,7 @@ export class Game {
 
     this.loader.update(p.x, p.z);
     this.models.update();
-    this.updateHover();
+    this.updateHover(karts);
     // Red crosshair when a shot from here would land: same maths the server will run.
     const me = this.prediction.state;
     const hit =
@@ -1130,78 +1238,24 @@ export class Game {
       scoped: this.scoped,
       canFire: this.canFire(),
       climbing: !!self.climb,
-      move: this.dead ? null : this.ownMove(self),
+      driving: !!self.riding,
+      move: this.dead || self.riding ? null : this.ownMove(self),
     });
     if (hit !== this.canHit) {
       this.canHit = hit;
       this.hud.setCrosshairTarget(this.canHit);
     }
     this.sfx.listen(this.camera.position, this.input.yaw);
-    // Every dragon with a voice rises out of the ground with its cry (kept trying until the
-    // recording has arrived, and heard again from the same player's next one). One theme plays at a
-    // time: the nearest living dragon's from its head, or a building's (PLACE_THEMES) from its walls
-    // across its grounds, until another is THEME_HYSTERESIS nearer, one theme crossing into the
-    // next; inside a building's walls its theme is the only one. A dragon's theme runs from the
-    // first of its dragons rising for as long as any is alive, and a building's from when it was
-    // first heard, so one taken up again is heard from where it has got to, not from the top. The
-    // rider's own plays flat, as loud as from the boom's length off, so the camera closing in on the
-    // head (at a wall) doesn't swell it.
-    const dragons = [
-      ...(self.dragon && !this.dead
-        ? [{ id: this.myId, at: self.pos, risen: self.dragon.risen, voice: voiceOf(self.avatar) }]
-        : []),
+    const living: Living[] = [
+      ...(this.dead ? [] : [{ id: this.myId, avatar: self.avatar, at: self.pos, risen: self.dragon?.risen ?? null }]),
       ...sampled.players.flatMap((rp) =>
-        rp.dragon && !rp.dead
-          ? [{ id: rp.id, at: { x: rp.x, y: rp.y, z: rp.z }, risen: rp.dragon.risen, voice: voiceOf(rp.avatar) }]
-          : [],
+        rp.dead
+          ? []
+          : [{ id: rp.id, avatar: rp.avatar, at: { x: rp.x, y: rp.y, z: rp.z }, risen: rp.dragon?.risen ?? null }],
       ),
-    ].filter((d) => d.voice !== null);
-    for (const d of dragons) {
-      if (d.risen) this.cried.delete(d.id);
-      else if (!this.cried.has(d.id) && this.sfx.call(d.voice!.cry, d.at)) this.cried.add(d.id);
-    }
-    const themes = new Set(dragons.map((d) => d.voice!.theme));
-    for (const theme of this.themeClocks.keys()) if (!themes.has(theme)) this.themeClocks.delete(theme);
-    for (const theme of themes) if (!this.themeClocks.has(theme)) this.themeClocks.set(theme, performance.now());
-    const ear = this.camera.position;
-    const now = performance.now();
-    const own = (d: { id: string }) => d.id === this.myId;
-    const candidates: Theme[] = [
-      ...dragons.map((d) => ({
-        key: own(d) ? 'own-dragon' : 'dragon',
-        id: d.voice!.theme,
-        metres: Vector3.Distance(ear, new Vector3(d.at.x, d.at.y, d.at.z)),
-        at: own(d) ? null : d.at,
-        elapsed: (now - this.themeClocks.get(d.voice!.theme)!) / 1000,
-        level: own(d) ? heard(d.voice!.theme, boomLength(self.avatar)) : 1,
-        inside: false,
-        holder: d.id,
-      })),
-      ...PLACE_THEMES.flatMap((p) => {
-        const metres = p.walls(ear);
-        const level = heard(p.theme, metres);
-        if (level <= 0) return [];
-        if (!this.placeClocks.has(p.theme)) this.placeClocks.set(p.theme, now);
-        return [
-          {
-            key: `place:${p.theme}`,
-            id: p.theme,
-            metres,
-            at: null,
-            elapsed: (now - this.placeClocks.get(p.theme)!) / 1000,
-            level,
-            inside: !this.dead && p.walls(self.pos) === 0,
-            holder: `place:${p.theme}`,
-          },
-        ];
-      }),
     ];
-    const nearest = candidates.sort((a, b) => a.metres - b.metres)[0];
-    const kept = candidates.find((c) => c.holder === this.themeOf);
-    const playing =
-      candidates.find((c) => c.inside) ??
-      (kept && nearest && kept.metres < nearest.metres + THEME_HYSTERESIS ? kept : nearest);
-    this.themeOf = playing?.holder ?? null;
+    this.cryOut(living);
+    const music = this.music(living);
     this.sfx.setLoops([
       ...loopsOf({ ...self, item: self.item?.id ?? null, gear: self.gear?.id ?? null, dead: this.dead }).map((id) => ({
         key: this.myId,
@@ -1210,7 +1264,7 @@ export class Game {
       })),
       ...sampled.players.flatMap((rp) => loopsOf(rp).map((id) => ({ key: rp.id, id, at: rp }))),
       ...stepLoops,
-      ...(playing ? [playing] : []),
+      ...(music ? [music] : []),
     ]);
     this.pickups.update(sampled.pickups);
     for (const cs of sampled.cubes) {
@@ -1221,18 +1275,111 @@ export class Game {
     }
   }
 
+  // Every dragon with a voice rises out of the ground with its cry, kept trying until the recording
+  // has arrived, and heard again from the same player's next rise.
+  private cryOut(living: Living[]): void {
+    for (const body of living) {
+      const voice = voiceOf(body.avatar);
+      if (!voice || body.risen === null) continue;
+      if (body.risen) this.cried.delete(body.id);
+      else if (!this.cried.has(body.id) && this.sfx.call(voice.cry, body.at)) this.cried.add(body.id);
+    }
+  }
+
+  // The one theme the player hears. None while their look's death sound plays: that's all the music
+  // there is until it ends. Their own look's, if it has one (voices.ts `Theme`), wherever
+  // they are: nothing plays over a character's theme. Without one, the nearest of the themes round
+  // them: a living player's that everyone hears (a dragon's, from its head), or a building's
+  // (PLACE_THEMES) from its walls across its grounds, the only one heard from inside them; kept
+  // until another is THEME_HYSTERESIS nearer, one crossing into the next over the sounds' swell and
+  // fade. A worn theme runs for as long as anyone the player could hear it from wears it, heard or
+  // not, and a building's for the rest of the visit, so one taken up again is heard from where it
+  // has got to.
+  private music(living: Living[]): Music | null {
+    const now = performance.now();
+    const worn = living.flatMap((body) => {
+      const theme = VOICES[body.avatar].theme;
+      return theme && (body.id === this.myId || theme.heardBy === 'everyone') ? [{ ...body, theme }] : [];
+    });
+    const sounds = new Set(worn.map((w) => w.theme.sound));
+    for (const sound of this.wornClocks.keys()) if (!sounds.has(sound)) this.wornClocks.delete(sound);
+    const elapsed = new Map([...sounds].map((sound) => [sound, this.running(this.wornClocks, sound, now)]));
+
+    if (now < this.mourningUntil) {
+      this.themeOf = null;
+      return null;
+    }
+    const mine = worn.find((w) => w.id === this.myId);
+    if (mine) {
+      this.themeOf = mine.id;
+      const { sound, heardBy } = mine.theme;
+      return {
+        key: 'own',
+        id: sound,
+        at: null,
+        elapsed: elapsed.get(sound)!,
+        // A theme everyone hears comes from the wearer's body, so they hear their own as from the
+        // boom's length off, and the camera closing in on the head (at a wall) doesn't swell it.
+        level: heardBy === 'everyone' ? heard(sound, boomLength(mine.avatar)) : 1,
+      };
+    }
+
+    const ear = this.camera.position;
+    const feet = living.find((body) => body.id === this.myId)?.at;
+    const contenders: Contender[] = [
+      ...worn.map((w) => ({
+        key: 'worn',
+        id: w.theme.sound,
+        at: w.at,
+        elapsed: elapsed.get(w.theme.sound)!,
+        level: 1,
+        metres: Vector3.Distance(ear, new Vector3(w.at.x, w.at.y, w.at.z)),
+        inside: false,
+        holder: w.id,
+      })),
+      ...PLACE_THEMES.flatMap((p) => {
+        const metres = p.walls(ear);
+        const level = heard(p.theme, metres);
+        if (level <= 0) return [];
+        return [
+          {
+            key: 'place',
+            id: p.theme,
+            at: null,
+            elapsed: this.running(this.placeClocks, p.theme, now),
+            level,
+            metres,
+            inside: feet !== undefined && p.walls(feet) === 0,
+            holder: `place:${p.theme}`,
+          },
+        ];
+      }),
+    ];
+    const nearest = contenders.sort((a, b) => a.metres - b.metres)[0];
+    const kept = contenders.find((c) => c.holder === this.themeOf);
+    const playing =
+      contenders.find((c) => c.inside) ??
+      (kept && nearest && kept.metres < nearest.metres + THEME_HYSTERESIS ? kept : nearest);
+    this.themeOf = playing?.holder ?? null;
+    return playing ?? null;
+  }
+
+  // Seconds a theme has been running by `clocks`, which it joins on the first frame its recording
+  // is here, so it begins from the top however long it took to arrive; 0 until then.
+  private running(clocks: Map<SoundId, number>, sound: SoundId, now: number): number {
+    if (!clocks.has(sound) && this.sfx.ready(sound)) clocks.set(sound, now);
+    const began = clocks.get(sound);
+    return began === undefined ? 0 : (now - began) / 1000;
+  }
+
   // The player's own body: where prediction has it (its eye point `at`, corrected but not trailing a
   // step like the camera), turned to the look sent. Drawn in third person, and from the eyes only
   // where the body goes on behind them without the head (a dragon's).
   private updateOwnAvatar(at: Vec3, held: ItemState | null): void {
     const self = this.prediction!.state;
     let avatar = this.ownAvatar;
-    if (avatar && (avatar.kind !== self.avatar || (avatar.color !== undefined && avatar.color !== self.color))) {
-      avatar.dispose();
-      avatar = null;
-    }
-    if (!avatar) {
-      avatar = this.ownAvatar = createAvatar(this.engine, self);
+    if (!avatar || avatar.kind !== self.avatar || (avatar.color !== undefined && avatar.color !== self.color)) {
+      avatar = this.ownAvatar = createAvatar(this.engine, self, avatar);
       avatar.scaleWeapons(OWN_WEAPON_SCALE);
     }
     const own: Avatar = avatar;
@@ -1271,10 +1418,12 @@ export class Game {
         dead: this.dead,
         avatar: self.avatar,
         dragon: self.dragon,
+        riding: self.riding,
         bot: false,
         grounded: isGrounded(self),
       },
       this.footsteps.phase(this.myId),
+      self.riding ? this.driving.seatOf(self.riding) : null,
     );
   }
 
@@ -1284,15 +1433,22 @@ export class Game {
     return t !== Infinity && WORLD_STRUCTURES.raycast(o, d, t) >= t - HORN_SLACK;
   }
 
-  private updateHover(): void {
-    // A door in reach of the look is used by a click; say so while the crosshair is on one.
+  private updateHover(karts: Kart[]): void {
+    // A door or a kart in reach of the look is used by a click; say so while the crosshair is on one.
     const me = this.prediction?.state;
-    const door =
-      me && !this.dead ? WORLD_STRUCTURES.doorAt(me.pos, lookVector(this.aim.yaw, this.aim.pitch), DOOR_REACH) : null;
+    const look = lookVector(this.aim.yaw, this.aim.pitch);
+    const free = !!me && !this.dead && !me.riding;
+    const door = me && !this.dead ? WORLD_STRUCTURES.doorAt(me.pos, look, DOOR_REACH) : null;
+    const kart = free && !door ? this.driving.under(eyeOf(me), look, karts, WORLD_STRUCTURES) : null;
+    const tap = IS_TOUCH ? 'tap' : 'click';
     this.hitNotice.prompt(
-      door ? `${IS_TOUCH ? 'tap' : 'click'} to ${WORLD_STRUCTURES.isOpen(door) ? 'shut' : 'open'} the door` : null,
+      door
+        ? `${tap} to ${WORLD_STRUCTURES.isOpen(door) ? 'shut' : 'open'} the door`
+        : kart && kart.driver === null
+          ? `${tap} to drive`
+          : null,
     );
-    this.hoveredDoor = door;
+    this.hoveredUse = door ?? (kart && kart.driver === null ? kart.id : null);
     const horn = !!me && !this.dead && !door && this.hornAt(me.pos, lookVector(this.aim.yaw, this.aim.pitch));
     if (horn && !this.hoveredHorn) this.sfx.want('boat-horn');
     this.hoveredHorn = horn;
@@ -1385,6 +1541,12 @@ function boomLength(avatar: RemotePlayer['avatar']): number {
   return Math.hypot(boom.back, boom.right, boom.up);
 }
 
+// A kart's wrenches, as a life of them in a row (Hearts), however many its row in KARTS gives it.
+const WRENCHES: LifeSpec = { hearts: KARTS.standard.wrenches, row: 5, sprite: 'wrench' };
+
+// How the death screen says a kill was done, where it isn't a shot.
+const KILLED_BY: Partial<Record<KillItem, string>> = { kart: 'run over', explosion: 'blown up' };
+
 function targets(players: RemotePlayer[]) {
   return players.map((p) => ({
     id: p.id,
@@ -1392,6 +1554,7 @@ function targets(players: RemotePlayer[]) {
     dead: p.dead,
     avatar: p.avatar,
     dragon: p.dragon,
+    riding: p.riding,
   }));
 }
 

@@ -9,8 +9,8 @@
 // pictures are plain canvases the page has already drawn, so moving them each frame is only the
 // browser placing a texture; they're repainted only when their source changes.
 //
-// Only a panel in view and within CRISP_RANGE is shown this way (and whoever drew it told it's
-// seen). Further off, a picture is a few dozen pixels across, and every shown panel is a layer the
+// Only a panel in view and within CRISP_RANGE, its mask drawn (not switched off with a room that
+// can't be seen, Interiors.ts), is shown this way (and whoever drew it told it's seen). Further off, a picture is a few dozen pixels across, and every shown panel is a layer the
 // browser composites on every frame, seen through a wall or not; there its mesh draws the picture
 // as an ordinary texture in the scene, as still as the source was when it went. Over the last FADE
 // metres in, that texture fades out over the crisp picture rather than swapping in a frame: drawn
@@ -35,7 +35,9 @@ import type { FramePanel } from '@world/shared';
 import type { Engine } from './Engine';
 
 const CSS_PX_PER_M = 100; // the scale view space is put into before CSS's perspective divide
-const CRISP_RANGE = 45; // metres: a round room's width, and a little past where a frame's line reads
+// Metres: a round room's width, and a little past where a frame's line reads. One of the client's
+// loading and drawing distances, set against the rest (CLAUDE.md, Client loading).
+const CRISP_RANGE = 45;
 const FADE = 10; // metres inside CRISP_RANGE over which the still picture gives way to the crisp one
 
 interface Panel {
@@ -154,6 +156,19 @@ export class CrispPanels {
     return repaint;
   }
 
+  // Takes back everything `add` made for `mask`'s frame, leaving the mesh bare.
+  remove(mask: AbstractMesh): void {
+    const i = this.shown.findIndex((f) => f.mask === mask);
+    if (i < 0) return;
+    const [frame] = this.shown.splice(i, 1);
+    for (const { box } of frame.panels) box.remove();
+    frame.screen?.setEnabled(false);
+    frame.hole.dispose();
+    frame.still.dispose(false, true);
+    this.masks.delete(mask);
+    mask.material = null;
+  }
+
   // Put every panel where `camera` sees its mesh, and hide the ones out of view or far off.
   update(camera: Camera): void {
     // CSS's perspective puts the eye this many pixels in front of the screen.
@@ -166,7 +181,7 @@ export class CrispPanels {
     for (const frame of this.shown) {
       const far = Vector3.Distance(camera.globalPosition, frame.mask.getBoundingInfo().boundingSphere.centerWorld);
       this.masks.set(frame.mask, far);
-      const visible = far < CRISP_RANGE && frame.mask.isInFrustum(frustum);
+      const visible = frame.mask.isEnabled() && far < CRISP_RANGE && frame.mask.isInFrustum(frustum);
       if (visible !== frame.visible) {
         frame.visible = visible;
         for (const { box } of frame.panels) box.style.visibility = visible ? '' : 'hidden';

@@ -19,9 +19,10 @@ import {
   type Box,
   type Structure,
 } from '../sim/structures';
+import { roofOpening, wallOpening, type InteriorBuilding } from '../sim/interiors';
 import type { Region } from '../sim/regions';
 import type { RoundRoom } from '../sim/wallFrames';
-import type { Disc } from '../sim/world';
+import type { Disc } from '../sim/ground';
 
 export const deg = (d: number) => (d * Math.PI) / 180; // angles run from +x toward +z
 export const OUTER = 20; // outside face of the wall
@@ -76,6 +77,9 @@ const WIDE_MAIN = [0, 3];
 export interface Keep {
   structures: Structure[];
   rooms: RoundRoom[]; // one per floor, lowest first
+  // Its storeys as interiors, drawn only while one could be seen: through a door, or the top one
+  // through the roof's opening; each shows the storeys above and below it through the stair's holes.
+  building: InteriorBuilding;
   footprint: Disc; // the wall on the ground, for the minimap (content/landmarks.ts)
   // Where to place things (content/regions.ts): each floor's open middle inside the stair, lowest
   // first, then the roof between the parapet round its opening and the stair's hole.
@@ -87,6 +91,7 @@ export interface Keep {
 // something leaves the roof (a building's staircase up to the terrace). With `ladders`, the outside
 // of the wall has ladders up it from the ground to the roof.
 export function keep({
+  name,
   x,
   z,
   entrance,
@@ -94,6 +99,7 @@ export function keep({
   roofExit = false,
   ladders = false,
 }: {
+  name: string; // what its storeys' interiors are named by: `<name>:<floor>`
   x: number;
   z: number;
   entrance: number;
@@ -180,7 +186,9 @@ export function keep({
 
   // Frames centre halfway up each storey, and a frame's angle 0 is the main door's bearing on every
   // floor; each floor has the flight that leaves it.
+  const storey = (i: number) => `${name}:${i}`;
   const rooms = floors.map((_, i): RoundRoom => ({
+    interior: storey(i),
     x,
     z,
     floor: level(i),
@@ -197,5 +205,23 @@ export function keep({
     { kind: 'ring', x, z, r: STAIR_INNER, inner: OPENING + 0.2, y: roof },
   ];
 
-  return { structures, rooms, footprint: { kind: 'disc', x, z, r: OUTER }, levels };
+  const building: InteriorBuilding = {
+    x,
+    z,
+    r: OUTER,
+    bottom: 0,
+    top: roof,
+    interiors: rooms.map((room, i) => ({
+      id: storey(i),
+      openings: [
+        ...room.doors.map(({ angle, width, top }) =>
+          wallOpening(x, z, OUTER, angle, width, room.floor, room.floor + top),
+        ),
+        ...(i === floors.length - 1 ? [roofOpening(x, z, OPENING, roof)] : []),
+      ],
+      shows: [i - 1, i + 1].filter((j) => j >= 0 && j < floors.length).map(storey),
+    })),
+  };
+
+  return { structures, rooms, building, footprint: { kind: 'disc', x, z, r: OUTER }, levels };
 }

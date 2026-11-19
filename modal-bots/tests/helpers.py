@@ -56,4 +56,5 @@ def welcome() -> dict[str, Any]:
         "players": [player()],
         "cubes": [cube()],
         "pickups": [],
+        "doors": [{"id": "front", "open": False}],
     }

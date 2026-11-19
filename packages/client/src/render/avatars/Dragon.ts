@@ -98,6 +98,7 @@ export class DragonAvatar implements Avatar {
     readonly id: string,
     readonly kind: AvatarId, // the skin worn: its atlas paints the model
     private readonly look: DragonLook,
+    model: Promise<DragonModel>, // the look's model, with its atlases loaded (index.ts `wantLook`)
   ) {
     const scene = engine.scene;
     this.links = dragonShape(kind).links;
@@ -118,7 +119,7 @@ export class DragonAvatar implements Avatar {
           })
         : null;
     this.rise = look.rise(engine, `dragon-${id}-rise`, dragonShape(kind).headRadius);
-    void look.model().then((m) => this.build(engine, m));
+    void model.then((m) => this.build(engine, m));
   }
 
   // The skin, once the model has arrived: a node per bone, parented like the bones, whose rest pose

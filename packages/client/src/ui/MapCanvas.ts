@@ -1,7 +1,8 @@
 // A map of the world drawn onto a canvas: every map there is draws through this, the HUD's minimap
 // (Minimap.ts), the menu's (menu/Map.ts) and the guide's, so they all show the one world, the
-// outline (WORLD_SHAPE) and the landmarks (content/landmarks.ts) as shared has them. Two views: NEAR
-// keeps you centred and rotates so you always face up; WORLD shows the whole outline north-up.
+// outline (WORLD_GROUND) and the landmarks (content/landmarks.ts) as shared has them. Three views:
+// CLOSE and WIDE keep you centred and turn so you always face up, CLOSE round you and WIDE further
+// out; WORLD shows the whole outline north-up.
 // Everything is drawn each frame as shapes in world metres through the view's transform, at the
 // screen's own pixel density (RES canvas pixels to the CSS pixel), so edges stay smooth at any zoom
 // and as the near view turns: the outline's parts (discs, bridges and arcs), landmarks grey on the
@@ -14,11 +15,11 @@ import {
   HIGH_LANDMARKS,
   HIGH_UP,
   LANDMARKS,
-  WORLD_SHAPE,
-  worldBounds,
+  WORLD_GROUND,
   type KrustyKrabMark,
   type Landmark,
   type PineappleMark,
+  type Bounds,
   type WorldPart,
 } from '@world/shared';
 
@@ -28,10 +29,12 @@ export interface MinimapFrame {
   cubes: { x: number; z: number }[];
 }
 
-export type MinimapView = 'near' | 'world';
+export type MinimapView = 'close' | 'wide' | 'world';
+// Closest first: what P steps through, and the toggles' order.
+export const MINIMAP_VIEWS: readonly MinimapView[] = ['close', 'wide', 'world'];
 
 // How a view is drawn beyond its own framing: `zoom` times closer, and slid `pan` metres along the
-// view's own right and up (so the near view's pan turns with you).
+// view's own right and up (so a view centred on you pans as you turn).
 export interface Framing {
   zoom: number;
   pan: { right: number; up: number };
@@ -42,7 +45,8 @@ export const STILL: Framing = { zoom: 1, pan: { right: 0, up: 0 } };
 // Canvas pixels per CSS pixel: the screen's own density, and at least two, so a plain screen gets
 // the map drawn finer and smoothed down.
 const RES = Math.min(3, Math.max(2, Math.ceil(window.devicePixelRatio || 1)));
-const NEAR_RANGE = 26; // metres from you to the nearer edge in the near view
+// Metres from you to the nearer edge in each view centred on you.
+const RANGES: Record<Exclude<MinimapView, 'world'>, number> = { close: 32, wide: 100 };
 const WORLD_MARGIN = 8; // metres round the outline in the world view
 const GRID_SPACING = 10;
 const EDGE = 2.2; // CSS pixels of outline outside the world's edge
@@ -90,15 +94,15 @@ export class MapCanvas {
   private readonly landmarkLayer = layer();
   private readonly woodLayer = layer();
   private readonly houseLayer = layer();
-  private readonly parts: Path2D[];
+  private readonly parts: Map<WorldPart, Path2D>; // each part's path, made once
   private readonly bounds;
   private width = 0; // CSS pixels, as last drawn
   private height = 0;
 
   constructor(readonly canvas: HTMLCanvasElement) {
     this.ctx = canvas.getContext('2d')!;
-    this.parts = WORLD_SHAPE.map(partPath);
-    this.bounds = worldBounds(WORLD_SHAPE);
+    this.parts = new Map(WORLD_GROUND.parts.map((part) => [part, partPath(part)]));
+    this.bounds = WORLD_GROUND.bounds;
   }
 
   // The frame in `view`, filling the canvas at the size it's shown at.
@@ -117,11 +121,11 @@ export class MapCanvas {
       ctx.globalAlpha = Math.abs(p.y - y) < LEVEL ? 1 : 0.45;
       ctx.fillStyle = p.color;
       if (p.bot) this.bot(t, p.x, p.z);
-      else this.arrow(t, p.x, p.z, p.yaw - (view === 'near' ? frame.me.yaw : 0), OTHERS);
+      else this.arrow(t, p.x, p.z, p.yaw - (view === 'world' ? 0 : frame.me.yaw), OTHERS);
     }
     ctx.globalAlpha = 1;
     ctx.fillStyle = '#fff';
-    this.arrow(t, x, z, view === 'near' ? 0 : frame.me.yaw, 1);
+    this.arrow(t, x, z, view === 'world' ? frame.me.yaw : 0, 1);
   }
 
   // The whole world, north up, with no one on it: at ground level, or with `high` as it's seen
@@ -171,11 +175,11 @@ export class MapCanvas {
   private transform(me: MinimapFrame['me'], view: MinimapView, framing: Framing): Transform {
     const short = Math.min(this.width, this.height);
     let t: Transform;
-    if (view === 'near') {
+    if (view !== 'world') {
       t = {
         ox: me.x,
         oz: me.z,
-        scale: (NEAR_RANGE * 2) / short,
+        scale: (RANGES[view] * 2) / short,
         fx: Math.sin(me.yaw),
         fz: Math.cos(me.yaw),
         rx: Math.cos(me.yaw),
@@ -193,11 +197,15 @@ export class MapCanvas {
     return t;
   }
 
-  // The floor, its grid, `landmarks` and the world's edge, as shapes in world metres through `t`.
+  // The floor, its grid, `landmarks` and the world's edge, as shapes in world metres through `t`,
+  // each only where it's on the canvas, so a frame costs what's in view however big the world is.
   // The edge is every part's outline with everything inside the world rubbed out again, leaving the
   // outside half of the line round the whole; the rest goes under it, top first, each on a layer
   // masked to its shapes so overlapping parts don't double up.
-  private drawFloor(t: Transform, landmarks: Landmark[]): void {
+  private drawFloor(t: Transform, all: Landmark[]): void {
+    const view = this.view(t);
+    const parts = WORLD_GROUND.partsIn(view).map((part) => this.parts.get(part)!);
+    const landmarks = all.filter((l) => overlaps(landmarkBox(l), view));
     const W = this.width * RES;
     const H = this.height * RES;
     const k = RES / t.scale; // canvas pixels per metre
@@ -232,9 +240,9 @@ export class MapCanvas {
     place(ctx);
     ctx.strokeStyle = OUTLINE;
     ctx.lineWidth = px(2 * EDGE);
-    for (const p of this.parts) ctx.stroke(p);
+    for (const p of parts) ctx.stroke(p);
     ctx.globalCompositeOperation = 'destination-out';
-    for (const p of this.parts) ctx.fill(p);
+    for (const p of parts) ctx.fill(p);
     ctx.globalCompositeOperation = 'destination-over';
 
     ctx.strokeStyle = RING;
@@ -255,17 +263,28 @@ export class MapCanvas {
     place(this.woodLayer);
     cover(this.woodLayer, marks.filter(wooden).map(partPath));
     tint(this.woodLayer, WOOD);
+    // The layer composited only when a house is on it: Chrome can keep showing a layer's last
+    // drawing after a clear with nothing drawn over it, which left a house standing on the map
+    // where it had been.
     place(this.houseLayer);
+    let housed = false;
     for (const l of landmarks) {
       if (l.kind === 'pineapple') drawPineapple(this.houseLayer, l, px);
       else if (l.kind === 'krusty-krab') drawKrustyKrab(this.houseLayer, l, px);
+      else continue;
+      housed = true;
     }
 
     place(this.floorLayer);
-    cover(this.floorLayer, this.parts); // the world's floor, as a mask for the grid first
+    cover(this.floorLayer, parts); // the world's floor, as a mask for the grid first
     const grid = this.gridLayer;
     place(grid);
-    const b = this.bounds;
+    const b = {
+      minX: Math.max(this.bounds.minX, view.minX),
+      maxX: Math.min(this.bounds.maxX, view.maxX),
+      minZ: Math.max(this.bounds.minZ, view.minZ),
+      maxZ: Math.min(this.bounds.maxZ, view.maxZ),
+    };
     grid.beginPath();
     for (let x = Math.ceil(b.minX / GRID_SPACING) * GRID_SPACING; x <= b.maxX; x += GRID_SPACING) {
       grid.moveTo(x, b.minZ);
@@ -285,8 +304,30 @@ export class MapCanvas {
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     for (const l of [this.houseLayer, this.landmarkLayer, this.woodLayer, grid, this.floorLayer])
-      ctx.drawImage(l.canvas, 0, 0);
+      if (l !== this.houseLayer || housed) ctx.drawImage(l.canvas, 0, 0);
     ctx.globalCompositeOperation = 'source-over';
+  }
+
+  // The box in world metres round all of the canvas as `t` draws it, a little past its edge so the
+  // world's outline drawn just outside a part still shows at the canvas's side.
+  private view(t: Transform): Bounds {
+    const margin = 2 * EDGE * t.scale;
+    const corners = [
+      [0, 0],
+      [this.width, 0],
+      [0, this.height],
+      [this.width, this.height],
+    ].map(([x, y]) => {
+      const right = (x - this.width / 2) * t.scale;
+      const up = (this.height / 2 - y) * t.scale;
+      return { x: t.ox + right * t.rx + up * t.fx, z: t.oz + right * t.rz + up * t.fz };
+    });
+    return {
+      minX: Math.min(...corners.map((c) => c.x)) - margin,
+      maxX: Math.max(...corners.map((c) => c.x)) + margin,
+      minZ: Math.min(...corners.map((c) => c.z)) - margin,
+      maxZ: Math.max(...corners.map((c) => c.z)) + margin,
+    };
   }
 
   private toPixel(t: Transform, x: number, z: number): [number, number] {
@@ -427,6 +468,24 @@ function drawKrustyKrab(c: CanvasRenderingContext2D, m: KrustyKrabMark, px: (n: 
   for (const side of [-1, 1]) c.fillRect(side * (roof.w / 2 + arch / 2) - arch / 2, -m.d * 0.46, arch, m.d * 0.92);
   c.strokeRect(-m.w / 2, -m.d / 2, m.w, m.d);
   c.restore();
+}
+
+// The box round a landmark in world metres, as the map draws it.
+function landmarkBox(l: Landmark): Bounds {
+  const round = (x: number, z: number, r: number): Bounds => ({ minX: x - r, maxX: x + r, minZ: z - r, maxZ: z + r });
+  if (l.kind === 'disc') return round(l.x, l.z, l.r);
+  if (l.kind === 'pineapple') return round(l.x, l.z, l.sand);
+  if (l.kind === 'krusty-krab') return round(l.x, l.z, Math.hypot(l.w, l.d) / 2);
+  return {
+    minX: Math.min(l.ax, l.bx) - l.halfWidth,
+    maxX: Math.max(l.ax, l.bx) + l.halfWidth,
+    minZ: Math.min(l.az, l.bz) - l.halfWidth,
+    maxZ: Math.max(l.az, l.bz) + l.halfWidth,
+  };
+}
+
+function overlaps(a: Bounds, b: Bounds): boolean {
+  return a.maxX >= b.minX && a.minX <= b.maxX && a.maxZ >= b.minZ && a.minZ <= b.maxZ;
 }
 
 // A part of the outline, or a landmark, as one closed path in world metres (a landmark open in the

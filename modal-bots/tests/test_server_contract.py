@@ -26,6 +26,9 @@ from common.navigation import Route
 from common.world import Region, load_world_map
 
 ROOT = Path(__file__).resolve().parents[2]
+# Seconds a test waits for the next message from the server, which sends 30 a second: long enough
+# for a shared CI runner that stalls a few seconds under load, so only a hung server fails.
+RECEIVE_TIMEOUT = 10
 
 
 def free_port() -> int:
@@ -115,7 +118,7 @@ def test_connects_and_decodes_real_room_server(room_server: str) -> None:
             assert me.bot, "the server flags us as a bot from the join URL"
 
             while True:
-                message = await asyncio.wait_for(connection.receive(), timeout=2)
+                message = await asyncio.wait_for(connection.receive(), timeout=RECEIVE_TIMEOUT)
                 if isinstance(message, Snapshot):
                     assert message.tick > connection.welcome.tick
                     assert any(player.id == connection.id for player in message.players)
@@ -172,7 +175,7 @@ def test_circle_bot_orbits_the_only_other_player(room_server: str) -> None:
         )
         try:
             while not circle.done():
-                message = await asyncio.wait_for(target.receive(), timeout=2)
+                message = await asyncio.wait_for(target.receive(), timeout=RECEIVE_TIMEOUT)
                 if isinstance(message, Snapshot):
                     player = next(
                         (player for player in message.players if player.name == "circle-bot"),
@@ -198,7 +201,7 @@ def test_circle_bot_orbits_the_only_other_player(room_server: str) -> None:
     )
 
 
-def test_stalker_stands_where_it_asks_watches_the_person_and_dies_to_kill_bots(room_server: str) -> None:
+def test_stalker_stands_where_it_asks_as_tung_watches_the_person_and_dies_to_kill_bots(room_server: str) -> None:
     async def scenario() -> tuple[dict[str, object], float]:
         person = await seat_person(room_server, "python-stalker")
         stalker = asyncio.create_task(
@@ -213,7 +216,7 @@ def test_stalker_stands_where_it_asks_watches_the_person_and_dies_to_kill_bots(r
         started = time.monotonic()
         try:
             while True:
-                message = await asyncio.wait_for(person.receive(), timeout=2)
+                message = await asyncio.wait_for(person.receive(), timeout=RECEIVE_TIMEOUT)
                 if not isinstance(message, Snapshot):
                     continue
                 me = next(p for p in message.players if p.id == person.id)
@@ -221,7 +224,7 @@ def test_stalker_stands_where_it_asks_watches_the_person_and_dies_to_kill_bots(r
                 if bot is None:
                     continue
                 assert (bot.pos.x, bot.pos.y, bot.pos.z) == pytest.approx((112, 21.7, 0)), "on floor 1"
-                assert bot.avatar == "elizabeth"
+                assert bot.avatar == "sahur", "whatever it was asked to wear"
                 facing = math.atan2(me.pos.x - bot.pos.x, me.pos.z - bot.pos.z)
                 if abs(math.remainder(bot.yaw - facing, math.tau)) < 1e-6:
                     break
@@ -278,6 +281,57 @@ def test_a_route_walks_up_the_tower_stair_and_out_onto_a_balcony(room_server: st
     assert math.hypot(eye.x - 112, eye.z) > 20, "outside the wall"
 
 
+def test_a_route_told_the_doors_opens_the_pineapples_front_door_on_its_way_in(room_server: str) -> None:
+    world = load_world_map()
+    slab = next(slab for door, slab in world.doors if door == "front")
+    # Out from the doorway toward the middle of the world, and in from it, on the dune's floor.
+    out = Vec3(-slab.x, 0, -slab.z)
+    length = math.hypot(out.x, out.z)
+    outside = Vec3(slab.x + 4 * out.x / length, slab.base + 1, slab.z + 4 * out.z / length)
+    goal = world.node_at(Vec3(slab.x - 4 * out.x / length, slab.base, slab.z - 4 * out.z / length))
+    assert goal is not None
+
+    async def scenario() -> tuple[Vec3, list[Event]]:
+        person = await seat_person(room_server, "python-door")
+        walker = await connect(None, "python-door", "walker", direct_url=room_server, spawn=outside)
+        state = WorldState(walker.welcome, walker.room)
+        assert state.doors["front"] is False
+        controls = Controls(walker)
+        stop = asyncio.Event()
+        inputs = asyncio.create_task(run_input_loop(controls, stop))
+        route: Route | None = None
+        swung: list[Event] = []
+        try:
+            async with asyncio.timeout(30):
+                while True:
+                    message = await walker.receive()
+                    state.apply(message)
+                    if isinstance(message, Event) and message.t == "door":
+                        swung.append(message)
+                    me = state.me
+                    assert me is not None
+                    if route is None or route.stuck(state.tick):
+                        start = world.node_at(Vec3(me.pos.x, me.pos.y - 1.7, me.pos.z))
+                        assert start is not None
+                        path = world.path(start, goal, doors=True)
+                        assert path is not None
+                        route = Route(world, path, state.tick, doors=state.doors)
+                    if not route.steer(me.pos, state.tick, controls):
+                        return me.pos, swung
+        finally:
+            stop.set()
+            inputs.cancel()
+            with suppress(asyncio.CancelledError, RoomConnectionError):
+                await inputs
+            await walker.close()
+            await person.close()
+
+    eye, swung = asyncio.run(scenario())
+    assert [(e.data["id"], e.data["open"]) for e in swung] == [("front", True)], "it opened the door once"
+    there = world.nodes[goal]
+    assert math.hypot(eye.x - there.x, eye.z - there.z) < 1, "and walked in"
+
+
 def test_sniper_fires_at_a_person_in_sight_then_waits_out_its_cooldown(
     room_server: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -288,18 +342,22 @@ def test_sniper_fires_at_a_person_in_sight_then_waits_out_its_cooldown(
     async def scenario() -> tuple[list[int], dict[str, Any]]:
         person = await seat_person(room_server, "python-sniper")
         me = next(p for p in person.welcome.players if p.id == person.id)
-        # It starts on a floor indoors; here the only one is a patch of the open main disc, 20 m
-        # nearer its middle than the person, with nothing in the way, and the only place it may
-        # perch, so it stands its ground there.
+        # It starts on a floor indoors; here the only one is the spot on the main disc's floor
+        # nearest a point 20 m nearer its middle than the person, with nothing in the way, and the
+        # only place it may perch, so it stands its ground there.
         away = 20 / max(1.0, math.hypot(me.pos.x, me.pos.z))
+        near = (me.pos.x * (1 - away), me.pos.z * (1 - away))
         world = copy.copy(load_world_map())
-        world.insides = (Region("disc", me.pos.x * (1 - away), me.pos.z * (1 - away), 0, r=2),)
+        floor = (n for i, n in enumerate(world.nodes) if i not in world.areas and n.y == 0)
+        nearest = sorted(floor, key=lambda n: math.hypot(n.x - near[0], n.z - near[1]))
+        spot = next(n for n in nearest if world.clear(Vec3(n.x, n.y + 1.7, n.z), me.pos))
+        world.insides = (Region("disc", spot.x, spot.z, 0, r=0.5),)
         sniper = asyncio.create_task(run_sniper_bot("python-sniper", seconds=8, world=world, direct_ws_url=room_server))
         shot_ticks: list[int] = []
         tick = person.welcome.tick
         try:
             while not sniper.done():
-                message = await asyncio.wait_for(person.receive(), timeout=2)
+                message = await asyncio.wait_for(person.receive(), timeout=RECEIVE_TIMEOUT)
                 if isinstance(message, Snapshot):
                     tick = message.tick
                 elif isinstance(message, Event) and message.t == "shot" and message.data["id"] != person.id:

@@ -89,10 +89,11 @@ async def warm_room() -> None:
         print(f"room warm-up failed: {e}")
 
 
-def bounce_target(referer: str, room_url: str) -> str:
-    """Where a refused join goes back to: the page it came from when that is one of the game's own
-    (the launcher, the room host, a local dev page), else the launcher. An invite opened from a chat
-    app's web page has that page as its referer, and the error must not land there."""
+def home_page(referer: str, room_url: str) -> str:
+    """Where a join goes back to, refused or left: the page it came from when that is one of the
+    game's own (the launcher, the room host, a local dev page), else the launcher. An invite opened
+    from a chat app's web page has that page as its referer, or none from the app itself, and the
+    player must not land there."""
     from urllib.parse import urlparse
 
     def origin(url: str) -> str:
@@ -106,7 +107,7 @@ def bounce_target(referer: str, room_url: str) -> str:
 
 
 def build_api(warm: Callable[[], Coroutine[Any, Any, None]] = warm_room) -> "FastAPI":
-    from urllib.parse import urlencode, urlparse
+    from urllib.parse import urlencode
 
     from fastapi import FastAPI, HTTPException, Request
     from fastapi.responses import RedirectResponse
@@ -140,7 +141,7 @@ def build_api(warm: Callable[[], Coroutine[Any, Any, None]] = warm_room) -> "Fas
 
         def refuse(reason: str) -> RedirectResponse:
             back = urlencode({"error": reason, "tab": mode, "code": room_id})
-            target = bounce_target(request.headers.get("referer", ""), room_url)
+            target = home_page(request.headers.get("referer", ""), room_url)
             return RedirectResponse(f"{target}/?{back}", status_code=302)
 
         entry_info = await live_session(room_id, room_url)
@@ -153,8 +154,6 @@ def build_api(warm: Callable[[], Coroutine[Any, Any, None]] = warm_room) -> "Fas
         elif mode == "create":
             return refuse(f"room {room_id} already exists")
         lobby_url = (await lobby.get_web_url.aio() or "").rstrip("/")
-        # Where the player came from (the launcher), so the room page can send them back to it.
-        home = urlparse(request.headers.get("referer", ""))
         params = {
             "modal_session_token": entry_info["token"],
             "room": room_id,
@@ -166,8 +165,9 @@ def build_api(warm: Callable[[], Coroutine[Any, Any, None]] = warm_room) -> "Fas
             params["avatar"] = avatar
         if color:
             params["color"] = color
-        if home.scheme and home.netloc:
-            params["home"] = f"{home.scheme}://{home.netloc}"
+        # Where the room page sends the player to pick a room. From the room host itself that's its
+        # own address, which the page ignores, keeping the home it was given on the way in.
+        params["home"] = home_page(request.headers.get("referer", ""), room_url)
         query = urlencode(params)
         return RedirectResponse(f"{room_url}/?{query}", status_code=302)
 

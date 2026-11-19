@@ -1,6 +1,7 @@
 // The key legend along the bottom, a cell to each key, read off what the player is doing: each class
 // has a board of its own (the record makes a new class say what its keys are), and a board may
-// change with the body's state, as a walker's does on a ladder, where A and D go round it.
+// change with the body's state, as a walker's does on a ladder, where A and D go round it. Driving a
+// kart, whatever the body, the keys drive it.
 import { classOf, moveKeys, type PlayerClass, type PlayerState } from '@world/shared';
 
 export interface LegendCell {
@@ -31,6 +32,14 @@ const BOARDS: Record<PlayerClass, (p: PlayerState) => LegendCell[]> = {
   'asian-dragon': () => [cell(['W'], 'fly forward'), cell(['A', 'S', 'D'], 'roar')],
 };
 
+const DRIVING: LegendCell[] = [
+  cell(['W'], 'gas'),
+  cell(['S'], 'brake'),
+  cell(['A', 'D'], 'steer'),
+  cell(['Space'], 'hop, hold to drift, trick in the air'),
+  cell(['E'], 'get out'),
+];
+
 export function legendOf(p: PlayerState): LegendCell[] {
-  return [...BOARDS[classOf(p.avatar).id](p), ...COMMON];
+  return [...(p.riding ? DRIVING : BOARDS[classOf(p.avatar).id](p)), ...COMMON];
 }

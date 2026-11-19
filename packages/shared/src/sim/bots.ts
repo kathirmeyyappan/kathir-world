@@ -1,12 +1,12 @@
 // Bots a player can call from chat. Each runs on one of the bots app's Modal workers (see
 // modal-bots/) and joins the caller's room as a flagged player for a while. The registry key is
 // what the worker takes; the player name is what everyone sees. A row here needs a bot module
-// under modal-bots/bots/, registered with its worker; a module without a row (the observer) is
-// only started by hand with `modal run`.
+// under modal-bots/bots/, registered with its worker; a module without a row is only started by
+// hand with `modal run`.
 import { isAvatarId, type AvatarId } from './avatars';
 import type { Vec3 } from './types';
 
-export type BotId = 'circle' | 'stalker' | 'sniper';
+export type BotId = 'circle' | 'stalker' | 'observer' | 'sniper';
 
 // The bots app's workers, each with its own arguments. A dumb bot takes only how long to stay; a
 // combat bot reads the world map (line of sight, a way round) and takes the names it hunts.
@@ -17,6 +17,7 @@ export interface BotSpec {
   playerName: string; // in-game name, `<id>-bot`
   worker: BotWorker;
   blurb: string; // one plain line for the commands menu
+  look?: AvatarId; // the look it always wears, which then takes no skin
 }
 
 export const BOT_DEFAULT_SECONDS = 300; // a called bot's stay when the caller doesn't say
@@ -34,6 +35,13 @@ export const BOTS: Record<BotId, BotSpec> = {
     playerName: 'stalker-bot',
     worker: 'dumb',
     blurb: 'stands still and turns to watch the nearest person',
+    look: 'sahur',
+  },
+  observer: {
+    id: 'observer',
+    playerName: 'observer-bot',
+    worker: 'dumb',
+    blurb: 'stands where it lands and does nothing at all',
   },
   sniper: {
     id: 'sniper',
@@ -45,7 +53,8 @@ export const BOTS: Record<BotId, BotSpec> = {
 
 // The flags a bot command takes, in any order, each at most once. commands.ts parses them and the
 // usage lines and the commands menu's bot rows are written from here, so a new flag is a row here and its case in
-// the parser. Each has a short form where one's free, a long form, and the bots it works for.
+// the parser. Each has a short form where one's free, a long form, and the workers it works for
+// (`botFlags` narrows that to one bot).
 export type BotFlag = 'time' | 'name' | 'skin' | 'target';
 
 export interface BotFlagSpec {
@@ -88,14 +97,20 @@ export function botFlagFor(word: string): BotFlag | null {
   return BOT_FLAG_IDS.find((f) => BOT_FLAGS[f].short === word || BOT_FLAGS[f].long === word) ?? null;
 }
 
-// "-t [seconds] -n [name] -s [skin]": a worker's flags, short forms where they have them.
-export function botArguments(worker: BotWorker): string {
-  return BOT_FLAG_IDS.filter((f) => BOT_FLAGS[f].workers.includes(worker))
+export const BOT_IDS = Object.keys(BOTS) as BotId[];
+
+// The flags a bot takes: its worker's, but no skin for one with a look of its own.
+export function botFlags(bot: BotId): BotFlag[] {
+  const { worker, look } = BOTS[bot];
+  return BOT_FLAG_IDS.filter((f) => BOT_FLAGS[f].workers.includes(worker) && !(f === 'skin' && look));
+}
+
+// "-t [seconds] -n [name] -s [skin]": a bot's flags, short forms where they have them.
+export function botArguments(bot: BotId): string {
+  return botFlags(bot)
     .map((f) => `${BOT_FLAGS[f].short ?? BOT_FLAGS[f].long} [${BOT_FLAGS[f].value}]`)
     .join(' ');
 }
-
-export const BOT_IDS = Object.keys(BOTS) as BotId[];
 
 export function isBotId(v: unknown): v is BotId {
   return typeof v === 'string' && Object.hasOwn(BOTS, v);
@@ -141,8 +156,9 @@ interface BotCall extends BotPlacement {
 
 export type BotRequest = (BotCall & { worker: 'dumb' }) | (BotCall & { worker: 'combat'; targets: string[] });
 
+// A bot with a look of its own wears it whatever it was dressed in.
 export function botRequest(call: BotCall, targets: readonly string[] = []): BotRequest {
-  return BOTS[call.bot].worker === 'combat'
-    ? { ...call, worker: 'combat', targets: [...targets] }
-    : { ...call, worker: 'dumb' };
+  const { worker, look } = BOTS[call.bot];
+  const dressed = look === undefined ? call : { ...call, avatar: look };
+  return worker === 'combat' ? { ...dressed, worker: 'combat', targets: [...targets] } : { ...dressed, worker: 'dumb' };
 }

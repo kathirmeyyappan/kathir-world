@@ -16,6 +16,7 @@ import {
   EYE_HEIGHT,
   MAX_INPUTS_PER_TICK,
   MAX_INPUT_QUEUE,
+  INPUT_WAIT_TICKS,
   MAX_NAME_LENGTH,
   MAX_BOTS,
   MAX_PLAYERS,
@@ -23,7 +24,6 @@ import {
   CHILL_SECONDS,
   DEATH_SCREEN_SECONDS,
   NAMED_COLORS,
-  PLAYER_PADDING,
   SPEEDY_SECONDS,
   STEP_UP,
   TICK_DT,
@@ -41,7 +41,8 @@ import { defaultBotsFor } from './sim/defaultBots';
 import { GEAR, createGear, gearHelp, type GearId } from './sim/gear';
 import { ITEMS, createItem, itemHelp, type Element, type ItemAction, type ItemId, type ItemSpec } from './sim/items';
 import { createCubes, stepCubes } from './sim/cubes';
-import { randomPointInRegion } from './sim/regions';
+import { OUTSIDE_HEIGHT } from './sim/ground';
+import { randomPointInDisc, randomPointInRegion } from './sim/regions';
 import { createPickups, dropPickup, stepPickups, takePickups, type PickupArea, type PickupField } from './sim/pickups';
 import { becomeAvatar, createPlayer, stepPlayer } from './sim/player';
 import { throwWalker } from './sim/walker';
@@ -50,8 +51,9 @@ import type { CubeState, InputFrame, PlayerState, Vec3 } from './sim/types';
 import { Structures } from './sim/collision';
 import { STRUCTURES } from './content/structures';
 import { DOOR_DEBOUNCE_SECONDS, DOOR_REACH, lookVector } from './sim/doors';
+import { Garage } from './sim/vehicles/garage';
+import { KARTS } from './sim/vehicles/karts';
 import { CAPSULE_TOP } from './sim/health';
-import { WORLD_SHAPE, clampToWorld, randomPointInDisc, worldDistance, type WorldPart } from './sim/world';
 
 // Shared has no DOM or Node lib; both runtimes provide these.
 declare function setInterval(cb: () => void, ms: number): unknown;
@@ -82,6 +84,7 @@ interface Seat {
   state: PlayerState;
   link: ClientLink;
   queue: InputFrame[];
+  owed: number; // ticks held waiting for a late frame, not yet made up (INPUT_WAIT_TICKS)
 }
 
 export interface JoinOptions extends BotPlacement {
@@ -98,7 +101,6 @@ export type BotSpawner = (request: BotRequest) => Promise<void>;
 
 export interface RoomOptions {
   seed?: number;
-  worldShape?: WorldPart[];
   structures?: Structures;
   onEmpty?: () => void;
   log?: (msg: string) => void;
@@ -114,8 +116,8 @@ function aClass(avatar: AvatarId): string {
 
 export class Room {
   readonly id: string;
-  readonly worldShape: WorldPart[];
   readonly structures: Structures;
+  readonly garage: Garage; // its karts
   tick = 0;
 
   private readonly seats = new Map<string, Seat>();
@@ -133,10 +135,10 @@ export class Room {
 
   constructor(id: string, opts: RoomOptions = {}) {
     this.id = id;
-    this.worldShape = opts.worldShape ?? WORLD_SHAPE;
     this.structures = opts.structures ?? new Structures(STRUCTURES); // its own: doors swing per room
+    this.garage = new Garage(this.structures);
     this.rng = createRng(opts.seed ?? (Math.random() * 2 ** 32) >>> 0);
-    this.cubes = createCubes(CUBE_IDS, this.worldShape, this.rng);
+    this.cubes = createCubes(CUBE_IDS, this.rng);
     this.pickups = createPickups(opts.pickupAreas ?? PICKUP_AREAS, this.rng);
     this.onEmpty = opts.onEmpty;
     this.log = opts.log ?? (() => {});
@@ -217,6 +219,7 @@ export class Room {
       state,
       link,
       queue: [],
+      owed: 0,
       lastShotTick: -Infinity,
       lastActTick: -Infinity,
       lastRenameTick: -Infinity,
@@ -233,6 +236,7 @@ export class Room {
       pickups: this.pickupSnapshot(),
       doors: this.structures.doorIds.map((door) => ({ id: door, open: this.structures.isOpen(door) })),
       frost: this.structures.frost.list(),
+      karts: this.garage.list,
     });
     this.broadcast({ t: 'join', p: state }, id);
     this.log(`${state.name} (${id}) joined ${this.id}${state.bot ? ' as a bot' : ''}, ${this.seats.size} online`);
@@ -276,11 +280,11 @@ export class Room {
     const seat = this.seats.get(id);
     if (!seat) return;
     this.seats.delete(id);
+    this.garage.getOut(seat.state);
     if (seat.state.dead)
-      for (const at of classOf(seat.state.avatar).lies(seat.state, this.structures)) {
-        clampToWorld(at, PLAYER_PADDING, this.worldShape);
-        dropPickup(this.pickups, CORPSE_DROP, at, this.rng);
-      }
+      // Not past the edge: nobody walks down to the ground there and back.
+      for (const at of classOf(seat.state.avatar).lies(seat.state, this.structures))
+        if (this.structures.ground.inside(at.x, at.z)) dropPickup(this.pickups, CORPSE_DROP, at, this.rng);
     this.broadcast({ t: 'leave', id, name: seat.state.name });
     this.log(`${seat.state.name} (${id}) left ${this.id}, ${this.seats.size} online`);
     if (this.humanCount === 0) this.onEmpty?.(); // bots alone don't keep a room open
@@ -326,7 +330,7 @@ export class Room {
     const name = cleanName(raw);
     if (!name || name === me.name) return;
     if (this.tick - seat.lastRenameTick < RENAME_SECONDS * TICK_RATE) {
-      seat.link.send({ t: 'system', text: 'you can rename again in a few seconds' });
+      this.refuse(seat, 'you can rename again in a few seconds');
       return;
     }
     seat.lastRenameTick = this.tick;
@@ -341,6 +345,11 @@ export class Room {
   private applyActions(seat: Seat, frame: InputFrame): void {
     const me = seat.state;
     const pressed = (action: ItemAction) => frame.actions.includes(action) && !seat.held.includes(action);
+    if (me.riding) {
+      if (pressed('exit')) this.garage.getOut(me);
+      seat.held = frame.actions;
+      return;
+    }
     const cls = classOf(me.avatar);
     for (const action of Object.keys(cls.actions) as ItemAction[])
       if (pressed(action) && !me.dead && this.tick - seat.lastActTick >= cls.actionTicks) {
@@ -367,14 +376,29 @@ export class Room {
         avatar: p.avatar,
         pos: was?.pos ?? p.pos,
         dragon: was ? was.dragon : p.dragon,
+        riding: p.riding,
         player: p,
       };
     });
+    // A kart takes what reaches it first: a shot that would, stopped short of it, hits nobody
+    // nearer. A spray reaches every kart it takes in, as it does everyone.
+    const eye = eyeOf(me);
+    const aim = cls.aim(me);
+    const cost = damageFor(spec, false);
+    const kart =
+      spec.fire.kind === 'cone'
+        ? null
+        : this.garage.at(eye, aim, Math.min(spec.range, this.structures.raycast(eye, aim, spec.range)));
+    const hits = resolveFire(kart ? { ...spec, range: kart.t } : spec, me, targets, this.structures);
+    if (kart && hits.length === 0) this.garage.shoot(kart.kart.id, cost, me.id);
+    if (spec.fire.kind === 'cone')
+      for (const k of this.garage.within(eye, aim, spec.range, spec.fire.halfAngle))
+        this.garage.shoot(k.id, cost, me.id);
     // Ice chills from the last touch; fire thaws, as it thaws the frost it lands on.
-    for (const hit of resolveFire(spec, me, targets, this.structures)) {
+    for (const hit of hits) {
       const victim = hit.target.player;
-      const cost = damageFor(spec, hit.headshot);
-      const hearts = classOf(victim.avatar).hurt?.(victim, hit.part, cost, spec) ?? cost;
+      const dealt = damageFor(spec, hit.headshot);
+      const hearts = classOf(victim.avatar).hurt?.(victim, hit.part, dealt, spec) ?? dealt;
       if (hearts === 0) continue; // off a dragon's shell: nothing
       if (spec.element === 'ice') victim.chilled = CHILL_SECONDS;
       else if (spec.element === 'fire') victim.chilled = 0;
@@ -386,19 +410,22 @@ export class Room {
   // What a spray lands on (sim/frost.ts): an ice one frosts it, for good, and a fire one melts it.
   // Everyone hears of every cell that turned, the oldest frost melting to make room past MAX_FROST.
   private spray(me: PlayerState, halfAngle: number, range: number, element: Element): void {
-    const floor = (x: number, z: number) => worldDistance(x, z, this.worldShape) < 0;
     const dir = classOf(me.avatar).aim(me);
     const ice = element === 'ice';
-    const changed = sprayFrost(this.structures, floor, eyeOf(me), dir, halfAngle, range, this.tick, ice);
+    const changed = sprayFrost(this.structures, eyeOf(me), dir, halfAngle, range, this.tick, ice);
     const on = ice ? changed : [];
     const off = ice ? this.structures.frost.trim() : changed;
     if (on.length || off.length) this.broadcast({ t: 'frost', on, off });
   }
 
-  // A click on a door within reach swings it the other way, for everyone; a second click hard on
-  // the first is the same click.
-  private useDoor(seat: Seat, id: string): void {
+  // A click on something within reach: a kart gets them in it (vehicles/garage.ts), and a door
+  // swings the other way, for everyone, a second click hard on the first being the same click.
+  private use(seat: Seat, id: string): void {
     const me = seat.state;
+    if (this.garage.has(id)) {
+      this.garage.getIn(me, id);
+      return;
+    }
     if (me.dead || !this.structures.doorIds.includes(id)) return;
     if (this.tick - (this.doorSwung.get(id) ?? -Infinity) < DOOR_DEBOUNCE_SECONDS * TICK_RATE) return;
     if (this.structures.doorAt(me.pos, lookVector(me.yaw, me.pitch), DOOR_REACH) !== id) return;
@@ -409,12 +436,14 @@ export class Room {
   }
 
   // Takes hearts off `victim`, for a shot by `by.shooter` (or their `move`: a ground pound, a
-  // strike) or, with no `by`, a fall, and kills them at zero. A death is one structured message;
-  // clients word the announcement.
+  // strike, a kart run into them, a kart blown up beside them) or, with no `by` or by their own
+  // doing, a fall or the crash `death` says, and kills them at zero, out of any kart they drive. A
+  // death is one structured message; clients word the announcement.
   private damage(
     victim: PlayerState,
     damage: number,
-    by: { shooter: Seat; headshot: boolean; move?: 'pound' | 'strike' } | null,
+    by: { shooter: Seat; headshot: boolean; move?: 'pound' | 'strike' | 'kart' | 'explosion' } | null,
+    death: 'fell' | 'crashed' = 'fell',
   ): void {
     const killed = applyDamage(victim, damage);
     const shooter = by?.shooter.state ?? null;
@@ -428,9 +457,10 @@ export class Room {
       hearts: victim.hearts,
     });
     if (!killed) return;
+    this.garage.getOut(victim);
     const seat = this.seats.get(victim.id);
     if (seat) seat.diedTick = this.tick;
-    if (!shooter) return this.broadcast({ t: 'fell', victim: victim.id });
+    if (!shooter || shooter === victim) return this.broadcast({ t: death, victim: victim.id });
     shooter.kills++;
     const item = by?.move ?? shooter.item!.id;
     this.broadcast({ t: 'kill', shooter: shooter.id, victim: victim.id, item, headshot });
@@ -443,6 +473,9 @@ export class Room {
     this.pound(seat);
     const damage = fallDamage(speed);
     if (damage > 0 && !me.dead) this.damage(me, damage, null);
+    // Down on the ground past the edge (ground.ts), a body on foot is done for, whatever the fall.
+    if (!me.dead && classOf(me.avatar).id === 'walker' && me.pos.y - EYE_HEIGHT <= OUTSIDE_HEIGHT + 1e-6)
+      this.damage(me, me.hearts, null);
   }
 
   // A ground pound landing this tick (avatars.ts `Pound`) hurts everyone else on foot within its
@@ -496,8 +529,9 @@ export class Room {
 
   // One step of a seat's player, on `frame` or with none, and what comes of it.
   private advance(seat: Seat, frame: InputFrame | null): void {
+    if (seat.state.riding) return this.garage.drive(seat.state, frame, TICK_DT);
     const struck = seat.state.strike;
-    this.land(seat, stepPlayer(seat.state, frame, TICK_DT, this.worldShape, this.structures));
+    this.land(seat, stepPlayer(seat.state, frame, TICK_DT, this.structures));
     this.strike(seat, struck);
   }
 
@@ -515,23 +549,40 @@ export class Room {
         me.hearts = Math.min(heartsOf(me.avatar), me.hearts + REGEN_RATE * TICK_DT);
       const n = Math.min(seat.queue.length, MAX_INPUTS_PER_TICK);
       if (n === 0) {
-        this.advance(seat, null);
+        if (seat.owed < INPUT_WAIT_TICKS) seat.owed++;
+        else this.advance(seat, null);
         continue;
       }
+      seat.owed = Math.max(0, seat.owed - (n - 1));
       for (let i = 0; i < n; i++) {
         this.advance(seat, seat.queue[i]);
         this.applyActions(seat, seat.queue[i]);
         const use = seat.queue[i].use;
-        if (use) this.useDoor(seat, use);
+        if (use) this.use(seat, use);
       }
       seat.queue.splice(0, n);
     }
-    stepCubes(this.cubes, TICK_DT, this.worldShape, this.rng);
+    const { blows, booms } = this.garage.step(this.players);
+    for (const blow of blows) {
+      const victim = this.seats.get(blow.victim)?.state;
+      const by = blow.by === null ? undefined : this.seats.get(blow.by);
+      if (victim && !victim.dead)
+        this.damage(victim, blow.hearts, by ? { shooter: by, headshot: false, move: blow.how } : null, 'crashed');
+    }
+    for (const at of booms) this.broadcast({ t: 'boom', at });
+    stepCubes(this.cubes, TICK_DT, this.rng);
     stepPickups(this.pickups, TICK_DT, this.rng);
     for (const p of this.players) takePickups(this.pickups, p, EYE_HEIGHT);
     this.tick++;
     const players = this.players;
-    this.broadcast({ t: 'snap', tick: this.tick, players, cubes: this.cubeSnapshot(), pickups: this.pickupSnapshot() });
+    this.broadcast({
+      t: 'snap',
+      tick: this.tick,
+      players,
+      cubes: this.cubeSnapshot(),
+      pickups: this.pickupSnapshot(),
+      karts: this.garage.list,
+    });
     this.history.record(this.tick, players);
   }
 
@@ -557,12 +608,22 @@ export class Room {
     return this.cubes.map((c) => ({ id: c.id, x: c.pos.x, y: c.pos.y, z: c.pos.z, rx: c.rot.x, ry: c.rot.y }));
   }
 
+  // Tells `seat` alone that what it asked for can't be done, and why.
+  private refuse(seat: Seat, text: string): void {
+    seat.link.send({ t: 'refused', text });
+  }
+
   private runCommand(seat: Seat, command: Command): void {
     const me = seat.state;
-    const tell = (text: string) => seat.link.send({ t: 'system', text });
+    // A driver holds the wheel: no kit, and no body that can't sit in a kart, till they get out.
+    const kit =
+      command.name === 'speedy' || command.name === 'equip' || command.name === 'wear' || command.name === 'kart';
+    const unseated = command.name === 'avatar' && AVATARS[command.avatar].class !== 'walker';
+    if (me.riding && (kit || command.name === 'unequip' || unseated))
+      return this.refuse(seat, "you're driving: get out first (E)");
     switch (command.name) {
       case 'speedy':
-        if (!classOf(me.avatar).kit) return tell(`not as ${aClass(me.avatar)}`);
+        if (!classOf(me.avatar).kit) return this.refuse(seat, `not as ${aClass(me.avatar)}`);
         me.boost = SPEEDY_SECONDS;
         this.broadcast({ t: 'system', text: `${me.name} increased their movement speed for ${SPEEDY_SECONDS}s` });
         return;
@@ -570,7 +631,7 @@ export class Room {
         this.equip(seat, command.item);
         return;
       case 'wear':
-        if (!classOf(me.avatar).kit) return tell(`not as ${aClass(me.avatar)}`);
+        if (!classOf(me.avatar).kit) return this.refuse(seat, `not as ${aClass(me.avatar)}`);
         this.wear(seat, command.gear);
         return;
       case 'unequip':
@@ -592,8 +653,15 @@ export class Room {
       case 'kill-bots':
         this.killBots(seat);
         return;
+      case 'kart': {
+        if (classOf(me.avatar).id !== 'walker') return this.refuse(seat, `not as ${aClass(me.avatar)}`);
+        const kart = this.garage.drop(me, command.kart, this.seats.size);
+        if (typeof kart === 'string') return this.refuse(seat, kart);
+        this.broadcast({ t: 'system', text: `${me.name} dropped a ${KARTS[command.kart].name}` });
+        return;
+      }
       case 'unknown':
-        seat.link.send({ t: 'system', text: `unknown command /${command.raw}` });
+        this.refuse(seat, `unknown command /${command.raw}`);
         return;
     }
   }
@@ -603,7 +671,7 @@ export class Room {
   private become(seat: Seat, avatar: AvatarId, again = false): boolean {
     const why = this.cantBecome(seat.state, avatar, again);
     if (why) {
-      seat.link.send({ t: 'system', text: why });
+      this.refuse(seat, why);
       return false;
     }
     becomeAvatar(seat.state, avatar);
@@ -620,8 +688,7 @@ export class Room {
     if (!rising) return;
     const feet = me.pos.y - EYE_HEIGHT;
     if (Math.abs(feet) < 0.01) {
-      const floor = (x: number, z: number) => worldDistance(x, z, this.worldShape) < 0;
-      const on = frostDisc(this.structures, floor, me.pos.x, me.pos.z, rising.ice);
+      const on = frostDisc(this.structures, me.pos.x, me.pos.z, rising.ice);
       const off = this.structures.frost.trim();
       if (on.length || off.length) this.broadcast({ t: 'frost', on, off });
     }
@@ -659,15 +726,14 @@ export class Room {
   private callBot(seat: Seat, id: BotId, call: BotCallArgs | null): void {
     const me = seat.state;
     const bot = BOTS[id];
-    const tell = (text: string) => seat.link.send({ t: 'system', text });
-    if (call === null) return tell(`usage: /${bot.playerName} ${botArguments(bot.worker)}`);
+    if (call === null) return this.refuse(seat, `usage: /${bot.playerName} ${botArguments(id)}`);
     const { seconds, targets } = call;
     const name = call.botName === null ? undefined : sanitizeName(call.botName);
-    if (me.bot) return tell("bots can't call bots");
-    if (!this.spawnBot || !this.publicName) return tell("bots can't be called in this room");
-    if (this.seats.size >= MAX_PLAYERS) return tell('this room is full');
-    if (this.botCount >= MAX_BOTS) return tell('this room has enough bots');
-    if (call.avatar && !classOf(call.avatar).bots) return tell(`bots can't be ${aClass(call.avatar)}`);
+    if (me.bot) return this.refuse(seat, "bots can't call bots");
+    if (!this.spawnBot || !this.publicName) return this.refuse(seat, "bots can't be called in this room");
+    if (this.seats.size >= MAX_PLAYERS) return this.refuse(seat, 'this room is full');
+    if (this.botCount >= MAX_BOTS) return this.refuse(seat, 'this room has enough bots');
+    if (call.avatar && !classOf(call.avatar).bots) return this.refuse(seat, `bots can't be ${aClass(call.avatar)}`);
 
     const who = name === undefined ? bot.playerName : `${name} (${bot.playerName})`;
     const after = targets.length > 0 ? ` after ${targets.join(', ')}` : '';
@@ -681,17 +747,16 @@ export class Room {
     );
     this.spawnBot(req).catch((err: unknown) => {
       this.log(`bot ${id} for ${this.id}: ${err instanceof Error ? err.message : String(err)}`);
-      tell(`couldn't call ${bot.playerName}`);
+      this.refuse(seat, `couldn't call ${bot.playerName}`);
     });
   }
 
   // "/kill-bots": every living bot drops dead where it stands, as if shot, so each lies as a corpse
   // and is dropped like any other; a bot's run ends when the room closes its connection. People only.
   private killBots(seat: Seat): void {
-    const tell = (text: string) => seat.link.send({ t: 'system', text });
-    if (seat.state.bot) return tell("bots can't kill bots");
+    if (seat.state.bot) return this.refuse(seat, "bots can't kill bots");
     const bots = [...this.seats.values()].filter((s) => s.state.bot && !s.state.dead);
-    if (bots.length === 0) return tell('no bots here');
+    if (bots.length === 0) return this.refuse(seat, 'no bots here');
     for (const bot of bots) {
       bot.state.hearts = 0;
       bot.state.dead = true;
@@ -713,8 +778,7 @@ export class Room {
     const me = seat.state;
     const held = me.item;
     if (held?.locked) {
-      if (held.id === id) this.broadcast({ t: 'system', text: `${me.name} already has a ${id}` });
-      else seat.link.send({ t: 'system', text: `you can't put down your ${held.id}` });
+      this.refuse(seat, held.id === id ? `you already have a ${id}` : `you can't put down your ${held.id}`);
       return;
     }
     const spec = ITEMS[id];
@@ -735,7 +799,7 @@ export class Room {
     const held = me.item && !me.item.locked ? me.item.id : null;
     const worn = me.gear?.id ?? null;
     if (!held && !worn) {
-      seat.link.send({ t: 'system', text: 'nothing to unequip' });
+      this.refuse(seat, 'nothing to unequip');
       return;
     }
     if (held) me.item = null;
@@ -749,7 +813,7 @@ export class Room {
   // those feet: a spot asked for on a floor lands on it, and one in the air falls from there.
   private placedSpawn(feet: Vec3): Vec3 {
     const p = { ...feet };
-    clampToWorld(p, PLAYER_PADDING, this.worldShape);
+    this.structures.ground.clamp(p, SPAWN_WALL_MARGIN);
     return { x: p.x, y: this.standAt(p.x, p.z, feet.y) + EYE_HEIGHT, z: p.z };
   }
 
@@ -788,7 +852,7 @@ export class Room {
     const around = { kind: 'disc' as const, x: near.x, z: near.z, r: CALLED_BOT_RANGE };
     for (let i = 0; i < 20; i++) {
       const p = randomPointInDisc(around, 0, this.rng);
-      if (worldDistance(p.x, p.z, this.worldShape) <= -SPAWN_WALL_MARGIN) return p;
+      if (this.structures.ground.edge(p.x, p.z) <= -SPAWN_WALL_MARGIN) return p;
     }
     return { x: near.x, z: near.z };
   }

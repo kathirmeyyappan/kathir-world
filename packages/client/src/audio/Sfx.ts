@@ -20,6 +20,13 @@ import {
   type Vec3,
 } from '@world/shared';
 
+// Safari's Audio Session API (iOS 17 and on), not yet in TypeScript's DOM types.
+declare global {
+  interface Navigator {
+    audioSession?: { type: 'auto' | 'playback' | 'transient' | 'transient-solo' | 'ambient' | 'play-and-record' };
+  }
+}
+
 export type Channel = 'music' | 'effects';
 
 export type SoundId =
@@ -97,6 +104,12 @@ export type SoundId =
   | 'squidward-hurt-2'
   | 'squidward-hurt-3'
   | 'plankton-hurt'
+  | 'sandy-hurt-1'
+  | 'puff-hurt-1'
+  | 'puff-hurt-2'
+  | 'puff-hurt-3'
+  | 'larry-hurt-1'
+  | 'larry-hurt-2'
   | 'luigi-kill-1'
   | 'luigi-kill-2'
   | 'wario-kill-1'
@@ -120,6 +133,12 @@ export type SoundId =
   | 'squidward-kill-2'
   | 'plankton-kill-1'
   | 'plankton-kill-2'
+  | 'sandy-kill-1'
+  | 'sandy-kill-2'
+  | 'puff-kill-1'
+  | 'puff-kill-2'
+  | 'larry-kill-1'
+  | 'larry-kill-2'
   | 'mario-kill-1'
   | 'mario-kill-2'
   | 'mario-enter'
@@ -137,6 +156,12 @@ export type SoundId =
   | 'squidward-enter-1'
   | 'squidward-enter-2'
   | 'plankton-enter'
+  | 'sandy-enter'
+  | 'sandy-enter-2'
+  | 'puff-enter'
+  | 'puff-enter-2'
+  | 'larry-enter'
+  | 'larry-enter-2'
   | 'spongebob-enter'
   | 'spongebob-enter-2'
   | 'krabs-enter'
@@ -169,7 +194,8 @@ export type SoundId =
   | 'colgera-theme'
   | 'krusty-krab-theme'
   | 'spongebob-house-theme'
-  | 'tower-theme';
+  | 'tower-theme'
+  | 'elizabeth-theme';
 
 interface SoundSpec {
   file: string; // in public/assets/sounds
@@ -224,35 +250,35 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   // A character's own voice (voices.ts). Every line but the jump is recorded at one loudness, so
   // the volumes here are how they compare: a hit's cry just under the hurt sound, a kill's and a
   // switch's a little under that, a long jump under those. The jump, heard at every hop, is kept
-  // far quieter than any of them. Hurts and kills are lazy like the intros and deaths: each look's
-  // are sent for when someone near first wears it (Game.ts `voiceWanted`), so a client pays for the
-  // looks it meets, not every look there is.
-  'mario-jump-1': { file: 'mario-jump-1.mp3', half: 6, reach: 30, volume: 0.08 },
-  'mario-jump-2': { file: 'mario-jump-2.mp3', half: 6, reach: 30, volume: 0.08 },
-  'mario-jump-3': { file: 'mario-jump-3.mp3', half: 6, reach: 30, volume: 0.08 },
-  'luigi-jump-2': { file: 'luigi-jump-2.mp3', half: 6, reach: 30, volume: 0.08 },
-  'luigi-jump-3': { file: 'luigi-jump-3.mp3', half: 6, reach: 30, volume: 0.08 },
-  'wario-jump-2': { file: 'wario-jump-2.mp3', half: 6, reach: 30, volume: 0.08 },
-  'wario-jump-3': { file: 'wario-jump-3.mp3', half: 6, reach: 30, volume: 0.08 },
-  'waluigi-jump-2': { file: 'waluigi-jump-2.mp3', half: 6, reach: 30, volume: 0.08 },
-  'waluigi-jump-3': { file: 'waluigi-jump-3.mp3', half: 6, reach: 30, volume: 0.08 },
-  'peach-jump-2': { file: 'peach-jump-2.mp3', half: 6, reach: 30, volume: 0.08 },
-  'peach-jump-3': { file: 'peach-jump-3.mp3', half: 6, reach: 30, volume: 0.08 },
-  'daisy-jump-2': { file: 'daisy-jump-2.mp3', half: 6, reach: 30, volume: 0.08 },
-  'daisy-jump-3': { file: 'daisy-jump-3.mp3', half: 6, reach: 30, volume: 0.08 },
-  'mario-leap-1': { file: 'mario-leap-1.mp3', half: 6, reach: 30, volume: 0.12 },
-  'mario-leap-2': { file: 'mario-leap-2.mp3', half: 6, reach: 30, volume: 0.12 },
-  'mario-leap-3': { file: 'mario-leap-3.mp3', half: 6, reach: 30, volume: 0.12 },
-  'luigi-leap-1': { file: 'luigi-leap-1.mp3', half: 6, reach: 30, volume: 0.12 },
-  'luigi-leap-2': { file: 'luigi-leap-2.mp3', half: 6, reach: 30, volume: 0.12 },
-  'wario-leap-1': { file: 'wario-leap-1.mp3', half: 6, reach: 30, volume: 0.12 },
-  'wario-leap-2': { file: 'wario-leap-2.mp3', half: 6, reach: 30, volume: 0.12 },
-  'waluigi-leap-1': { file: 'waluigi-leap-1.mp3', half: 6, reach: 30, volume: 0.12 },
-  'waluigi-leap-2': { file: 'waluigi-leap-2.mp3', half: 6, reach: 30, volume: 0.12 },
-  'peach-leap-1': { file: 'peach-leap-1.mp3', half: 6, reach: 30, volume: 0.12 },
-  'peach-leap-2': { file: 'peach-leap-2.mp3', half: 6, reach: 30, volume: 0.12 },
-  'daisy-leap-1': { file: 'daisy-leap-1.mp3', half: 6, reach: 30, volume: 0.12 },
-  'daisy-leap-2': { file: 'daisy-leap-2.mp3', half: 6, reach: 30, volume: 0.12 },
+  // far quieter than any of them. Jumps, hurts and kills are lazy like the intros and deaths: each
+  // look's are sent for when someone near first wears it (Game.ts `wantVoice`), so a client pays
+  // for the looks it meets, not every look there is; a jump not here yet is the swoosh.
+  'mario-jump-1': { file: 'mario-jump-1.mp3', half: 6, reach: 30, volume: 0.08, lazy: true },
+  'mario-jump-2': { file: 'mario-jump-2.mp3', half: 6, reach: 30, volume: 0.08, lazy: true },
+  'mario-jump-3': { file: 'mario-jump-3.mp3', half: 6, reach: 30, volume: 0.08, lazy: true },
+  'luigi-jump-2': { file: 'luigi-jump-2.mp3', half: 6, reach: 30, volume: 0.08, lazy: true },
+  'luigi-jump-3': { file: 'luigi-jump-3.mp3', half: 6, reach: 30, volume: 0.08, lazy: true },
+  'wario-jump-2': { file: 'wario-jump-2.mp3', half: 6, reach: 30, volume: 0.08, lazy: true },
+  'wario-jump-3': { file: 'wario-jump-3.mp3', half: 6, reach: 30, volume: 0.08, lazy: true },
+  'waluigi-jump-2': { file: 'waluigi-jump-2.mp3', half: 6, reach: 30, volume: 0.08, lazy: true },
+  'waluigi-jump-3': { file: 'waluigi-jump-3.mp3', half: 6, reach: 30, volume: 0.08, lazy: true },
+  'peach-jump-2': { file: 'peach-jump-2.mp3', half: 6, reach: 30, volume: 0.08, lazy: true },
+  'peach-jump-3': { file: 'peach-jump-3.mp3', half: 6, reach: 30, volume: 0.08, lazy: true },
+  'daisy-jump-2': { file: 'daisy-jump-2.mp3', half: 6, reach: 30, volume: 0.08, lazy: true },
+  'daisy-jump-3': { file: 'daisy-jump-3.mp3', half: 6, reach: 30, volume: 0.08, lazy: true },
+  'mario-leap-1': { file: 'mario-leap-1.mp3', half: 6, reach: 30, volume: 0.12, lazy: true },
+  'mario-leap-2': { file: 'mario-leap-2.mp3', half: 6, reach: 30, volume: 0.12, lazy: true },
+  'mario-leap-3': { file: 'mario-leap-3.mp3', half: 6, reach: 30, volume: 0.12, lazy: true },
+  'luigi-leap-1': { file: 'luigi-leap-1.mp3', half: 6, reach: 30, volume: 0.12, lazy: true },
+  'luigi-leap-2': { file: 'luigi-leap-2.mp3', half: 6, reach: 30, volume: 0.12, lazy: true },
+  'wario-leap-1': { file: 'wario-leap-1.mp3', half: 6, reach: 30, volume: 0.12, lazy: true },
+  'wario-leap-2': { file: 'wario-leap-2.mp3', half: 6, reach: 30, volume: 0.12, lazy: true },
+  'waluigi-leap-1': { file: 'waluigi-leap-1.mp3', half: 6, reach: 30, volume: 0.12, lazy: true },
+  'waluigi-leap-2': { file: 'waluigi-leap-2.mp3', half: 6, reach: 30, volume: 0.12, lazy: true },
+  'peach-leap-1': { file: 'peach-leap-1.mp3', half: 6, reach: 30, volume: 0.12, lazy: true },
+  'peach-leap-2': { file: 'peach-leap-2.mp3', half: 6, reach: 30, volume: 0.12, lazy: true },
+  'daisy-leap-1': { file: 'daisy-leap-1.mp3', half: 6, reach: 30, volume: 0.12, lazy: true },
+  'daisy-leap-2': { file: 'daisy-leap-2.mp3', half: 6, reach: 30, volume: 0.12, lazy: true },
   'mario-hurt-1': { file: 'mario-hurt-1.mp3', half: 6, reach: 30, volume: 0.25, lazy: true },
   'mario-hurt-2': { file: 'mario-hurt-2.mp3', half: 6, reach: 30, volume: 0.25, lazy: true },
   'mario-hurt-3': { file: 'mario-hurt-3.mp3', half: 6, reach: 30, volume: 0.25, lazy: true },
@@ -274,6 +300,12 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'squidward-hurt-2': { file: 'squidward-hurt-2.mp3', half: 6, reach: 30, volume: 0.25, lazy: true },
   'squidward-hurt-3': { file: 'squidward-hurt-3.mp3', half: 6, reach: 30, volume: 0.25, lazy: true },
   'plankton-hurt': { file: 'plankton-hurt.mp3', half: 6, reach: 30, volume: 0.25, lazy: true },
+  'sandy-hurt-1': { file: 'sandy-hurt-1.mp3', half: 6, reach: 30, volume: 0.25, lazy: true },
+  'puff-hurt-1': { file: 'puff-hurt-1.mp3', half: 6, reach: 30, volume: 0.25, lazy: true },
+  'puff-hurt-2': { file: 'puff-hurt-2.mp3', half: 6, reach: 30, volume: 0.25, lazy: true },
+  'puff-hurt-3': { file: 'puff-hurt-3.mp3', half: 6, reach: 30, volume: 0.25, lazy: true },
+  'larry-hurt-1': { file: 'larry-hurt-1.mp3', half: 6, reach: 30, volume: 0.25, lazy: true },
+  'larry-hurt-2': { file: 'larry-hurt-2.mp3', half: 6, reach: 30, volume: 0.25, lazy: true },
   'mario-kill-1': { file: 'mario-kill-1.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'mario-kill-2': { file: 'mario-kill-2.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'mario-enter': { file: 'mario-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
@@ -301,6 +333,12 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'squidward-kill-2': { file: 'squidward-kill-2.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'plankton-kill-1': { file: 'plankton-kill-1.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'plankton-kill-2': { file: 'plankton-kill-2.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
+  'sandy-kill-1': { file: 'sandy-kill-1.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
+  'sandy-kill-2': { file: 'sandy-kill-2.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
+  'puff-kill-1': { file: 'puff-kill-1.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
+  'puff-kill-2': { file: 'puff-kill-2.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
+  'larry-kill-1': { file: 'larry-kill-1.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
+  'larry-kill-2': { file: 'larry-kill-2.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'luigi-enter': { file: 'luigi-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'luigi-enter-2': { file: 'luigi-enter-2.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'wario-enter': { file: 'wario-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
@@ -314,6 +352,12 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'squidward-enter-1': { file: 'squidward-enter-1.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'squidward-enter-2': { file: 'squidward-enter-2.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'plankton-enter': { file: 'plankton-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
+  'sandy-enter': { file: 'sandy-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
+  'sandy-enter-2': { file: 'sandy-enter-2.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
+  'puff-enter': { file: 'puff-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
+  'puff-enter-2': { file: 'puff-enter-2.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
+  'larry-enter': { file: 'larry-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
+  'larry-enter-2': { file: 'larry-enter-2.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'spongebob-enter': { file: 'spongebob-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'spongebob-enter-2': { file: 'spongebob-enter-2.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
   'krabs-enter': { file: 'krabs-enter.mp3', half: 6, reach: 30, volume: 0.2, lazy: true },
@@ -424,6 +468,20 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
     lazy: true,
     music: true,
   },
+  // A look's theme for its wearer alone (voices.ts `Theme`): never placed, heard flat at its volume,
+  // as loud as a building's from inside it. Elizabeth's is Katsura's theme from Gintama, its lead-in
+  // and then the song's first half, cut to loop back into itself. It starts from the top as the look
+  // is put on, the intro's opening hit with nothing swelling over it, and fades out as it's taken off.
+  'elizabeth-theme': {
+    file: 'elizabeth-theme.mp3',
+    intro: 'elizabeth-theme-start.mp3',
+    half: 15,
+    volume: 0.065,
+    loop: true,
+    fade: 2.5,
+    lazy: true,
+    music: true,
+  },
 };
 
 // Metres from a call past which its far take, if it has one, is the one played.
@@ -460,19 +518,17 @@ export interface Call {
   far?: SoundId;
 }
 
-// What a dragon skin sounds like (render/avatars/dragons.ts lists the skins): its roars by action,
-// the cry it rises out of the ground with, and the theme that plays from its head; null for a
-// skin with no voice yet.
+// What a dragon skin's calls sound like (render/avatars/dragons.ts lists the skins): its roars by
+// action and the cry it rises out of the ground with; null for a skin with no voice yet. Its theme
+// is its look's (voices.ts `Theme`), like any look's.
 export interface DragonVoice {
   roars: Partial<Record<ItemAction, Call>>;
   cry: Call;
-  theme: SoundId;
 }
 export const DRAGON_VOICES: Record<AvatarsOf<'asian-dragon'>, DragonVoice | null> = {
   'light-dragon': {
     roars: { 'roar-1': { near: 'roar-1' }, 'roar-2': { near: 'roar-2' }, 'roar-3': { near: 'roar-3' } },
     cry: { near: 'dragon-cry' },
-    theme: 'dragon-theme',
   },
   colgera: {
     roars: {
@@ -481,13 +537,12 @@ export const DRAGON_VOICES: Record<AvatarsOf<'asian-dragon'>, DragonVoice | null
       'roar-3': { near: 'colgera-roar-3', far: 'colgera-roar-far-3' },
     },
     cry: { near: 'colgera-cry', far: 'colgera-cry-far' },
-    theme: 'colgera-theme',
   },
 };
 
-// A building with a theme of its own: one more theme round it for the nearest to win (Game.ts), at
-// its distance from the walls (`walls`, metres from a point to them, 0 inside), and the only one
-// heard from inside them.
+// A building with a theme of its own, heard by anyone without a theme of their own (Game.ts
+// `music`): one more for the nearest to win, at its distance from the walls (`walls`, metres from
+// a point to them, 0 inside), and the only one heard from inside them.
 export interface PlaceTheme {
   theme: SoundId;
   walls: (p: Vec3) => number;
@@ -537,6 +592,15 @@ interface Voice {
   stop: () => void;
   wanted: number; // when it was last asked for, in the audio clock
   fade: number; // seconds it takes to go out
+  channel: Channel;
+}
+
+// Takes a loop's voice out over `seconds` from `t` (the audio clock), then stops it.
+function release(voice: Voice, t: number, seconds: number): void {
+  voice.gain.gain.cancelScheduledValues(t);
+  voice.gain.gain.setValueAtTime(voice.gain.gain.value, t);
+  voice.gain.gain.linearRampToValueAtTime(0, t + seconds);
+  setTimeout(voice.stop, seconds * 1000 + 100);
 }
 
 export class Sfx {
@@ -557,6 +621,9 @@ export class Sfx {
   constructor() {
     const unlock = () => {
       if (!this.ctx) {
+        // iOS otherwise files a page's sound with alerts, silenced by the ring switch; the game's
+        // sound is media, like a video's, which plays whatever the switch says.
+        if (navigator.audioSession) navigator.audioSession.type = 'playback';
         const ctx = new AudioContext();
         this.ctx = ctx;
         const limiter = new DynamicsCompressorNode(ctx, {
@@ -628,7 +695,7 @@ export class Sfx {
   // A one-shot, at a spot in the world, or with no spot, the local player's own. `delay` holds it
   // back (seconds); `along`, a direction, sweeps it past `at` that way while it plays; `level`
   // scales its volume; `rate` its speed and pitch together (2 is an octave up and half as long);
-  // `by` names who says it, whose last line said this way stops for it (`hush`).
+  // `by` names who says it, whose last line said this way stops as this one starts (`hush`).
   // False if it couldn't play yet: no sound until the page is clicked, or the recording still on
   // its way.
   play(
@@ -637,10 +704,12 @@ export class Sfx {
     o: { delay?: number; along?: Vec3; level?: number; rate?: number; by?: string } = {},
   ): boolean {
     if (!this.ctx) return false;
-    if (o.by !== undefined) this.hush(o.by);
-    if (at && falloff(distance(at, this.heard), SOUNDS[id]) < SILENT) return true;
-    const buffer = this.buffer(id);
-    if (!buffer) return false;
+    // A line out of earshot is still said, and cuts its speaker's last; one not here yet isn't.
+    const far = at !== null && falloff(distance(at, this.heard), SOUNDS[id]) < SILENT;
+    const buffer = far ? null : this.buffer(id);
+    if (!far && !buffer) return false;
+    if (o.by !== undefined) this.hush(o.by, o.delay);
+    if (!buffer) return true;
     const t = this.ctx.currentTime + (o.delay ?? 0);
     const spec = SOUNDS[id];
     const voice = this.voice(id, at, 0);
@@ -672,14 +741,14 @@ export class Sfx {
     return true;
   }
 
-  // Stops what `by` is saying (a one-shot played with `by`), quickly enough not to click, and
-  // lets go of any line of theirs still on its way (`soon`).
-  hush(by: string): void {
+  // Stops what `by` is saying (a one-shot played with `by`), `delay` seconds from now, quickly
+  // enough not to click, and lets go of any line of theirs still on its way (`soon`).
+  hush(by: string, delay = 0): void {
     this.hushes.set(by, (this.hushes.get(by) ?? 0) + 1);
     const line = this.lines.get(by);
     if (!line || !this.ctx) return;
     this.lines.delete(by);
-    const t = this.ctx.currentTime;
+    const t = this.ctx.currentTime + delay;
     line.gain.cancelScheduledValues(t);
     line.gain.setValueAtTime(line.gain.value, t);
     line.gain.linearRampToValueAtTime(0, t + FADE);
@@ -689,6 +758,13 @@ export class Sfx {
   // How long a sound's recording runs, in seconds; 0 until it has arrived.
   seconds(id: SoundId): number {
     return this.buffers.get(SOUNDS[id].file)?.duration ?? 0;
+  }
+
+  // Whether a sound's recording, and its intro if it has one, has arrived: a loop asked for now
+  // would start at once.
+  ready(id: SoundId): boolean {
+    const spec = SOUNDS[id];
+    return this.buffers.has(spec.file) && (!spec.intro || this.buffers.has(spec.intro));
   }
 
   // A one-shot that may not be here yet (a lazy one first asked for now): played at once if it is,
@@ -713,8 +789,8 @@ export class Sfx {
   // The loops that should be sounding this frame, each keyed by who's making it, and where (null
   // for one played flat, at `level` of its volume, followed from frame to frame). A loop that hasn't been
   // listed for LINGER fades out, over its `fade`. `elapsed` is how far into it a loop already is
-  // when it starts: a theme that has been running since its dragon rose, heard again from where it
-  // has got to rather than from the top.
+  // when it starts: a theme that has been running since it began, heard again from where it has
+  // got to rather than from the top.
   setLoops(wanted: { key: string; id: SoundId; at: Vec3 | null; elapsed?: number; level?: number }[]): void {
     if (!this.ctx) return;
     const t = this.ctx.currentTime;
@@ -736,10 +812,18 @@ export class Sfx {
     }
     for (const [key, voice] of this.loops) {
       if (t - voice.wanted < LINGER) continue;
-      voice.gain.gain.cancelScheduledValues(t);
-      voice.gain.gain.setValueAtTime(voice.gain.gain.value, t);
-      voice.gain.gain.linearRampToValueAtTime(0, t + voice.fade);
-      setTimeout(voice.stop, voice.fade * 1000 + 100);
+      release(voice, t, voice.fade);
+      this.loops.delete(key);
+    }
+  }
+
+  // Fades every loop on `channel` out over `seconds`, sooner than its own fade, for a sound that
+  // has to be heard alone (a death's song over the music).
+  endLoops(channel: Channel, seconds: number): void {
+    if (!this.ctx) return;
+    for (const [key, voice] of this.loops) {
+      if (voice.channel !== channel) continue;
+      release(voice, this.ctx.currentTime, seconds);
       this.loops.delete(key);
     }
   }
@@ -750,8 +834,8 @@ export class Sfx {
     const ctx = this.ctx!;
     const spec = SOUNDS[id];
     const buffer = this.buffer(id);
+    if (!buffer || !this.ready(id)) return null;
     const intro = spec.intro ? this.buffers.get(spec.intro) : undefined;
-    if (!buffer || (spec.intro && !intro)) return null;
     const t = ctx.currentTime;
     const voice = this.voice(id, at, 0);
     if (!at) voice.near.gain.value = level;
@@ -782,7 +866,8 @@ export class Sfx {
     const gain = new GainNode(ctx, { gain: spec.volume * level });
     const near = new GainNode(ctx, { gain: at ? falloff(distance(at, this.heard), spec) : 1 });
     gain.connect(near);
-    const channel = this.channels![spec.music ? 'music' : 'effects'];
+    const on: Channel = spec.music ? 'music' : 'effects';
+    const channel = this.channels![on];
     let panner: PannerNode | null = null;
     if (at) {
       panner = new PannerNode(ctx, { panningModel: 'equalpower', rolloffFactor: 0 });
@@ -791,7 +876,7 @@ export class Sfx {
     } else {
       near.connect(channel);
     }
-    return { gain, near, panner, stop: () => {}, wanted: ctx.currentTime, fade: spec.fade ?? FADE };
+    return { gain, near, panner, stop: () => {}, wanted: ctx.currentTime, fade: spec.fade ?? FADE, channel: on };
   }
 
   // A sound's recording, if it has arrived; a lazy one (and its intro) is sent for the first time
@@ -840,14 +925,18 @@ export class Sfx {
 let auditioned: HTMLAudioElement | null = null; // the sound last played off the game, stopped for the next
 
 // A sound by itself, where there's no game to play it in (the home screen): fetched as it's played,
-// at its own volume, in place of the last one played this way (null only stops that one), and not
-// at all with effects muted. It starts on a person's own click, which is what lets a page make sound.
-export function audition(id: SoundId | null): void {
+// at its own volume and at `rate` (speed and pitch together, as `play` takes it), in place of the
+// last one played this way (null only stops that one), and not at all with effects muted. It starts on a person's own click, which is what lets a page make sound.
+export function audition(id: SoundId | null, rate = 1): void {
   auditioned?.pause();
   auditioned = null;
   if (!id || loadMuted().has('effects')) return;
   const spec = SOUNDS[id];
-  auditioned = Object.assign(new Audio(`/assets/sounds/${spec.file}`), { volume: spec.volume });
+  auditioned = Object.assign(new Audio(`/assets/sounds/${spec.file}`), {
+    volume: spec.volume,
+    playbackRate: rate,
+    preservesPitch: false,
+  });
   void auditioned.play().catch(() => {});
 }
 

@@ -36,7 +36,8 @@ aiming at.
    to it now and then. There it takes the nearest of a sample of spots (the map's lookouts, or
    indoors any spot on the floor) that sees one of its quarry, or when none does the one nearest
    the nearest of them, so it waits near where they are. It follows ``world.path`` there (up the stair
-   and over its rail where it has to), and once outdoors with SPEEDY_WORTH metres or more of the way
+   and over its rail where it has to, opening any shut door in the way as a person does: it stops
+   at it, turns to it and clicks it), and once outdoors with SPEEDY_WORTH metres or more of the way
    still in the open it takes /speedy, to be out there half as long; then it stays. It moves to
    another floor, the same way, when it has gone PATIENCE_SECONDS at its spot with nobody in sight,
    or when something hurts it.
@@ -54,6 +55,7 @@ import math
 import random
 import time
 from collections import deque
+from collections.abc import Mapping
 from contextlib import suppress
 from dataclasses import dataclass, field
 from typing import Any
@@ -271,6 +273,7 @@ class Sniper:
     last_shot: int = 0  # the tick it last fired
     seen_at: deque[dict[str, Vec3]] = field(default_factory=lambda: deque(maxlen=AIM_LAG_TICKS[1] + 3))
     route: Route | None = None
+    doors: Mapping[str, bool] = field(default_factory=dict)  # the room's, open or shut (WorldState.doors)
     arrived_at: int | None = None  # when it got to its spot
     replan_at: int = 0  # the tick it may pick a spot or find a way again (a second after the last)
     _sighted: Player | None = None
@@ -283,6 +286,7 @@ class Sniper:
         me = state.me
         assert me is not None
         tick = state.tick
+        self.doors = state.doors
         self.seen_at.append({p.id: p.pos for p in state.players.values()})
         quarry = self._quarry(state, tick)
         if tick >= self._next_sight_check:
@@ -392,9 +396,9 @@ class Sniper:
         if not hidden:
             return
         cover = min(hidden, key=lambda i: _distance(me.pos, _eye(self.world.nodes[i])))
-        path = self.world.path(start, cover, me.avatar)
+        path = self.world.path(start, cover, me.avatar, doors=True)
         if path is not None:
-            self.cover, self.route, self.arrived_at = cover, Route(self.world, path, tick, me.avatar), None
+            self.cover, self.route, self.arrived_at = cover, Route(self.world, path, tick, me.avatar, self.doors), None
 
     def _plan(self, me: Player, quarry: list[Player], tick: int) -> None:
         """Pick a spot when it has none, or another floor's when it has waited there too long with
@@ -449,11 +453,15 @@ class Sniper:
         self.route = self.arrived_at = None
         self.replan_at = tick + TICK_RATE
         start = self.world.node_at(_feet(me))
-        path = self.world.path(start, self.spot, me.avatar) if start is not None and self.spot is not None else None
+        path = (
+            self.world.path(start, self.spot, me.avatar, doors=True)
+            if start is not None and self.spot is not None
+            else None
+        )
         if path is None:
             self.spot = None
         else:
-            self.route = Route(self.world, path, tick, me.avatar)
+            self.route = Route(self.world, path, tick, me.avatar, self.doors)
 
     def wants_speed(self, me: Player) -> bool:
         """Whether a /speedy would help: it isn't sped up, and it's outdoors on its way with

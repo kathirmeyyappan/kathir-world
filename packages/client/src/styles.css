@@ -321,8 +321,9 @@ body {
   border-bottom-color: var(--accent);
   box-shadow: none;
 }
+/* The two tabs share one edge, each drawing its own over the other's, the selected one on top. */
 .card .home-tabs button + button {
-  border-left: none;
+  margin-left: -2px;
 }
 .card .home-tabs button:hover {
   color: #fff;
@@ -333,6 +334,7 @@ body {
   background: rgba(var(--accent-rgb), 0.12);
   border-color: var(--accent);
   border-bottom-color: transparent;
+  z-index: 1;
 }
 .home-tab-panel {
   padding: 24px 22px;
@@ -449,12 +451,17 @@ body {
   left: 0;
   right: 0;
   top: 100%;
-  height: 264px;
   padding: 6px 6px 6px 0;
   background: var(--panel);
   border: 2px solid var(--accent);
   border-top: 0;
   box-shadow: 3px 3px 0 #000;
+}
+.picker .options.up {
+  top: auto;
+  bottom: 100%;
+  border-top: 2px solid var(--accent);
+  border-bottom: 0;
 }
 .picker ul {
   list-style: none;
@@ -983,6 +990,32 @@ body {
   }
 }
 
+/* A kart's wrenches, under the hearts while you drive it: steel, snapping rather than cracking. */
+#wrenches {
+  position: fixed;
+  top: 72px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  pointer-events: none;
+  display: grid;
+  grid-template-columns: repeat(var(--heart-row, 5), 27px);
+  gap: 3px 4px;
+}
+#wrenches[hidden] {
+  display: none;
+}
+.heart.wrench svg rect {
+  fill: #8a96a8;
+}
+.heart.wrench svg rect.hi {
+  fill: #dce4ee;
+}
+.heart.wrench.lost svg rect,
+.heart.wrench.half svg rect.grey {
+  fill: #3a3d46;
+}
+
 /* Crystal hearts: a dragon's, one big ice crystal a ring segment, that shatters rather than cracks. */
 #hearts[data-sprite='crystal'] {
   grid-template-columns: repeat(var(--heart-row, 3), 68px);
@@ -1134,6 +1167,30 @@ body {
   background: rgba(11, 13, 20, 0.8);
   border: 2px solid rgba(159, 212, 255, 0.85);
   box-shadow: 3px 3px 0 #000;
+}
+/* Why what the player just asked for can't be done, over the middle of the view for a moment. */
+#refusal {
+  position: fixed;
+  top: 28%;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: min(560px, calc(100vw - 32px));
+  padding: 6px 12px 7px;
+  z-index: 100;
+  pointer-events: none;
+  font: 18px var(--mono);
+  letter-spacing: 1px;
+  text-align: center;
+  color: #fff;
+  background: rgba(150, 18, 32, 0.88);
+  border: 2px solid #ff3b4e;
+  box-shadow: 3px 3px 0 #000;
+  opacity: 0;
+  transition: opacity 0.4s;
+}
+#refusal.on {
+  opacity: 1;
+  transition: none;
 }
 /* "hit bob -2" under the crosshair. */
 #hit-notice {
@@ -1353,8 +1410,8 @@ body {
 /* The moves a look has of its own (Hud.setMoveHint): a stack of cells at the top, under the hearts
    and whatever else stands there (Hud.ts), out of the way of the body in the middle of the view.
    The look's name is the first cell and each move has a row of its own under it, ruled apart as
-   the key legend's cells are (#instructions). In the HUD's blue. It lives 20 s from the look being
-   taken: steady for 15, then ticking dim and back every half second, then gone. */
+   the key legend's cells are (#instructions). In the HUD's blue. It lives 15 s from the look being
+   taken: steady for 10, then ticking dim and back every half second, then gone. */
 #move-hint {
   top: 84px;
   bottom: auto;
@@ -1363,7 +1420,7 @@ body {
   max-width: calc(100vw - 440px);
   font-size: 16px;
   border-color: rgba(100, 181, 246, 0.6);
-  animation: move-hint-life 20s step-end forwards;
+  animation: move-hint-life 15s step-end forwards;
   text-align: center;
 }
 #move-hint .title,
@@ -1388,18 +1445,18 @@ body {
 }
 @keyframes move-hint-life {
   0%,
-  77.5%,
-  82.5%,
-  87.5%,
-  92.5%,
-  97.5% {
+  70%,
+  76.667%,
+  83.333%,
+  90%,
+  96.667% {
     opacity: 1;
   }
-  75%,
+  66.667%,
+  73.333%,
   80%,
-  85%,
-  90%,
-  95% {
+  86.667%,
+  93.333% {
     opacity: 0.35;
   }
   100% {
@@ -2081,12 +2138,28 @@ body {
 }
 /* SWAP, on a ladder, and a look's own move (CROUCH, or POUND in the air): a square beside JUMP, to its left. */
 #swap-button,
-#pound-button {
+#pound-button,
+#out-button {
   bottom: 26px;
   right: 118px;
   width: 84px;
   height: 84px;
   padding: 0;
+}
+/* A kart's pedals: GAS over the drift button, BRAKE beside it. */
+#gas-button,
+#brake-button {
+  width: 84px;
+  height: 84px;
+  padding: 0;
+}
+#gas-button {
+  bottom: 118px;
+  right: 26px;
+}
+#brake-button {
+  bottom: 118px;
+  right: 118px;
 }
 #chat-button {
   top: 16px;
@@ -2156,8 +2229,15 @@ body {
   #command-hint.on {
     pointer-events: auto;
   }
+  /* See-through enough to keep the world under it in view. */
+  #move-hint {
+    filter: opacity(0.7);
+  }
   #move-hint .clear {
     display: block;
+    padding: 8px 12px 9px;
+    font-size: 15px;
+    color: rgba(255, 255, 255, 0.6);
   }
   /* A move's words break across lines where the screen is narrower than they are. */
   #move-hint .moves div {
@@ -2316,6 +2396,11 @@ body {
   }
   #hearts {
     top: 8px;
+    grid-template-columns: repeat(var(--heart-row, 5), 18px);
+    gap: 2px 3px;
+  }
+  #wrenches {
+    top: 46px;
     grid-template-columns: repeat(var(--heart-row, 5), 18px);
     gap: 2px 3px;
   }

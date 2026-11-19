@@ -208,8 +208,11 @@ export const spotifyWidget: WidgetFactory = (aspect) => {
   };
 
   // Poll like the web widget, every POLL_MS, but only while the frame is in view and the tab is
-  // showing; at once when both come back. A failed poll keeps what's there.
+  // showing; when both come back, at once, or once POLL_MS has passed since the last poll (a glance
+  // away and back is no reason to ask again). A failed poll keeps what's there.
+  let polledAt = -Infinity;
   const poll = async () => {
+    polledAt = performance.now();
     try {
       const res = await fetch(WORKER_URL);
       show((await res.json()) as Track);
@@ -218,17 +221,21 @@ export const spotifyWidget: WidgetFactory = (aspect) => {
     }
   };
   let inView = false;
-  let polling: number | null = null;
+  let polling: number | null = null; // the timer for the next poll, while live
+  const schedule = () => {
+    const wait = Math.max(0, POLL_MS - (performance.now() - polledAt));
+    polling = window.setTimeout(() => {
+      void poll();
+      schedule();
+    }, wait);
+  };
   // Start or stop polling, and the ticker that moves the progress and equaliser while playing, to
   // match whether anyone can see it.
   const sync = () => {
     const live = inView && !document.hidden;
-    if (live && polling === null) {
-      void poll();
-      polling = window.setInterval(() => void poll(), POLL_MS);
-    }
+    if (live && polling === null) schedule();
     if (!live && polling !== null) {
-      clearInterval(polling);
+      clearTimeout(polling);
       polling = null;
     }
     const tick = live && status === 'playing';

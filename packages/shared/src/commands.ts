@@ -4,10 +4,9 @@
 import { avatarForCommand, type AvatarId } from './sim/avatars';
 import {
   BOT_DEFAULT_SECONDS,
-  BOT_FLAGS,
   BOT_MAX_SECONDS,
-  BOTS,
   botFlagFor,
+  botFlags,
   botIdFor,
   type BotFlag,
   type BotId,
@@ -15,6 +14,7 @@ import {
 import { isGearId, type GearId } from './sim/gear';
 import { NAMED_COLORS } from './sim/constants';
 import { ITEMS, isItemId, type ItemId } from './sim/items';
+import { KARTS, KART_IDS, type KartId } from './sim/vehicles/karts';
 
 export type Command =
   | { name: 'speedy' }
@@ -25,6 +25,7 @@ export type Command =
   | { name: 'color'; color: string } // one of NAMED_COLORS' names
   | { name: 'bot'; bot: BotId; call: BotCallArgs | null } // null: the flags didn't parse
   | { name: 'kill-bots' }
+  | { name: 'kart'; kart: KartId } // drops one in front of them (sim/vehicles/garage.ts)
   | { name: 'unknown'; raw: string };
 
 export const COMMAND_SHORTCUTS: Readonly<Partial<Record<string, ItemId | GearId | AvatarId | 'speedy'>>> = {
@@ -55,6 +56,8 @@ export function parseCommand(text: string): Command | null {
   if (avatar) return { name: 'avatar', avatar };
   if (Object.hasOwn(NAMED_COLORS, normalized)) return { name: 'color', color: normalized };
   if (normalized === 'kill-bots') return { name: 'kill-bots' };
+  const kart = KART_IDS.find((id) => KARTS[id].command === normalized);
+  if (kart) return { name: 'kart', kart };
   const bot = botIdFor(normalized);
   if (bot) return botCommand(bot, args);
   return { name: 'unknown', raw };
@@ -70,7 +73,7 @@ export interface BotCallArgs {
 }
 
 // "/sniper-bot -t 60 -n hunter -s tung --target kat bob": the flags in BOT_FLAGS (short or long
-// form), in any order, each at most once, and only those the bot's worker takes. Anything else (a
+// form), in any order, each at most once, and only those the bot takes (botFlags). Anything else (a
 // bare word, an unknown or repeated flag, a flag with no value or a bad one) makes it null, and the
 // room answers with the usage line.
 function botCommand(bot: BotId, args: string[]): Command {
@@ -79,7 +82,7 @@ function botCommand(bot: BotId, args: string[]): Command {
   const given = new Set<BotFlag>();
   for (let i = 0; i < args.length; i++) {
     const flag = botFlagFor(args[i]);
-    if (flag === null || given.has(flag) || !BOT_FLAGS[flag].workers.includes(BOTS[bot].worker)) return bad;
+    if (flag === null || given.has(flag) || !botFlags(bot).includes(flag)) return bad;
     given.add(flag);
     const value = (): string | null => (i + 1 < args.length && !args[i + 1].startsWith('-') ? args[++i] : null);
     switch (flag) {

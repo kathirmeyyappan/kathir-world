@@ -18,7 +18,7 @@ import {
 } from '@world/shared';
 import { GAITS } from '../render/avatars/gaits';
 import type { Sfx, SoundId } from './Sfx';
-import { take, VOICES } from './voices';
+import { shimmerOf, take, VOICES } from './voices';
 
 // What a step on each kind of surface sounds like: a different one each step.
 const FOOTFALLS: Record<Footfall, SoundId[]> = {
@@ -139,8 +139,9 @@ export class Footsteps {
       w.grounded = p.grounded;
       if (across > JUMPED || Math.abs(down) > JUMPED) continue;
       // A float shimmers for as long as it lasts.
-      w.shimmer = p.floating ? (w.shimmer ?? Math.random() * SHIMMER_FROM) : null;
-      if (w.shimmer !== null) loops.push({ key: p.id, id: 'float-sparkle', at, elapsed: w.shimmer });
+      const shimmer = p.floating ? shimmerOf(p.avatar) : null;
+      w.shimmer = shimmer ? (w.shimmer ?? Math.random() * SHIMMER_FROM) : null;
+      if (shimmer && w.shimmer !== null) loops.push({ key: p.id, id: shimmer, at, elapsed: w.shimmer });
 
       if (!p.grounded) {
         if (wasGrounded) {
@@ -159,14 +160,12 @@ export class Footsteps {
         w.peak = Math.max(w.peak, p.pos.y);
         w.falling = Math.max(w.falling, p.falling ?? 0);
         if (w.liftedFrom !== null && p.pos.y - w.liftedFrom > RISE) {
+          // The look's own (lazy, sent for as it's first seen worn) or, until it's here, the swoosh.
           const voice = VOICES[p.avatar];
-          this.sfx.play(
+          const own =
             (p.leap ? take(voice.leap) : undefined) ??
-              voice.jump?.[Math.min(voice.jump.length, p.backflip ? 3 : Math.max(1, p.hop)) - 1] ??
-              'jump',
-            at,
-            { level },
-          );
+            voice.jump?.[Math.min(voice.jump.length, p.backflip ? 3 : Math.max(1, p.hop)) - 1];
+          if (!own || !this.sfx.play(own, at, { level, by: p.id })) this.sfx.play('jump', at, { level });
           w.liftedFrom = null;
         } else if (down > 0) w.liftedFrom = null; // going down first: they stepped off something
         continue;

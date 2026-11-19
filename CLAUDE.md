@@ -16,6 +16,16 @@ Babylon.js multiplayer 3D playground. `packages/shared` is the pure sim + protoc
   changes, edit the source and re-render the PNG with headless Chromium at 2x (a 1560 px viewport,
   `deviceScaleFactor: 2`, full page).
 
+## Writing for the long run
+
+Write each change as if the code had been designed with it in mind from the start, not patched to
+fit. When a fix or a feature doesn't fit the shape of the code, reshape the code (rename, split, or
+merge two mechanisms that do the same job) rather than add a special case beside it, and leave each
+file you touch at least as clear as you found it. Keep one mechanism per job: before adding a second
+way to load, cache, register or configure something, extend the first. Prefer a name and a type
+that say what a thing is over a comment that explains a confusing one. If doing it properly is much
+bigger than what was asked, do the targeted change and say what the proper one would be.
+
 ## Formatting and type checks
 
 CI fails on any of these, so run them before pushing:
@@ -60,20 +70,31 @@ path everyone pays what has to be there the instant it's wanted, and when a savi
 experience pull apart, take the smooth one and tell Kathir what it costs.
 
 What a client fetches without the player asking for it, every player pays for, on a phone's
-connection and memory as much as a desktop's. Joining the world today fetches about 1.8 MB of code
-(gzipped), 8 MB of assets and 1.1 MB of sounds. Know which of these a change adds to, and keep
+connection and memory as much as a desktop's. Joining the world today fetches about 1.25 MB of code
+(gzipped), 7 MB of assets and 0.9 MB of sounds. Know which of these a change adds to, and keep
 anything that can wait off the path everyone pays:
 
-- Code is one chunk (1.7 MB gzipped) with the engine and every look on foot's mesh and clips in
-  it. A dynamic `import()` takes something out of it, as the dragons' models are (560 KB, fetched
-  when the page is idle).
+- Code is one chunk (1.15 MB gzipped), mostly the engine. A dynamic `import()` takes something out
+  of it, as every look's model is (below).
 - Anything heavy that stands somewhere (a model's parts, a region's meshes) registers with
-  `render/Loader.ts` and arrives nearest first.
-- Avatar atlases (`SKINNED`, 1.5 MB for all of them) are fetched when the page is idle.
+  `render/Loader.ts` and arrives nearest first. What's inside a building (the pineapple's rooms,
+  about 1.3 MB; a storey's pictures) is fetched only once it's wanted: within 25 m, or seen through
+  an open door within 125 m, 560 m scoped, and let go again once it's 200 m off and neither seen
+  nor wanted for 30 s (`render/Interiors.ts`).
+- A look's files (its model, 15 to 60 KB of code on foot and 260 to 300 KB a dragon, and its
+  atlases, about 100 KB on foot and 600 KB a dragon) are fetched the first time someone is seen
+  wearing it, as a skin's command is pointed at or sent, or as it's picked on the home screen
+  (`LOOKS` and `wantLook` in `render/avatars/index.ts`), so a look's cost is paid only by the
+  clients that meet it. Until a look on foot is here the player keeps the body they had, or has none
+  drawn (where that was a dragon, or for someone first seen in it), never a look they aren't
+  wearing; a dragon rises and roars at once and its body fills in as it lands.
+- A kart's files (its model's parts and pictures, about 110 KB for the Standard Kart) are fetched
+  the first time a kart of that model is drawn (`render/vehicles/KartMesh.ts`); every paint is the
+  same picture painted on the client, and only its emblem (about 5 KB) is fetched per paint.
 - A sound is fetched by everyone up front unless it's `lazy` in `SOUNDS` (`Sfx.soon`, `Sfx.want`).
-  Every look's voice is lazy but its jumps and long jumps (about 240 KB for all of them, heard at
-  every hop): an intro is fetched as it's said within earshot, and a look's hurts and kills (with
-  its death for its own player) as it's first seen worn (`Game.wantVoice`).
+  Every look's voice is lazy: an intro is fetched as it's said within earshot, and a look's jumps,
+  long jumps, hurts and kills (with its death and its theme for its own player) as it's first seen worn
+  (`Game.wantVoice`); a jump not here yet is the swoosh.
 
 Fetch on demand whatever only some players will see or hear, so long as it can arrive a moment
 late, and say what stands in until it arrives and if it never does (a `lazy` sound late is left
@@ -81,10 +102,56 @@ out; nothing may wait on a fetch to work). In the PR, give what a change adds up
 and KB, and why it can't wait.
 
 Flag it to Kathir, before building on it, when a change adds more than about 100 KB up front, or
-when something paid by everyone grows with each thing added: every look on the Mario rig is about
-80 KB of atlas, 50 KB of mesh in the chunk and 55 KB of jumps up front, whoever wears it. That
-pattern is the one that gets out of hand, and the fix is to fetch a look's atlas, mesh and voice
-the first time someone wears it, as its hurts and kills already are.
+when something paid by everyone grows with each thing added. That pattern is the one that gets out
+of hand, and the fix is to fetch each thing the first time someone meets it, as a look's body and
+voice are.
+
+A model is only as detailed as it's seen. A rip or a Sketchfab model comes with what its own game
+or scene needed, so its script simplifies it to what reads at the size and distance it's drawn
+here: thin its meshes (decimate, or rebuild what doesn't thin, as `krusty-krab-model.py` does),
+drop whatever is too small to see at that size, and scale its textures down to the pixels it
+covers on screen. Look at it beside the source from the distances it's seen at, and give the
+triangles and KB before and after in the PR.
+
+An interior is let go past 200 m once it's been neither seen nor wanted for 30 s, well past
+`SIGHT` (125 m) where it's wanted unscoped, so walking back and forth across one line can't load
+and unload it over and over; coming back fetches it again from the browser's cache, through the
+loader's budget, and one part is begun or let go a frame at most, so neither costs a frame.
+
+Everything else heavy that stands somewhere streams by distance through the loader
+(`render/Loader.ts`): a chunk of the ground's slab, a region's structure meshes, a model's parts
+outside. Each is wanted within `REACH` (600 m) of the player, nearest first, and let go past 700 m
+(`SLACK` further out, so walking back and forth across one line can't load and unload it over and
+over), one a frame at most, coming back through the loader's budget as it comes back within reach:
+built again from the content for a slab chunk or a region, fetched again from the browser's cache
+for a model's part. 600 m is past `SCOPED_SIGHT`, so a scope never sees anything go. A landmark
+drawn from a model (the pineapple, the Krusty Krab) has a shell (`render/models/Models.ts`): a mesh
+of a few thousand triangles in its own colours, made at once from the shape the content already
+has and kept for good, that keeps its outline against the sky wherever its parts aren't all here,
+and they're drawn only once every one of them is, all at once in the shell's place, so the two
+never overlap. A landmark of structures (the keeps, the tower, the terrace) has none: past 700 m
+it's lost in the fog. With the road the world is about 510 m across, so today everything is always
+loaded once it's in.
+
+The distances that decide what's fetched, drawn and let go are one system, and each is set
+against the others, scoped and unscoped alike. Whenever one changes or a new one is added, audit
+it against all of them for an order that would read as wrong in play (rooms fetched inside a
+shell, something let go while it's still in view, a fetch and a let-go on either side of one
+line, a door the scope shows clearly with nothing behind it) and say in the PR how each clash
+was settled. As they stand:
+
+| Distance | Unscoped | Scoped | What it decides |
+| --- | --- | --- | --- |
+| `NEAR` | 25 m | 25 m | an interior wanted whatever's in view |
+| `SIGHT`, `SCOPED_SIGHT` | 125 m | 560 m | the fog nine tenths thick (`BASE_FOG_DENSITY` and `SCOPED_FOG_SCALE` are worked out from them); an interior wanted through an open opening in view (scoped, within the scope's circle and a little round it) |
+| `CRISP_RANGE` | 45 m | 45 m | a wall frame's picture drawn crisp rather than as a texture |
+| `LET_GO`, `FORGET` | 200 m, 30 s | same | an interior let go, neither seen nor wanted for `FORGET`; past every unscoped fetch, so no line flaps |
+| `REACH`, `SLACK` (`Loader.ts`) | 600 m, 700 m | same | what stands somewhere (a slab chunk, a region, a model's parts) wanted, and let go; past where a scope sees, so nothing is seen go and no rooms inside a shell are seen |
+
+Known and accepted: an interior a scope fetched past 200 m is let go 30 s after it's last seen and
+fetched again from the browser's cache if it's scoped again. `SIGHT` and `SCOPED_SIGHT`
+(`sim/constants.ts`) are the one measure of how far anyone sees; anything new that reaches as far as
+the eye does reads them rather than keeping its own.
 
 ## World geometry
 
@@ -151,28 +218,43 @@ wire: server and client both build the world from that file.
   The terrace (`content/terrace.ts`) is reached from the keeps:
   the tower's sky bridge, and a staircase from each keep's roof. A piece you'll reuse (a
   staircase, a round wall) is a function returning `Structure[]` in `sim/structures.ts`.
-- Coordinates are world metres, yaw 0 facing +z. The playable outline is `WORLD_SHAPE` in
-  `sim/world.ts`, with its parts in `sim/outline.ts`: the main disc (r 50 at the origin), the annex
+- Coordinates are world metres, yaw 0 facing +z. The playable outline is `WORLD_OUTLINE` in
+  `sim/outline.ts`, the ground (`WORLD_GROUND`, `sim/ground.ts`) that every part of the game asks
+  where the floor ends, through `Structures.ground` in the sim: its parts indexed by `CHUNK` (48 m)
+  square, so a question about a spot looks only at the parts near it. Its parts: the main disc (r 50 at the origin), the annex
   (r 30 at x 112) and the bridge between them (16 m wide), the four buildings' grounds (discs the
   annex's size round the main disc at 70°, 125°, 235° and 290°, the keeps' 100 m out and SpongeBob's house's further out, at 124 m, on much wider grounds, r 52, so its dune and the sand round it sits on
   the floor with room round it), the Krusty Krab's grounds between Buildings 2 and 3 (r 32 at 180°,
-  100 m out, so the five sites are 55° apart), and the fan between them all, a slice of the main
+  100 m out, so the five sites are 55° apart), a road 10 m wide straight out from behind it, 200 m
+  past its grounds, to a plateau r 20 at its end (`KRUSTY_KRAB_ROAD`, `ROAD_PLATEAU`), and the fan
+  between them all, a slice of the main
   disc's middle out to the keeps' from the first building's bearing round to the last's, its two
   straight sides held 10 m out, parallel to those bearings, by a strip of floor along each (`FAN_SIDES`),
   so the bridge to the tower is the only corridor and everything between the buildings is open floor. A part is a disc,
-  a straight `bridge` or a pie-slice `sector`. Players are
-  clamped 1 m inside it no matter what, so keep structures inside too.
-  Along the edge runs a bold kerb (`KERB_WIDTH` across inside it, `KERB_HEIGHT` up, its top lit),
-  rounded where two parts' edges meet, whose outer face drops to the ground past the edge, with a
-  toe as bold along its foot (both rims of the drop lit grey, the kerb's top green, so the border
-  reads from the drop too), `OUTSIDE_HEIGHT` (10 m) down
-  (`render/Environment.ts`), so where you can't go reads from afar; the grid carries on down that
-  drop, each face gridded across the two axes its normal lies furthest from (`surfaceGridLine`, so
-  one family of lines runs over any surface, terrain included). The floor and that ground both end under the
-  kerb, so every edge in sight is real geometry rather than a shader's cut. A walker never leaves
-  the floor (it's flat, and players never reach the kerb); a dragon can fly down into the drop,
-  where the floor's rim is a wall it climbs before coming back in (`dragon.ts`), and a walker it
-  turns back into there comes up onto the floor at the edge. The camera follows it down.
+  a straight `bridge` or a pie-slice `sector`. The ground is a solid slab: its top the floor, its
+  sides a drop of `OUTSIDE_HEIGHT` (10 m) to the ground past the edge, all three of them solid to
+  bodies and to rays (`Structures` stands bodies on it, holds a body below the floor off the drop's
+  face as a wall, and stops shots and sprays on it). Nothing keeps a walker on the floor: one walks
+  off the edge, falls down the drop, and dies the moment it's down on the ground past it (a `fell`,
+  `room.ts` `land`), with nothing dropped where it lies. The one barrier is a circle round the
+  world's reach (`Ground.keepWithin`, the red wall shown as you come near it), the same for a
+  walker and a dragon. Keep structures inside the outline.
+  The slab is drawn a `CHUNK` at a time (`render/Floor.ts`, one mesh each, streamed in by the
+  loader): its floor, and along its edge a bold kerb (`KERB_WIDTH` across inside it, `KERB_HEIGHT`
+  up, its top lit) whose outer face drops to the ground past the edge, with a toe as bold along its
+  foot (both rims of the drop lit grey, the kerb's top green, so the border reads from the drop
+  too), `OUTSIDE_HEIGHT` (10 m) down, so where the floor ends reads from afar. Each chunk's edge is
+  traced from the ground's distance to it, sampled every metre on one grid for the whole world, so
+  neighbouring chunks meet without a seam and nothing about the outline reaches a shader. The ground
+  past the edge is one plane under everything (`render/Environment.ts`). The grid carries on down
+  the drop, each face gridded across the two axes its normal lies furthest from
+  (`surfaceGridLine`, so one family of lines runs over any surface, terrain included). The floor
+  ends under the kerb, so every edge in sight is real geometry rather than a shader's cut. The kerb is only drawn:
+  the sim's floor is flat to the edge, and a foot sinks its 8 cm into it unseen. A dragon can fly
+  down into the drop, where the floor's rim is a wall it climbs before coming back in
+  (`dragon.ts`), and a walker it turns back into there, or anywhere out over the void, falls where
+  it is. The camera follows it down. A bot's map stands its nodes a metre inside the edge, and the
+  circle bot, which strafes rather than following the map, looks for floor ahead before it steps.
 - Size things to the player: eyes at 1.7 m, head at 2.0 m, radius 0.35 m, steps up to 0.5 m climb on
   their own, and a running jump at the standard jump power lands on tops up to about 1.9 m (make
   anything meant to stop a jump 2.1 m or taller; Sulley's 1.2 rises 1.92 m, and may get over it). Doorways at least 1.2 m wide and 2.2 m tall; ramps no steeper than about 30°;
@@ -330,7 +412,10 @@ sees a mesh: the content stands those as `hidden` structures (`content/pineapple
 the solid shell round the rooms) and the renderer skips them, so what you bump into is the
 generator's to keep true to the models. `render/models/Models.ts` fetches each part listed in
 `render/models/pineappleParts.ts` (generated too) and hangs it where the content's placement says,
-a door's on a node at its pin.
+a door's on a node at its pin. The rooms are written a part per floor (`interior-ground`,
+`-upstairs`, `-library`, each triangle the floor's whose storey its middle is in), and each inside
+part carries its `floor` (see Interiors below); the profile's `doorways` through the shell name the
+door each holds.
 
 `krusty-krab-model.py` makes the Krusty Krab from one Sketchfab GLB of 4.2 million triangles (176
 MB) by rebuilding rather than thinning it, since the model's bevelled meshes don't thin: anything
@@ -346,14 +431,26 @@ sign. It comes to about 9,300 triangles and 260 KB in nine parts, all lit like t
 outside, and a profile (`content/krustyKrabProfile.ts`) of 167 boxes, the roof's
 four leaning staves as ramps (each run on a few centimetres into its neighbours, so no seam is left
 between them to drop through), and the door's two leaves. A model's parts list is all `Models.ts`
-needs of it: a new model is a script, its files, and a row in `MODELS` there.
+needs of it, with its shell: a new model is a script, its files, and a row in `MODELS` there,
+whose `shell` is its outline in a few thousand triangles or fewer, built from what the content
+already has (the pineapple's profile turned on a lathe, the Krusty Krab's hidden boxes and
+wedges), in its own colours, in its vertices.
 
 Nothing is fetched at startup. `render/Loader.ts` streams the world in: anything heavy that stands
-somewhere (a region's structure meshes to build, a model part to fetch) registers with where it is,
-and each frame the nearest thing not yet begun is begun, so the player is in the world at once and
-it fills in round them nearest first, the far side within a second or two. Nothing waits on
-distance (a scope sees the far side as sharp as the near); the loader only sets the order. Register
-a new model or any big build with it rather than loading it in the constructor.
+somewhere (a region's structure meshes to build, a chunk of the ground's slab, a model part to
+fetch) registers with where it is,
+and the nearest things not yet begun are begun first, so the player is in the world at once and it
+fills in round them nearest first, the far side within a second or two. Within `REACH` (600 m)
+nothing outside waits on distance (a scope sees the far side as sharp as the near) and the loader
+only sets the order; past it, things are let go and wait to come back within reach (see Client
+loading). What's inside a building waits until it's wanted (see Interiors). No frame waits on loading: each thing's
+load is a job, a generator that yields between pieces of its work (a region yields after every
+piece it places) or yields a fetch to wait on (`yield* wait(promise)`), and each frame the loader
+steps the jobs that are ready only until `BUDGET_MS` of it is spent, the rest carrying on the next.
+A region is built as plain vertex data (`VertexData`, each piece placed where it stands and all of
+them joined) and only then made one mesh, so nothing is made and thrown away per piece. Register a
+new model or any big build with the loader as a job that yields, rather than loading it in the
+constructor or in one go.
 
 A door (`sim/doors.ts`) is a slab on a hinge, shut or swung open, kept by the Room for everyone:
 `doorPieces` makes its two hidden structures (where it stands shut, where it stands open), each
@@ -361,8 +458,40 @@ marked with the door and its state, and `Structures.setDoor` turns them on and o
 and line of sight follow the door and prediction agrees. A click on a door within `DOOR_REACH`
 sends `InputFrame.use`; the Room checks the look reaches that door, swings it, and broadcasts
 `door`, which clients apply to their `WORLD_STRUCTURES` and to the model's door node (the swing
-plays over `DOOR_SWING_SECONDS`). Bots' map leaves doors out, so they walk as if every door stood
-open. A Room keeps its own `Structures` for this; the client's `WORLD_STRUCTURES` is its page's.
+plays over `DOOR_SWING_SECONDS`). Bots' map walks as if every door stood open and lists each
+door's slab; a bot's way keeps out of doorways unless it opens doors (the sniper), whose route
+stops at a shut one in its way, turns to it and sends the same `use`. A Room keeps its own `Structures` for this; the client's `WORLD_STRUCTURES` is its page's.
+
+### Interiors
+
+What's inside a building that only its openings show is an interior (`sim/interiors.ts`): a
+floor of the pineapple's rooms, or a storey of a keep (the tower's four, a building's one). A
+building lists its own (`InteriorBuilding`, gathered in `content/interiors.ts`): the upright
+cylinder a camera is inside it within, and each interior's openings (a flat rectangle facing out:
+`wallOpening` for a gap in a round wall, `roofOpening` for a hole facing up, each reaching
+`MARGIN` past the gap, with the sim door that shuts it, if one does) and the others it `shows`
+through it (a stair's hole, a net ceiling). The client (`render/Interiors.ts`) loads an interior
+while it's wanted, draws it only while it could be seen, and lets it go once it's far off and long
+out of mind. Seen: all of a building's from
+inside it, and from outside, one with an opening in view, the camera on its outer side and its door
+open or swinging, with what it shows; once loaded, seeing waits on no distance. Wanted:
+from inside its building or within `NEAR` (25 m) of its round whatever's in view, so a door swung
+open in front of you shows rooms already there, and while it's seen through an opening within
+`SIGHT` (125 m, where a doorway is all but fog), `SCOPED_SIGHT` (560 m) through a scope. Let go:
+loaded, more than `LET_GO` (200 m) from its building, and neither seen nor wanted for `FORGET` (30
+s). Whatever is part of one registers with `Interiors.add`, with a `load` begun whenever it's
+wanted and not here and an `unload` that lets all of it go (neither for what's there from the
+start), and a `show`: a model's part by its `floor` (interior
+`<model>:<floor>`), fetched through the loader then, and a wall frame by its room's
+(`RoundRoom.interior`, a keep's storeys named `<name>:<floor>`), its picture fetched then; let go,
+a part's mesh is disposed with its material and texture, and a picture's panels are taken back
+(`CrispPanels.remove`). The doors
+in the pineapple's shell are drawn from outside with the outside, so they're painted from an atlas
+of their own (`doors.png`), the rooms' (`interior.png`) waiting with the rooms. A keep's stair and floors aren't split from its walls (about 13k triangles
+across the tower's four storeys), and the Krusty Krab has none: its glazed front shows the dining
+room from anywhere before it. A shut door's outline is a pixel either way of its edge, where what's
+behind it shows, so there the culling isn't pixel-exact. Check a new opening or interior by
+rendering viewpoints all round it with `Interiors.everything` on and off and comparing them.
 
 ### Wall frames
 
@@ -383,7 +512,8 @@ a test hangs every listed frame, so a bad one fails CI. Only the client draws th
 structures, so the bot map doesn't change. The browser draws each frame's picture at full
 resolution (and without the scene's tone mapping) in a layer under the 3D view, one slice per wall
 panel, seen through a hole the frame's mesh cuts in the depth buffer (`render/CrispPanels.ts`), so
-it stays sharp while walls and players still cover it.
+it stays sharp while walls and players still cover it. A frame is drawn, and its widget fed, only
+while its room could be seen (see Interiors).
 
 A widget is a copy of one at widgets.kathirm.com that the client draws itself
 (`packages/client/src/widgets/`): it fetches the same data the web widget does and paints the same
@@ -415,6 +545,31 @@ the canvas can't become the frame's texture from afar.
 - Pickups pass through structures like cubes, so keep a region clear of stairs and walls at the
   pickup's height. Test a new kind's effect once in `room.test.ts`; content changes need no test.
 
+### Loading a landmark
+
+Every landmark, and every change to one, is weighed for how it loads and is drawn from near and
+far, as every look is audited in every state (see Avatars): before the PR, answer each of these
+and put the answers in it.
+
+- **Up front:** what every player fetches for it at join, in files and KB (structures cost nothing
+  to fetch; a model's outside parts do), and that it registers with `render/Loader.ts` as jobs
+  that yield, nearest first.
+- **Inside:** what of it only its openings show is an interior (`content/interiors.ts`): its
+  openings, the doors that shut them, what each `shows`, and that its parts register with
+  `Interiors.add` with a `load` and an `unload`, so it's fetched when wanted and let go far off.
+  Render viewpoints all round it with `Interiors.everything` on and off and compare them.
+- **Far off:** whatever of it stands somewhere registers with the loader with an `unload`, so it's
+  let go past 700 m and comes back within 600 m; a model landmark has a shell in its `MODELS` row
+  (see Models and doors). Look at the shell beside the full model from the same spot (lower the
+  loader's `reach` to see it close), from the front, the side and above.
+- **The distance table:** where it sits against every distance in Client loading, scoped and
+  unscoped: nothing of it let go while it can be seen, no fetch and let-go either side of one line,
+  no doorway a scope shows clearly with nothing behind it, no rooms inside a shell. Any new
+  distance goes in the table.
+- **Cost:** triangles, meshes and textures it adds near and far, and the client's per-frame cost
+  of whatever watches it (`Interiors.update`, `Loader.update`), measured, with the numbers in the
+  PR.
+
 ### Checking a change
 
 Structures are content, so don't add a test per structure. Run `npm run dev`, walk the new pieces in
@@ -424,20 +579,27 @@ means prediction and the server disagree). A new kind is different: add a case i
 the client's `build` (the compiler asks for both), a check in `validateStructure` for any new fields,
 and one test of its surface in `packages/shared/test/sim.test.ts`.
 
-Bots read the world from `modal-bots/common/world_map.json.gz`, which `npm run bot-map` builds with
-the real sim (`sim/botMap.ts`, about five minutes): the structures, the walkable graph, the
-lookouts, every avatar's hitbox and walk, and the jumps for each way a look on foot moves (each
-distinct walk and jump power is simulated over the whole graph). Rebuild it and commit the new map with the change whenever any of those
-inputs move: a structure or landmark added or changed, the world's outline, the player's body or
-movement constants, or an avatar added or its hitbox resized. A test in `sim.test.ts` fails until
-you do (the map carries a fingerprint of all of them). The map also carries `code`, a hash of the
-sim files its builder runs (`scripts/botMapCode.ts`), which no test holds it to, so a change to how
-a body walks or collides needs no rebuild from you: `deploy.sh` builds the map itself when either
-is off (`npm run bot-map -- --if-stale`), and CI keeps what a deploy built for the next one.
+Bots read the world from the map in `modal-bots/common/map/`, which `npm run bot-map` builds with
+the real sim (`sim/botMap.ts`) in three stages, a file each, each with a fingerprint of what it was
+built from, so only the stages a change touches are built again: the ground (the structures, the
+walkable graph, a spot every metre round whatever stands and the open floor between as a few
+rectangles, so a lawn or a road costs a few nodes however big it is, the standard body's jumps, the lookouts and the insides; minutes, after a structure
+or landmark added or changed, the world's outline, or the player's body or movement constants), the
+moves (the jumps of each way a look on foot moves, each distinct walk and jump power simulated over
+the whole graph once; a look that moves as one already there adds nothing, and one that moves its
+own way only its own jumps) and the bodies (every avatar's hitbox, eyes, walk and way of moving; at
+once). `common/world.py` joins them into one `WorldMap`. Run it and commit what it writes with the
+change whenever any of those inputs move; a test in `sim.test.ts` fails until you do. The ground
+and the moves also carry `code`, a hash of the sim files their builder runs
+(`scripts/botMapCode.ts`), which no test holds them to, so a change to how a body walks or collides
+needs no rebuild from you: `deploy.sh` runs `npm run bot-map` too, building a stage whose source or
+code is off, and CI keeps what a deploy built for the next one.
 
 Cubes don't know about structures. Every map (the HUD's minimap, the menu's and the guide's) draws
-through `ui/MapCanvas.ts`, which reads the outline (`WORLD_SHAPE`) and `content/landmarks.ts` itself,
-so they all show one world and a map change is a change there: footprints grey on the floor (a disc's
+through `ui/MapCanvas.ts`, which reads the outline (`WORLD_GROUND`) and `content/landmarks.ts` itself,
+drawing only the parts, landmarks and grid lines its view covers (`Ground.partsIn`), so a frame
+costs what's on the map however big the world is, and they all show one world and a map change is a
+change there: footprints grey on the floor (a disc's
 `rings` drawn inside it: Tung Tung Tower has one per floor above the ground), SpongeBob's house as
 itself (a `PineappleMark`: the fruit hatched, its leaves in the middle, on the sand of its dune), the
 Krusty Krab as itself (a `KrustyKrabMark`: its plinth, the barrel of its roof, its arches), and
@@ -479,32 +641,44 @@ and throws a walker back (its `knock`), a kill by it announced with `item: 'stri
 key held, which the touch JUMP button holds too) coming down holds the fall, `PlayerState.floating`:
 it sinks at `sink` for as long as it's held, up to `seconds` between one landing and the next
 (`floated`), and a long jump and a ground pound don't float; the client gives it a few sparkles
-under the body, `render/Sparkles.ts`, and a faint shimmer for as long as it lasts, a loop of `Footsteps`) and a builder in `packages/client/src/render/avatars/` (`MAKERS` in `index.ts`,
+under the body, `render/Sparkles.ts`, and a faint shimmer for as long as it lasts, a loop of `Footsteps`) and a builder in `packages/client/src/render/avatars/` (`LOOKS` in `index.ts`, a dynamic `import()` of its module,
 which the compiler asks for). Everyone on foot is a `Figure` (`render/avatars/Walker.ts`): the
 builder makes the avatar's parts under the base node and says which plays which role (what tips
 with the look, a head, the legs, the free arm, the weapon arm with its grip and the way it reaches
 in the model) and the numbers its walk takes (swings, bob, sway, how it lies dead), and
 `WalkerAvatar` poses every figure the same way: standing, walking, aiming what it holds, falling,
-climbing a ladder and lying dead. Empty-handed the body turns to face the way it's going (the look
-only turns its head) and stays facing that way when it stops; with something to aim it faces its
-look, so the aim shows. It watches how it moves from where it's drawn, which for a player's own
+climbing a ladder, sat driving a kart and lying dead. Empty-handed the body turns to face the way it's going (the look
+only turns its head) and stays facing that way when it stops, unless it's `headless` (Tung Tung
+Tung Sahur, his face on the log), when standing still it turns whole to the look; with something to
+aim it faces its look, so the aim shows. It watches how it moves from where it's drawn, which for a player's own
 body is a sim tick at a time, on whichever frames the ticks fall, with a hair of drift on every
 frame between as its prediction's correction dies away. So nothing is read from a speed taken
 frame to frame (it comes out zero and double by turns, and a pose hung on it flickers): the
 heading is taken over the time since the body last moved by more than that drift, and in the air
-only which way it last moved is read, up or down. Motion is written there once, for all of them, and an avatar's
+only which way it last moved is read, up or down. A body dying leaps `DEATH_LEAP` of its height and goes
+over in the air, landing as it lies (`WalkerAvatar.lie`); one first seen dead just lies. Motion is written there once, for all of them, and an avatar's
 own touches (a tail, a twitch, feet that lift) are its `extra` hook. A body that differs by a
 number (how far a leg swings, a two-part tentacle, no legs at all) is still a figure; one that
-differs by a rule (a sidestep, a slither, tentacles wrapping the rungs) extends `WalkerAvatar` and
-overrides that one phase (`walk`, `climb`, `lie` or `aim`), registered in `MAKERS` by its class,
-and the walker never asks which avatar it is posing. A Sketchfab
+differs by a rule (a sidestep, a slither, tentacles wrapping the rungs, running on a kart's
+steering wheel) extends `WalkerAvatar` and overrides that one phase (`walk`, `climb`, `sit`, `lie`
+or `aim`), registered in `LOOKS` by its class (a `BodySpec` names it as its `avatar`), and the
+walker never asks which avatar it is posing. A Sketchfab
 model goes through `packages/client/scripts/avatar-model.py` into a `<name>Model.ts` and a texture
-atlas (`public/assets/textures/avatars/<id>.png`, listed in `SKINNED` in `render/avatars/index.ts` so
-it's fetched at startup); a trunk on two arms and two legs is a `BodySpec` (`Body.ts`), and one with
+atlas (`public/assets/textures/avatars/<id>.png`, fetched with the look's chunk, see Client
+loading); a trunk on two arms and two legs is a `BodySpec` (`Body.ts`), and one with
 a whole skeleton a jointed body (below). Tung Tung Tung Sahur (`Sahur.ts`) is rigid parts from
 `scripts/sahur-model.py`: a sculpt's log and legs with arms and a bat drawn by the script, every
 part closed and turning on a joint sunk in the log, the bat in its left fist and an item in its
-right; the builder's `extra` poses the bat arm (carried, swung on a strike, held clear on a ladder). Rebuild the bot map after
+right; the builder's `extra` poses the bat arm (carried, swung on a strike, held clear on a ladder).
+Sandy (`Sandy.ts`) comes from a model with no rig at all, one mesh in separate pieces, so
+`avatar-model.py` gives each bone the pieces that lie where it is (a `Piece` by side, height and
+how far out, turning on its inner end, its bottom or its front) and thins each piece on its own
+(`apart`); the helmet's glass is left out of the mesh (`skip`) and drawn by the builder as a clear
+dome the size the model file gives (`glass`). Mrs. Puff and Larry the Lobster (`Puff.ts`,
+`Larry.ts`) are on that game's own rig, a head, two arms and two legs on a trunk (and Larry's
+tail); her eyelids, which the rig binds shut, are left out of the mesh (`bare`), and her eyeballs,
+cream in its texture, painted white (`whitened`); the shine drawn on his claws is painted over
+(`plain`). Rebuild the bot map after
 adding one, and keep it as cheap as the ones there (triangles, one mesh, a small atlas), with the
 numbers in the PR.
 
@@ -524,7 +698,8 @@ somersault fitted to the flight so it's over just before the landing, and `pound
 `pounded`, a ground pound turning over into the seat it drops in, then landing sat and getting
 up, and `crouch`, `crawl` and `backflip`, sat low, a cycle of the crawl's limbs, and the backward
 somersault of the jump out of it, fitted to its flight as the triple's is, and `float`, hanging
-in the air through a float) and a few numbers; the frame's pose is those sampled and blended: the idle into the walk or run at the
+in the air through a float, and `die`, dying where it stands, played once and held where it leaves
+the body, in the leap's place: the game's own reel and fall, which Mario's whole family plays) and a few numbers; the frame's pose is those sampled and blended: the idle into the walk or run at the
 point in the stride its feet have got to (the footsteps' phase, so feet land with their sounds,
 and the stride is the same at any speed, the legs only quicker), the jump going up into the fall
 coming down, and a landing as hard as the drop. Don't invent a character's motion from numbers:
@@ -596,7 +771,10 @@ everyone near, never before the last cry has run out nor within `CRY_GAP_MS` of 
 hears it over the hurt sound, which sounds at every hit whatever the look; a spray's hits, fire's
 and ice's, come too fast for a voice and are the hurt sound alone, `Game.sprayed`) and a moment after a kill (`Game.say`); and its `death`,
 which its own player alone hears over the death screen (cut to its ten seconds; the reload ends
-it), `DEATH_SOUND_DELAY` after dying so the hit that killed them sounds first, as any hit does. A
+it), `DEATH_SOUND_DELAY` after dying so the hit that killed them sounds first, as any hit does,
+and over that hit's cry rather than cutting it as a look's other lines cut its last. While it
+plays it's the player's only music: the theme they were hearing is gone by the time it starts
+(`Sfx.endLoops`) and none comes back until it ends (`Game.music`). A
 hurt, a kill and a death are `lazy` too, sent for (`Sfx.want`, `Game.wantVoice`) as a look is
 first seen worn, a death by its own player alone, since they have to be there the moment they're
 said; a hurt or a death that hasn't arrived is left out, and a kill not here yet is played as it
@@ -628,6 +806,20 @@ the side and behind; and your own body in third person. The model's bind pose de
 hang (`armsDown`) and where the palm is (`model.hand`), and a held gun has to sit in the hand with
 its barrel along the look: the weapon arm is turned from its `reach` (shoulder to hand as the model
 holds it) to the look, and the grip at its hand turned so the barrel runs that way.
+
+Audit every look in every state, up close: standing, walking, each weapon held and aimed up and
+down, firing, hit, dying, dead, on a ladder with and without an item, driving a kart with the
+wheel straight and full over, and any move of its own. A
+sheet of the whole body hides what's wrong at a hand, so look at the hand itself from the front,
+the side, behind and above for each weapon: a weapon is held by its handle (`HANDLE` in
+`render/Weapons.ts`, whose middle `HeldItems` puts at the hand's grip), so the handle is in the hand
+as that hand can hold one (in a fist, in the gap between a claw's pincers, against the palm of a
+hand that can't close) and the weapon's body lies over the hand or ahead of it, never through the hand or hidden
+inside it. What a look needs for that is its builder's to say: `hold` moves the handle from the
+grip, `roll` turns the weapon arm about its length as it aims (a hand turned thumb up, a claw's
+pincers closing on a handle from its sides), and `itemScale` draws the items to the body's size. When something every look
+shares changes (the walker, a weapon's shape, a rig), audit every look it reaches, not the one the
+change was made for.
 
 ## Player classes
 
@@ -691,17 +883,27 @@ clipped, so a deck or a roof hides it as the floor does), and
 the wave down its body (`Wave`, in metres of body: the spine's points ride it, so a body of rigid
 pieces tilts along it joint by joint and a skinned one bends); with its voice in `DRAGON_VOICES` (`audio/Sfx.ts`: its roars by action and
 the cry it rises with, each a `Call` with a take heard up close and, where the rip has one, a take
-recorded from afar that plays instead past `FAR` metres; and its theme, a loop with an intro) and
-how far back it's watched from in `DRAGON_BOOMS` (`game/View.ts`). The theme a player hears is the
-nearest living dragon's (`Game.ts`), kept until another is `THEME_HYSTERESIS` nearer, one crossing
-into the next over the sounds' `swell` and `fade`; a theme runs from the first dragon of its kind
-rising for as long as any is alive, so one taken up again is heard from where it has got to
-(`setLoops`' `elapsed`), not from the top. A building can have a quiet theme of its own
-(`PLACE_THEMES` in `audio/Sfx.ts`: the Krusty Krab's hornpipe, SpongeBob's house's rag, Tung Tung
-Tower's tower music on every floor up to the roof): one more contender for the nearest, measured
-from its walls (`toKrustyKrab`, `toPineapple`, `toTower`) and heard flat
-across its grounds, running on from when it was first heard; from inside the walls it's the only
-theme, no dragon's playing over it. A looping track is cut on exact samples and encoded
+recorded from afar that plays instead past `FAR` metres) and its theme in its row in `VOICES`, and
+how far back it's watched from in `DRAGON_BOOMS` (`game/View.ts`).
+
+A player hears one theme at a time (`Game.ts` `music`), and none while their look's death plays
+(see Avatars). A look can have a theme of its own
+(`VOICES`' `theme`, a loop, with an intro if it has one), and to whoever wears it that's the only
+music there is, wherever they go: no dragon's or building's plays over it. Its `heardBy` says who
+else hears it: `everyone` round the wearer, from where they are (a dragon's, so one is heard
+coming), or the `wearer` alone (Elizabeth's, Katsura's theme from Gintama), heard flat at its
+volume. A player wearing no theme of their own hears the nearest of those round them: a living
+player's that everyone hears, from its head, or a building's (`PLACE_THEMES` in `audio/Sfx.ts`: the
+Krusty Krab's hornpipe, SpongeBob's house's rag, Tung Tung Tower's tower music on every floor up to
+the roof), measured from its walls (`toKrustyKrab`, `toPineapple`, `toTower`) and heard flat across
+its grounds, the only one heard from inside them; kept until another is `THEME_HYSTERESIS` nearer,
+one crossing into the next over the sounds' `swell` and `fade`. A worn theme runs for as long as
+anyone the player could hear it from wears it, and a building's for the rest of the visit, each
+from the first frame its recording is here (`Game.running`, so it begins from the top however long
+it took to arrive), and one taken up again is heard from where it has got to (`setLoops`'
+`elapsed`). A look's own theme is sent for as its player takes it (`Game.wantVoice`). Anything that
+should one day carry a theme of its own (a power-up, say) is one more source for the player's own
+in `music`. A looping track is cut on exact samples and encoded
 with LAME (ffmpeg's `libmp3lame`), whose header the browsers' decoders read to trim the padding,
 so the loop and the join from its intro are gapless; check a new one decodes to its exact sample
 count before trusting it. A new class is a spec
@@ -729,6 +931,112 @@ joint of a straight skeleton, so the sim's links are the rig's joint spacings an
 the middle of each link carrying the pieces hung on it (the script prints the shape for `AVATARS`).
 The helpers the model scripts share (reading a GLB, decimating, packing an atlas) are in
 `scripts/glb.py`.
+
+## Karts
+
+Karts are their own module, apart from players' classes: `sim/vehicles/` in the shared package.
+A kart is a row in `KARTS` (`karts.ts`): its name and command, and its stats, each a number in
+the units it's felt in: `speed` (S, m/s flat out on the gas), `acceleration` (seconds from
+standing to S), `handling` (metres across the circle it turns at S with the wheel full over),
+`weight` (who shoves whom in a bump), `miniTurboTime` (seconds of drifting to a blue spark,
+smaller better) and `wrenches` (its health), with the box it drives as. Traction isn't a stat:
+it's one constant for every kart, and only an icy footing's grip is less. A kart is built to seat
+its driver (`sizeFor`, `KartState.size`, set as it's dropped and every tick it's driven): at its
+model's size for one no bigger than `SEATS` (as tall as Luigi, as wide as the standard body), and
+for a bigger one grown as many times as they're bigger, by up to `GROWTH` (a fifth), too little to
+see karts come in sizes; everything about its box is read at that size through `bodyOf`. `stepKart` (`kart.ts`)
+is how every kart drives, a pure step of its `KartState` by its driver's `KartControls` (gas or
+brake, the wheel, the drift key) that the Room runs and the driver's client predicts with: the gas
+and the brake along it (the brake backing it up once it stops), a turn as tight at any speed,
+the wheels taking back what slides across, rolling up anything within a kerb's height and
+flying off a ramp's lip, and walls in the way, which it meets as two circles, at its nose and its
+tail, so a corner hit turns it; it reports how fast it ran into what it hit and how fast it came
+down when it lands. A drift is Space: a press hops it, and landing with the key held and the
+wheel over at speed it drifts that way, tighter or wider by the wheel, a spark blue, yellow and
+purple at one, two and three `miniTurboTime`s of it on the ground; let go on a spark, it's a
+mini-turbo, its top speed raised by half over `TURBO.rise`, held for `TURBO.holds` by the spark
+and let down over `TURBO.fall`. A press in the air, off a ramp or a ledge but not its own hop (or
+every hop would be a boost), is a trick (`KartState.trick`), left or right the way the wheel is
+held, else either by where the kart is (so the driver's client predicts the same way), and landing
+after one is a boost like a mini-turbo's held for `TRICK.hold`; `turbo` is either, by how long it
+holds.
+
+A room's karts are its `Garage` (`garage.ts`), which the Room steps and whose hurts it deals out,
+and every client is sent them (`karts` in `welcome` and `snap`, each a `Kart`: its `KartState`,
+its paint, its wrenches and its driver). One is dropped `DROP_AHEAD` in front of whoever asks,
+short of a wall down to right over them, from `DROP_HEIGHT` up; there are never more karts than
+players, and one left empty `IDLE_SECONDS` is taken away. A click on one within `KART_REACH` gets
+a walker in (the same `use` a door's click is): what they hold and wear is put away till they get
+out with E (the `exit` action), whatever move they were in stops, and they ride in its seat
+(`PlayerState.riding`), their frames driving it (`my` the gas, `mx` the wheel, the `drift`
+action held) and only what stands out of the seat hit by shots (`SEATED`); kit and bodies that
+can't sit are refused till they get out. Everything that hurts is judged by how fast two things
+close square to where they touch (`IMPACT`: nothing under 10 m/s, 5 at 20 and on in step):
+hearts off a player on foot a kart runs into, who is thrown back hard (and 5 off one it comes
+down on), credited to its driver, else whoever last drove or dropped it; and wrenches off a kart
+from a wall or another kart (which also part by their `weight`s), from the ground it lands on more
+gently (`LANDING`: half how fast it comes down counts, so it's worn only from a 10 m drop and a
+40 m one takes every wrench), and a
+shot's damage from anyone, a shot stopping at a kart nearer than whoever it would have hit. At
+no wrenches it explodes (`boom`): it's gone, its driver is thrown out of it, and everyone on foot
+within `BLAST.reach` with nothing between takes `BLAST.damage` and is thrown away, credited to
+whoever took its last wrench; what wore it down never reaches the driver. A kill by a kart is
+announced as one (`kill` with `item: 'kart'` or `'explosion'`), and a death of one's own doing in
+one as `crashed`.
+
+A kart's model is written by `scripts/kart-model.py` from a rip of a Mario Kart 8 body and tire
+set, sized as MK8 sizes it against Mario and a tenth bigger (`ROOM`), so he sits in it with room: its parts (`body`, the `steer`ing wheel that turns, the
+`emblem` and one `tire`, each simplified to its size) and their pictures in
+`public/assets/models/kart-<id>/`, and `render/vehicles/<id>KartModel.ts`, read through
+`KART_MODELS` (`render/vehicles/kartModel.ts`): where its tires stand (the tire set's own, at MK8's
+size, each centred along the kart on its axle's hub with its outer face flush with the body's side,
+on the edge of its wells, all four on the ground), the steering wheel's middle,
+the axis it turns round and the grips a driver's hands take on it (a wheel's rim or a handlebar's
+ends alike), the seat, where a driver's feet rest (against the pedals, or as far forward under the
+nose as a foot fits), and each driver's paint. A paint is two colours and an emblem: the body is
+one picture with its two painted colours left white and a second saying where they go, painted on
+the client in whichever colours (`paintOf`: the dropper's own, for the Mario family, else Mario's).
+The script prints the box the sim drives it as, for its row in `KARTS`. `render/vehicles/KartMesh.ts`
+draws one: its tires rolled by how far it went and the front pair steered, its steering wheel
+turned, the body tipped to the ground under its tires, all at its size, eased there; its parts are fetched the first time a kart
+of that model is drawn (a box of its size in its paint stands in till then). `game/Driving.ts` is
+the rest of driving on the client: every kart drawn, the driven one where its driver's prediction
+has it (`Prediction` rides it as the Room does, rewinding and replaying it with them); the kart
+under the crosshair, which a click gets in (the same prompt and `use` as a door's); the look
+turned with the kart and settled back behind it once the mouse is let be; and the drift on Space
+and E to get out. A driver is watched along `KART_BOOM`, their legend is the kart's keys, and on
+touch the pad steers alone, GAS and BRAKE hold W and S, the jump button drifts and OUT gets out.
+Their kart's wrenches are a row of pixel wrenches under their hearts (`Hearts` with the `wrench`
+sprite). A frame the Room steps a driver without (one arriving late) drives on with the keys as
+their last frame held them.
+
+A driver sits in their kart as it's drawn: `KartMesh` puts its `Seat` (`render/vehicles/Seat.ts`)
+each frame, the seat's middle and the kart's turn, tipped with it, and in its frame the grips
+turned with the wheel, the feet and the top of the wheel's rim, and karts are drawn before bodies,
+so a body sits where its kart is that frame. Every figure on foot `sit`s (`Walker.ts`): its hips on
+the seat, back from its middle as far as keeps its trunk (measured off its vertices) behind the
+steering wheel's middle, its legs straight out to the pedals or, longer, to the floor under the
+nose, and, with two arms, a hand on each grip, the body leaning back or forward as far as brings its
+hands there, and into the turn; a big one is cramped in, round the wheel and through the nose. A
+jointed body drives as Mario Kart 8 Deluxe has its character drive: its `kart` clips
+(`<name>KartClips.ts`, baked by `scripts/kart-clips.py` from each character's driver file, which
+`scripts/bfres.py` reads, through `clips.py` with the hips sat rather than stood) at the wheel,
+backing up, drifting each way, on a mini-turbo and in the hop into a drift, each steered (its frames
+run the wheel from full right to full left, sampled where the kart's wheel is) and eased into the
+next as the kart's `Seat` says what it's doing; stopped a second, waiting; hit, its hands off the
+wheel. Its hips go on the seat back as far as keeps its belly behind the wheel (`Rig.seat`), and the
+hands a clip keeps on the wheel are closed on the kart's own grips (`Rig.grasp`), since MK8's
+wheels stand elsewhere. The driver files come whole in retexture mods (the script's docstring says
+which), the animations as the game has them.
+A trick (`Seat.trick`, timed by `KartMesh` from the press, `TRICK_SECONDS`, on through the landing)
+twirls the kart's drawn body a whole turn its way under its driver, the seat staying put: a
+jointed body plays its trick that way (`trickL`, `trickR`: MK8's trick that spins a whole turn
+that way, or the other way's mirrored, so it spins with the kart), and every other figure is
+thrown up out of the seat standing with its hands up and back down (`Seat.leap`,
+`WalkerAvatar.thrown`).
+Plankton, too small to reach the pedals, stands on top of the steering wheel and runs on it
+(`Plankton.ts`). The sim knows a driver only by their seat (`kart.ts` `seat`, `SEATED`), so a body
+sat in a kart and its hit shape agree only roughly.
 
 ## Weapons
 
@@ -759,7 +1067,7 @@ handed in as `MenuHooks`; `rows.ts` is the kinds of row (a toggle, a stepper wit
 an AUTO button, a field, buttons, a link to share) and how each draws; and `menu.css` is its look. A
 new setting is a row in `tabs.ts`, and a new kind of row a type and a case in `rows.ts`. The PLAY
 tab opens on a window (`Preview.ts`) with the player's own body in it and the map in a square in
-its corner, the two swapping places at a click on the small one, and under it the hint to press C
+its corner (on touch, the other way round), the two swapping places at a click on the small one, and under it the hint to press C
 (which closes the menu and opens the commands, as it would from the world). The body is a second
 `Engine` on a canvas of the card's, built the first time the tab is seen and drawn only while it
 is, where the world's own avatar builders stand the avatar on a floor ruled in metres that fades
@@ -767,7 +1075,9 @@ out toward its edge (a dragon hovering over it, its head weaving and its body tr
 would keep it), holding what the player holds and as the player is (`Me`: frosted over, a
 dragon's crystals shot out), so every skin's own idle motion runs there too; the view turns on
 its own and under a drag, from above or below (the floor fades out as the view comes down to its
-level). The map (`menu/Map.ts`) is the HUD minimap's view, NEAR or WORLD, drawn by the same
+level). The map (`menu/Map.ts`) is the HUD minimap's view, CLOSE, WIDE or WORLD (the first two
+centred on you and turning with you, 32 m and 100 m out to the nearer edge; P steps one wider, and
+from WORLD back to CLOSE), drawn by the same
 renderer (`ui/MapCanvas.ts`, which draws a `MinimapFrame` onto any canvas at the size it has; the
 HUD's `Minimap` is a panel round one, and keeps the view and the latest frame for the menu's),
 with the same toggle (P too), a wheel or a pinch to zoom it and a drag to slide it; on touch,
@@ -853,12 +1163,18 @@ them with), framed by its measured size. Its numbers are worked out in `guide/st
 registries the game runs on, never typed in, and its words are `guide/content.ts`, keyed by the
 registries' ids, so a new skin, item, gear or pickup doesn't build until it has an entry there:
 plain statements of what each thing is (Kathir writes anything more, and the fun facts), no numbers.
-The World tab opens on the world's map (`MapCanvas`, to drag about and zoom, `ui/mapControls.ts` as
+A character's SOUNDS are a button for every sound it makes that not every look makes alike
+(`guide/sounds.ts` `linesOf`): what it says (`VOICES`), the sounds of the moves it has, its own
+footsteps (`GAITS`) and a dragon's roars, rise and theme, leaving out what every look makes the same
+(the swoosh, the thuds, the hurt sound). A move's sound is a function of the look in
+`audio/voices.ts` (`twirlOf`, `swingOf`, `shimmerOf`) that the game plays and the guide lists, never
+a literal where it's played, so a look can't make a sound the guide doesn't show: a new look's or
+move's sound goes through one of those, or a new one, and into `linesOf`. The World tab opens on the world's map (`MapCanvas`, to drag about and zoom, `ui/mapControls.ts` as
 the menu's map is). Its photos are in `public/assets/guide/places/`, taken in the game offline with the
 boundary wall hidden, each with a `-thumb` for its gallery.
 
-A diagram in the guide (each bot's page has one, `guide/botDiagrams.ts`, keyed by `BotId` so a new
-bot doesn't build without one) shows what something does, seen from above, and is built from the
+A diagram in the guide (each bot's page has one but the observer's, `guide/botDiagrams.ts`, keyed
+by `BotId` so a new bot doesn't build until it has one or a null) shows what something does, seen from above, and is built from the
 marks of `guide/diagram.ts` alone (`Diagram`: the subject, people, other bots, walls, rings, the
 strokes `move`, `detour`, `look`, `turn` and `shot`, a crosshair and labels) on its 640 × 360
 canvas, coloured by the `.diagram` rules in `guide.css`. Never colour or size a mark inline or add
@@ -957,9 +1273,11 @@ Bots must use the modules under `modal-bots/common/`:
 - `load_world_map()` (`common/world.py`) is the world's structures and walkable ground, shared by
   every bot in the process. `world.clear(a, b)` is the sim's line of sight (what a shot can pass);
   `world.node_at(feet)` and `world.path(start, goal, avatar)` find a way between the spots a player
-  can stand on a 1 m grid, up the stair and over the rail where only a jump gets there, and only by
-  the jumps that avatar's walk and jump power make (`world.jumps_of`).
-  `Route(world, path, tick, avatar)` (`common/navigation.py`) walks it: call `route.steer(me.pos, tick,
+  can stand on a 1 m grid round whatever stands and the rectangles of open floor between
+  (`world.areas`), up the stair and over the rail where only a jump gets there, and only by the
+  jumps that avatar's walk and jump power make (`world.jumps_of`).
+  `Route(world, path, tick, avatar)` (`common/navigation.py`) walks it, across open floor straight
+  for the furthest node of it in reach (`world.straight`): call `route.steer(me.pos, tick,
   controls)` on every snapshot after `look`, and plan again when `route.stuck(tick)`.
   `controls.walk_toward(origin, target)` moves toward a point whichever way the bot is looking.
   `world.lookouts` are the high spots with a wide view (balconies, decks), `world.places` the
@@ -987,13 +1305,16 @@ controls.scope(True)
 controls.thrust(True)               # hold a worn jetpack's lift (after /jetpack)
 controls.run(True)                  # hold the run: the walk 60% faster, except scoped
 controls.read_cube(cube_or_id)
+controls.use(door_id)               # one frame clicking the door it looks at (Route does this)
 await controls.chat("hello")
 await controls.command("sniper")    # sends /sniper
 ```
 
 There is no generic server-side click message. Browser cube clicks are local visual picking and
 become the `reading` field; use `read_cube`. Attack clicks become the `shoot` action; use
-`fire_once` or `shoot`. Sky-object clicks are entirely client-side and have no server interaction.
+`fire_once` or `shoot`. A door click is `use`, judged against where the bot looks. A way from
+`world.path` keeps out of doorways unless asked (`doors=True`), and a `Route` given
+`doors=state.doors` opens the shut doors on such a way. Sky-object clicks are entirely client-side and have no server interaction.
 
 Tap weapons require a press frame followed by a release frame. Hold weapons require `shoot` on
 every frame. Sniper shots require scope to remain enabled, and a scoped player walks at 30% speed
@@ -1063,7 +1384,9 @@ protocol.
 - Falls hurt by landing speed: slower than a 15 m drop from rest is free, as fast as an 80 m drop
   takes every heart, and damage rises linearly between, in half hearts (a jetpack that brakes the
   fall lands slower). That arrives as a `hit` with `shooter: None`, and a fatal fall as a `fell`
-  event rather than `kill`.
+  event rather than `kill`. Landing on the ground past the world's edge is a `fell` whatever the
+  height: a bot that walks off the floor dies, so keep routes on the map. A death by one's own
+  kart is a `crashed` event.
 - Snapshots reveal players globally, and shots pass through cubes; only structures block them. Perfect aim
   can therefore be much stronger than a human player. Fairness constraints such as field of view,
   reaction delay, aim error, and respawn delay belong in bot policy, not in connection code.
@@ -1129,7 +1452,7 @@ Use an isolated room such as `bot-smoke`, not `global`, for automated or manual 
 
 ### Calling bots from chat
 
-`/circle-bot`, `/stalker-bot` and `/sniper-bot` start a bot in the caller's room, within 50 m
+`/circle-bot`, `/stalker-bot`, `/observer-bot` and `/sniper-bot` start a bot in the caller's room, within 50 m
 of them across the floor and at their height: on whatever is there within a step, or in the air to
 fall from, never inside a wall. The sniper ignores the spot and starts indoors, in the tower or a keep. The `-bot` is optional where the bare word
 isn't already a command (`/circle`, but `/sniper` is the rifle). Flags go in any order, each at most once, and each has a long form too
@@ -1139,7 +1462,7 @@ isn't already a command (`/circle`, but `/sniper` is the rifle). Flags go in any
 | --- | --- | --- |
 | `-t [seconds]` | all | how long it stays: 300 unless given, up to 3500 |
 | `-n [name]` | all | what it plays as, instead of `<bot>-bot` |
-| `-s [skin]` | all | how it looks: any skin's chat command (`elizabeth`, `tung`) |
+| `-s [skin]` | all but the stalker | how it looks: any skin's chat command (`elizabeth`, `tung`) |
 | `--target [name substrings]` | combat | who it goes after: the words up to the next flag, each any part of a name |
 
 So `/sniper-bot -t 120 -n hunter -s tung --target kat bob`. A bare word, an unknown or repeated
@@ -1159,8 +1482,10 @@ Python process runs. The sidecar spawns the worker's function (`BOTS_FUNCTIONS` 
 `infra/config.py`: `run_dumb_bot` or `run_combat_bot`, each looked up once) with `{bot, room,
 seconds}`, the request's `name` and placement (`spawn`, `avatar`) and, for a combat bot, `targets`,
 using the container's own Modal credentials; Node never holds a token. A bot called from chat
-therefore needs a row in `bots.ts` as well as its Python module; one without a row (the observer) is
-started only with `modal run`.
+therefore needs a row in `bots.ts` as well as its Python module; one without a row is started only
+with `modal run`. A row's `look` is the one look that bot always wears (the stalker is always Tung
+Tung Tung Sahur, the one body that shows where it looks standing still): `botRequest` dresses it so
+and it takes no `-s`, and its Python module wears that look whatever it's given.
 
 Rooms also start with bots: the first person to join brings the line-up from
 `packages/shared/src/sim/defaultBots.ts` (`defaultBotsFor(room, rng)`: two circle bots anywhere, each in a different look drawn from `CIRCLE_LOOKS`, and a

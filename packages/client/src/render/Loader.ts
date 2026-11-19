@@ -1,42 +1,159 @@
-// Streams the world in. Everything heavy that stands somewhere (a region's structure meshes to
-// build, a model to fetch) registers here with where it is, and each frame the nearest thing not
-// yet begun is begun, so the player is in the world at once and it fills in round them nearest
-// first, the far side within a second or two, with no frame spent building more than one thing.
-// Nothing waits on distance: a scope sees the far side of the world as sharp as the near, so it
-// all comes, only in the order it matters. Fetches overlap a few at a time; a build takes its frame.
-const IN_FLIGHT = 3; // fetches running at once
+// Streams the world in round the player. Everything heavy that stands somewhere (a chunk of the
+// ground's slab, a region's structure meshes, a model's part) registers here with where it is, and
+// of those not yet begun the nearest to the player is begun first, so the player is in the world at
+// once and it fills in round them nearest first. What can be let go again (it has an `unload`) is
+// kept only while it's within REACH of the player, let go past REACH + SLACK and begun again as it
+// comes back within reach, so the world costs what's round the player however big it grows, and
+// walking back and forth across one line can't load and unload it over and over. REACH is past
+// SCOPED_SIGHT, where even a scope sees all but nothing through the fog, so nothing is seen go.
+// What can't (a building's rooms, which Interiors.ts lets go by its own rule) is begun once.
+// These distances are set against the rest of the client's (CLAUDE.md, Client loading): audit
+// them together.
+//
+// No frame waits on loading. A job is a generator that yields between pieces of its work, or yields
+// a promise (a fetch) to be woken when it settles (`wait`), and each frame the loader runs the jobs
+// that are ready, a step at a time, only until BUDGET_MS of the frame is spent; the rest carry on
+// the next frame. So a big build costs a few frames a little each rather than one frame a lot, and
+// one thing is let go a frame at most.
+import { SCOPED_SIGHT } from '@world/shared';
+
+const IN_FLIGHT = 3; // jobs begun and not yet done at once
+const BUDGET_MS = 4; // of each frame the loader's jobs may take
+const REACH = SCOPED_SIGHT + 40; // metres from a thing's edge within which it's wanted
+const SLACK = 100; // metres further out past which it's let go
+const CHECKS = 64; // things whose distance a frame looks at, round them all in turn
+
+// What a job yields: nothing, to give the frame back if it's spent, or a promise to wait for.
+export type Job = Generator<Promise<unknown> | void, void, unknown>;
 
 export interface Loadable {
   x: number;
   z: number;
-  load: () => void | Promise<void>;
+  r?: number; // metres round (x, z) it stands over: it's as far off as the nearest of it
+  load: () => Job;
+  unload?: () => void;
+}
+
+// Waits for a promise inside a job and hands back what it came to: `const x = yield* wait(p)`. A
+// promise that fails throws in the job, where it was waited on.
+export function* wait<T>(promise: Promise<T>): Generator<Promise<unknown>, T, unknown> {
+  const got: { settled?: { value: T } | { error: unknown } } = {};
+  yield promise.then(
+    (value) => void (got.settled = { value }),
+    (error: unknown) => void (got.settled = { error }),
+  );
+  if (!got.settled) throw new Error('woken before its promise settled');
+  if ('error' in got.settled) throw got.settled.error;
+  return got.settled.value;
+}
+
+// A thing and where it has got to: waiting its turn, being loaded (its job), here, or let go and
+// out of reach.
+interface Thing {
+  item: Loadable;
+  status: 'pending' | 'loading' | 'here' | 'gone';
+}
+
+interface Running {
+  thing: Thing;
+  job: Job;
+  waiting: boolean;
 }
 
 export class Loader {
-  private readonly pending: Loadable[] = [];
-  private fetching = 0;
+  // Metres within which what can be let go is wanted: REACH, but for checking the streaming closer to.
+  reach = REACH;
+  private readonly things: Thing[] = [];
+  private readonly running: Running[] = [];
+  private next = 0; // where this frame's distance checks start, round `things`
 
   add(item: Loadable): void {
-    this.pending.push(item);
+    this.things.push({ item, status: 'pending' });
   }
 
-  // Begins the nearest pending thing to (x, z), if a fetch slot is free. Call once a frame.
+  // Once a frame, with the player at (x, z): lets one far thing go and brings back what's come within
+  // reach, CHECKS things a frame; begins the nearest pending things while there's room for them;
+  // then steps the jobs that aren't waiting, round and round, until they're all waiting or done or
+  // the frame's budget is spent.
   update(x: number, z: number): void {
-    if (this.fetching >= IN_FLIGHT || this.pending.length === 0) return;
-    let best = 0;
-    let bestD = Infinity;
-    this.pending.forEach((item, i) => {
-      const d = Math.hypot(item.x - x, item.z - z);
-      if (d < bestD) {
-        best = i;
-        bestD = d;
+    const start = performance.now();
+    let letGo = false;
+    for (let k = 0; k < Math.min(CHECKS, this.things.length); k++) {
+      const thing = this.things[(this.next + k) % this.things.length];
+      if (!thing.item.unload) continue;
+      const off = distance(thing.item, x, z);
+      if (thing.status === 'gone' && off <= this.reach) thing.status = 'pending';
+      else if (thing.status === 'pending' && off > this.reach) thing.status = 'gone';
+      else if (thing.status === 'here' && off > this.reach + SLACK && !letGo) {
+        thing.item.unload();
+        thing.status = 'gone';
+        letGo = true;
       }
-    });
-    const [item] = this.pending.splice(best, 1);
-    const result = item.load();
-    if (result) {
-      this.fetching++;
-      result.catch((e: unknown) => console.error('loading', e)).finally(() => this.fetching--);
+    }
+    this.next = (this.next + CHECKS) % Math.max(1, this.things.length);
+    while (this.running.length < IN_FLIGHT) {
+      const thing = this.nearest(x, z);
+      if (!thing) break;
+      thing.status = 'loading';
+      this.running.push({ thing, job: thing.item.load(), waiting: false });
+    }
+    let stepped = true;
+    while (stepped && performance.now() - start < BUDGET_MS) {
+      stepped = false;
+      for (const run of [...this.running]) {
+        if (run.waiting) continue;
+        stepped = true;
+        this.step(run);
+        if (performance.now() - start >= BUDGET_MS) break;
+      }
     }
   }
+
+  // Whether nothing is waiting to be begun or being loaded.
+  get settled(): boolean {
+    return this.running.length === 0 && this.things.every((t) => t.status !== 'pending');
+  }
+
+  private step(run: Running): void {
+    let next: IteratorResult<Promise<unknown> | void, void>;
+    try {
+      next = run.job.next();
+    } catch (e: unknown) {
+      console.error('loading', e);
+      run.thing.status = 'gone'; // tried again as it next comes within reach, if it can be
+      this.drop(run);
+      return;
+    }
+    if (next.done) {
+      run.thing.status = 'here';
+      this.drop(run);
+    } else if (next.value) {
+      run.waiting = true;
+      const wake = () => void (run.waiting = false);
+      next.value.then(wake, wake);
+    }
+  }
+
+  private drop(run: Running): void {
+    this.running.splice(this.running.indexOf(run), 1);
+  }
+
+  private nearest(x: number, z: number): Thing | null {
+    let best: Thing | null = null;
+    let bestD = Infinity;
+    for (const thing of this.things) {
+      if (thing.status !== 'pending') continue;
+      const d = distance(thing.item, x, z);
+      if (d < bestD) {
+        best = thing;
+        bestD = d;
+      }
+    }
+    return best;
+  }
+}
+
+// Metres from (x, z) to the nearest of a thing.
+function distance(item: Loadable, x: number, z: number): number {
+  return Math.max(0, Math.hypot(item.x - x, item.z - z) - (item.r ?? 0));
 }

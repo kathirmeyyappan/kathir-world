@@ -6,7 +6,7 @@ import {
   AVATARS,
   BOT_DEFAULT_SECONDS,
   BOT_FLAGS,
-  BOT_FLAG_IDS,
+  botFlags,
   BOT_MAX_SECONDS,
   CHILL_SECONDS,
   CHILLED_SPEED_MULTIPLIER,
@@ -37,7 +37,7 @@ import {
   walkSpeedOf,
   type AvatarId,
   type BotFlag,
-  type BotWorker,
+  type BotId,
   type GearId,
   type ItemId,
   type PickupKind,
@@ -285,9 +285,9 @@ export function speedyStats(): Stat[] {
   ];
 }
 
-// The flags a bot on `worker` takes, each with what it does and the defaults the parser applies.
-export function botFlagRows(worker: BotWorker, text: Record<BotFlag, string>): Stat[] {
-  return BOT_FLAG_IDS.filter((f) => BOT_FLAGS[f].workers.includes(worker)).map((f) => {
+// The flags a bot takes, each with what it does and the defaults the parser applies.
+export function botFlagRows(bot: BotId, text: Record<BotFlag, string>): Stat[] {
+  return botFlags(bot).map((f) => {
     const flag = BOT_FLAGS[f];
     const forms = [flag.short, flag.long].filter((s) => s !== null).join(', ');
     const extra = f === 'time' ? `; ${num(BOT_DEFAULT_SECONDS)} unless given, up to ${num(BOT_MAX_SECONDS)}` : '';

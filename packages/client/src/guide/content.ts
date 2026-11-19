@@ -56,16 +56,19 @@ export const CHARACTERS: Record<AvatarId, Entry> = {
   standard: plain('Standard', 'The default skin.'),
   mario: plain('Mario', 'Italian plumber.'),
   luigi: plain('Luigi', 'The green goat.'),
-  wario: plain('Wario', 'Wario from Super Mario.'),
-  waluigi: plain('Waluigi', 'Waluigi from Super Mario.'),
-  peach: plain('Peach', 'Princess Peach from Super Mario.'),
-  daisy: plain('Daisy', 'Princess Daisy from Super Mario.'),
+  wario: plain('Wario', 'Evil Mario.'),
+  waluigi: plain('Waluigi', 'Most underrated Mario character.'),
+  peach: plain('Peach', 'Princess Peach.'),
+  daisy: plain('Daisy', 'Princess Daisy.'),
   spongebob: plain('SpongeBob SquarePants', 'The one and only SpongeBob SquarePants.'),
   patrick: plain('Patrick Star', 'SpongeBob’s best friend. Is mayonnaise an instrument?'),
   krabs: plain('Eugene Krabs', 'Standing at the concession. Plotting our oppression.'),
   squidward: plain('Squidward Tentacles', 'SpongeBob’s grumpy ahh neighbor.'),
   gary: plain('Gary', 'SpongeBob’s pet snail.'),
-  plankton: plain('Plankton', 'Mr. Krabs’ arch nemesis and the smallest character in this game.'),
+  plankton: plain('Plankton', 'Mr. Krabs’ arch nemesis and the smallest character.'),
+  sandy: plain('Sandy Cheeks', 'A squirrel from Texas who lives under the sea.'),
+  puff: plain('Mrs. Puff', 'Driving instructor for Bikini Bottom.'),
+  larry: plain('Larry the Lobster', 'Goo Lagoon’s buff lifeguard.'),
   sahur: plain('Tung Tung Tung Sahur', 'Tung Tung Tung Sahur.'),
   mike: plain('Mike Wazowski', 'Mike Wazowski from Monsters, Inc.'),
   sulley: plain('Sulley', 'Sulley from Monsters, Inc.'),
@@ -213,8 +216,8 @@ export const BOT_FLAG_TEXT: Record<BotFlag, string> = {
   target: 'who it goes after: the words up to the next flag, each any part of a name',
 };
 
-// What each bot's diagram shows, for a screen reader.
-export const BOT_DIAGRAM_TEXT: Record<BotId, string> = {
+// What each bot's diagram shows, for a screen reader (botDiagrams.ts).
+export const BOT_DIAGRAM_TEXT: Partial<Record<BotId, string>> = {
   sniper:
     'The sniper seen from above: it shoots a person close by, keeps one further off in its sights, can’t see one behind a wall, and ducks behind cover to reload.',
   circle:
@@ -232,5 +235,6 @@ export const BOT_EXAMPLES: Record<BotId, [string, string]> = {
     '/circle-bot --skin tung',
     'spawns a circle bot named circle-bot with the Tung Tung Tung Sahur skin, for the default time.',
   ],
-  stalker: ['/stalker-bot -t 60 -n watcher', 'spawns a stalker bot named watcher for 60s.'],
+  stalker: ['/stalker-bot -t 60 -n watcher', 'spawns a stalker bot named watcher for 60s, as Tung Tung Tung Sahur.'],
+  observer: ['/observer-bot -s patrick', 'spawns an observer bot as Patrick, for the default time.'],
 };

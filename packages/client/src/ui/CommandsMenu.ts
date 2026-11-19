@@ -16,6 +16,7 @@ export class CommandsMenu {
   private noticeTimer = 0;
   onCommand: ((text: string) => void) | null = null;
   onDraft: ((text: string) => void) | null = null; // opens chat with this typed
+  onPoint: ((text: string) => void) | null = null; // a button pointed at, before it's pressed
   onOpenChange: ((open: boolean) => void) | null = null;
 
   constructor() {
@@ -41,6 +42,10 @@ export class CommandsMenu {
         else if (e.target === this.el) this.set(false); // beside the card: back to the world
       });
     }
+    this.el.addEventListener('pointerover', (e) => {
+      const button = e.target instanceof Element ? e.target.closest<HTMLElement>('.cmd-button') : null;
+      if (button?.dataset.tap) this.onPoint?.(button.dataset.tap);
+    });
     // Outside the card, so it stays up over the chat a greyed button opens.
     this.noticeEl.id = 'command-notice';
     document.body.append(this.noticeEl);

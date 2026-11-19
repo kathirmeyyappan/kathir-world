@@ -1,4 +1,4 @@
-"""What the clip scripts share (sm64-clips.py, peach-clips.py): carrying a source skeleton's
+"""What the clip scripts share (sm64-clips.py, peach-clips.py, kart-clips.py): carrying a source skeleton's
 poses onto a jointed body's (render/avatars/Jointed.ts), and writing them as a clips file.
 
 A source is a skeleton in a frame of y up, facing +z, its left at +x, with a standing pose to
@@ -6,9 +6,9 @@ measure from. A bone is carried over by how far it has turned in the world from 
 in a T-pose: the standing pose, with each arm bone turned the short way to straight out to its
 side and each leg bone to straight down. The jointed body's spine is halfway between its hips and
 its chest. The hips ride where the source's do, measured from standing and in leg lengths, so a
-longer-legged body bobs as far for its size, and each frame is then stood on the ground: lifted or
-dropped so the foot bearing the weight is as far off the floor as the source's is, the two bodies'
-legs not being cut alike.
+longer-legged body bobs as far for its size, and each frame of a body on its feet is then stood on
+the ground: lifted or dropped so the foot bearing the weight is as far off the floor as the
+source's is, the two bodies' legs not being cut alike.
 
 Each clip is written as its frames' hips (x, y, z in thousandths of a leg, Int16) and bones'
 turns (x, y, z, w quaternions, Int16 over 32767) in BONES' order, base64.
@@ -119,15 +119,14 @@ class Carrier:
         self.reference = {}
         for bone, _ in BONES:
             was = stood[bone][:3, :3]
-            self.reference[bone] = (
-                shortest(along[bone], np.array(T_POSE[bone], float)) @ was if bone in T_POSE else was
-            )
+            self.reference[bone] = shortest(along[bone], np.array(T_POSE[bone], float)) @ was if bone in T_POSE else was
         leg = float(np.linalg.norm(stood["footR"][:3, 3] - stood["legR"][:3, 3]))
         self.ground = float(stood["footR"][1, 3])
         self.scale = (self.thigh + self.shin) / leg
 
-    def frame(self, pose: dict[str, np.ndarray]) -> Frame:
-        """A pose of the source's (each bone in the world, as `stood` has them) as a frame."""
+    def frame(self, pose: dict[str, np.ndarray], on_feet: bool = True) -> Frame:
+        """A pose of the source's (each bone in the world, as `stood` has them) as a frame: stood on
+        the ground if it's `on_feet`, else (sat in a kart) with its hips just as the source has them."""
         pivot, thigh, shin, scale = self.pivot, self.thigh, self.shin, self.scale
         # The source's left is +x and the jointed body's right is +x: a mirror in x, under which a
         # turn R is M R M.
@@ -148,8 +147,9 @@ class Carrier:
             off = (pose[f"foot{side}"][1, 3] - self.ground) * scale
             wanted.append(off)
             error.append(pivot[f"foot{side}"][1] + off - ankle[1])
-        weight = np.exp(-np.array(wanted) / 0.04)
-        hips[1] += float(weight @ np.array(error) / weight.sum())
+        if on_feet:
+            weight = np.exp(-np.array(wanted) / 0.04)
+            hips[1] += float(weight @ np.array(error) / weight.sum())
         turns = np.array([quaternion(world[parent].T @ world[b] if parent else world[b]) for b, parent in BONES])
         return hips / (thigh + shin), turns, (wanted[0], wanted[1])
 

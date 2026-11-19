@@ -1,7 +1,7 @@
 // A billboard in the sky for one SkyContent entry. Placement, size and glow are uniform here;
 // the content file only knows the image and the line it says.
 import { Color3, Mesh, MeshBuilder, StandardMaterial, Texture, Vector3 } from '@babylonjs/core';
-import { worldBounds, worldDistance, type Rng, type SkyContent, type WorldPart } from '@world/shared';
+import { partDistance, type Ground, type Rng, type SkyContent } from '@world/shared';
 import type { Engine } from './Engine';
 
 const BASE_SIZE = 22;
@@ -55,16 +55,17 @@ export class SkyObject {
 
 // Spread the objects around the sky beyond the world's edge, well apart, at a distance where
 // they read as scenery. Driven by a seeded rng so everyone in a room sees the same sky.
-export function placeSkyObjects(engine: Engine, contents: SkyContent[], shape: WorldPart[], rng: Rng): SkyObject[] {
+export function placeSkyObjects(engine: Engine, contents: SkyContent[], ground: Ground, rng: Rng): SkyObject[] {
   const placed: Vector3[] = [];
-  const b = worldBounds(shape);
+  const b = ground.bounds;
   const pad = MAX_OUTSIDE;
   return contents.map((content) => {
     let position = Vector3.Zero();
     for (let attempt = 0; attempt < 200; attempt++) {
       const x = b.minX - pad + rng() * (b.maxX - b.minX + pad * 2);
       const z = b.minZ - pad + rng() * (b.maxZ - b.minZ + pad * 2);
-      const outside = worldDistance(x, z, shape);
+      // Further out than the ground measures (`Ground.edge`), so every part is asked, once, at load.
+      const outside = Math.min(...ground.parts.map((part) => partDistance(x, z, part)));
       if (outside < MIN_OUTSIDE || outside > MAX_OUTSIDE) continue;
       position = new Vector3(x, 25 + rng() * 45, z);
       if (placed.every((p) => Vector3.Distance(p, position) >= MIN_SPACING)) break;

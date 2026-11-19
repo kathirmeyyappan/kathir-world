@@ -21,6 +21,8 @@ class WorldState:
         self.players = {value.id: value for value in welcome.players}
         self.cubes = {value.id: value for value in welcome.cubes}
         self.pickups = {value.id: value for value in welcome.pickups}
+        # Every door by its id, and whether it stands open (sim/doors.ts), as the room last said.
+        self.doors = dict(welcome.doors)
 
     @property
     def me(self) -> Player | None:
@@ -62,7 +64,9 @@ class WorldState:
                     hearts=hearts,
                     dead=hearts <= 0,
                 )
-        elif message.t in ("kill", "fell"):
+        elif message.t == "door":
+            self.doors[str(message.data["id"])] = bool(message.data["open"])
+        elif message.t in ("kill", "fell", "crashed"):
             victim = self.players.get(message.data["victim"])
             if victim is not None:
                 self.players[victim.id] = replace(victim, dead=True)

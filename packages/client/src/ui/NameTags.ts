@@ -5,7 +5,7 @@
 // view), kept between MIN_PX and MAX_PX, and hides while a structure stands between it and the
 // camera. Off-screen players get a pin instead (Pins.ts).
 import { Matrix, Vector3, type Camera, type Scene } from '@babylonjs/core';
-import { AVATARS, EYE_HEIGHT, WORLD_STRUCTURES } from '@world/shared';
+import { AVATARS, EYE_HEIGHT, SEATED, WORLD_STRUCTURES } from '@world/shared';
 import type { RemotePlayer } from '../net/Interpolation';
 
 export const ABOVE_BODY = 0.3; // metres from the top of the body to the middle of the name
@@ -59,7 +59,9 @@ export class NameTags {
       const tag = this.tags.get(p.id) ?? this.create(p);
       if (p.name !== tag.name) tag.el.textContent = tag.name = p.name;
       if (p.color !== tag.color) tag.el.style.color = tag.color = p.color;
-      const at = new Vector3(p.x, p.y - EYE_HEIGHT + AVATARS[p.avatar].hitbox.top + ABOVE_BODY, p.z);
+      // Sat in a kart, its feet are on the seat and only SEATED of its body stands over them.
+      const top = AVATARS[p.avatar].hitbox.top * (p.riding ? SEATED : 1);
+      const at = new Vector3(p.x, p.y - EYE_HEIGHT + top + ABOVE_BODY, p.z);
       const screen = tagOnScreen(at, scene, camera, w, h);
       const visible = screen !== null && WORLD_STRUCTURES.clear(eye, at);
       tag.el.style.display = visible ? 'block' : 'none';

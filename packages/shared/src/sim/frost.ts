@@ -257,20 +257,9 @@ export function splat(
   return changed;
 }
 
-// Where a spray from `o` along `d` lands: RAYS rays spread over its cone (`halfAngle`, out to
-// `range`), the `shot`th spray's between the last ones', each frosting (`on`) or melting the face
-// it reaches round where it lands, wider the farther it flew, the floor included where `floor`
-// says there is one (inside the world's outline), doors excepted (they swing). Returns the cells
-// that changed.
-// Freezes every floor cell within `radius` metres of (x, z) that is inside the world (`floor`),
-// returning the cells that turned.
-export function frostDisc(
-  structures: Structures,
-  floor: (x: number, z: number) => boolean,
-  x: number,
-  z: number,
-  radius: number,
-): FrostCell[] {
+// Freezes every floor cell within `radius` metres of (x, z) that is on the floor (inside the
+// ground's edge), returning the cells that turned.
+export function frostDisc(structures: Structures, x: number, z: number, radius: number): FrostCell[] {
   const changed: FrostCell[] = [];
   const [i0, j0] = cellOf(x - radius, z - radius);
   const [i1, j1] = cellOf(x + radius, z + radius);
@@ -278,16 +267,19 @@ export function frostDisc(
     for (let j = j0; j <= j1; j++) {
       const cx = (i + 0.5) * FROST_CELL;
       const cz = (j + 0.5) * FROST_CELL;
-      if (Math.hypot(cx - x, cz - z) > radius || !floor(cx, cz)) continue;
+      if (Math.hypot(cx - x, cz - z) > radius || !structures.ground.inside(cx, cz)) continue;
       const cell: FrostCell = [FLOOR, 0, i, j];
       if (structures.frost.set(cell, true)) changed.push(cell);
     }
   return changed;
 }
 
+// Where a spray from `o` along `d` lands: RAYS rays spread over its cone (`halfAngle`, out to
+// `range`), the `shot`th spray's between the last ones', each frosting (`on`) or melting the face
+// it reaches round where it lands, wider the farther it flew, the floor included (not the drop's
+// face or the ground past the edge), doors excepted (they swing). Returns the cells that changed.
 export function sprayFrost(
   structures: Structures,
-  floor: (x: number, z: number) => boolean,
   o: Vec3,
   d: Vec3,
   halfAngle: number,
@@ -322,17 +314,13 @@ export function sprayFrost(
       z: d.z * Math.cos(r) + (a.z * Math.cos(theta) + b.z * Math.sin(theta)) * across,
     };
     const hit = structures.touch(o, dir, range);
-    const floorT = dir.y < 0 ? -o.y / dir.y : Infinity;
-    if (floorT <= range && floorT < (hit?.t ?? Infinity)) {
-      const x = o.x + dir.x * floorT;
-      const z = o.z + dir.z * floorT;
-      if (!floor(x, z)) continue;
-      const inside = ([, , i, j]: FrostCell) => floor((i + 0.5) * FROST_CELL, (j + 0.5) * FROST_CELL);
-      const b = blot(x, z, floorT, dir.y, dir.x, dir.z);
-      changed.push(...splat(structures.frost, null, FLOOR, 0, b, on, inside));
+    if (!hit || hit.face === null) continue;
+    if (hit.piece === FLOOR) {
+      const floor = ([, , i, j]: FrostCell) => structures.ground.inside((i + 0.5) * FROST_CELL, (j + 0.5) * FROST_CELL);
+      const b = blot(hit.point.x, hit.point.z, hit.t, dir.y, dir.x, dir.z);
+      changed.push(...splat(structures.frost, null, FLOOR, 0, b, on, floor));
       continue;
     }
-    if (!hit || hit.face === null) continue;
     const s = structures.list[hit.piece];
     if (s.door || s.kind === 'ladder') continue;
     // The spot and the ray's direction in the piece's frame, then across its face.

@@ -14,7 +14,6 @@ import {
   MAX_PITCH,
   OUTSIDE_HEIGHT,
   reach,
-  worldDistance,
   type AvatarId,
   type AvatarsOf,
   type PlayerClass,
@@ -39,6 +38,8 @@ export const VIEWS: Record<PlayerClass, { boom: Boom; fov: number }> = {
   walker: { boom: { back: 3.4, right: 0.6, up: 0.6 }, fov: 1.2 },
   'asian-dragon': { boom: { back: 15, right: 0, up: 5 }, fov: 1.45 },
 };
+// A kart's driver's boom, whatever their look: behind the kart and over it, looking down its middle.
+export const KART_BOOM: Boom = { back: 4.2, right: 0, up: 1.1 };
 // Each dragon skin's boom: far enough back and up to see a body of its size behind the head, for
 // the model as it comes, and as much again as the body is bigger than it (DragonShape.size).
 export const DRAGON_BOOMS: Record<AvatarsOf<'asian-dragon'>, Boom> = {
@@ -156,7 +157,7 @@ export class View {
     const along = Math.max(0, Math.min(span * out, structures.raycast(eyes, dir, span) - SKIN));
     const x = eyes.x + dir.x * along;
     const z = eyes.z + dir.z * along;
-    const ground = worldDistance(x, z) > 0 ? OUTSIDE_HEIGHT : 0; // past the edge, down in the drop after a dragon
+    const ground = structures.ground.inside(x, z) ? 0 : OUTSIDE_HEIGHT; // past the edge, down in the drop after a dragon
     camera.position.set(x, Math.max(ground + FLOOR, eyes.y + dir.y * along - dip * (1 - out)), z);
   }
 

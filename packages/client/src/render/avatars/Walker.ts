@@ -1,16 +1,18 @@
 // Everything an avatar on foot does, posed onto whatever it is made of: standing, walking, aiming
 // what it holds, falling, climbing a ladder (squared up to the rungs, stepping them with its legs
 // and reaching up with its free hand, its weapon arm following the look, and swinging round the
-// ladder on the hand holding it when its climber changes face) and lying dead. An avatar is a
-// Figure: a builder makes its parts under the base node and says which plays each role and the
-// numbers its walk takes, so a new way of moving is written here once and a new avatar is parts and
-// numbers. Each phase (walk, climb, lie, aim) is a protected method: an avatar that moves by a rule
-// of its own in one of them (a sidestep, a slither, tentacles wrapping the rungs) extends
+// ladder on the hand holding it when its climber changes face), sat driving a kart (its hands on
+// the grips, turning with the wheel) and lying dead. An avatar is a Figure: a builder makes its
+// parts under the base node and says which plays each role and the numbers its walk takes, so a
+// new way of moving is written here once and a new avatar is parts and numbers. Each phase (walk,
+// climb, sit, lie, aim) is a protected method: an avatar that moves by a rule of its own in one of
+// them (a sidestep, a slither, tentacles wrapping the rungs, running on the steering wheel) extends
 // WalkerAvatar and overrides that phase, keeping the rest. The dragon is its own class (Dragon.ts).
-import { Matrix, Mesh, Quaternion, StandardMaterial, TransformNode, Vector3 } from '@babylonjs/core';
-import { EYE_HEIGHT, WORLD_STRUCTURES, walkSpeedOf, type AvatarId } from '@world/shared';
+import { Matrix, Mesh, Quaternion, StandardMaterial, TransformNode, Vector3, VertexBuffer } from '@babylonjs/core';
+import { AVATARS, EYE_HEIGHT, GRAVITY, WORLD_STRUCTURES, walkSpeedOf, type AvatarId } from '@world/shared';
 import type { RemotePlayer } from '../../net/Interpolation';
 import type { Engine } from '../Engine';
+import type { Seat } from '../vehicles/Seat';
 import { centreOf, createShadowBlob, Gait, placeShadow, type Avatar } from './common';
 import { HeldItems } from './HeldItems';
 import { HitFlash } from './HitFlash';
@@ -31,6 +33,7 @@ export const MOVING = 0.4; // m/s across the floor that is going somewhere: unde
 const MOVED = 1e-3;
 const STILL = 0.1; // seconds without moving that is standing still, not waiting on the sim's next tick
 const JUMPED = 3; // metres moved at once that can only be a respawn or a correction
+const DEATH_LEAP = 2 / 3; // of its height: how high a body leaps as it dies, going over in the air
 const ARM_TURN = Math.PI / 2; // radians the weapon arm may turn from the body there: as far as the look is held
 // Climbing: radians the legs are bent at the hip, and swing from there for each rung a foot is from
 // the middle of its step; and the elevation of a hand's reach up the rungs, and its swing a rung.
@@ -40,6 +43,20 @@ const CLIMB_REACH = 0.93;
 const CLIMB_PUMP = 0.55;
 const REACHING = 0.3; // the share of its two rungs of climb a limb spends going up to its next rung
 const FOOT_LAG = 0.3; // rungs of climb a foot goes up after the hand across from it
+// Sat in a kart: the share of the height of its hips over its feet that a body's hips are over the
+// seat (what it sits on below them); the metres it may sit back from the seat's middle to keep its
+// trunk behind the steering wheel's; the radians it may lean back and forward to bring its hands to
+// the grips, and seconds it takes to; and radians it leans into the sharpest turn.
+const SIT_RISE = 0.12;
+const SIT_SLIDE = 0.35;
+const SIT_BACK = 0.5;
+const SIT_FORWARD = 0.35;
+const SIT_EASE = 0.15;
+const SIT_ROLL = 0.12;
+// A trick in a kart: the share of its height a body is thrown up out of the seat at the top of it,
+// standing; and its hands up over its head there, this far out to their sides for each up.
+const TRICK_LEAP = 0.25;
+const HANDS_OUT = 0.35;
 
 export interface Leg {
   node: TransformNode; // swings at the hip
@@ -70,12 +87,15 @@ export interface Figure {
   color?: string; // the player's colour it is painted in, when it is
   tilt?: { node: TransformNode; follow: number }; // what tips with the look's pitch, by that share of it: a head on a neck, or a trunk the face is on
   head?: TransformNode; // a head on a neck: turns to the look on a ladder
+  headless?: boolean; // nothing above the body to turn to the look, so standing still the body turns to it
   legs?: Leg[];
   armL?: Arm; // swings against the legs, and reaches up the rungs on a ladder
-  // Holds the item, which hangs on the grip at the hand, aimed along the look: by its own middle
-  // there, or `hold` from it in the grip's frame (x to the right, y back along the barrel, z up),
-  // for a fist that closes round the item's handle.
-  armR: Arm & { grip: TransformNode; hold?: Vector3 };
+  // Holds the item by its handle, aimed along the look: the handle's middle is at the grip, in the
+  // middle of the hand, or `hold` from it in the grip's frame (x to the right, y back along the
+  // barrel, z up) where the hand is too thick for the item's body to clear it from there. With
+  // `roll` the arm is turned that many radians about its own length while it aims: a hand turned
+  // thumb up, or a claw whose pincers close on a handle from its sides.
+  armR: Arm & { grip: TransformNode; hold?: Vector3; roll?: number };
   rock?: TransformNode; // what rocks to each side with the stride: the base unless given
   back: { node: TransformNode; at: Vector3 }; // where a tank and the gear hang
   materials: StandardMaterial[]; // the skin, flashed by a hit
@@ -95,8 +115,17 @@ export interface Figure {
 
 export interface Pose {
   phase: number; // the stride's, radians (Gait)
-  effort: number; // how big the steps are, 0 to 1 (Gait): 0 on a ladder
-  climbing: boolean;
+  effort: number; // how big the steps are, 0 to 1 (Gait): 0 on a ladder or in a kart
+  on: 'foot' | 'ladder' | 'kart'; // what it's on: its feet (in the air too), a ladder, or a kart's seat
+}
+
+// Where a figure's joints are as it's built, standing, in its root's frame: what sitting it down
+// is worked out from.
+interface Joints {
+  hips: number; // metres its hips (the legs' pivots) are over its feet, as long as its legs; 0 with no legs: it sits on its bottom
+  shoulders: [Vector3, Vector3] | null; // with two arms, each one's pivot, left then right
+  arm: number; // metres from a shoulder to its hand
+  front: number; // metres its trunk reaches ahead of its hips, with two arms: what a steering wheel has to clear
 }
 
 export type Build = (engine: Engine, id: string, base: TransformNode, color: string) => Figure;
@@ -123,6 +152,11 @@ export class WalkerAvatar implements Avatar {
   private drawn: number | null = null; // when it was last drawn, seconds
   private last: { x: number; y: number; z: number; at: number } | null = null; // where it last moved to, and when
   private dead = false;
+  protected gone = Infinity; // seconds since it was seen to die: forever for one first seen dead
+  private readonly leap: number; // metres its dying leap rises
+  private readonly height: number; // metres it stands
+  private readonly joints: Joints;
+  protected lean = 0; // radians it leans back, sat in a kart
   readonly color?: string;
 
   constructor(
@@ -139,6 +173,8 @@ export class WalkerAvatar implements Avatar {
     this.figure = build(engine, id, this.base, color);
     const { armR, back, materials, shadow, itemScale, bend } = this.figure;
     this.color = this.figure.color;
+    this.height = AVATARS[kind].hitbox.top;
+    this.leap = this.height * DEATH_LEAP;
     this.aimFrom = bend ? raised(armR.reach, bend) : armR.reach;
     this.hitFlash = new HitFlash(materials);
     const hold = armR.hold ?? Vector3.Zero();
@@ -146,9 +182,10 @@ export class WalkerAvatar implements Avatar {
     this.shadow = createShadowBlob(engine, `avatar-shadow-${id}`, shadow);
     this.shadow.parent = this.root;
     this.shadow.position.y = 0.02;
+    this.joints = jointsOf(this.root, this.figure);
   }
 
-  update(p: RemotePlayer, step: number): void {
+  update(p: RemotePlayer, step: number, seat: Seat | null): void {
     const now = performance.now() / 1000;
     const dt = this.drawn === null ? 0 : Math.min(0.1, now - this.drawn);
     this.drawn = now;
@@ -156,11 +193,20 @@ export class WalkerAvatar implements Avatar {
     this.hitFlash.update(p.chilled);
     const feetY = p.y - EYE_HEIGHT;
     this.watch(p, feetY, now);
-    const pose = p.climb && !p.dead ? this.climb(p, feetY, dt) : this.walk(p, feetY, step, dt);
-    if (p.dead) this.lie();
+    const pose =
+      p.climb && !p.dead
+        ? this.climb(p, feetY, dt)
+        : seat && !p.dead
+          ? this.sit(p, seat, dt)
+          : this.walk(p, feetY, step, dt);
+    if (p.dead) {
+      this.gone = this.dead ? this.gone + dt : this.stood > 0 ? 0 : Infinity;
+      this.lie();
+    }
     this.dead = p.dead;
     this.figure.extra?.(p, pose);
     this.items.update(p);
+    this.shadow.setEnabled(pose.on !== 'kart');
     placeShadow(this.shadow, p, feetY);
     this.root.setEnabled(true);
   }
@@ -168,15 +214,18 @@ export class WalkerAvatar implements Avatar {
   // On the ground or in the air: the legs swing with the stride and the arms against them, the
   // body rising and rocking with it, the weapon arm pointed along the look while holding an item.
   // Empty-handed the body turns to face the way it's going and stays facing that way when it stops,
-  // the head turning to the look; with something to aim it faces its look, which gives the aim away.
+  // the head turning to the look (a headless body turns to it whole); with something to aim it faces
+  // its look, which gives the aim away.
   protected walk(p: RemotePlayer, feetY: number, step: number, dt: number): Pose {
     const f = this.figure;
     this.held = null;
     this.swing = 0;
+    hang(this.root);
     this.root.position.set(p.x, feetY, p.z);
     const armed = p.item !== null;
     const going = Math.hypot(this.velX, this.velZ) > MOVING;
-    const want = p.dead ? this.facing : armed ? p.yaw : going ? Math.atan2(this.velX, this.velZ) : this.facing;
+    const standing = f.headless ? p.yaw : this.facing;
+    const want = p.dead ? this.facing : armed ? p.yaw : going ? Math.atan2(this.velX, this.velZ) : standing;
     this.turn = wrap(want - this.facing) * (1 - Math.exp((-3 * dt) / (armed ? EASE_AIM : EASE_TURN)));
     this.facing = wrap(this.facing + this.turn);
     this.root.rotation.set(0, this.facing, 0);
@@ -211,7 +260,7 @@ export class WalkerAvatar implements Avatar {
       f.armR.node.rotation.x = arms;
       f.armR.node.rotation.z = -armsDown;
     }
-    return { phase, effort, climbing: false };
+    return { phase, effort, on: 'foot' };
   }
 
   // On a ladder: the body faces the rungs, the head turning with the look; the legs step rung to
@@ -225,6 +274,7 @@ export class WalkerAvatar implements Avatar {
     const facing = WORLD_STRUCTURES.ladderFacing(hold.piece, hold.side);
     if (this.held && this.held.piece === hold.piece && this.held.side !== hold.side) this.swing -= hold.way * Math.PI;
     this.held = { ...hold };
+    hang(this.root);
     this.swing *= Math.pow(0.5, dt / SWING_HALF_LIFE);
     if (Math.abs(this.swing) < 1e-3) this.swing = 0;
     // Mid-swing the body is the way round the ladder's centre line that its turn has got to; and
@@ -254,31 +304,152 @@ export class WalkerAvatar implements Avatar {
     if (f.armL) point(f.armL, CLIMB_REACH + CLIMB_PUMP * holding(this.climbed + limbLead(-1, false)));
     if (p.item) this.aim(p);
     else point(f.armR, CLIMB_REACH + CLIMB_PUMP * holding(this.climbed + limbLead(1, false)));
-    return { phase: this.gait.phase, effort: 0, climbing: true };
+    return { phase: this.gait.phase, effort: 0, on: 'ladder' };
   }
 
-  // Dead: the base over onto its back or side, the limbs dropped.
+  // Sat in a kart: its hips on the seat (back from its middle as far as keeps its trunk behind the
+  // steering wheel's), its legs out ahead and, with two arms, a hand on each grip, turning the
+  // wheel, the body leaning back or forward as far as brings them there and into the turn; the head
+  // turns to the look as it does on foot. A trick throws it up out of the seat, standing with its
+  // hands up, as the kart twirls under it, and back down.
+  protected sit(p: RemotePlayer, seat: Seat, dt: number): Pose {
+    const f = this.figure;
+    const { hips, shoulders, front } = this.joints;
+    this.place(seat);
+    const back = Math.min(SIT_SLIDE, Math.max(0, front - seat.hub.z));
+    this.lean += (this.leanFor(seat.grips, back) - this.lean) * (1 - Math.exp((-3 * dt) / SIT_EASE));
+    const rise = hips * SIT_RISE;
+    this.base.rotation.set(-this.lean, 0, -seat.wheel * SIT_ROLL);
+    Quaternion.RotationYawPitchRollToRef(0, -this.lean, -seat.wheel * SIT_ROLL, NODE);
+    AHEAD.set(0, hips, 0).rotateByQuaternionToRef(NODE, AHEAD);
+    this.base.position.set(-AHEAD.x, rise - AHEAD.y + this.thrown(seat), -back - AHEAD.z);
+    if (f.rock && f.rock !== this.base) f.rock.rotation.z = 0;
+    // The legs out from the hips, straight, to the pedals; or, longer than that, as far as lays
+    // their ends on the floor. A two-part leg (a tentacle) lies straight along.
+    const down = rise - seat.feet.y;
+    const out = seat.feet.z + back;
+    const ahead = Math.hypot(down, out) < hips ? Math.acos(Math.min(1, down / hips)) : Math.atan2(out, down);
+    for (const leg of f.legs ?? []) {
+      leg.node.rotation.x = this.lean - ahead;
+      if (leg.foot) leg.foot.node.rotation.x = 0;
+    }
+    if (f.tilt) f.tilt.node.rotation.x = p.pitch * f.tilt.follow;
+    const off = wrap(p.yaw - this.facing);
+    if (f.head) f.head.rotation.y = clamp(off, HEAD_LIMIT) * headShare(off);
+    if (shoulders && f.armL) {
+      this.handTo(f.armL, seat.grips[0]);
+      this.handTo(f.armR, seat.grips[1]);
+    } else {
+      hang(f.armR.node);
+      f.armR.node.rotation.set(0, 0, 0);
+    }
+    const up = seat.leap;
+    if (up > 0) {
+      for (const leg of f.legs ?? []) leg.node.rotation.x *= 1 - up;
+      if (shoulders && f.armL) {
+        this.handsUp(f.armL, -1, up);
+        this.handsUp(f.armR, 1, up);
+      }
+    }
+    return { phase: this.gait.phase, effort: 0, on: 'kart' };
+  }
+
+  // Metres a trick throws the body up out of `seat`, as far through it as the trick is.
+  protected thrown(seat: Seat): number {
+    return this.height * TRICK_LEAP * seat.leap;
+  }
+
+  // Turns `arm`, on the body's `side`, `weight` of the way from where it is to up over the head.
+  private handsUp(arm: Arm, side: 1 | -1, weight: number): void {
+    const turn = (arm.node.rotationQuaternion ??= new Quaternion());
+    Quaternion.FromUnitVectorsToRef(arm.reach, AHEAD.set(side * HANDS_OUT, 1, 0).normalize(), NODE);
+    Quaternion.SlerpToRef(turn, NODE, weight, turn);
+  }
+
+  // Puts the body on `seat`, turned and tipped with its kart and facing its way.
+  protected place(seat: Seat): void {
+    this.held = null;
+    this.swing = 0;
+    this.turn = 0;
+    this.facing = seat.yaw;
+    this.root.position.copyFrom(seat.at);
+    (this.root.rotationQuaternion ??= new Quaternion()).copyFrom(seat.turn);
+  }
+
+  // Radians a seated body leans back (forward, negative) to bring its hands to `grips` (in the
+  // seat's frame) as near as it can, sat `back` from the seat's middle: its shoulders, turned with
+  // it about its hips, on the whole as far from them as its arms are long. They're further off the
+  // further back it leans, so the lean is found by halving.
+  private leanFor(grips: Seat['grips'], back: number): number {
+    const { hips, shoulders, arm } = this.joints;
+    if (!shoulders) return 0;
+    const rise = hips * SIT_RISE;
+    const apart = (lean: number) => {
+      const cos = Math.cos(lean);
+      const sin = Math.sin(lean);
+      let sum = 0;
+      for (let i = 0; i < 2; i++) {
+        const s = shoulders[i];
+        const up = s.y - hips;
+        const g = grips[i];
+        sum += Math.hypot(g.x - s.x, g.y - (up * cos + s.z * sin + rise), g.z - (s.z * cos - up * sin - back));
+      }
+      return sum / 2;
+    };
+    let low = -SIT_FORWARD;
+    let high = SIT_BACK;
+    if (apart(low) >= arm) return low;
+    if (apart(high) <= arm) return high;
+    for (let i = 0; i < 12; i++) {
+      const middle = (low + high) / 2;
+      if (apart(middle) < arm) low = middle;
+      else high = middle;
+    }
+    return (low + high) / 2;
+  }
+
+  // Turns `arm` at its shoulder to point its hand at `to`, a point in the seat's frame (the
+  // root's), as the body is posed this frame. It's worked out in the frame the arm turns in, its
+  // parent's, where the shoulder is the arm's pivot whatever its turn.
+  private handTo(arm: Arm, to: Vector3): void {
+    const parent = arm.node.parent as TransformNode;
+    fresh(parent, this.root);
+    parent.getWorldMatrix().invertToRef(AXES);
+    Vector3.TransformCoordinatesToRef(to, this.root.getWorldMatrix(), RIGHT);
+    Vector3.TransformCoordinatesToRef(RIGHT, AXES, RIGHT);
+    arm.node.getPivotPointToRef(TOP);
+    RIGHT.subtractInPlace(arm.node.position).subtractInPlace(TOP);
+    Quaternion.FromUnitVectorsToRef(arm.reach, RIGHT.normalize(), (arm.node.rotationQuaternion ??= new Quaternion()));
+  }
+
+  // Dead: the base over onto its back or side, the limbs dropped. Dying, it gets there in a leap:
+  // up `leap` and down again as gravity has it, going over and letting its limbs go on the way, so
+  // it lands lying. The stride's pose, which `walk` has just struck, is what it goes over from.
   protected lie(): void {
     const f = this.figure;
     const { onto, height, shift = 0, legs = 0, arms = 0, head = 0 } = f.lie;
-    if (f.tilt) f.tilt.node.rotation.x = 0;
-    if (f.head) f.head.rotation.set(head, 0, 0);
-    if (f.rock) f.rock.rotation.z = 0;
+    const through = Math.min(1, this.gone / (2 * Math.sqrt((2 * this.leap) / GRAVITY)));
+    const over = smooth(through);
+    const up = 4 * this.leap * through * (1 - through);
+    if (f.tilt) f.tilt.node.rotation.x *= 1 - over;
+    if (f.head) f.head.rotation.set(head * over, 0, 0);
+    if (f.rock) f.rock.rotation.z *= 1 - over;
     for (const leg of f.legs ?? []) {
-      leg.node.rotation.x = legs;
-      if (leg.foot) leg.foot.node.rotation.x = 0;
+      leg.node.rotation.x += (legs - leg.node.rotation.x) * over;
+      if (leg.foot) leg.foot.node.rotation.x *= 1 - over;
     }
     for (const arm of [f.armL, f.armR]) {
       if (!arm) continue;
       hang(arm.node);
-      arm.node.rotation.x = arms;
+      arm.node.rotation.x += (arms - arm.node.rotation.x) * over;
     }
+    const quarter = (Math.PI / 2) * over;
     this.base.rotation.set(
-      onto === 'back' ? -Math.PI / 2 : 0,
+      onto === 'back' ? -quarter : 0,
       0,
-      onto === 'left' ? Math.PI / 2 : onto === 'right' ? -Math.PI / 2 : 0,
+      onto === 'left' ? quarter : onto === 'right' ? -quarter : 0,
     );
-    this.base.position.set(shift, height, 0);
+    this.base.position.set(shift * over, height * over + up, 0);
   }
 
   // Points the weapon arm along the look, however the body stands (turned no further than
@@ -288,7 +459,7 @@ export class WalkerAvatar implements Avatar {
   // tipped with the look or rolling with the stride, so the look is taken into that frame first.
   // Nothing is allocated: this runs for every armed body every frame.
   protected aim(p: RemotePlayer): void {
-    const { node, grip } = this.figure.armR;
+    const { node, grip, roll } = this.figure.armR;
     const turn = clamp(wrap(p.yaw - this.root.rotation.y), ARM_TURN);
     AHEAD.set(Math.sin(turn) * Math.cos(p.pitch), -Math.sin(p.pitch), Math.cos(turn) * Math.cos(p.pitch));
     UP.set(0, 1, 0);
@@ -297,6 +468,7 @@ export class WalkerAvatar implements Avatar {
     UP.applyRotationQuaternionInPlace(UNDO);
     const swung = (node.rotationQuaternion ??= new Quaternion());
     Quaternion.FromUnitVectorsToRef(this.aimFrom, AHEAD, swung);
+    if (roll) swung.multiplyInPlace(Quaternion.RotationAxisToRef(this.aimFrom, roll, NODE));
     // The grip's frame: x to the right, -y along the barrel, +z up its top; less the arm's own turn
     // (a quaternion product applies its right factor first).
     Vector3.CrossToRef(UP, AHEAD, RIGHT);
@@ -380,6 +552,47 @@ const HAND = new Quaternion();
 const AXES = new Matrix();
 
 // Points an arm straight out of the body's front at `elevation` radians above level.
+// Where `figure`'s joints are, standing as it's built at `root`, which nothing has moved yet.
+function jointsOf(root: TransformNode, figure: Figure): Joints {
+  const at = (node: TransformNode) => {
+    fresh(node, root);
+    return node.getAbsolutePivotPoint().clone();
+  };
+  const legs = (figure.legs ?? []).map((leg) => at(leg.node));
+  const hips = legs.length ? legs.reduce((sum, leg) => sum + leg.y, 0) / legs.length : 0;
+  const { armL, armR } = figure;
+  if (!armL) return { hips, shoulders: null, arm: 0, front: 0 };
+  const shoulders: Joints['shoulders'] = [at(armL.node), at(armR.node)];
+  // The trunk's front: the furthest ahead of the vertices of everything but the limbs, between the
+  // hips' height and the shoulders'.
+  const limbs = [armL.node, armR.node, ...(figure.legs ?? []).map((leg) => leg.node)];
+  let front = 0;
+  for (const mesh of root.getChildMeshes()) {
+    const positions = mesh.getVerticesData(VertexBuffer.PositionKind);
+    if (!positions || limbs.some((limb) => mesh === limb || mesh.isDescendantOf(limb))) continue;
+    fresh(mesh, root);
+    for (let i = 0; i < positions.length; i += 3) {
+      Vector3.TransformCoordinatesFromFloatsToRef(
+        positions[i],
+        positions[i + 1],
+        positions[i + 2],
+        mesh.getWorldMatrix(),
+        TOP,
+      );
+      if (TOP.y > hips && TOP.y < shoulders[1].y) front = Math.max(front, TOP.z);
+    }
+  }
+  return { hips, shoulders, arm: Vector3.Distance(shoulders[1], at(armR.grip)), front };
+}
+
+// Works out the world matrices from `root` down to `node`, each from its parent's as it's posed
+// now: the renderer hasn't yet this frame.
+export function fresh(node: TransformNode, root: TransformNode): void {
+  const chain: TransformNode[] = [];
+  for (let n: TransformNode | null = node; n; n = n === root ? null : (n.parent as TransformNode | null)) chain.push(n);
+  for (let i = chain.length - 1; i >= 0; i--) chain[i].computeWorldMatrix(true);
+}
+
 // A climber's limbs go up a ladder in turn, two rungs each, a hand and then the foot across from
 // it: how many rungs of climb ahead of the left hand a limb is.
 export function limbLead(side: 1 | -1, foot: boolean): number {

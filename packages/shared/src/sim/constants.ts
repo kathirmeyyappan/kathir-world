@@ -1,8 +1,6 @@
 export const TICK_RATE = 30;
 export const TICK_DT = 1 / TICK_RATE;
 
-export const WORLD_RADIUS = 50;
-export const PLAYER_PADDING = 1;
 // Against structures: a player is a cylinder this wide around their eye, and climbs any top
 // within STEP_UP of their feet (stairs, ramps); walking off an edge no more than STEP_DOWN lower
 // keeps them on the ground rather than launching them off a slope.
@@ -11,6 +9,11 @@ export const STEP_UP = 0.5;
 export const STEP_DOWN = 0.5;
 
 export const EYE_HEIGHT = 1.7;
+// Metres off at which the fog has hidden nine tenths of anything, as a player sees and through a
+// scope: what's fetched to be seen (interiors) and the fog itself are set by these (CLAUDE.md,
+// Client loading).
+export const SIGHT = 125;
+export const SCOPED_SIGHT = 560;
 // The standard body's walk, m/s, and a jump's rise at a jump power of 1, metres: each look on foot
 // walks at its own speed and jumps with its own power (avatars.ts `walk`, `jump`).
 export const MOVE_SPEED = 8;
@@ -58,6 +61,12 @@ export const MAX_REWIND_TICKS = 8;
 // Inputs a server tick will consume from one player's queue. >1 lets a lagging client catch up.
 export const MAX_INPUTS_PER_TICK = 3;
 export const MAX_INPUT_QUEUE = TICK_RATE;
+// Ticks a server will hold a player still waiting for a frame that's late (a stalled browser) before
+// stepping them without one. A frame stepped in its own place agrees with the client's prediction; a
+// tick stepped without it doesn't (it falls further), and the client is pulled back. The wait is a
+// debt, paid back as the late frames are run several to a tick, so withholding frames never slows a
+// body's fall: past this many ticks owed, every tick without a frame is stepped without one.
+export const INPUT_WAIT_TICKS = 10;
 
 export const CUBE_BASE_Y = 3;
 export const CUBE_FLOAT_AMPLITUDE = 0.3;

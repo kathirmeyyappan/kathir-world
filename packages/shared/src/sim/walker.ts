@@ -21,7 +21,6 @@ import {
   EYE_HEIGHT,
   GRAVITY,
   LEAP_REST,
-  PLAYER_PADDING,
   PLAYER_RADIUS,
   RUN_MULTIPLIER,
   SCOPED_SPEED_MULTIPLIER,
@@ -36,7 +35,8 @@ import { stepGear, thrust } from './gear';
 import { lookDirection } from './look';
 import { SURFACES } from './surfaces';
 import type { InputFrame, PlayerState, Vec3 } from './types';
-import { WORLD_STRUCTURES, clampToWorld, type WorldPart } from './world';
+import { SEATED } from './vehicles/karts';
+import { WORLD_STRUCTURES } from './world';
 
 export const WALKER: ClassSpec = {
   id: 'walker',
@@ -47,12 +47,7 @@ export const WALKER: ClassSpec = {
   actions: {},
   actionTicks: 0,
   fits: () => true,
-  // Inside the outline and never under the floor: a dragon down in the drop past the edge comes back
-  // up onto it.
-  confine: (p, shape) => {
-    clampToWorld(p.pos, PLAYER_PADDING, shape);
-    p.pos.y = Math.max(p.pos.y, EYE_HEIGHT);
-  },
+  confine: (p, ground) => ground.keepWithin(p.pos, PLAYER_RADIUS),
   enter() {},
   exit(p) {
     p.climb = null;
@@ -66,7 +61,11 @@ export const WALKER: ClassSpec = {
   },
   step: stepWalker,
   aim: (p) => lookDirection(p.yaw, p.pitch),
-  hitShape: (p) => ({ kind: 'capsule', eye: p.pos, box: AVATARS[p.avatar].hitbox }),
+  // Sat in a kart, from the seat up.
+  hitShape: (p) => {
+    const box = AVATARS[p.avatar].hitbox;
+    return { kind: 'capsule', eye: p.pos, box: p.riding ? { ...box, top: box.top * SEATED } : box };
+  },
   // Under the feet.
   lies: (p, structures) => [
     { x: p.pos.x, y: structures.groundAt(p.pos.x, p.pos.z, p.pos.y - EYE_HEIGHT + 0.01), z: p.pos.z },
@@ -80,13 +79,7 @@ export function isGrounded(p: PlayerState, structures: Structures = WORLD_STRUCT
 
 // One tick of walking. A null input means no frame arrived: gravity still applies. Returns how fast
 // they were falling if they landed this step (m/s, downward), else 0.
-export function stepWalker(
-  p: PlayerState,
-  input: InputFrame | null,
-  dt: number,
-  shape: WorldPart[],
-  structures: Structures,
-): number {
+export function stepWalker(p: PlayerState, input: InputFrame | null, dt: number, structures: Structures): number {
   const grounded = isGrounded(p, structures);
   // A strike runs from its press through its windup and its recovery whatever else the body does,
   // on the ground, in the air or on a ladder; dying or a change of look ends it.
@@ -257,7 +250,7 @@ export function stepWalker(
     const fromZ = p.pos.z;
     const body = { head: p.pos.y + CAPSULE_TOP, reach: feetNow + STEP_UP, radius: PLAYER_RADIUS };
     structures.move(p.pos, p.vx * dt, p.vz * dt, body);
-    clampToWorld(p.pos, PLAYER_PADDING, shape);
+    structures.ground.keepWithin(p.pos, PLAYER_RADIUS);
     // Walking keeps a standing player on the ground: up a step or ramp, down a gentle drop.
     if (standing) {
       const ground = structures.groundAt(p.pos.x, p.pos.z, feetNow + STEP_UP);

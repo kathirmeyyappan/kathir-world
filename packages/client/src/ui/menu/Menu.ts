@@ -8,7 +8,7 @@
 // back in the world, and C swaps it for the commands card. On touch a tap on its corner button or
 // beside the card closes it.
 import { IS_TOUCH } from '../../input/touch';
-import { rememberName } from '../../net/lobby';
+import { colorName, rememberLook, rememberName } from '../../net/lobby';
 import { railScroll } from '../scrollRail';
 import { CLOSE, pixelSvg } from '../pixelIcons';
 import { gearIcon } from './gearIcon';
@@ -37,6 +37,7 @@ export class Menu {
   };
   private open = false;
   private shown = 0; // the tab selected
+  private synced = false; // whether sync has had the player yet: what they joined as is already kept
   // After it opens or closes; `back` when the close should put the player back in the world.
   onOpenChange: ((open: boolean, back: boolean) => void) | null = null;
 
@@ -91,14 +92,15 @@ export class Menu {
     this.onOpenChange?.(false, back);
   }
 
-  // Once a frame, with the player as the room has them. A change of name after the first is a rename
-  // going through, kept for the next page this tab or the home screen loads. The preview draws
-  // while the PLAY tab is open.
+  // Once a frame, with the player as the room has them. A change of name or look after the first is
+  // a rename or a switch going through, kept for the next page this tab or the home screen loads.
+  // The preview draws while the PLAY tab is open.
   sync(me: Me): void {
-    if (me.name !== this.me.name) {
-      if (this.me.name) rememberName(me.name);
-      this.me.name = me.name;
+    if (this.synced) {
+      if (me.name !== this.me.name) rememberName(me.name);
+      if (me.avatar !== this.me.avatar || me.color !== this.me.color) rememberLook(me.avatar, colorName(me.color));
     }
+    this.synced = true;
     Object.assign(this.me, me);
     this.preview.sync(this.me, this.open && this.shown === 0);
     if (this.open) this.refresh();

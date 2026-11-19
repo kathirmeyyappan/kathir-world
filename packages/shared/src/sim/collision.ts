@@ -1,11 +1,14 @@
-// The sim's view of the structures (structures.ts): where a player can stand, what stops them,
-// what they bump their head on, and what a shot can't pass. Pure, so the Room and the client's
-// prediction get identical answers. With no structures every query answers as the bare floor
-// does: ground 0, no ceiling, nothing in the way. A door's pieces (doors.ts) stand or not as the
+// The sim's view of the structures (structures.ts) on the ground (ground.ts): where a player can
+// stand, what stops them, what they bump their head on, and what a shot can't pass. Pure, so the Room and the client's
+// prediction get identical answers. With no structures every query answers as the bare ground
+// does: the floor's height inside the outline and the ground's past it, no ceiling, nothing in the
+// way but the slab under the floor (ground.ts). A door's pieces (doors.ts) stand or not as the
 // door is swung, and frost (frost.ts) lies on faces or not as it's sprayed and melted: those two
 // are what changes after building, so a Room keeps its own.
 import { LADDER_GAP, LADDER_REACH, PLAYER_RADIUS } from './constants';
 import { FLOOR, Frost, cellOf, faceCoords, type Face } from './frost';
+import type { Ground } from './ground';
+import { WORLD_GROUND } from './outline';
 import { ladderRun, surfaceOf, validateStructure, type Ladder, type Structure } from './structures';
 import { surfaceOfStructure, type SurfaceId } from './surfaces';
 import type { Vec3 } from './types';
@@ -56,8 +59,8 @@ interface Placed {
   door: { id: string; open: boolean } | null;
 }
 
-// What a ray lands on: how far along it, the piece (its index in the list), which of its faces
-// (null from inside the piece), and the spot.
+// What a ray lands on: how far along it, the piece (its index in the list, or FLOOR for the ground's
+// slab), which of its faces (null from inside the piece, and the slab's but its top), and the spot.
 export interface Touch {
   t: number;
   piece: number;
@@ -86,7 +89,10 @@ export class Structures {
   private readonly lowBand: number; // the grid's lowest and highest height bands with anything in them
   private readonly highBand: number;
 
-  constructor(readonly list: readonly Structure[]) {
+  constructor(
+    readonly list: readonly Structure[],
+    readonly ground: Ground = WORLD_GROUND,
+  ) {
     list.forEach((s, i) => validateStructure(s, String(i)));
     this.placed = list.map((s) => {
       const yaw = s.yaw ?? 0;
@@ -139,12 +145,13 @@ export class Structures {
   // The door the ray (o, d) meets first within maxT, before anything else, or null.
   doorAt(o: Vec3, d: Vec3, maxT: number): string | null {
     const hit = this.cast(o, d, maxT);
-    return hit ? (this.placed[hit.piece].door?.id ?? null) : null;
+    return hit && hit.piece !== FLOOR ? (this.placed[hit.piece].door?.id ?? null) : null;
   }
 
-  // The highest surface under (x, z) that is no higher than `reach`, or 0 for the floor.
+  // The highest surface under (x, z) that is no higher than `reach`, or the ground's (the floor's
+  // at 0, or past the edge the ground's).
   groundAt(x: number, z: number, reach: number): number {
-    return this.ground(x, z, reach).y;
+    return this.under(x, z, reach).y;
   }
 
   // What's underfoot at (x, z) for feet that reach up to `reach`: the ground there (groundAt), the
@@ -152,7 +159,7 @@ export class Structures {
   // included) under the spot or, with `radius`, under any of a body that wide round it: a foot on
   // ice slips, so a hole in the frost smaller than a body doesn't catch.
   footing(x: number, z: number, reach: number, radius = 0): Footing {
-    const { y, piece, lx, lz } = this.ground(x, z, reach);
+    const { y, piece, lx, lz } = this.under(x, z, reach);
     const probes = radius > 0 ? PROBES.length : 1;
     let frosted = false;
     for (let k = 0; k < probes && !frosted; k++)
@@ -182,10 +189,10 @@ export class Structures {
   }
 
   // The highest top under (x, z) that is no higher than `reach`, which piece it is (null for the
-  // floor, at 0) and where on it: down the height bands from the one `reach` is in, until the
+  // ground) and where on it: down the height bands from the one `reach` is in, until the
   // bands left all lie under the best so far.
-  private ground(x: number, z: number, reach: number): { y: number; piece: number | null; lx: number; lz: number } {
-    const best = { y: 0, piece: null as number | null, lx: 0, lz: 0 };
+  private under(x: number, z: number, reach: number): { y: number; piece: number | null; lx: number; lz: number } {
+    const best = { y: this.ground.height(x, z), piece: null as number | null, lx: 0, lz: 0 };
     for (let b = Math.min(band(reach), this.highBand); b >= this.lowBand; b--) {
       for (const i of this.nearIndices(x, z, x, z, b * CELL, b * CELL)) {
         const p = this.placed[i];
@@ -223,6 +230,7 @@ export class Structures {
   // with `reach` (its radius) a body that wide, clear at every spot that far round it too:
   // anything there tops out at or below its feet (ground) or starts above its head.
   fits(x: number, z: number, feet: number, height: number, reach = 0): boolean {
+    if (feet < -1e-6 && this.ground.edge(x, z) < reach) return false; // in the slab
     const probes = reach > 0 ? PROBES.length : 1;
     for (let k = 0; k < probes; k++) {
       const px = x + PROBES[k][0] * reach;
@@ -312,10 +320,12 @@ export class Structures {
   }
 
   // Moves a body's centre by (dx, dz), pushing it out of anything too tall to step onto and
-  // stopping short of anything it would end up inside (steep terrain). Moves in substeps no
-  // longer than the radius so a fast body can't pass through a thin wall.
+  // stopping short of anything it would end up inside (steep terrain), the slab's side included
+  // for a body below the floor. Moves in substeps no longer than the radius so a fast body can't
+  // pass through a thin wall.
   move(pos: Vec3, dx: number, dz: number, body: Body): void {
     const r = body.radius;
+    const slab = body.reach < 0 && this.ground.edge(pos.x + dx / 2, pos.z + dz / 2) < r + Math.hypot(dx, dz);
     const near = this.near(
       Math.min(pos.x, pos.x + dx) - r,
       Math.min(pos.z, pos.z + dz) - r,
@@ -324,7 +334,7 @@ export class Structures {
       body.reach,
       body.head,
     );
-    if (near.length === 0) {
+    if (near.length === 0 && !slab) {
       pos.x += dx;
       pos.z += dz;
       return;
@@ -336,6 +346,7 @@ export class Structures {
       pos.x += dx / steps;
       pos.z += dz / steps;
       for (const p of near) pushOut(p, pos, body);
+      if (slab) this.ground.pushOut(pos, r);
       if (near.some((p) => inside(p, pos.x, pos.z, body))) {
         pos.x = fromX;
         pos.z = fromZ;
@@ -347,6 +358,7 @@ export class Structures {
   // Whether any structure that is a wall to `body` comes within its radius of (x, z).
   touches(x: number, z: number, body: Body): boolean {
     const r = body.radius;
+    if (body.reach < 0 && this.ground.edge(x, z) < r - 1e-6) return true; // the slab's side
     for (const p of this.near(x - r, z - r, x + r, z + r, body.reach, body.head)) {
       const [lx, lz] = local(p, x, z);
       const qx = Math.max(-p.hw, Math.min(p.hw, lx));
@@ -369,7 +381,14 @@ export class Structures {
   // A stretch of the ray at a time (maxT must be finite); the nearest hit is in hand once the
   // stretch it lies in has been tried, since every piece it could be on has a cell in that stretch's box.
   private cast(o: Vec3, d: Vec3, maxT: number): Touch | null {
-    let best: Touch | null = null;
+    // The slab first (its top the floor's face 0, the floor's frost lying there), then any piece nearer.
+    const slab = this.ground.slab(o, d, maxT);
+    let best: Touch | null = slab && {
+      t: slab.t,
+      piece: FLOOR,
+      face: slab.top ? 0 : null,
+      point: { x: o.x + d.x * slab.t, y: o.y + d.y * slab.t, z: o.z + d.z * slab.t },
+    };
     for (let from = 0; from < maxT && !(best && best.t <= from); from += RAY_STRETCH) {
       const to = Math.min(maxT, from + RAY_STRETCH);
       const [ax, ay, az] = [o.x + d.x * from, o.y + d.y * from, o.z + d.z * from];

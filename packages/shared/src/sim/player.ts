@@ -7,7 +7,8 @@ import { classOf, heartsOf, lifeOf } from './classes';
 import type { Structures } from './collision';
 import { ITEMS, createItem, nextFuel, type ItemState } from './items';
 import type { InputFrame, PlayerState, Vec3 } from './types';
-import { WORLD_SHAPE, WORLD_STRUCTURES, type WorldPart } from './world';
+import { WORLD_GROUND } from './outline';
+import { WORLD_STRUCTURES } from './world';
 
 export function createPlayer(id: string, name: string, color: string, spawn: Vec3, bot = false): PlayerState {
   const p: PlayerState = {
@@ -46,6 +47,7 @@ export function createPlayer(id: string, name: string, color: string, spawn: Vec
     avatar: 'standard',
     dragon: null,
     avatarLocked: false,
+    riding: null,
     hearts: heartsOf('standard'),
     kills: 0,
     dead: false,
@@ -92,7 +94,7 @@ export function becomeAvatar(p: PlayerState, avatar: AvatarId): void {
   if (to !== from) from.exit(p);
   if (changed) to.enter(p);
   if (to !== from) {
-    to.confine(p, WORLD_SHAPE);
+    to.confine(p, WORLD_GROUND);
     p.vy = 0;
     if (!to.kit) {
       p.gear = null;
@@ -132,22 +134,25 @@ function stepItem(p: PlayerState, input: InputFrame | null, dt: number): void {
 // Advances one player by `dt`. A null input means no frame arrived: the class's own physics still
 // apply. Returns how fast they were falling if they landed this step (m/s, downward), else 0; the
 // Room turns that into fall damage.
+// What a frame says that isn't movement: where the player looks (the client's say), the cube it's
+// reading, and that it's been taken.
+export function takeLook(p: PlayerState, input: InputFrame): void {
+  p.lastSeq = input.seq;
+  p.yaw = input.yaw;
+  p.pitch = Math.max(-MAX_PITCH, Math.min(MAX_PITCH, input.pitch));
+  p.reading = input.reading;
+}
+
 export function stepPlayer(
   p: PlayerState,
   input: InputFrame | null,
   dt: number,
-  shape: WorldPart[] = WORLD_SHAPE,
   structures: Structures = WORLD_STRUCTURES,
 ): number {
-  if (input) {
-    p.lastSeq = input.seq;
-    p.yaw = input.yaw;
-    p.pitch = Math.max(-MAX_PITCH, Math.min(MAX_PITCH, input.pitch));
-    p.reading = input.reading;
-  }
+  if (input) takeLook(p, input);
   stepItem(p, input, dt);
   p.walk = 0; // a class that walks sets it
-  const landing = classOf(p.avatar).step(p, input, dt, shape, structures);
+  const landing = classOf(p.avatar).step(p, input, dt, structures);
   p.boost = Math.max(0, p.boost - dt);
   p.chilled = Math.max(0, p.chilled - dt);
   return landing;

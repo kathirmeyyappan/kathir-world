@@ -13,11 +13,15 @@ import type { Figure } from './Walker';
 const LEG_SWING = 0.7; // radians each way at a full-speed walk
 const AIR_LEGS = 0.3;
 const ARM_SWING = 0.3;
+// Where an item's handle goes from the middle of his hand, in the grip's frame: against the palm,
+// which faces inward, up under the thumb, the item's body over the thumb.
+const HOLD = new Vector3(-0.17, -0.07, 0.12);
 const ROLL = 0.06; // radians the chest rolls side to side with each stride
 const BOB = 0.04; // metres the body rises mid-stride
 const HEAD_FOLLOW = 0.5; // how much of the look's pitch the head takes
 const TAIL_SWAY = 0.25; // radians each way, all the time
 const TAIL_SWAY_MS = 1600;
+const TAIL_RAISED = 1.2; // radians the tail is raised in a kart
 // Lying on its back: radians the legs and arms drop toward the ground and the head tips back.
 const DEAD_LEGS = 1.0;
 const DEAD_ARMS = 1.2;
@@ -57,7 +61,7 @@ export function buildSulley(engine: Engine, id: string, base: TransformNode): Fi
       { node: skin.node('legR'), side: -1 },
     ],
     armL: { node: skin.node('armL'), reach: new Vector3(-reach.x, reach.y, reach.z) },
-    armR: { node: armR, grip, reach },
+    armR: { node: armR, grip, reach, hold: HOLD },
     rock: chest,
     back: { node: chest, at: skin.offset('chest', SULLEY_MODEL.back) },
     materials: [skin.material],
@@ -68,8 +72,10 @@ export function buildSulley(engine: Engine, id: string, base: TransformNode): Fi
     bob: BOB,
     sway: ROLL,
     lie: { onto: 'back', height: SULLEY_MODEL.lie, legs: DEAD_LEGS, arms: DEAD_ARMS, head: DEAD_HEAD },
-    // The tail sways on its own; dead, it lies out to one side, out of the floor.
-    extra: (p) => {
+    // The tail sways on its own, raised up behind the back in a kart, clear of the seat; dead, it
+    // lies out to one side, out of the floor.
+    extra: (p, { on }) => {
+      tail.rotation.x = on === 'kart' ? TAIL_RAISED : 0;
       tail.rotation.y = p.dead
         ? Math.PI / 2
         : Math.sin(((performance.now() + swayOffset) / TAIL_SWAY_MS) * 2 * Math.PI) * TAIL_SWAY;

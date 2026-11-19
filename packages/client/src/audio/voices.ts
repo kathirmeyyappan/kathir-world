@@ -1,9 +1,18 @@
 // What a character says in its own voice: every one has a row, and its intro is the line each is
 // expected to have (none, until its recording is added); the rest only some have: a jump, a long
-// jump, a hit, a kill and dying. Each line but the jump is a list of takes, one picked each time.
-// Anything a row leaves out is the sound every body makes there.
-import type { AvatarId } from '@world/shared';
+// jump, a hit, a kill, dying, and a theme of its own. Each line but the jump is a list of takes, one
+// picked each time. Anything a row leaves out is the sound every body makes there.
+import { floatOf, poundOf, strikeOf, type AvatarId } from '@world/shared';
 import type { SoundId } from './Sfx';
+
+// A look's own music, looped for as long as someone wears it (Game.ts `music`). To its wearer it's
+// the only music there is: no dragon's or building's plays over it, wherever they go. `heardBy`
+// says who else hears it: `everyone` round the wearer, from where they are (a dragon's, heard
+// coming), or the `wearer` alone (Elizabeth's), when it's heard flat at its volume.
+export interface Theme {
+  sound: SoundId;
+  heardBy: 'everyone' | 'wearer';
+}
 
 export interface Voice {
   // Its intro: said as a player switches to this look, heard by them and everyone near. Lazy in
@@ -21,6 +30,8 @@ export interface Voice {
   // fetches it.
   death?: SoundId[];
   twirl?: SoundId; // its ground pound turning over in the air (sim/avatars.ts `Pound`): the whirl every look makes unless given
+  // Its theme, sent for as its own player takes the look (Sfx.want), with the death.
+  theme?: Theme;
 }
 
 // Everyone from Bikini Bottom dies to the one song.
@@ -116,13 +127,54 @@ export const VOICES: Record<AvatarId, Voice> = {
     kill: ['plankton-kill-1', 'plankton-kill-2'],
     ...BIKINI_BOTTOM,
   },
+  sandy: {
+    enter: ['sandy-enter', 'sandy-enter-2'],
+    hurt: ['sandy-hurt-1'],
+    kill: ['sandy-kill-1', 'sandy-kill-2'],
+    ...BIKINI_BOTTOM,
+  },
+  puff: {
+    enter: ['puff-enter', 'puff-enter-2'],
+    hurt: ['puff-hurt-1', 'puff-hurt-2', 'puff-hurt-3'],
+    kill: ['puff-kill-1', 'puff-kill-2'],
+    ...BIKINI_BOTTOM,
+  },
+  larry: {
+    enter: ['larry-enter', 'larry-enter-2'],
+    hurt: ['larry-hurt-1', 'larry-hurt-2'],
+    kill: ['larry-kill-1', 'larry-kill-2'],
+    ...BIKINI_BOTTOM,
+  },
   sahur: { enter: ['sahur-enter'] },
   mike: { enter: [], death: ['mike-death'] },
   sulley: { enter: [] },
-  elizabeth: { enter: [] },
-  'light-dragon': { enter: [] },
-  colgera: { enter: [] },
+  elizabeth: { enter: [], theme: { sound: 'elizabeth-theme', heardBy: 'wearer' } },
+  'light-dragon': { enter: [], theme: { sound: 'dragon-theme', heardBy: 'everyone' } },
+  colgera: { enter: [], theme: { sound: 'colgera-theme', heardBy: 'everyone' } },
 };
+
+// The sounds of moves only some looks have, beside what they say: what the game plays for each
+// (Game.ts, Footsteps.ts) and what the guide lists under a look's sounds (guide/sounds.ts).
+export interface MoveSound {
+  sound: SoundId;
+  rate: number; // speed and pitch together, 1 as recorded
+}
+
+// A strike's swing (sim/avatars.ts `Strike`): the jump's swoosh slower and lower, a heavy bat's.
+export function swingOf(avatar: AvatarId): MoveSound | null {
+  return strikeOf(avatar) ? { sound: 'jump', rate: 0.7 } : null;
+}
+
+// A float's shimmer (sim/avatars.ts `Float`), looped for as long as the float lasts.
+export function shimmerOf(avatar: AvatarId): SoundId | null {
+  return floatOf(avatar) ? 'float-sparkle' : null;
+}
+
+// The whirl of a look's ground pound turning over: its own, or the one every look makes; null for a
+// look that can't pound.
+export function twirlOf(avatar: AvatarId): SoundId | null {
+  return poundOf(avatar) ? (VOICES[avatar].twirl ?? 'pound-twirl') : null;
+}
 
 // One of a line's takes, any of them.
 export function take(takes: SoundId[] | undefined): SoundId | undefined {

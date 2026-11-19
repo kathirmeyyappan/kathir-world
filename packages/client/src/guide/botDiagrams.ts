@@ -89,10 +89,13 @@ function sniper(d: Diagram): void {
   d.label([420, 262], ['nobody in sight a while,', 'or hurt: moves to', 'another floor'], { note: true });
 }
 
-const DRAW: Record<BotId, (d: Diagram) => void> = { circle, stalker, sniper };
+// Each bot's diagram, or null for one with nothing to show (the observer only stands there).
+const DRAW: Record<BotId, ((d: Diagram) => void) | null> = { circle, stalker, observer: null, sniper };
 
-export function botDiagram(bot: BotId, alt: string): HTMLElement {
+export function botDiagram(bot: BotId, alt: string): HTMLElement[] {
+  const draw = DRAW[bot];
+  if (!draw) return [];
   const d = new Diagram(`dg-${bot}`);
-  DRAW[bot](d);
-  return d.element(alt);
+  draw(d);
+  return [d.element(alt)];
 }
