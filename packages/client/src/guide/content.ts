@@ -132,6 +132,13 @@ export interface Photo {
   caption: string;
 }
 
+// The gallery tab's photos (public/assets/guide/gallery/), which the README shows too.
+export const GALLERY: Photo[] = [
+  { file: 'krusty-krab', caption: 'Squidward at the register in the Krusty Krab' },
+  { file: 'pineapple', caption: 'Wario in SpongeBob’s living room' },
+  { file: 'kart-trick', caption: 'Mario tricking in a kart' },
+];
+
 export interface Place extends Entry {
   id: 'pineapple' | 'krusty-krab' | 'welcome-building' | 'anime-building' | 'building4' | 'tower' | 'terrace';
   building?: number; // a building's place, by its number less one: its title is the game's name for it (BUILDING_NAMES)
