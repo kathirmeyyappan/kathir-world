@@ -1,7 +1,8 @@
 // A flamethrower's spray: a stream of glowing blocks that fly out along the parent's +z,
 // spreading into a cone and cooling from yellow to red as they go; a dragon's breath is the same
-// with many more blocks, bigger, and crowded toward the middle of the cone. Cosmetic only; the
-// server decides who burns. One instance per muzzle (viewmodel or avatar), made by Jet.ts.
+// with many more blocks, bigger, and crowded toward the middle of the cone, and a kart's boost a
+// short one from each exhaust pipe, tinged its drift's spark's colour. Cosmetic only; the server
+// decides who burns. One instance per muzzle (viewmodel or avatar), made by Jet.ts.
 import { Color3, Mesh, MeshBuilder, StandardMaterial, TransformNode } from '@babylonjs/core';
 import type { Engine } from './Engine';
 import type { Jet, JetLook } from './Jet';
@@ -9,6 +10,7 @@ import type { Jet, JetLook } from './Jet';
 const COUNT = 16; // blocks in a jet of BASE_LENGTH or shorter; longer ones get more
 const FLIGHT_SECONDS = 0.35;
 const BASE_LENGTH = 10; // metres a jet's blocks are sized for; longer jets grow them to fill the cone
+const TINGE = 0.9; // of a tinge's colour, the most a block takes: each takes its own share, so the flame is streaked with it
 
 interface Particle {
   mesh: Mesh;
@@ -18,9 +20,11 @@ interface Particle {
   oy: number;
   sx: number; // where along the source's line it started, metres across
   spin: number;
+  tinged: number; // its share of the jet's tinge, 0 plain fire
 }
 
 export class FlameJet implements Jet {
+  tinge: Color3 | null = null; // a colour its blocks lean toward, each by its own share, for a flame that isn't plain fire
   private readonly particles: Particle[] = [];
   private readonly growth: number; // how much a block grows on its way out, in metres
   private readonly start: number; // how big a block leaves the nozzle, in metres
@@ -59,7 +63,7 @@ export class FlameJet implements Jet {
       mesh.applyFog = false;
       mesh.setEnabled(false);
       engine.glow(mesh);
-      this.particles.push({ mesh, mat, t: i / count, ox: 0, oy: 0, sx: 0, spin: 0 });
+      this.particles.push({ mesh, mat, t: i / count, ox: 0, oy: 0, sx: 0, spin: 0, tinged: 0 });
       this.scatter(this.particles[i]);
     }
   }
@@ -85,7 +89,8 @@ export class FlameJet implements Jet {
       p.mesh.rotation.set(p.spin * p.t * 6, p.spin * p.t * 4, p.t * 3);
       // yellow at the nozzle, orange in the middle, dark red and fading at the end
       const heat = 1 - p.t;
-      p.mat.emissiveColor = new Color3(1, 0.25 + 0.65 * heat, 0.05 + 0.3 * heat * heat);
+      const fire = new Color3(1, 0.25 + 0.65 * heat, 0.05 + 0.3 * heat * heat);
+      p.mat.emissiveColor = this.tinge ? Color3.Lerp(fire, this.tinge, p.tinged) : fire;
       p.mat.alpha = 0.95 * Math.min(1, 1.6 - p.t * 1.6);
     }
   }
@@ -104,5 +109,6 @@ export class FlameJet implements Jet {
     p.oy = Math.sin(a) * r;
     p.sx = (Math.random() - 0.5) * this.width;
     p.spin = Math.random() * 2 - 1;
+    p.tinged = Math.random() * TINGE;
   }
 }

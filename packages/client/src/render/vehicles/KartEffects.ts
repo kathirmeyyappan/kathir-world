@@ -1,22 +1,15 @@
-// What a kart gives off as it's driven, for anyone who sees it: while its drift holds a spark
+// What a kart gives off as it's driven, for anyone who sees it: through a drift on the ground,
+// smoke off each back tire, thickening up to its first spark; while the drift holds a spark
 // (kart.ts `sparkOf`), in that spark's colour, electricity crackling at the base of each back tire
 // (jagged bolts that flicker where they stand, over a glow) and sparks flying out from under it,
-// with a burst of both as each spark is reached; and flames from its exhaust pipes through a boost.
-// Drawn only: the sim decides the spark and the boost. Each is made the first time its kart needs
-// it, so a kart that never drifts or boosts carries neither.
-import {
-  Color4,
-  DynamicTexture,
-  Mesh,
-  ParticleSystem,
-  Quaternion,
-  Texture,
-  TransformNode,
-  Vector3,
-} from '@babylonjs/core';
-import { KARTS, sparkOf, type KartState, type Spark } from '@world/shared';
+// with a burst of both as each spark is reached; and flames from its exhaust pipes through a boost,
+// tinged the colour of the spark its drift was let go on.
+// Drawn only: the sim decides the drift, the spark and the boost. Each is made the first time its
+// kart needs it, so a kart that never drifts or boosts carries none of them.
+import { Color3, Color4, DynamicTexture, Mesh, ParticleSystem, Texture, TransformNode, Vector3 } from '@babylonjs/core';
+import { KARTS, SPARKS, sparkOf, type KartState, type Spark } from '@world/shared';
 import type { Engine } from '../Engine';
-import { createJet, type Jet } from '../Jet';
+import { FlameJet } from '../FlameJet';
 import { plusSprites, softDisc } from '../Poof';
 import type { KartModel } from './kartModel';
 
@@ -73,6 +66,19 @@ const GLOW = {
   sizes: [0.45, 0.85],
   life: [0.08, 0.2],
   tints: tints(({ lit }) => ({ one: faint(lit, 0.55), two: faint(lit, 0.35), dead: faint(lit, 0) })),
+};
+// A drift's smoke off a back tire, the grey "+"s of a poof: a second once the drift's first spark
+// is due and the `first` share of that as the drift begins, the most alive at once, the metres
+// across each grows from and to, the seconds it lasts, the m/s it leaves at (back, up and out from
+// the tire) and the m/s² it rises at.
+const SMOKE = {
+  rate: 30,
+  first: 0.25,
+  most: 32,
+  grows: [0.16, 0.5],
+  life: [0.4, 0.8],
+  speed: [0.8, 2.2],
+  rise: 1.5,
 };
 const SPARK_HEIGHT = 0.04; // metres over the ground they come from, where the tire meets it
 // The box round that spot the crackle is born in: across, in the tire's widths either side of its
@@ -175,14 +181,27 @@ interface Sparking {
 // A boost's flames, a jet from each exhaust pipe (FlameJet.ts): metres long, the half angle it
 // spreads at, and how many and how big its blocks are beside a flamethrower's.
 const FLAME = { length: 1.4, halfAngle: 0.14, density: 0.5, size: 0.55 };
+// What tinges the flames of a boost a drift gave, by the spark it was let go on: the spark's colour,
+// deeper than it's lit, since a flame's glow washes a light colour out to white.
+const TINGES: Record<Spark, Color3> = {
+  1: tingeOf(SPARK_COLOURS[1]),
+  2: tingeOf(SPARK_COLOURS[2]),
+  3: tingeOf(SPARK_COLOURS[3]),
+};
+function tingeOf({ lit, out }: { lit: Color4; out: Color4 }): Color3 {
+  const { r, g, b } = Color4.Lerp(lit, out, 0.6);
+  return new Color3(r, g, b);
+}
 
 export class KartEffects {
+  private spots: Mesh[] | null = null; // where each back tire meets the ground: what its smoke and sparks come from
+  private smoke: ParticleSystem[] | null = null; // a back tire's each
   private sparks: Sparking[] | null = null; // each back tire's crackle, glow and flying sparks
-  private flames: Jet[] | null = null; // a jet an exhaust pipe
+  private flames: FlameJet[] | null = null; // a jet an exhaust pipe
   private spark: Spark | null = null; // the spark the drift had got to, as last drawn
 
   // `ground` is the kart's node on the ground under its middle, tipped and sized with it, the frame
-  // its sparks come out in; `body` what its body hangs from, which its flames go with.
+  // its smoke and sparks come out in; `body` what its body hangs from, which its flames go with.
   constructor(
     private readonly engine: Engine,
     private readonly id: string,
@@ -191,9 +210,15 @@ export class KartEffects {
     private readonly model: KartModel,
   ) {}
 
-  // Its sparks and flames as `kart` is this frame, `dt` seconds on from the last.
+  // Its smoke, sparks and flames as `kart` is this frame, `dt` seconds on from the last.
   update(kart: KartState, dt: number): void {
-    const spark = kart.drift && kart.grounded ? sparkOf(kart.drift.t, KARTS[kart.kart]) : null;
+    const spec = KARTS[kart.kart];
+    const drifted = kart.drift && kart.grounded ? kart.drift.t : null; // seconds into a drift on the ground
+    if (drifted !== null) this.smoke ??= this.makeSmoke();
+    const built = drifted === null ? 0 : Math.min(1, drifted / (SPARKS[0].after * spec.miniTurboTime));
+    for (const system of this.smoke ?? [])
+      system.emitRate = drifted === null ? 0 : SMOKE.rate * (SMOKE.first + (1 - SMOKE.first) * built);
+    const spark = drifted === null ? null : sparkOf(drifted, spec);
     const reached = spark !== null && spark !== this.spark;
     this.spark = spark;
     if (spark) this.sparks ??= this.makeSparks();
@@ -205,77 +230,111 @@ export class KartEffects {
     }
     if (kart.turbo) this.flames ??= this.makeFlames();
     for (const flame of this.flames ?? []) {
+      if (kart.turbo) flame.tinge = kart.turbo.spark && TINGES[kart.turbo.spark];
       flame.set(kart.turbo !== null);
       flame.update(dt);
     }
   }
 
   dispose(): void {
+    for (const system of this.smoke ?? []) system.dispose();
     for (const { system } of this.sparks ?? []) system.dispose();
     for (const flame of this.flames ?? []) flame.dispose();
   }
 
-  private makeSparks(): Sparking[] {
-    const scene = this.engine.scene;
-    const { radius, width } = this.model.tire;
-    return this.model.tires
+  // An empty mesh where each back tire meets the ground. A system follows a mesh, and its particles
+  // live in that mesh's frame, so they stay at the tire however fast the kart goes, where ones left
+  // to the world would be metres behind it as they're born.
+  private backTires(): Mesh[] {
+    return (this.spots ??= this.model.tires
       .filter((tire) => !tire.front)
-      .flatMap(({ at }, i) => {
-        // A system follows a mesh: an empty one where the tire meets the ground. Its particles live
-        // in that mesh's frame, so they stay at the tire however fast the kart goes, where ones left
-        // to the world would be metres behind it as they're born.
-        const emitter = new Mesh(`kart-${this.id}-sparks-${i}`, scene);
-        emitter.parent = this.ground;
-        emitter.position.set(at[0], SPARK_HEIGHT, at[2]);
-        emitter.isPickable = false;
-        const system = (kind: string, most: number, sizes: number[], life: number[]) => {
-          const ps = new ParticleSystem(`kart-${this.id}-${kind}-${i}`, most, scene);
-          ps.emitter = emitter;
-          ps.isLocal = true;
-          ps.blendMode = ParticleSystem.BLENDMODE_ADD;
-          ps.applyFog = false;
-          ps.updateSpeed = 1 / 60; // so lifetimes are seconds and powers metres per second
-          [ps.minSize, ps.maxSize] = sizes;
-          [ps.minLifeTime, ps.maxLifeTime] = life;
-          ps.minEmitPower = ps.maxEmitPower = 0;
-          ps.emitRate = 0;
-          ps.start();
-          return ps;
-        };
-        const out = Math.sign(at[0]);
-        const flying = system('sparks', FLYING.most, FLYING.sizes, FLYING.life);
-        plusSprites(this.engine, flying, 1); // the lightest grey alone, under the spark's colour
-        flying.minEmitBox = flying.maxEmitBox = Vector3.Zero();
-        flying.direction1 = new Vector3(out * 0.2, 0.5, -1);
-        flying.direction2 = new Vector3(out, 1.5, -0.3);
-        [flying.minEmitPower, flying.maxEmitPower] = FLYING.speed;
-        flying.gravity = new Vector3(0, -FLYING.fall, 0);
-        const low = new Vector3(-width * CRACKLE_BOX.across, 0, -radius * CRACKLE_BOX.along);
-        const high = new Vector3(width * CRACKLE_BOX.across, radius * CRACKLE_BOX.up, radius * CRACKLE_BOX.along);
-        const crackle = system('crackle', CRACKLE.most, CRACKLE.sizes, CRACKLE.life);
-        boltSprites(this.engine, crackle);
-        [crackle.minEmitBox, crackle.maxEmitBox] = [low, high];
-        crackle.minInitialRotation = 0;
-        crackle.maxInitialRotation = 2 * Math.PI;
-        const glow = system('glow', GLOW.most, GLOW.sizes, GLOW.life);
-        glow.particleTexture = softDisc(this.engine);
-        [glow.minEmitBox, glow.maxEmitBox] = [low, high];
-        return [
-          { system: glow, ...GLOW },
-          { system: crackle, ...CRACKLE },
-          { system: flying, ...FLYING },
-        ];
-      });
+      .map(({ at }, i) => {
+        const spot = new Mesh(`kart-${this.id}-tire-spot-${i}`, this.engine.scene);
+        spot.parent = this.ground;
+        spot.position.set(at[0], SPARK_HEIGHT, at[2]);
+        spot.isPickable = false;
+        return spot;
+      }));
   }
 
-  private makeFlames(): Jet[] {
-    return this.model.exhausts.map(({ at, way }, i) => {
-      // A jet runs along its parent's +z: a node at the pipe's end, turned the way it points.
+  // A particle system of at most `most` at a back tire's `spot`, giving nothing off until it's told to.
+  private system(spot: Mesh, kind: string, most: number, life: number[]): ParticleSystem {
+    const ps = new ParticleSystem(`${spot.name}-${kind}`, most, this.engine.scene);
+    ps.emitter = spot;
+    ps.isLocal = true;
+    ps.applyFog = false;
+    ps.updateSpeed = 1 / 60; // so lifetimes are seconds and powers metres per second
+    [ps.minLifeTime, ps.maxLifeTime] = life;
+    ps.minEmitBox = ps.maxEmitBox = Vector3.Zero();
+    ps.minEmitPower = ps.maxEmitPower = 0;
+    ps.emitRate = 0;
+    ps.start();
+    return ps;
+  }
+
+  private makeSmoke(): ParticleSystem[] {
+    return this.backTires().map((spot) => {
+      const out = Math.sign(spot.position.x);
+      const smoke = this.system(spot, 'smoke', SMOKE.most, SMOKE.life);
+      plusSprites(this.engine, smoke, 2); // the two lightest greys, to show against a dark floor
+      smoke.blendMode = ParticleSystem.BLENDMODE_STANDARD;
+      smoke.direction1 = new Vector3(out * 0.1, 0.3, -1);
+      smoke.direction2 = new Vector3(out * 0.8, 1, -0.4);
+      [smoke.minEmitPower, smoke.maxEmitPower] = SMOKE.speed;
+      smoke.gravity = new Vector3(0, SMOKE.rise, 0);
+      smoke.addSizeGradient(0, SMOKE.grows[0]);
+      smoke.addSizeGradient(1, SMOKE.grows[1]);
+      smoke.addColorGradient(0, new Color4(1, 1, 1, 0.8));
+      smoke.addColorGradient(1, new Color4(1, 1, 1, 0));
+      smoke.minAngularSpeed = -3;
+      smoke.maxAngularSpeed = 3;
+      return smoke;
+    });
+  }
+
+  private makeSparks(): Sparking[] {
+    const { radius, width } = this.model.tire;
+    return this.backTires().flatMap((spot) => {
+      const lit = (kind: string, { most, sizes, life }: { most: number; sizes: number[]; life: number[] }) => {
+        const ps = this.system(spot, kind, most, life);
+        ps.blendMode = ParticleSystem.BLENDMODE_ADD;
+        [ps.minSize, ps.maxSize] = sizes;
+        return ps;
+      };
+      const out = Math.sign(spot.position.x);
+      const flying = lit('sparks', FLYING);
+      plusSprites(this.engine, flying, 1); // the lightest grey alone, under the spark's colour
+      flying.direction1 = new Vector3(out * 0.2, 0.5, -1);
+      flying.direction2 = new Vector3(out, 1.5, -0.3);
+      [flying.minEmitPower, flying.maxEmitPower] = FLYING.speed;
+      flying.gravity = new Vector3(0, -FLYING.fall, 0);
+      const low = new Vector3(-width * CRACKLE_BOX.across, 0, -radius * CRACKLE_BOX.along);
+      const high = new Vector3(width * CRACKLE_BOX.across, radius * CRACKLE_BOX.up, radius * CRACKLE_BOX.along);
+      const crackle = lit('crackle', CRACKLE);
+      boltSprites(this.engine, crackle);
+      [crackle.minEmitBox, crackle.maxEmitBox] = [low, high];
+      crackle.minInitialRotation = 0;
+      crackle.maxInitialRotation = 2 * Math.PI;
+      const glow = lit('glow', GLOW);
+      glow.particleTexture = softDisc(this.engine);
+      [glow.minEmitBox, glow.maxEmitBox] = [low, high];
+      return [
+        { system: glow, ...GLOW },
+        { system: crackle, ...CRACKLE },
+        { system: flying, ...FLYING },
+      ];
+    });
+  }
+
+  private makeFlames(): FlameJet[] {
+    return this.model.exhausts.map(({ at, way: [x, y, z] }, i) => {
+      // A jet runs along its parent's +z: a node at the pipe's end, turned (pitched, then yawed)
+      // the way it points.
       const pipe = new TransformNode(`kart-${this.id}-exhaust-${i}`, this.engine.scene);
       pipe.parent = this.body;
       pipe.position.set(...at);
-      pipe.rotationQuaternion = Quaternion.FromLookDirectionLH(Vector3.FromArray(way), Vector3.Up());
-      return createJet(this.engine, `kart-${this.id}-exhaust-${i}`, pipe, 'fire', FLAME.length, FLAME.halfAngle, FLAME);
+      pipe.rotation.set(-Math.asin(y), Math.atan2(x, z), 0);
+      return new FlameJet(this.engine, `kart-${this.id}-exhaust-${i}`, pipe, FLAME.length, FLAME.halfAngle, FLAME);
     });
   }
 }

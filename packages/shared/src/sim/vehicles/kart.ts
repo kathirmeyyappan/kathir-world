@@ -51,7 +51,9 @@ export interface KartState {
   hop: boolean; // in the hop a press gives, until it lands
   drift: { way: 1 | -1; t: number } | null; // its way (1 right) and the seconds of it on the ground
   trick: { way: 1 | -1; t: number } | null; // in the air: its way (1 right) and the seconds since it began
-  turbo: { hold: number; t: number } | null; // a boost: the seconds it holds at full, and the seconds into it
+  // A boost: the seconds it holds at full, the seconds into it, and the spark of the drift it came
+  // of (none for a trick's).
+  turbo: { hold: number; t: number; spark: Spark | null } | null;
 }
 
 // What came of a tick: how fast it was going into what it ran into, square to it (0 for nothing),
@@ -199,7 +201,7 @@ export function stepKart(k: KartState, c: KartControls, dt: number, structures: 
   const speed = forwardSpeed(k);
   if (k.drift && (!c.drift || speed < DRIFT_FROM * spec.speed)) {
     const spark = c.drift ? null : sparkOf(k.drift.t, spec);
-    if (spark) k.turbo = { hold: SPARKS[spark - 1].hold, t: 0 };
+    if (spark) k.turbo = { hold: SPARKS[spark - 1].hold, t: 0, spark };
     k.drift = null;
   }
   k.yaw += turnRate(k, spec, speed) * dt;
@@ -207,7 +209,7 @@ export function stepKart(k: KartState, c: KartControls, dt: number, structures: 
   const impact = move(k, dt, structures);
   const landing = settle(k, dt, structures);
   if (landing > 0 && k.trick) {
-    k.turbo = { hold: TRICK.hold, t: 0 };
+    k.turbo = { hold: TRICK.hold, t: 0, spark: null };
     k.trick = null;
   }
   if (landing > 0 && k.hop) {
