@@ -90,7 +90,7 @@ anything that can wait off the path everyone pays:
   wearing; a dragon rises and roars at once and its body fills in as it lands.
 - A sound is fetched by everyone up front unless it's `lazy` in `SOUNDS` (`Sfx.soon`, `Sfx.want`).
   Every look's voice is lazy: an intro is fetched as it's said within earshot, and a look's jumps,
-  long jumps, hurts and kills (with its death for its own player) as it's first seen worn
+  long jumps, hurts and kills (with its death and its theme for its own player) as it's first seen worn
   (`Game.wantVoice`); a jump not here yet is the swoosh.
 
 Fetch on demand whatever only some players will see or hear, so long as it can arrive a moment
@@ -869,17 +869,26 @@ clipped, so a deck or a roof hides it as the floor does), and
 the wave down its body (`Wave`, in metres of body: the spine's points ride it, so a body of rigid
 pieces tilts along it joint by joint and a skinned one bends); with its voice in `DRAGON_VOICES` (`audio/Sfx.ts`: its roars by action and
 the cry it rises with, each a `Call` with a take heard up close and, where the rip has one, a take
-recorded from afar that plays instead past `FAR` metres; and its theme, a loop with an intro) and
-how far back it's watched from in `DRAGON_BOOMS` (`game/View.ts`). The theme a player hears is the
-nearest living dragon's (`Game.ts`), kept until another is `THEME_HYSTERESIS` nearer, one crossing
-into the next over the sounds' `swell` and `fade`; a theme runs from the first dragon of its kind
-rising for as long as any is alive, so one taken up again is heard from where it has got to
-(`setLoops`' `elapsed`), not from the top. A building can have a quiet theme of its own
-(`PLACE_THEMES` in `audio/Sfx.ts`: the Krusty Krab's hornpipe, SpongeBob's house's rag, Tung Tung
-Tower's tower music on every floor up to the roof): one more contender for the nearest, measured
-from its walls (`toKrustyKrab`, `toPineapple`, `toTower`) and heard flat
-across its grounds, running on from when it was first heard; from inside the walls it's the only
-theme, no dragon's playing over it. A looping track is cut on exact samples and encoded
+recorded from afar that plays instead past `FAR` metres) and its theme in its row in `VOICES`, and
+how far back it's watched from in `DRAGON_BOOMS` (`game/View.ts`).
+
+A player hears one theme at a time (`Game.ts` `music`). A look can have a theme of its own
+(`VOICES`' `theme`, a loop, with an intro if it has one), and to whoever wears it that's the only
+music there is, wherever they go: no dragon's or building's plays over it. Its `heardBy` says who
+else hears it: `everyone` round the wearer, from where they are (a dragon's, so one is heard
+coming), or the `wearer` alone (Elizabeth's, Katsura's theme from Gintama), heard flat at its
+volume. A player wearing no theme of their own hears the nearest of those round them: a living
+player's that everyone hears, from its head, or a building's (`PLACE_THEMES` in `audio/Sfx.ts`: the
+Krusty Krab's hornpipe, SpongeBob's house's rag, Tung Tung Tower's tower music on every floor up to
+the roof), measured from its walls (`toKrustyKrab`, `toPineapple`, `toTower`) and heard flat across
+its grounds, the only one heard from inside them; kept until another is `THEME_HYSTERESIS` nearer,
+one crossing into the next over the sounds' `swell` and `fade`. A worn theme runs for as long as
+anyone the player could hear it from wears it, and a building's for the rest of the visit, each
+from the first frame its recording is here (`Game.running`, so it begins from the top however long
+it took to arrive), and one taken up again is heard from where it has got to (`setLoops`'
+`elapsed`). A look's own theme is sent for as its player takes it (`Game.wantVoice`). Anything that
+should one day carry a theme of its own (a power-up, say) is one more source for the player's own
+in `music`. A looping track is cut on exact samples and encoded
 with LAME (ffmpeg's `libmp3lame`), whose header the browsers' decoders read to trim the padding,
 so the loop and the join from its intro are gapless; check a new one decodes to its exact sample
 count before trusting it. A new class is a spec

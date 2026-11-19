@@ -152,20 +152,33 @@ const OWN_MOVE = 0.6; // the share of its volume the player's own ground pound t
 const DEATH_SOUND_DELAY = 0.5; // seconds from dying to the look's death sound: the hurt sound or cry of the last hit, played out
 const CRY_GAP_MS = 600; // a player's cries at being hit come no closer together than this, however short the cry
 type Line = 'hurt' | 'kill' | 'enter' | 'death'; // the lines of a look's voice that are a list of takes (voices.ts)
-// Metres nearer than the dragon whose theme is playing another has to be to take the theme over,
-// so two at a like distance don't trade it back and forth.
+// Metres nearer than the player or building whose theme is playing another has to be to take the
+// theme over, so two at a like distance don't trade it back and forth.
 const THEME_HYSTERESIS = 15;
 
-// A theme that could be playing: a dragon's, or a building's. `metres` is how far the ear is from
-// it, `holder` the dragon or building it comes from, and `inside` whether the player is within the
-// building's walls, where nothing else may play over it.
-interface Theme {
+// A living player as the music and a dragon's cries take them: who, in what look, where (the eye
+// point), and for a dragon whether it has risen out of the ground yet (null for anyone on foot).
+interface Living {
+  id: string;
+  avatar: AvatarId;
+  at: Vec3;
+  risen: boolean | null;
+}
+
+// A theme as Sfx.setLoops plays it (Game `music`).
+interface Music {
   key: string;
   id: SoundId;
-  metres: number;
   at: Vec3 | null;
   elapsed: number;
   level: number;
+}
+
+// One of the themes round a player with none of their own: `metres` from the ear, `holder` the
+// player or building it comes from, and `inside` whether the player is within the building's walls,
+// where nothing else may play over it.
+interface Contender extends Music {
+  metres: number;
   inside: boolean;
   holder: string;
 }
@@ -210,10 +223,11 @@ export class Game {
   private readonly strikes = new Map<string, number>(); // how far into a strike each player striking was last seen
   private readonly cried = new Set<string>(); // the dragons heard crying on their way out of the ground
   private readonly criedOut = new Map<string, number>(); // when each player may next cry out at a hit (performance.now)
-  private themeOf: string | null = null; // the dragon or building whose theme is playing (Theme.holder)
-  // When the first dragon of each theme rose (ms): its theme has been running since, heard or not.
-  private readonly themeClocks = new Map<SoundId, number>();
-  // When each building's theme was first heard (ms): it runs on from then for the rest of the visit.
+  private themeOf: string | null = null; // the player or building whose theme is playing (Contender.holder)
+  // When each theme worn round the player began (ms; `running`): it runs on from then for as long as
+  // anyone the player could hear it from wears it.
+  private readonly wornClocks = new Map<SoundId, number>();
+  // When each building's theme began (ms; `running`): it runs on from then for the rest of the visit.
   private readonly placeClocks = new Map<SoundId, number>();
   private bobbing = 0; // share of the full head bob in play: eased up with the walk and down when it stops
   private readonly skyByMesh = new Map<string, SkyObject>();
@@ -822,11 +836,19 @@ export class Game {
   }
 
   // Sends for a look's jumps, hurts and kills (lazy in SOUNDS) as it's first seen worn, so they're
-  // here by the time it hops, is hit or gloats, and with `mine` its death too, which only its own
-  // player hears. A hurt that hasn't arrived by its hit is left out, and a jump is the swoosh.
+  // here by the time it hops, is hit or gloats, and with `mine` its death and its theme too, which
+  // its own player hears whatever happens. A hurt that hasn't arrived by its hit is left out, and a
+  // jump is the swoosh; a theme starts from the top as it arrives.
   private wantVoice(avatar: AvatarId, mine: boolean): void {
     const voice = VOICES[avatar];
-    const lines = [voice.jump, voice.leap, voice.hurt, voice.kill, mine ? voice.death : undefined];
+    const lines = [
+      voice.jump,
+      voice.leap,
+      voice.hurt,
+      voice.kill,
+      mine ? voice.death : undefined,
+      mine && voice.theme ? [voice.theme.sound] : undefined,
+    ];
     for (const id of lines.flatMap((l) => l ?? [])) this.sfx.want(id);
   }
 
@@ -1167,71 +1189,16 @@ export class Game {
       this.hud.setCrosshairTarget(this.canHit);
     }
     this.sfx.listen(this.camera.position, this.input.yaw);
-    // Every dragon with a voice rises out of the ground with its cry (kept trying until the
-    // recording has arrived, and heard again from the same player's next one). One theme plays at a
-    // time: the nearest living dragon's from its head, or a building's (PLACE_THEMES) from its walls
-    // across its grounds, until another is THEME_HYSTERESIS nearer, one theme crossing into the
-    // next; inside a building's walls its theme is the only one. A dragon's theme runs from the
-    // first of its dragons rising for as long as any is alive, and a building's from when it was
-    // first heard, so one taken up again is heard from where it has got to, not from the top. The
-    // rider's own plays flat, as loud as from the boom's length off, so the camera closing in on the
-    // head (at a wall) doesn't swell it.
-    const dragons = [
-      ...(self.dragon && !this.dead
-        ? [{ id: this.myId, at: self.pos, risen: self.dragon.risen, voice: voiceOf(self.avatar) }]
-        : []),
+    const living: Living[] = [
+      ...(this.dead ? [] : [{ id: this.myId, avatar: self.avatar, at: self.pos, risen: self.dragon?.risen ?? null }]),
       ...sampled.players.flatMap((rp) =>
-        rp.dragon && !rp.dead
-          ? [{ id: rp.id, at: { x: rp.x, y: rp.y, z: rp.z }, risen: rp.dragon.risen, voice: voiceOf(rp.avatar) }]
-          : [],
+        rp.dead
+          ? []
+          : [{ id: rp.id, avatar: rp.avatar, at: { x: rp.x, y: rp.y, z: rp.z }, risen: rp.dragon?.risen ?? null }],
       ),
-    ].filter((d) => d.voice !== null);
-    for (const d of dragons) {
-      if (d.risen) this.cried.delete(d.id);
-      else if (!this.cried.has(d.id) && this.sfx.call(d.voice!.cry, d.at)) this.cried.add(d.id);
-    }
-    const themes = new Set(dragons.map((d) => d.voice!.theme));
-    for (const theme of this.themeClocks.keys()) if (!themes.has(theme)) this.themeClocks.delete(theme);
-    for (const theme of themes) if (!this.themeClocks.has(theme)) this.themeClocks.set(theme, performance.now());
-    const ear = this.camera.position;
-    const now = performance.now();
-    const own = (d: { id: string }) => d.id === this.myId;
-    const candidates: Theme[] = [
-      ...dragons.map((d) => ({
-        key: own(d) ? 'own-dragon' : 'dragon',
-        id: d.voice!.theme,
-        metres: Vector3.Distance(ear, new Vector3(d.at.x, d.at.y, d.at.z)),
-        at: own(d) ? null : d.at,
-        elapsed: (now - this.themeClocks.get(d.voice!.theme)!) / 1000,
-        level: own(d) ? heard(d.voice!.theme, boomLength(self.avatar)) : 1,
-        inside: false,
-        holder: d.id,
-      })),
-      ...PLACE_THEMES.flatMap((p) => {
-        const metres = p.walls(ear);
-        const level = heard(p.theme, metres);
-        if (level <= 0) return [];
-        if (!this.placeClocks.has(p.theme)) this.placeClocks.set(p.theme, now);
-        return [
-          {
-            key: `place:${p.theme}`,
-            id: p.theme,
-            metres,
-            at: null,
-            elapsed: (now - this.placeClocks.get(p.theme)!) / 1000,
-            level,
-            inside: !this.dead && p.walls(self.pos) === 0,
-            holder: `place:${p.theme}`,
-          },
-        ];
-      }),
     ];
-    const nearest = candidates.sort((a, b) => a.metres - b.metres)[0];
-    const kept = candidates.find((c) => c.holder === this.themeOf);
-    const playing =
-      candidates.find((c) => c.inside) ??
-      (kept && nearest && kept.metres < nearest.metres + THEME_HYSTERESIS ? kept : nearest);
-    this.themeOf = playing?.holder ?? null;
+    this.cryOut(living);
+    const music = this.music(living);
     this.sfx.setLoops([
       ...loopsOf({ ...self, item: self.item?.id ?? null, gear: self.gear?.id ?? null, dead: this.dead }).map((id) => ({
         key: this.myId,
@@ -1240,7 +1207,7 @@ export class Game {
       })),
       ...sampled.players.flatMap((rp) => loopsOf(rp).map((id) => ({ key: rp.id, id, at: rp }))),
       ...stepLoops,
-      ...(playing ? [playing] : []),
+      ...(music ? [music] : []),
     ]);
     this.pickups.update(sampled.pickups);
     for (const cs of sampled.cubes) {
@@ -1249,6 +1216,98 @@ export class Game {
       cube.setReaders(readers.get(cs.id) ?? 0);
       cube.update(cs);
     }
+  }
+
+  // Every dragon with a voice rises out of the ground with its cry, kept trying until the recording
+  // has arrived, and heard again from the same player's next rise.
+  private cryOut(living: Living[]): void {
+    for (const body of living) {
+      const voice = voiceOf(body.avatar);
+      if (!voice || body.risen === null) continue;
+      if (body.risen) this.cried.delete(body.id);
+      else if (!this.cried.has(body.id) && this.sfx.call(voice.cry, body.at)) this.cried.add(body.id);
+    }
+  }
+
+  // The one theme the player hears. Their own look's, if it has one (voices.ts `Theme`), wherever
+  // they are: nothing plays over a character's theme. Without one, the nearest of the themes round
+  // them: a living player's that everyone hears (a dragon's, from its head), or a building's
+  // (PLACE_THEMES) from its walls across its grounds, the only one heard from inside them; kept
+  // until another is THEME_HYSTERESIS nearer, one crossing into the next over the sounds' swell and
+  // fade. A worn theme runs for as long as anyone the player could hear it from wears it, heard or
+  // not, and a building's for the rest of the visit, so one taken up again is heard from where it
+  // has got to.
+  private music(living: Living[]): Music | null {
+    const now = performance.now();
+    const worn = living.flatMap((body) => {
+      const theme = VOICES[body.avatar].theme;
+      return theme && (body.id === this.myId || theme.heardBy === 'everyone') ? [{ ...body, theme }] : [];
+    });
+    const sounds = new Set(worn.map((w) => w.theme.sound));
+    for (const sound of this.wornClocks.keys()) if (!sounds.has(sound)) this.wornClocks.delete(sound);
+    const elapsed = new Map([...sounds].map((sound) => [sound, this.running(this.wornClocks, sound, now)]));
+
+    const mine = worn.find((w) => w.id === this.myId);
+    if (mine) {
+      this.themeOf = mine.id;
+      const { sound, heardBy } = mine.theme;
+      return {
+        key: 'own',
+        id: sound,
+        at: null,
+        elapsed: elapsed.get(sound)!,
+        // A theme everyone hears comes from the wearer's body, so they hear their own as from the
+        // boom's length off, and the camera closing in on the head (at a wall) doesn't swell it.
+        level: heardBy === 'everyone' ? heard(sound, boomLength(mine.avatar)) : 1,
+      };
+    }
+
+    const ear = this.camera.position;
+    const feet = living.find((body) => body.id === this.myId)?.at;
+    const contenders: Contender[] = [
+      ...worn.map((w) => ({
+        key: 'worn',
+        id: w.theme.sound,
+        at: w.at,
+        elapsed: elapsed.get(w.theme.sound)!,
+        level: 1,
+        metres: Vector3.Distance(ear, new Vector3(w.at.x, w.at.y, w.at.z)),
+        inside: false,
+        holder: w.id,
+      })),
+      ...PLACE_THEMES.flatMap((p) => {
+        const metres = p.walls(ear);
+        const level = heard(p.theme, metres);
+        if (level <= 0) return [];
+        return [
+          {
+            key: 'place',
+            id: p.theme,
+            at: null,
+            elapsed: this.running(this.placeClocks, p.theme, now),
+            level,
+            metres,
+            inside: feet !== undefined && p.walls(feet) === 0,
+            holder: `place:${p.theme}`,
+          },
+        ];
+      }),
+    ];
+    const nearest = contenders.sort((a, b) => a.metres - b.metres)[0];
+    const kept = contenders.find((c) => c.holder === this.themeOf);
+    const playing =
+      contenders.find((c) => c.inside) ??
+      (kept && nearest && kept.metres < nearest.metres + THEME_HYSTERESIS ? kept : nearest);
+    this.themeOf = playing?.holder ?? null;
+    return playing ?? null;
+  }
+
+  // Seconds a theme has been running by `clocks`, which it joins on the first frame its recording
+  // is here, so it begins from the top however long it took to arrive; 0 until then.
+  private running(clocks: Map<SoundId, number>, sound: SoundId, now: number): number {
+    if (!clocks.has(sound) && this.sfx.ready(sound)) clocks.set(sound, now);
+    const began = clocks.get(sound);
+    return began === undefined ? 0 : (now - began) / 1000;
   }
 
   // The player's own body: where prediction has it (its eye point `at`, corrected but not trailing a

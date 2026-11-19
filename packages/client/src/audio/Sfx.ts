@@ -194,7 +194,8 @@ export type SoundId =
   | 'colgera-theme'
   | 'krusty-krab-theme'
   | 'spongebob-house-theme'
-  | 'tower-theme';
+  | 'tower-theme'
+  | 'elizabeth-theme';
 
 interface SoundSpec {
   file: string; // in public/assets/sounds
@@ -467,6 +468,20 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
     lazy: true,
     music: true,
   },
+  // A look's theme for its wearer alone (voices.ts `Theme`): never placed, heard flat at its volume,
+  // as loud as a building's from inside it. Elizabeth's is Katsura's theme from Gintama, its lead-in
+  // and then the song's first half, cut to loop back into itself. It starts from the top as the look
+  // is put on, the intro's opening hit with nothing swelling over it, and fades out as it's taken off.
+  'elizabeth-theme': {
+    file: 'elizabeth-theme.mp3',
+    intro: 'elizabeth-theme-start.mp3',
+    half: 15,
+    volume: 0.065,
+    loop: true,
+    fade: 2.5,
+    lazy: true,
+    music: true,
+  },
 };
 
 // Metres from a call past which its far take, if it has one, is the one played.
@@ -503,19 +518,17 @@ export interface Call {
   far?: SoundId;
 }
 
-// What a dragon skin sounds like (render/avatars/dragons.ts lists the skins): its roars by action,
-// the cry it rises out of the ground with, and the theme that plays from its head; null for a
-// skin with no voice yet.
+// What a dragon skin's calls sound like (render/avatars/dragons.ts lists the skins): its roars by
+// action and the cry it rises out of the ground with; null for a skin with no voice yet. Its theme
+// is its look's (voices.ts `Theme`), like any look's.
 export interface DragonVoice {
   roars: Partial<Record<ItemAction, Call>>;
   cry: Call;
-  theme: SoundId;
 }
 export const DRAGON_VOICES: Record<AvatarsOf<'asian-dragon'>, DragonVoice | null> = {
   'light-dragon': {
     roars: { 'roar-1': { near: 'roar-1' }, 'roar-2': { near: 'roar-2' }, 'roar-3': { near: 'roar-3' } },
     cry: { near: 'dragon-cry' },
-    theme: 'dragon-theme',
   },
   colgera: {
     roars: {
@@ -524,13 +537,12 @@ export const DRAGON_VOICES: Record<AvatarsOf<'asian-dragon'>, DragonVoice | null
       'roar-3': { near: 'colgera-roar-3', far: 'colgera-roar-far-3' },
     },
     cry: { near: 'colgera-cry', far: 'colgera-cry-far' },
-    theme: 'colgera-theme',
   },
 };
 
-// A building with a theme of its own: one more theme round it for the nearest to win (Game.ts), at
-// its distance from the walls (`walls`, metres from a point to them, 0 inside), and the only one
-// heard from inside them.
+// A building with a theme of its own, heard by anyone without a theme of their own (Game.ts
+// `music`): one more for the nearest to win, at its distance from the walls (`walls`, metres from
+// a point to them, 0 inside), and the only one heard from inside them.
 export interface PlaceTheme {
   theme: SoundId;
   walls: (p: Vec3) => number;
@@ -739,6 +751,13 @@ export class Sfx {
     return this.buffers.get(SOUNDS[id].file)?.duration ?? 0;
   }
 
+  // Whether a sound's recording, and its intro if it has one, has arrived: a loop asked for now
+  // would start at once.
+  ready(id: SoundId): boolean {
+    const spec = SOUNDS[id];
+    return this.buffers.has(spec.file) && (!spec.intro || this.buffers.has(spec.intro));
+  }
+
   // A one-shot that may not be here yet (a lazy one first asked for now): played at once if it is,
   // else as it arrives, unless that takes longer than `late` ms, when it's let go as too late to
   // mean anything, or its speaker `by` is hushed first. One out of earshot is never sent for.
@@ -761,8 +780,8 @@ export class Sfx {
   // The loops that should be sounding this frame, each keyed by who's making it, and where (null
   // for one played flat, at `level` of its volume, followed from frame to frame). A loop that hasn't been
   // listed for LINGER fades out, over its `fade`. `elapsed` is how far into it a loop already is
-  // when it starts: a theme that has been running since its dragon rose, heard again from where it
-  // has got to rather than from the top.
+  // when it starts: a theme that has been running since it began, heard again from where it has
+  // got to rather than from the top.
   setLoops(wanted: { key: string; id: SoundId; at: Vec3 | null; elapsed?: number; level?: number }[]): void {
     if (!this.ctx) return;
     const t = this.ctx.currentTime;
@@ -798,8 +817,8 @@ export class Sfx {
     const ctx = this.ctx!;
     const spec = SOUNDS[id];
     const buffer = this.buffer(id);
+    if (!buffer || !this.ready(id)) return null;
     const intro = spec.intro ? this.buffers.get(spec.intro) : undefined;
-    if (!buffer || (spec.intro && !intro)) return null;
     const t = ctx.currentTime;
     const voice = this.voice(id, at, 0);
     if (!at) voice.near.gain.value = level;
