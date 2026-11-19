@@ -6,8 +6,11 @@ import { VertexData } from '@babylonjs/core';
 
 const UV_UNIT = 4096; // texture coordinate units to the repeat
 
-export function fetchMesh(model: string, part: string): Promise<ArrayBuffer> {
-  return fetch(`/assets/models/${model}/${part}.bin`).then((r) => r.arrayBuffer());
+// Rejects where the server answers with anything but the file, an error page being no mesh.
+export async function fetchMesh(model: string, part: string): Promise<ArrayBuffer> {
+  const response = await fetch(`/assets/models/${model}/${part}.bin`);
+  if (!response.ok) throw new Error(`${model}/${part}: ${response.status}`);
+  return response.arrayBuffer();
 }
 
 export function meshData(buffer: ArrayBuffer): VertexData {

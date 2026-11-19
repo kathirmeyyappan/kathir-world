@@ -89,8 +89,11 @@ anything that can wait off the path everyone pays:
   drawn (where that was a dragon, or for someone first seen in it), never a look they aren't
   wearing; a dragon rises and roars at once and its body fills in as it lands.
 - A kart's files (its model's parts and pictures, about 110 KB for the Standard Kart) are fetched
-  the first time a kart of that model is drawn (`render/vehicles/KartMesh.ts`); every paint is the
-  same picture painted on the client, and only its emblem (about 5 KB) is fetched per paint.
+  as its command is pointed at or sent, or else the first time a kart of that model is drawn
+  (`wantKart` in `render/vehicles/KartMesh.ts`); every paint is the same picture painted on the
+  client, and only its emblem (about 5 KB) is fetched per paint. Nothing of a kart is drawn until
+  its files are here, and a fetch that fails is tried again by the next frame that wants it
+  (`render/fetchOnce.ts`, as a look's is).
 - A sound is fetched by everyone up front unless it's `lazy` in `SOUNDS` (`Sfx.soon`, `Sfx.want`).
   Every look's voice is lazy: an intro is fetched as it's said within earshot, and a look's jumps,
   long jumps, hurts and kills (with its death and its theme for its own player) as it's first seen worn
@@ -999,8 +1002,8 @@ one picture with its two painted colours left white and a second saying where th
 the client in whichever colours (`paintOf`: the dropper's own, for the Mario family, else Mario's).
 The script prints the box the sim drives it as, for its row in `KARTS`. `render/vehicles/KartMesh.ts`
 draws one: its tires rolled by how far it went and the front pair steered, its steering wheel
-turned, the body tipped to the ground under its tires, all at its size, eased there; its parts are fetched the first time a kart
-of that model is drawn (a box of its size in its paint stands in till then). `game/Driving.ts` is
+turned, the body tipped to the ground under its tires, all at its size, eased there; its files are
+sent for ahead (see Client loading), and it's drawn once they're here. `game/Driving.ts` is
 the rest of driving on the client: every kart drawn, the driven one where its driver's prediction
 has it (`Prediction` rides it as the Room does, rewinding and replaying it with them), run on
 between its ticks by a part of a step on the keys of their last frame (`Prediction.kartBetween`),
@@ -1177,7 +1180,8 @@ second Vite page: every character, item, kart, place, bot and command in tabs. A
 in a `BodyView` (`render/BodyView.ts`, the menu's player view); an item, a heart or a résumé cube
 floats on its own in one, and a kart stands there (`BodyView.syncThing`, built in `guide/things.ts`
 from the shapes the game draws them with; a thing drawn with the scene's shared materials, as a
-kart is, says so, `Thing.shared`, so they outlive it), framed by its measured size. Its numbers are worked out in `guide/stats.ts` from the
+kart is, says so, `Thing.shared`, so they outlive it), framed by its measured size, or by the box
+it gives (`Thing.bounds`) where its meshes are fetched, as a kart's are. Its numbers are worked out in `guide/stats.ts` from the
 registries the game runs on, never typed in, and its words are `guide/content.ts`, keyed by the
 registries' ids, so a new skin, item, gear, kart or pickup doesn't build until it has an entry there:
 plain statements of what each thing is (Kathir writes anything more, and the fun facts), no numbers.

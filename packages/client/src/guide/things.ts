@@ -122,9 +122,11 @@ export function cubeThing(content: CubeContent): Thing {
 // A kart in Mario's paint, the one a kart wears for anyone outside his family, standing on the
 // floor where it drops.
 export function kartThing(id: KartId): Thing {
+  const { width, length, height } = KARTS[id].body;
   return {
     key: `kart-${id}`,
     shared: true,
+    bounds: { min: new Vector3(-width / 2, 0, -length / 2), max: new Vector3(width / 2, height, length / 2) },
     build(engine, parent) {
       const mesh = new KartMesh(engine.scene, `guide-${id}`, id, 'mario');
       mesh.root.parent = parent;
