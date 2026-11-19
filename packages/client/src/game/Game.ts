@@ -1116,7 +1116,8 @@ export class Game {
     this.viewmodel.swing(this.view.atEyes && !this.dead ? self.strike : null, strikeOf(self.avatar), dt);
     this.viewmodel.update(dt);
     const showHint = held && !this.dead;
-    // A driver, their hands empty, is told how to get out; on touch the OUT button says it.
+    // A driver on a mouse device, their hands empty, is told how to get out, and how their kart is
+    // going; on touch the OUT button says the one, and there's no room for the other.
     const driving = !!self.riding && !this.dead && !IS_TOUCH;
     this.hud.setItemHint(
       driving ? EXIT_HINT : showHint ? itemHint(held.id, !IS_TOUCH, this.scoped, classOf(self.avatar)) : '',
@@ -1136,7 +1137,7 @@ export class Game {
     );
     this.gearHud.set(this.dead ? null : self.gear);
     this.condition.set(this.dead ? 0 : self.chilled);
-    this.kartGauge.set(self.riding && !this.dead && !IS_TOUCH ? this.prediction.kartPace() : null);
+    this.kartGauge.set(driving ? this.prediction.kartPace() : null);
     this.commandHint.update(this.isBlocked());
     this.minimap.update({
       me: { x: p.x, y: p.y, z: p.z, yaw: this.input.yaw },
