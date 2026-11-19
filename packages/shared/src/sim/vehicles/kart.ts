@@ -77,14 +77,15 @@ export const SPARKS = [
 export const TRICK = { hold: 0.8 }; // seconds a trick's boost holds at full, rising and falling as a mini-turbo's
 
 // What a knock costs, by how fast the two close on each other square to where they touch, m/s:
-// nothing under `least`, then `at20` at 20 m/s and on in step.
+// nothing under `least`, then `at20` at 20 m/s and on in step, to the nearest quarter (of a heart,
+// of a wrench).
 interface Knock {
   least: number;
   at20: number;
 }
 
 function cost(knock: Knock, closing: number): number {
-  return closing < knock.least ? 0 : (knock.at20 * closing) / 20;
+  return closing < knock.least ? 0 : Math.round((knock.at20 * closing) / 5) / 4;
 }
 
 // Hearts off a player on foot a kart runs into.
@@ -117,10 +118,10 @@ const WHEEL_RATE = 5; // per second: how fast the wheel follows the keys, full o
 const STEP = 0.4; // metres: a kerb or a ramp's lip it rolls up onto rather than running into
 const HOP = 3.5; // m/s up: a press of the drift key
 const DRIFT_HOLD = 0.3; // of the wheel: held over as a hop lands, the way the drift goes
-// In a drift, how tight it turns, as a share of its turn with the wheel full over: held out of the
-// drift's way to held into it.
-const DRIFT_WIDE = 0.45;
-const DRIFT_TIGHT = 1.25;
+// In a drift, how tight it turns, as a share of its turn with the wheel full over: with the wheel
+// held out of the drift's way (all but straight, so a drift can be carried round a long bend),
+// let be, and held into it (tighter than any turn without one).
+const DRIFT_TURN = { wide: 0.2, neutral: 0.6, tight: 1.25 };
 const AIR_STEER = 0.3; // of its turn, in the air
 const BOUNCE = 0.3; // of the speed it ran into a wall at, back off it
 
@@ -269,10 +270,15 @@ export function forwardSpeed(k: KartState): number {
 // Radians a second it turns: the wheel's share of its full turn, which at any speed is a circle
 // `handling` across, so slower is no tighter; backing up turns it the other way, as a car does.
 function turnRate(k: KartState, spec: KartSpec, speed: number): number {
-  const lock = k.drift
-    ? k.drift.way * (DRIFT_WIDE + ((DRIFT_TIGHT - DRIFT_WIDE) * (1 + k.drift.way * k.wheel)) / 2)
-    : k.wheel;
+  const lock = k.drift ? k.drift.way * driftTurn(k.drift.way * k.wheel) : k.wheel;
   return ((lock * speed) / (spec.handling / 2)) * (k.grounded ? 1 : AIR_STEER);
+}
+
+// A drift's share of the full turn with the wheel held `into` it: -1 full out of its way, 0 let
+// be, 1 full into it.
+function driftTurn(into: number): number {
+  const { wide, neutral, tight } = DRIFT_TURN;
+  return neutral + (into < 0 ? neutral - wide : tight - neutral) * into;
 }
 
 // The gas, the brake or neither along it, and the wheels taking back what slides across it.
