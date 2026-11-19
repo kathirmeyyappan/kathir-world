@@ -16,16 +16,17 @@ import {
   GEAR,
   GRAVITY,
   HEADSHOT_MULTIPLIER,
-  IMPACT,
   ITEMS,
   JUMP_RISE,
   KARTS,
   LANDING,
+  WEAR,
   PICKUPS,
   PICKUP_AREAS,
   REGEN_RATE,
   RUN_MULTIPLIER,
   SCOPED_SPEED_MULTIPLIER,
+  SPARKS,
   SPEEDY_MULTIPLIER,
   SPEEDY_SECONDS,
   TICK_RATE,
@@ -33,6 +34,7 @@ import {
   TURBO,
   climbSpeedOf,
   impactDamage,
+  wearOf,
   dragonShape,
   jumpVelocityOf,
   chainOf,
@@ -284,25 +286,25 @@ export function kartStats(id: KartId): Stat[] {
   ];
 }
 
-const SPARKS = ['Blue', 'Yellow', 'Purple'];
+const SPARK_NAMES = ['Blue', 'Yellow', 'Purple'];
 
 // What a drift, a trick and a crash come to in a kart, as kart.ts and garage.ts work them out.
 export function kartMoves(id: KartId): { title: string; stats: Stat[] }[] {
   const spec = KARTS[id];
   const boosted = num(spec.speed * TURBO.boost);
-  // The height a kart falls from rest to come down at `speed` m/s; and the speed it comes down at
-  // that takes every wrench it has, LANDING of it counting as a knock (IMPACT).
-  const drop = (speed: number) => num((speed * speed) / (2 * GRAVITY));
-  const breaking = (20 * spec.wrenches) / IMPACT.at20 / LANDING;
+  const crash = (speed: number) => num(wearOf({ impact: speed, landing: 0 }));
+  // The height a kart falls from rest to come down at the least speed that wears it, LANDING of it
+  // counting as running into the ground.
+  const unharmed = (WEAR.least / LANDING) ** 2 / (2 * GRAVITY);
   return [
     {
       title: 'Drift',
       stats: [
         { label: 'Use', value: 'Hold Space and steer' },
         { label: 'Least speed', value: `${num(DRIFT_FROM * spec.speed)} m/s` },
-        ...SPARKS.map((spark, i) => ({
-          label: `${spark} spark`,
-          value: `${num((i + 1) * spec.miniTurboTime)} s drifting, a ${num(TURBO.holds[i])} s boost`,
+        ...SPARKS.map(({ after, hold }, i) => ({
+          label: `${SPARK_NAMES[i]} spark`,
+          value: `${num(after * spec.miniTurboTime)} s drifting, a ${num(hold)} s boost`,
         })),
         { label: 'Boost speed', value: `${boosted} m/s` },
       ],
@@ -321,9 +323,12 @@ export function kartMoves(id: KartId): { title: string; stats: Stat[] }[] {
           label: 'Run over',
           value: `${num(impactDamage(spec.speed))} hearts at top speed, ${num(impactDamage(spec.speed * TURBO.boost))} boosted`,
         },
+        {
+          label: 'Crash',
+          value: `${crash(spec.speed)} wrenches at top speed, ${crash(spec.speed * TURBO.boost)} boosted`,
+        },
+        { label: 'Unharmed by', value: `drops up to ${num(unharmed)} m` },
         { label: 'Explosion', value: `${num(BLAST.damage)} hearts within ${num(BLAST.reach)} m` },
-        { label: 'Unharmed by', value: `drops up to ${drop(IMPACT.least / LANDING)} m` },
-        { label: 'Explodes from', value: `a ${drop(breaking)} m drop` },
       ],
     },
   ];

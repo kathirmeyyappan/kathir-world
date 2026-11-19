@@ -23,7 +23,7 @@ export interface KartSpec {
   acceleration: number; // seconds from standing to `speed`
   handling: number; // metres across the circle it turns at `speed` with the wheel full over
   weight: number; // how hard it shoves a kart it bumps, and how little it's shoved: the standard's 1
-  miniTurboTime: number; // seconds of drifting to a blue spark: twice it yellow, three times purple
+  miniTurboTime: number; // seconds of drifting to a blue spark, the yellow and the purple after it in step (kart.ts SPARKS)
   wrenches: number; // its health: what a wall, a kart or a shot takes off it, and at none it explodes
   body: KartBody; // as its model is built
 }
@@ -37,7 +37,7 @@ export const KARTS: Record<KartId, KartSpec> = {
     acceleration: 2.5,
     handling: 30,
     weight: 1,
-    miniTurboTime: 0.8,
+    miniTurboTime: 1,
     wrenches: 5,
     body: { width: 1.75, length: 2.86, height: 0.99, seat: { y: 0.31, z: -0.09 } }, // scripts/kart-model.py
   },
