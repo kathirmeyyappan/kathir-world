@@ -88,7 +88,14 @@ export class Interpolation {
 
   sample(now: number, exclude: string): { players: RemotePlayer[]; cubes: CubeSnapshot[]; pickups: PickupSnapshot[] } {
     if (this.buffer.length === 0) return { players: [], cubes: [], pickups: [] };
-    const renderTick = this.lastTick + ((now - this.lastAt) / 1000) * TICK_RATE - INTERP_DELAY_TICKS;
+    // Never behind the tick last drawn. Each snapshot resets the clock as it arrives, so a late one
+    // sets it back from where it had run to; drawn, that steps every body back along its path, which
+    // a walker reads as turning round, so it holds until the clock catches up. Held to the tick
+    // drawn, not the clock, which runs on past the newest snapshot with nothing to draw.
+    const renderTick = Math.max(
+      this.viewTick ?? -Infinity,
+      this.lastTick + ((now - this.lastAt) / 1000) * TICK_RATE - INTERP_DELAY_TICKS,
+    );
 
     let older = this.buffer[0];
     let newer = this.buffer[0];
