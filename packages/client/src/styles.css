@@ -990,30 +990,43 @@ body {
   }
 }
 
-/* A kart's wrenches, under the hearts while you drive it: steel, snapping rather than cracking. */
+/* A kart's wrenches, under the hearts while you drive it: steel in a dark outline, two screen pixels
+   to each of the sprite's sixteen, snapping rather than cracking. */
 #wrenches {
   position: fixed;
-  top: 72px;
+  top: 70px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 50;
   pointer-events: none;
   display: grid;
-  grid-template-columns: repeat(var(--heart-row, 5), 27px);
-  gap: 3px 4px;
+  grid-template-columns: repeat(var(--heart-row, 5), 32px);
+  gap: 3px 2px;
 }
 #wrenches[hidden] {
   display: none;
 }
+.heart.wrench {
+  width: 32px;
+  height: 32px;
+  opacity: 0.9;
+}
 .heart.wrench svg rect {
-  fill: #8a96a8;
+  fill: #7c8696;
 }
 .heart.wrench svg rect.hi {
-  fill: #dce4ee;
+  fill: #ced6e0;
+}
+.heart.wrench svg rect.edge {
+  fill: #1e2129;
 }
 .heart.wrench.lost svg rect,
 .heart.wrench.half svg rect.grey {
   fill: #3a3d46;
+}
+.heart.wrench.lost svg rect.edge,
+.heart.wrench.half svg rect.edge.grey {
+  fill: #16181e;
 }
 
 /* Crystal hearts: a dragon's, one big ice crystal a ring segment, that shatters rather than cracks. */
@@ -1219,8 +1232,9 @@ body {
 #hit-notice.note {
   color: rgba(255, 255, 255, 0.8);
 }
-/* What a click does to what the crosshair is on (a door in reach): under the hit notice, bigger,
-   blinking between white and grey the way an old screen's prompt does. */
+/* What a click does to what the crosshair is on (a door or a kart in reach): under the hit notice,
+   bigger, in a box as the hint bar's is (#item-hint) so it reads as a prompt against anything
+   behind it, its words blinking between white and grey the way an old screen's prompt does. */
 #door-prompt {
   position: fixed;
   top: calc(50% + 52px);
@@ -1228,10 +1242,13 @@ body {
   transform: translateX(-50%);
   z-index: 100;
   pointer-events: none;
+  padding: 5px 14px;
   font: 26px var(--mono);
   letter-spacing: 2px;
   color: #fff;
-  text-shadow: 2px 2px 0 #000;
+  background: rgba(11, 13, 20, 0.8);
+  border: 2px solid rgba(100, 181, 246, 0.7);
+  box-shadow: 4px 4px 0 #000;
   white-space: pre;
   display: none;
 }
@@ -2156,6 +2173,24 @@ body {
 #gas-button {
   bottom: 118px;
   right: 26px;
+  border-color: rgba(255, 59, 78, 0.8);
+  background: rgba(255, 59, 78, 0.3);
+  color: #ffd9dd;
+}
+#gas-button.active {
+  background: rgba(255, 59, 78, 0.6);
+}
+/* The jump button while driving, when it's the drift. */
+#jump-button.drift {
+  border-color: rgba(190, 196, 206, 0.7);
+  background: rgba(120, 126, 138, 0.35);
+  color: #dfe3ea;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.6);
+}
+#jump-button.drift.active {
+  background: rgba(190, 196, 206, 0.5);
+  border-color: #dfe3ea;
+  box-shadow: 0 0 14px #dfe3ea;
 }
 #brake-button {
   bottom: 118px;
@@ -2401,12 +2436,16 @@ body {
   }
   #wrenches {
     top: 46px;
-    grid-template-columns: repeat(var(--heart-row, 5), 18px);
-    gap: 2px 3px;
+    grid-template-columns: repeat(var(--heart-row, 5), 24px);
+    gap: 2px;
   }
   .heart {
     width: 18px;
     height: 16px;
+  }
+  .heart.wrench {
+    width: 24px;
+    height: 24px;
   }
   #hearts[data-sprite='crystal'] {
     grid-template-columns: repeat(var(--heart-row, 3), 51px);
