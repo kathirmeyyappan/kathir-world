@@ -25,8 +25,8 @@ const SETTLED_PITCH = 0.12; // radians down the settled look is, over the kart's
 
 export class Driving {
   onKnock: ((at: Vec3) => void) | null = null; // a kart there lost wrenches to a knock: for what's heard of it
-  onBoost: ((at: Vec3) => void) | null = null; // a kart there began a boost: for what's heard of it
-  onTrick: ((at: Vec3, driver: string | null) => void) | null = null; // a kart there began a trick, with `driver` in it
+  onBoost: ((at: Vec3, driver: string | null) => void) | null = null; // a kart there began a boost, with `driver` in it
+  onTrick: ((at: Vec3) => void) | null = null; // a kart there began a trick: for what's heard of it
   // Each kart drawn, with its wrenches and whether it was boosting and in a trick as last seen.
   private readonly drawn = new Map<
     string,
@@ -57,8 +57,8 @@ export class Driving {
         kart.mesh.flash();
         this.onKnock?.(k.pos);
       }
-      if (boosting && !kart.boosting) this.onBoost?.(k.pos);
-      if (tricking && !kart.tricking) this.onTrick?.(k.pos, k.driver);
+      if (boosting && !kart.boosting) this.onBoost?.(k.pos, k.driver);
+      if (tricking && !kart.tricking) this.onTrick?.(k.pos);
       kart.wrenches = k.wrenches;
       kart.boosting = boosting;
       kart.tricking = tricking;
