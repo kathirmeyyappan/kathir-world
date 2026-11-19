@@ -132,13 +132,17 @@ export class Garage {
   }
 
   // Gets `p` out of the kart they drive, standing beside it (its left, its right, behind it or in
-  // front, the first a body fits, else on top of it), with what they put away handed back.
+  // front, the first a body fits, else on top of it), with what they put away handed back. The kart
+  // rolls on with no keys held, slowing to a stop, and any drift it was in goes with its driver,
+  // giving it no mini-turbo.
   getOut(p: PlayerState): void {
     const k = p.riding ? this.karts.get(p.riding) : undefined;
     const keep = p.riding ? this.keeps.get(p.riding) : undefined;
     p.riding = null;
     if (!k || !keep) return;
     k.driver = null;
+    k.drift = null;
+    k.hop = k.held = false;
     p.item = keep.stowed.item;
     p.gear = keep.stowed.gear;
     keep.stowed = { item: null, gear: null };

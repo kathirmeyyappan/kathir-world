@@ -37,8 +37,10 @@ import {
   PINEAPPLE_PLACEMENT,
   botRequest,
   defaultBotsFor,
+  AVATARS,
   BLAST,
   KARTS,
+  SEATED,
   type BotRequest,
   type InputFrame,
   type ItemAction,
@@ -1316,7 +1318,7 @@ test("a kart worn out by a wall blows up, hurting its driver and everyone near b
   assert.equal(carol.hearts, MAX_HEARTS - BLAST.damage);
 });
 
-test('a shot that reaches a kart first wears the kart, not whoever is behind it', () => {
+test('a shot that reaches a kart first wears it, and one over it hits the driver, whose kart rolls on to a stop', () => {
   const { room, ids } = kartRoom({ x: 0, y: 0, z: 0 }, { x: 0, y: 0, z: 0 });
   const [driver, shooter] = ids;
   getIn(room, driver);
@@ -1327,5 +1329,21 @@ test('a shot that reaches a kart first wears the kart, not whoever is behind it'
   // Level with the kart's side, below the driver sat over it: 0.45 m up, 8 m off.
   press(room, shooter, Math.atan2(EYE_HEIGHT - 0.45, 8), false, -Math.PI / 2);
   assert.equal(room.garage.list[0].wrenches, KARTS.standard.wrenches - ITEMS.gun.damage);
-  assert.equal(room.players.find((p) => p.id === driver)!.hearts, MAX_HEARTS);
+  const them = room.players.find((p) => p.id === driver)!;
+  assert.equal(them.hearts, MAX_HEARTS);
+  // Shot dead over the kart mid-drift (once the gun can fire again), they're out of it, and it rolls
+  // on with no drift and no mini-turbo, slowing.
+  for (let i = 0; i < ITEMS.gun.cooldownTicks; i++) tick(room);
+  k.vel = { x: -15, y: 0, z: 0 }; // away from the shooter, along the line of the shot
+  k.drift = { way: 1, t: 3 * KARTS.standard.miniTurboTime };
+  them.hearts = 1;
+  const head = them.pos.y - EYE_HEIGHT + AVATARS[them.avatar].hitbox.top * SEATED - 0.1;
+  me.pos = { x: them.pos.x + 8, y: EYE_HEIGHT, z: them.pos.z };
+  press(room, shooter, Math.atan2(EYE_HEIGHT - head, 8), false, -Math.PI / 2);
+  assert.ok(them.dead && them.riding === null, 'dead, and out of it');
+  const kart = room.garage.list[0];
+  assert.equal(kart.turbo, null);
+  const speed = Math.hypot(kart.vel.x, kart.vel.z);
+  for (let i = 0; i < TICK_RATE; i++) tick(room);
+  assert.ok(Math.hypot(kart.vel.x, kart.vel.z) < speed, 'slowing');
 });
