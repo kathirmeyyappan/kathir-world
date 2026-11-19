@@ -20,11 +20,11 @@ import {
   bodyOf,
   createKart,
   impactDamage,
-  landingDamage,
   noseOf,
   ride,
   seat,
   stepKart,
+  wearOf,
   type KartState,
   type KartStep,
 } from './kart';
@@ -252,8 +252,8 @@ export class Garage {
   }
 
   // Wrenches off `k` for what it ran into and came down on, credited to it.
-  private worn(k: Kart, { impact, landing }: KartStep): void {
-    this.wear(k, impactDamage(impact) + landingDamage(landing), this.credit(k));
+  private worn(k: Kart, step: KartStep): void {
+    this.wear(k, wearOf(step), this.credit(k));
   }
 
   private wear(k: Kart, wrenches: number, by: string | null): void {
@@ -341,7 +341,7 @@ export class Garage {
     a.vel.z -= (n.z * j) / sa.weight;
     b.vel.x += (n.x * j) / sb.weight;
     b.vel.z += (n.z * j) / sb.weight;
-    const worn = impactDamage(closing);
+    const worn = wearOf({ impact: closing, landing: 0 });
     this.wear(a, worn, this.credit(b));
     this.wear(b, worn, this.credit(a));
   }

@@ -5,9 +5,9 @@
 //
 // A drift: a press of the drift key hops the kart; landing with the key still held and the wheel
 // over, at speed, it drifts that way, turning tighter or wider as the wheel is held into the turn
-// or out of it. Every `miniTurboTime` of it on the ground is a spark, blue, then yellow, then
-// purple, and letting go of the key on one is a mini-turbo: its top speed raised by half over
-// TURBO.rise, held for TURBO.holds by the spark, and let down over TURBO.fall.
+// or out of it. Drifting on the ground brings it to a spark, blue, then yellow, then purple
+// (SPARKS), and letting go of the key on one is a mini-turbo: its top speed raised by half over
+// TURBO.rise, held as long as the spark gives, and let down over TURBO.fall.
 //
 // A trick: a press of the drift key in the air (off a ramp or a ledge; not its own hop's) tricks
 // it left or right, the way the wheel is held or, with it held neither way, either, and landing
@@ -53,25 +53,46 @@ export interface KartStep {
   landing: number;
 }
 
-export const TURBO = { boost: 1.5, rise: 0.2, holds: [1, 2, 3], fall: 0.5 };
+// A boost: how many times its speed a kart's top speed is at the full of one, and the seconds it
+// takes to rise there and to fall back.
+export const TURBO = { boost: 1.5, rise: 0.2, fall: 0.5 };
+// A drift's sparks, blue, yellow and purple: how long drifting on the ground to each, in its kart's
+// `miniTurboTime`s, and the seconds the mini-turbo it gives holds at full.
+export const SPARKS = [
+  { after: 1, hold: 1 },
+  { after: 2.25, hold: 2 },
+  { after: 3.5, hold: 3 },
+];
 export const TRICK = { hold: 0.8 }; // seconds a trick's boost holds at full, rising and falling as a mini-turbo's
 
-// What a knock does, by how fast the two close on each other square to where they touch, m/s:
-// nothing under `least`, then `at20` at 20 m/s and on in step. In hearts off a player a kart runs
-// into, or wrenches off a kart from a wall, a kart, or the ground it lands on.
-export const IMPACT = { least: 10, at20: 5 };
-
-export function impactDamage(closing: number): number {
-  return closing < IMPACT.least ? 0 : (IMPACT.at20 * closing) / 20;
+// What a knock costs, by how fast the two close on each other square to where they touch, m/s:
+// nothing under `least`, then `at20` at 20 m/s and on in step.
+interface Knock {
+  least: number;
+  at20: number;
 }
 
-// The share of how fast a kart comes down onto the ground that counts as a knock (IMPACT): landing
-// on its tires it's worn only from a 10 m drop (20 m/s), and a 40 m one (40 m/s) takes every
-// wrench a kart has, so it comes down whole from a trick off anything short of a cliff.
+function cost(knock: Knock, closing: number): number {
+  return closing < knock.least ? 0 : (knock.at20 * closing) / 20;
+}
+
+// Hearts off a player on foot a kart runs into.
+export const IMPACT: Knock = { least: 10, at20: 5 };
+// Wrenches off a kart from what it runs into, a wall or another kart: few enough that it takes
+// crash after crash flat out.
+export const WEAR: Knock = { least: 10, at20: 2 };
+// The share of how fast a kart comes down onto the ground that counts as running into it: landing
+// on its tires it's worn only from a 10 m drop (20 m/s), and by a 40 m one (40 m/s) no more than by
+// a wall at its speed, so it comes down from a trick off anything there is.
 export const LANDING = 0.5;
 
-export function landingDamage(speed: number): number {
-  return impactDamage(LANDING * speed);
+export function impactDamage(closing: number): number {
+  return cost(IMPACT, closing);
+}
+
+// Wrenches off a kart that ran into something at `impact` m/s and came down on the ground at `landing`.
+export function wearOf({ impact, landing }: KartStep): number {
+  return cost(WEAR, impact) + cost(WEAR, LANDING * landing);
 }
 export const DRIFT_FROM = 0.4; // of its speed: the least a drift begins or carries on at
 
@@ -80,7 +101,7 @@ export const DRIFT_FROM = 0.4; // of its speed: the least a drift begins or carr
 const TRACTION = 40;
 const REVERSE = 0.35; // of its speed: flat out backing up
 const BRAKING = 2.5; // times its acceleration: braking while still rolling forward
-const COAST = 0.4; // times its acceleration: slowing with no key held, or down from past its top speed
+const COAST = 1.5; // times its acceleration: slowing with no key held, so it stops soon after the gas is let go
 const WHEEL_RATE = 5; // per second: how fast the wheel follows the keys, full over in a fifth of a second
 const STEP = 0.4; // metres: a kerb or a ramp's lip it rolls up onto rather than running into
 const HOP = 3.5; // m/s up: a press of the drift key
@@ -170,7 +191,7 @@ export function stepKart(k: KartState, c: KartControls, dt: number, structures: 
   const speed = forwardSpeed(k);
   if (k.drift && (!c.drift || speed < DRIFT_FROM * spec.speed)) {
     const spark = c.drift ? null : sparkOf(k.drift.t, spec);
-    if (spark) k.turbo = { hold: TURBO.holds[spark - 1], t: 0 };
+    if (spark) k.turbo = { hold: SPARKS[spark - 1].hold, t: 0 };
     k.drift = null;
   }
   k.yaw += turnRate(k, spec, speed) * dt;
@@ -196,7 +217,7 @@ export function stepKart(k: KartState, c: KartControls, dt: number, structures: 
 
 // The spark a drift has got to after `t` seconds on the ground, or null short of the first.
 export function sparkOf(t: number, spec: KartSpec): Spark | null {
-  const sparks = Math.min(3, Math.floor(t / spec.miniTurboTime));
+  const sparks = SPARKS.filter((spark) => t >= spark.after * spec.miniTurboTime).length;
   return sparks === 0 ? null : (sparks as Spark);
 }
 
@@ -248,10 +269,12 @@ function drive(k: KartState, spec: KartSpec, gas: number, dt: number, structures
   let across = k.vel.x * r.x + k.vel.z * r.z;
   const accel = spec.speed / spec.acceleration;
   const top = spec.speed * turboShare(k.turbo);
-  // A mini-turbo pushes it up to its boosted speed over its rise, whatever its acceleration.
-  const push = k.turbo ? Math.max(accel, ((TURBO.boost - 1) * spec.speed) / TURBO.rise) : accel;
+  // A boost pushes it up to its boosted speed over its rise and lets it down from there over its
+  // fall, whatever its acceleration, so the boost is over when it says.
+  const boosted = (TURBO.boost - 1) * spec.speed;
+  const push = k.turbo ? Math.max(accel, boosted / TURBO.rise) : accel;
   const toward = (target: number, rate: number) => (along += Math.max(-rate * dt, Math.min(rate * dt, target - along)));
-  if (gas > 0) toward(top, along < top ? push * gas : COAST * accel);
+  if (gas > 0) toward(top, along < top ? push * gas : boosted / TURBO.fall);
   else if (gas < 0 && along > 0) toward(0, BRAKING * accel * -gas);
   else if (gas < 0) toward(-REVERSE * spec.speed, accel * -gas);
   else toward(0, COAST * accel);
