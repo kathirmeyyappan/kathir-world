@@ -52,6 +52,7 @@ import { Structures } from './sim/collision';
 import { STRUCTURES } from './content/structures';
 import { DOOR_DEBOUNCE_SECONDS, DOOR_REACH, lookVector } from './sim/doors';
 import { Garage } from './sim/vehicles/garage';
+import { KARTS } from './sim/vehicles/karts';
 import { CAPSULE_TOP } from './sim/health';
 
 // Shared has no DOM or Node lib; both runtimes provide these.
@@ -609,7 +610,8 @@ export class Room {
   private runCommand(seat: Seat, command: Command): void {
     const me = seat.state;
     // A driver holds the wheel: no kit, and no body that can't sit in a kart, till they get out.
-    const kit = command.name === 'speedy' || command.name === 'equip' || command.name === 'wear';
+    const kit =
+      command.name === 'speedy' || command.name === 'equip' || command.name === 'wear' || command.name === 'kart';
     const unseated = command.name === 'avatar' && AVATARS[command.avatar].class !== 'walker';
     if (me.riding && (kit || command.name === 'unequip' || unseated))
       return this.refuse(seat, "you're driving: get out first (E)");
@@ -645,6 +647,13 @@ export class Room {
       case 'kill-bots':
         this.killBots(seat);
         return;
+      case 'kart': {
+        if (classOf(me.avatar).id !== 'walker') return this.refuse(seat, `not as ${aClass(me.avatar)}`);
+        const kart = this.garage.drop(me, command.kart, this.seats.size);
+        if (typeof kart === 'string') return this.refuse(seat, kart);
+        this.broadcast({ t: 'system', text: `${me.name} dropped a ${KARTS[command.kart].name}` });
+        return;
+      }
       case 'unknown':
         this.refuse(seat, `unknown command /${command.raw}`);
         return;

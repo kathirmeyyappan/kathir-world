@@ -1,7 +1,8 @@
-// The health bar: a life's worth of pixel hearts in rows at the top of the screen, as many as the
+// A health bar: a life's worth of pixel hearts in rows at the top of the screen, as many as the
 // worn look has (classes.ts `lifeOf`), drawn as its life says: hearts, or the big crystals of a
-// dragon with a crystal a segment. Hearts you've lost turn grey and crack. Pure DOM, driven by the
-// server's heart count; nothing here decides damage.
+// dragon with a crystal a segment; and under it, while they drive, the wrenches of their kart.
+// Hearts you've lost turn grey and crack. Pure DOM, driven by the server's count; nothing here
+// decides damage.
 import { WALKER, type HeartSprite, type LifeSpec } from '@world/shared';
 import { HEART as FULL, pixelSvg } from './pixelIcons';
 
@@ -51,6 +52,30 @@ const CRYSTAL_BROKEN = [
   '........#........',
 ];
 
+// 9x8 pixel wrench, its jaw up to the right; the broken one snapped across the handle, the half one
+// grey from the jaw down to the snap.
+const WRENCH = ['......#.#', '......#+#', '.....###.', '....#+#..', '...#+#...', '..#+#....', '.#+#.....', '##.......'];
+const WRENCH_BROKEN = [
+  '......#.#',
+  '......#+#',
+  '.....###.',
+  '....#+#..',
+  '...#.....',
+  '..#+#....',
+  '.#+#.....',
+  '##.......',
+];
+const WRENCH_HALF = [
+  '......R.R',
+  '......R+R',
+  '.....RRR.',
+  '....R+R..',
+  '...L.....',
+  '..L+L....',
+  '.L+L.....',
+  'LL.......',
+];
+
 const SPRITES: Record<HeartSprite, { full: string[]; broken: string[]; half: string[]; pix: Record<string, string> }> =
   {
     heart: { full: FULL, broken: BROKEN, half: HALF, pix: { '+': 'hi', R: 'grey' } },
@@ -60,13 +85,13 @@ const SPRITES: Record<HeartSprite, { full: string[]; broken: string[]; half: str
       half: CRYSTAL_BROKEN,
       pix: { '+': 'hi', o: 'shade', O: 'dark', '=': 'facet', '*': 'glint' },
     },
+    wrench: { full: WRENCH, broken: WRENCH_BROKEN, half: WRENCH_HALF, pix: { '+': 'hi', R: 'grey' } },
   };
 const FILL_MS = 70; // between one heart filling and the next as hearts come back
 const RANK = { lost: 0, half: 1, full: 2 };
 type State = keyof typeof RANK;
 
 export class Hearts {
-  private readonly root = document.getElementById('hearts')!;
   private hearts: HTMLElement[] = [];
   private max = 0; // a full life for the worn look
   private sprite: HeartSprite | null = null;
@@ -74,8 +99,16 @@ export class Hearts {
   private target = 0; // what the server says, which a fill catches the bar up to
   private fills: number[] = [];
 
-  constructor() {
-    this.setLife(WALKER.life);
+  constructor(
+    private readonly root = document.getElementById('hearts')!,
+    life: LifeSpec = WALKER.life,
+  ) {
+    this.setLife(life);
+  }
+
+  // Shows the bar, or hides it.
+  show(shown: boolean): void {
+    this.root.hidden = !shown;
   }
 
   get count(): number {

@@ -1,5 +1,5 @@
-// Snapshot buffer for everything the server owns: remote players, cubes and pickups. Renders a few ticks
-// behind the newest snapshot and lerps between the two that bracket that time.
+// Snapshot buffer for everything the server owns: remote players, cubes, pickups and karts. Renders a
+// few ticks behind the newest snapshot and lerps between the two that bracket that time.
 import {
   INTERP_DELAY_TICKS,
   TICK_RATE,
@@ -11,6 +11,7 @@ import {
   type GearId,
   type AvatarId,
   type DragonState,
+  type Kart,
 } from '@world/shared';
 
 interface Snapshot {
@@ -18,6 +19,15 @@ interface Snapshot {
   players: Map<string, PlayerState>;
   cubes: Map<string, CubeSnapshot>;
   pickups: Map<string, PickupSnapshot>;
+  karts: Map<string, Kart>;
+}
+
+// What was sampled: everyone else, the cubes, the pickups and the karts.
+export interface Sampled {
+  players: RemotePlayer[];
+  cubes: CubeSnapshot[];
+  pickups: PickupSnapshot[];
+  karts: Kart[];
 }
 
 export interface RemotePlayer {
@@ -72,7 +82,8 @@ export class Interpolation {
       players,
       cubes,
       pickups,
-    }: { tick: number; players: PlayerState[]; cubes: CubeSnapshot[]; pickups: PickupSnapshot[] },
+      karts,
+    }: { tick: number; players: PlayerState[]; cubes: CubeSnapshot[]; pickups: PickupSnapshot[]; karts: Kart[] },
     now: number,
   ): void {
     if (this.buffer.length && tick <= this.buffer[this.buffer.length - 1].tick) return;
@@ -81,14 +92,15 @@ export class Interpolation {
       players: new Map(players.map((p) => [p.id, p])),
       cubes: new Map(cubes.map((c) => [c.id, c])),
       pickups: new Map(pickups.map((p) => [p.id, p])),
+      karts: new Map(karts.map((k) => [k.id, k])),
     });
     this.lastTick = tick;
     this.lastAt = now;
     while (this.buffer.length > 1 && this.buffer[0].tick < tick - KEEP_TICKS) this.buffer.shift();
   }
 
-  sample(now: number, exclude: string): { players: RemotePlayer[]; cubes: CubeSnapshot[]; pickups: PickupSnapshot[] } {
-    if (this.buffer.length === 0) return { players: [], cubes: [], pickups: [] };
+  sample(now: number, exclude: string): Sampled {
+    if (this.buffer.length === 0) return { players: [], cubes: [], pickups: [], karts: [] };
     // Never behind the tick last drawn. Each snapshot resets the clock as it arrives, so a late one
     // sets it back from where it had run to; drawn, that steps every body back along its path, which
     // a walker reads as turning round, so it holds until the clock catches up. Held to the tick
@@ -176,7 +188,22 @@ export class Interpolation {
         ry: lerpAngle(a.ry, b.ry, t),
       });
     }
-    return { players, cubes, pickups };
+    const karts: Kart[] = [];
+    for (const [id, b] of newer.karts) {
+      const a = older.karts.get(id) ?? b;
+      karts.push({
+        ...b,
+        pos: { x: lerp(a.pos.x, b.pos.x, t), y: lerp(a.pos.y, b.pos.y, t), z: lerp(a.pos.z, b.pos.z, t) },
+        yaw: lerpAngle(a.yaw, b.yaw, t),
+        wheel: lerp(a.wheel, b.wheel, t),
+      });
+    }
+    return { players, cubes, pickups, karts };
+  }
+
+  // The newest word on kart `id`, if there is one.
+  latestKart(id: string): Kart | undefined {
+    return this.buffer[this.buffer.length - 1]?.karts.get(id);
   }
 }
 

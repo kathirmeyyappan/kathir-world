@@ -1,4 +1,4 @@
-// Every chat command, grouped, built from the item, gear, bot and avatar registries so a new one
+// Every chat command, grouped, built from the item, gear, kart, bot and avatar registries so a new one
 // shows up without anyone remembering to add it: what the commands card (CommandsMenu.ts) offers as
 // buttons and what the chat (Hud.ts) completes a slash into.
 import {
@@ -11,6 +11,8 @@ import {
   GEAR_IDS,
   ITEMS,
   ITEM_IDS,
+  KARTS,
+  KART_IDS,
   botArguments,
 } from '@world/shared';
 
@@ -41,6 +43,7 @@ export function commandGroups(): Group[] {
       rows: [
         ...items.map((id) => command(id, ITEMS[id].blurb)),
         ...GEAR_IDS.map((id) => command(id, GEAR[id].blurb)),
+        ...KART_IDS.map((id) => command(KARTS[id].command, KARTS[id].blurb)),
         command('unequip', 'put away your weapon and gear'),
       ],
     },

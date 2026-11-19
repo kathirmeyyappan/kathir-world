@@ -28,10 +28,10 @@ import type { Interiors } from '../Interiors';
 import { wait, type Loader } from '../Loader';
 import { placed } from '../Structures';
 import { KRUSTY_KRAB_PARTS } from './krustyKrabParts';
+import { fetchMesh, meshData } from './meshFile';
 import { PINEAPPLE_PARTS } from './pineappleParts';
 
 const GLOW = 0.3; // how much a model lights itself, like the avatars, so it reads at night
-const UV_UNIT = 4096; // texture coordinate units to the repeat in the mesh files
 const LATHE_SEGMENTS = 32; // round a lathed shell
 // How much a shell lights itself: more than GLOW, standing in for the textures' lighter pixels.
 const SHELL_GLOW = 0.55;
@@ -269,34 +269,17 @@ function lathe(
   return Object.assign(new VertexData(), { positions, indices, normals, colors });
 }
 
-// Fetches a part and hangs its mesh on `parent`: counts (Uint32 vertices, triangles), positions in
-// centimetres (Int16), texture coordinates (Uint16, UV_UNIT to the repeat), triangles (Uint16),
-// unit normals (Int8). Drawn both sides (the leaves and the rooms' walls are single sheets) unless
-// the part says nothing looks at its inside.
+// Fetches a part and hangs its mesh on `parent`. Drawn both sides (the leaves and the rooms' walls
+// are single sheets) unless the part says nothing looks at its inside.
 function* fetchPart(
   scene: Scene,
   model: string,
   part: Part,
   parent: TransformNode,
 ): Generator<Promise<unknown> | void, Mesh, unknown> {
-  const url = `/assets/models/${model}/${part.name}.bin`;
-  const buffer = yield* wait(fetch(url).then((r) => r.arrayBuffer()));
-  const [vertices, triangles] = new Uint32Array(buffer, 0, 2);
-  let at = 8;
-  const positions = new Int16Array(buffer, at, vertices * 3);
-  at += vertices * 6;
-  const uvs = new Uint16Array(buffer, at, vertices * 2);
-  at += vertices * 4;
-  const indices = new Uint16Array(buffer, at, triangles * 3);
-  at += triangles * 6;
-  const normals = new Int8Array(buffer, at, vertices * 3);
-  const data = new VertexData();
-  data.positions = Float32Array.from(positions, (cm) => cm / 100);
-  data.uvs = Float32Array.from(uvs, (u) => u / UV_UNIT);
-  data.indices = indices;
-  data.normals = Float32Array.from(normals, (n) => n / 127);
+  const buffer = yield* wait(fetchMesh(model, part.name));
   const mesh = new Mesh(`model-${model}-${part.name}`, scene);
-  data.applyToMesh(mesh);
+  meshData(buffer).applyToMesh(mesh);
   const image = new Texture(
     `/assets/models/${model}/${part.texture}.png`,
     scene,

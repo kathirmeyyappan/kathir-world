@@ -131,10 +131,16 @@ export class InputManager {
     if (!this.blocked) this.jumpRequested = true;
   }
 
-  // The touch jump button: holding it holds the jump key (Space) down, for gear used by holding jump.
-  holdJump(held: boolean): void {
-    if (held && !this.blocked) this.keys.add('Space');
-    else this.keys.delete('Space');
+  // A touch button holding a key down while it's held: the jump button holds Space, for gear used
+  // by holding jump and a kart's drift, and a kart's GAS and BRAKE hold W and S.
+  hold(code: string, held: boolean): void {
+    if (held && !this.blocked) this.keys.add(code);
+    else this.keys.delete(code);
+  }
+
+  // A touch button pressing a key once: a kart's OUT presses E.
+  tap(code: string): void {
+    if (!this.blocked) this.pressed.add(code);
   }
 
   // Once per rendered frame: fold accumulated mouse motion into the view angles.
@@ -155,15 +161,20 @@ export class InputManager {
   }
 
   // Once per sim tick: everything the server needs to move us, plus the item actions in play.
-  sampleFrame(seq: number, reading: string | null, actions: ItemAction[], view?: number): InputFrame {
+  // The tick's frame. The movement keys are one direction, no faster on a diagonal, unless `apart`:
+  // a kart's gas and its wheel, each flat out at once.
+  sampleFrame(seq: number, reading: string | null, actions: ItemAction[], view?: number, apart = false): InputFrame {
     let mx = this.joystick.x;
     let my = this.joystick.y;
     if (this.keys.has('KeyW') || this.keys.has('ArrowUp')) my += 1;
     if (this.keys.has('KeyS') || this.keys.has('ArrowDown')) my -= 1;
     if (this.keys.has('KeyA') || this.keys.has('ArrowLeft')) mx -= 1;
     if (this.keys.has('KeyD') || this.keys.has('ArrowRight')) mx += 1;
-    const len = Math.hypot(mx, my);
-    if (len > 1) {
+    const len = apart ? Math.max(Math.abs(mx), Math.abs(my)) : Math.hypot(mx, my);
+    if (apart) {
+      mx = Math.max(-1, Math.min(1, mx));
+      my = Math.max(-1, Math.min(1, my));
+    } else if (len > 1) {
       mx /= len;
       my /= len;
     }

@@ -88,6 +88,9 @@ anything that can wait off the path everyone pays:
   clients that meet it. Until a look on foot is here the player keeps the body they had, or has none
   drawn (where that was a dragon, or for someone first seen in it), never a look they aren't
   wearing; a dragon rises and roars at once and its body fills in as it lands.
+- A kart's files (its model's parts and pictures, about 110 KB for the Standard Kart) are fetched
+  the first time a kart of that model is drawn (`render/vehicles/KartMesh.ts`); every paint is the
+  same picture painted on the client, and only its emblem (about 5 KB) is fetched per paint.
 - A sound is fetched by everyone up front unless it's `lazy` in `SOUNDS` (`Sfx.soon`, `Sfx.want`).
   Every look's voice is lazy: an intro is fetched as it's said within earshot, and a look's jumps,
   long jumps, hurts and kills (with its death for its own player) as it's first seen worn
@@ -949,6 +952,29 @@ within `BLAST.reach` with nothing between takes `BLAST.damage` and is thrown awa
 whoever took its last wrench; what wore it down never reaches the driver. A kill by a kart is
 announced as one (`kill` with `item: 'kart'` or `'explosion'`), and a death of one's own doing in
 one as `crashed`.
+
+A kart's model is written by `scripts/kart-model.py` from a rip of a Mario Kart 8 body and tire
+set, sized as MK8 sizes it against Mario: its parts (`body`, the `steer`ing wheel that turns, the
+`emblem` and one `tire`, each simplified to its size) and their pictures in
+`public/assets/models/kart-<id>/`, and `render/vehicles/<id>KartModel.ts`, read through
+`KART_MODELS` (`render/vehicles/kartModel.ts`): where its tires stand, the steering wheel's middle,
+the axis it turns round and the grips a driver's hands take on it (a wheel's rim or a handlebar's
+ends alike), the seat, and each driver's paint. A paint is two colours and an emblem: the body is
+one picture with its two painted colours left white and a second saying where they go, painted on
+the client in whichever colours (`paintOf`: the dropper's own, for the Mario family, else Mario's).
+The script prints the box the sim drives it as, for its row in `KARTS`. `render/vehicles/KartMesh.ts`
+draws one: its tires rolled by how far it went and the front pair steered, its steering wheel
+turned, the body tipped to the ground under its tires; its parts are fetched the first time a kart
+of that model is drawn (a box of its size in its paint stands in till then). `game/Driving.ts` is
+the rest of driving on the client: every kart drawn, the driven one where its driver's prediction
+has it (`Prediction` rides it as the Room does, rewinding and replaying it with them); the kart
+under the crosshair, which a click gets in (the same prompt and `use` as a door's); the look
+turned with the kart and settled back behind it once the mouse is let be; and the drift on Space
+and E to get out. A driver is watched along `KART_BOOM`, their legend is the kart's keys, and on
+touch the pad steers alone, GAS and BRAKE hold W and S, the jump button drifts and OUT gets out.
+Their kart's wrenches are a row of pixel wrenches under their hearts (`Hearts` with the `wrench`
+sprite). A frame the Room steps a driver without (one arriving late) drives on with the keys as
+their last frame held them.
 
 ## Weapons
 

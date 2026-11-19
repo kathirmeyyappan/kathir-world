@@ -31,7 +31,7 @@ export const KARTS: Record<KartId, KartSpec> = {
     weight: 1,
     miniTurboTime: 0.8,
     wrenches: 5,
-    body: { width: 1.6, length: 2.6, height: 0.9, seat: { y: 0.3, z: -0.2 } },
+    body: { width: 2.01, length: 2.6, height: 1.03, seat: { y: 0.41, z: -0.08 } }, // scripts/kart-model.py
   },
 };
 
