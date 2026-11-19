@@ -1266,7 +1266,10 @@ footsteps (`GAITS`) and a dragon's roars, rise and theme, leaving out what every
 `audio/voices.ts` (`twirlOf`, `swingOf`, `shimmerOf`) that the game plays and the guide lists, never
 a literal where it's played, so a look can't make a sound the guide doesn't show: a new look's or
 move's sound goes through one of those, or a new one, and into `linesOf`. The World tab opens on the world's map (`MapCanvas`, to drag about and zoom, `ui/mapControls.ts` as
-the menu's map is). Its photos are in `public/assets/guide/places/`, taken in the game offline with the
+the menu's map is), with a MAP and ELEVATION toggle: elevation is the floor under how high everything
+on it stands (`ui/Elevation.ts`, a picture a pixel a metre of `Structures.groundAt`, worked out a few
+rows a frame the first time it's shown, coloured by the root of the height so a road's bank reads
+beside the tower), with its scale and the height under the pointer. Its photos are in `public/assets/guide/places/`, taken in the game offline with the
 boundary wall hidden, each with a `-thumb` for its gallery. The Gallery tab is the game as it's
 played, three photos to a row (`GALLERY` in `guide/content.ts`, `public/assets/guide/gallery/`, taken the
 same way with the HUD hidden, 1600 × 900 with a 480 × 270 `-thumb`), and the README's Photo Gallery

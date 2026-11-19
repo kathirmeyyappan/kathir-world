@@ -24,6 +24,7 @@ import {
   type Slope,
   type WorldPart,
 } from '@world/shared';
+import type { Elevation } from './Elevation';
 
 export interface MinimapFrame {
   me: { x: number; y: number; z: number; yaw: number };
@@ -135,13 +136,19 @@ export class MapCanvas {
     this.arrow(t, x, z, view === 'world' ? frame.me.yaw : 0, 1);
   }
 
-  // The whole world, north up, with no one on it: at ground level, or with `high` as it's seen
-  // from up past HIGH_UP.
-  drawWorld(framing: Framing = STILL, high = false): void {
+  // The whole world, north up, with no one on it: its floor and landmarks as from the ground, or
+  // with `heights` its floor under how high everything on it stands, in their place.
+  drawWorld(framing: Framing = STILL, heights: Elevation | null = null): void {
     this.fit();
     if (!this.width) return;
     const t = this.transform({ x: 0, y: 0, z: 0, yaw: 0 }, 'world', framing);
-    this.drawFloor(t, high ? [...LANDMARKS, ...HIGH_LANDMARKS] : LANDMARKS);
+    this.drawFloor(t, heights ? [] : LANDMARKS);
+    if (!heights) return;
+    const ctx = this.ctx;
+    this.toWorld(ctx, t);
+    ctx.imageSmoothingEnabled = false; // a metre a pixel, each kept square
+    ctx.drawImage(heights.canvas, heights.x, heights.z);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
   }
 
   // The world point under `x`, `y` CSS pixels from the canvas's corner, in the world view.
@@ -220,14 +227,7 @@ export class MapCanvas {
       c.setTransform(1, 0, 0, 1, 0, 0);
       c.globalCompositeOperation = 'source-over';
       c.clearRect(0, 0, W, H);
-      c.setTransform(
-        k * t.rx,
-        -k * t.fx,
-        k * t.rz,
-        -k * t.fz,
-        W / 2 - k * (t.rx * t.ox + t.rz * t.oz),
-        H / 2 + k * (t.fx * t.ox + t.fz * t.oz),
-      );
+      this.toWorld(c, t);
     };
     const px = (n: number) => (n * RES) / k; // n CSS pixels, in metres
     // Covers `layer` wherever `shapes` do, solid, once however many overlap.
@@ -323,6 +323,19 @@ export class MapCanvas {
     for (const l of [this.houseLayer, this.landmarkLayer, this.woodLayer, grid, this.floorLayer])
       if (l !== this.houseLayer || housed) ctx.drawImage(l.canvas, 0, 0);
     ctx.globalCompositeOperation = 'source-over';
+  }
+
+  // Sets `c` to draw in world metres as `t` views them.
+  private toWorld(c: CanvasRenderingContext2D, t: Transform): void {
+    const k = RES / t.scale; // canvas pixels per metre
+    c.setTransform(
+      k * t.rx,
+      -k * t.fx,
+      k * t.rz,
+      -k * t.fz,
+      (this.width * RES) / 2 - k * (t.rx * t.ox + t.rz * t.oz),
+      (this.height * RES) / 2 + k * (t.fx * t.ox + t.fz * t.oz),
+    );
   }
 
   // The box in world metres round all of the canvas as `t` draws it, a little past its edge so the

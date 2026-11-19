@@ -528,7 +528,7 @@ h2.command .args {
   }
 }
 
-/* A toggle in a view's corner (the map's GROUND / HIGH, a character's ON FOOT / IN KART), the one
+/* A toggle in a view's corner (the map's MAP / ELEVATION, a character's ON FOOT / IN KART), the one
    shown lit. */
 .view .toggle {
   position: absolute;
@@ -558,6 +558,31 @@ h2.command .args {
   border-color: var(--accent);
   background: var(--accent);
   color: var(--panel);
+}
+
+/* The scale the heights are coloured by, low to high, under the toggle while they show. */
+.world-map .scale {
+  position: absolute;
+  top: 44px;
+  right: 8px;
+  display: none;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 2px solid var(--line);
+  background: var(--panel);
+  color: var(--accent-soft);
+  font: 10px/1 var(--pixel);
+  pointer-events: none;
+}
+
+.world-map .scale.on {
+  display: flex;
+}
+
+.world-map .scale .bar {
+  width: 96px;
+  height: 8px;
 }
 
 .world-map .hint {

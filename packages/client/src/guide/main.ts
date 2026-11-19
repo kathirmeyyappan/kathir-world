@@ -34,6 +34,7 @@ import {
   type Region,
 } from '@world/shared';
 import { BodyView, type Shown, type Thing } from '../render/BodyView';
+import { Elevation } from '../ui/Elevation';
 import { MapCanvas } from '../ui/MapCanvas';
 import { MapControls } from '../ui/mapControls';
 import { commandGroups } from '../ui/commands';
@@ -454,19 +455,19 @@ function gallery(album: Album, photos: Photo[], lightbox: Lightbox): HTMLElement
 }
 
 // Where each place is on the map, to name it under the pointer and pick it with a click: its
-// grounds, and while the map shows what's up high, the terrace's deck over them all.
+// grounds, and while the map shows heights, the terrace's deck over them all.
 interface PlaceSpot {
   id: Place['id'];
   x: number;
   z: number;
   r: number;
   inner?: number; // metres from the middle out to a ring's inside edge
-  high?: boolean; // only while the map shows the walkways up high
+  raised?: boolean; // only while the map shows heights: it stands over other places' grounds
 }
 
 function placeSpots(): PlaceSpot[] {
   const spots: PlaceSpot[] = [];
-  if (TERRACE.kind === 'ring') spots.push({ id: 'terrace', ...TERRACE, high: true });
+  if (TERRACE.kind === 'ring') spots.push({ id: 'terrace', ...TERRACE, raised: true });
   spots.push({ id: 'tower', ...ANNEX }, { id: 'krusty-krab', ...KRUSTY_KRAB_GROUNDS });
   for (const place of PLACES) {
     const n = place.id === 'pineapple' ? 0 : place.building;
@@ -481,18 +482,23 @@ function placeTitle(place: Place): string {
 
 const CLICK_SLOP = 5; // CSS pixels a press may move and still be a click rather than a drag
 
+const ELEVATION_BUDGET = 10; // milliseconds a frame spent working out the heights, until they're all in
+
 // The world's map at the top of the World tab, the game's own (MapCanvas: the minimap's WORLD view,
-// with no one on it), to drag about and zoom, seen from the ground or from up high: the GROUND and
-// HIGH toggle, high being the view the game's map takes past HIGH_UP, with the walkways up there
-// (the terrace, the sky bridge, the staircases). A place under the pointer is named beside it, and
-// a click on one picks it.
+// with no one on it), to drag about and zoom, as the game's map shows it or as its heights: the MAP
+// and ELEVATION toggle, elevation being the floor under how high everything on it stands (Elevation:
+// the buildings, the terrace and its walkways, the roads' banks), with the scale it's coloured by
+// in the corner. A place under the pointer is named beside it, with how high the spot is while
+// heights show, and a click on one picks it.
 class WorldMap {
   readonly el = el('section', 'card wide world-map');
   private readonly canvas = el('canvas');
   private readonly map = new MapCanvas(this.canvas);
   private readonly controls = new MapControls(this.canvas, () => this.map.baseScale('world'));
   private readonly toggle = el('div', 'toggle');
-  private showsHigh = false;
+  private readonly scale = el('div', 'scale');
+  private heights: Elevation | null = null; // made the first time heights are shown
+  private showsHeights = false;
   private readonly label = el('span', 'label');
   private readonly spots = placeSpots();
   private pressed: { x: number; y: number } | null = null;
@@ -500,59 +506,74 @@ class WorldMap {
   constructor(onPick: (id: Place['id']) => void) {
     const zoom = matchMedia('(pointer: coarse)').matches ? 'pinch' : 'scroll';
     const box = el('div', 'view');
-    for (const high of [false, true]) {
-      const button = el('button', '', high ? 'HIGH' : 'GROUND');
-      button.addEventListener('click', () => this.setHigh(high));
+    for (const heights of [false, true]) {
+      const button = el('button', '', heights ? 'ELEVATION' : 'MAP');
+      button.addEventListener('click', () => this.show(heights));
       this.toggle.append(button);
     }
-    this.setHigh(false);
+    this.show(false);
     this.canvas.addEventListener('pointerdown', (e) => (this.pressed = { x: e.clientX, y: e.clientY }));
     this.canvas.addEventListener('pointermove', (e) => this.hover(e));
-    this.canvas.addEventListener('pointerleave', () => this.name(null));
+    this.canvas.addEventListener('pointerleave', () => this.name(null, 0));
     this.canvas.addEventListener('click', (e) => {
       const from = this.pressed;
       if (from && Math.hypot(e.clientX - from.x, e.clientY - from.y) > CLICK_SLOP) return;
       const spot = this.spotAt(e);
       if (spot) onPick(spot.id);
     });
-    box.append(this.canvas, this.label, this.toggle, el('span', 'hint', `drag to slide · ${zoom} to zoom`));
+    box.append(this.canvas, this.label, this.toggle, this.scale, el('span', 'hint', `drag to slide · ${zoom} to zoom`));
     this.el.append(el('h2', '', 'Map'), box);
   }
 
   draw(): void {
-    this.map.drawWorld(this.controls.framing, this.showsHigh);
+    if (this.showsHeights) this.heights?.advance(ELEVATION_BUDGET);
+    this.map.drawWorld(this.controls.framing, this.showsHeights ? this.heights : null);
   }
 
-  private setHigh(high: boolean): void {
-    this.showsHigh = high;
-    [...this.toggle.children].forEach((b, i) => b.classList.toggle('on', i === Number(high)));
+  private show(heights: boolean): void {
+    this.showsHeights = heights;
+    if (heights && !this.heights) {
+      this.heights = new Elevation();
+      const bar = el('span', 'bar');
+      bar.style.background = Elevation.gradient('to right');
+      this.scale.append(el('span', '', 'floor'), bar, el('span', '', `${Math.round(this.heights.top)} m`));
+    }
+    this.scale.classList.toggle('on', heights);
+    [...this.toggle.children].forEach((b, i) => b.classList.toggle('on', i === Number(heights)));
+  }
+
+  // The world point under the pointer.
+  private pointAt(e: MouseEvent): { x: number; z: number } {
+    const r = this.canvas.getBoundingClientRect();
+    return this.map.worldAt(e.clientX - r.left, e.clientY - r.top, this.controls.framing);
   }
 
   private spotAt(e: MouseEvent): PlaceSpot | null {
-    const r = this.canvas.getBoundingClientRect();
-    const at = this.map.worldAt(e.clientX - r.left, e.clientY - r.top, this.controls.framing);
+    const at = this.pointAt(e);
     return (
       this.spots.find((s) => {
         const d = Math.hypot(at.x - s.x, at.z - s.z);
-        return (!s.high || this.showsHigh) && d <= s.r && d >= (s.inner ?? 0);
+        return (!s.raised || this.showsHeights) && d <= s.r && d >= (s.inner ?? 0);
       }) ?? null
     );
   }
 
   private hover(e: PointerEvent): void {
-    if (e.buttons) return this.name(null); // dragging
-    const spot = this.spotAt(e);
-    this.name(spot);
-    if (!spot) return;
+    if (e.buttons) return this.name(null, 0); // dragging
+    const at = this.pointAt(e);
+    this.name(this.spotAt(e), this.showsHeights && this.heights ? this.heights.at(at.x, at.z) : 0);
     const r = this.canvas.getBoundingClientRect();
     this.label.style.left = `${e.clientX - r.left}px`;
     this.label.style.top = `${e.clientY - r.top}px`;
   }
 
-  private name(spot: PlaceSpot | null): void {
+  // Names the place under the pointer beside it, with how high the spot is, `height` metres over
+  // the floor, where it's up off it; neither, and the label is put away.
+  private name(spot: PlaceSpot | null, height: number): void {
     const place = spot && PLACES.find((p) => p.id === spot.id);
-    this.label.textContent = place ? placeTitle(place) : '';
-    this.label.classList.toggle('on', !!place);
+    const high = height >= 0.5 ? `${Math.round(height)} m` : '';
+    this.label.textContent = [place ? placeTitle(place) : '', high].filter(Boolean).join(' · ');
+    this.label.classList.toggle('on', this.label.textContent !== '');
     this.canvas.classList.toggle('over', !!place);
   }
 }
