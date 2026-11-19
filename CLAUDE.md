@@ -103,6 +103,13 @@ when something paid by everyone grows with each thing added. That pattern is the
 of hand, and the fix is to fetch each thing the first time someone meets it, as a look's body and
 voice are.
 
+A model is only as detailed as it's seen. A rip or a Sketchfab model comes with what its own game
+or scene needed, so its script simplifies it to what reads at the size and distance it's drawn
+here: thin its meshes (decimate, or rebuild what doesn't thin, as `krusty-krab-model.py` does),
+drop whatever is too small to see at that size, and scale its textures down to the pixels it
+covers on screen. Look at it beside the source from the distances it's seen at, and give the
+triangles and KB before and after in the PR.
+
 An interior is let go past 200 m once it's been neither seen nor wanted for 30 s, well past
 `SIGHT` (125 m) where it's wanted unscoped, so walking back and forth across one line can't load
 and unload it over and over; coming back fetches it again from the browser's cache, through the
