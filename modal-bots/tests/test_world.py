@@ -39,3 +39,13 @@ def test_a_way_takes_only_the_jumps_its_avatar_makes() -> None:
     assert route != [i, j]
     if route is not None:
         assert all(b in world.edges[a] or b in gary[a] for a, b in itertools.pairwise(route))
+
+
+def test_the_road_is_open_floor_walked_in_one_line() -> None:
+    world = load_world_map()
+    # Behind the Krusty Krab, out to the plateau at its end: one rectangle of open floor.
+    near, far = Vec3(-150, 0, 0), Vec3(-330, 0, 0)
+    road = world.node_at(near)
+    assert road in world.areas
+    assert world.node_at(far) == road
+    assert world.straight(near, far)

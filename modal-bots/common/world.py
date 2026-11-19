@@ -4,8 +4,8 @@ somewhere (up the tower's stair, say).
 It reads the map in ``map/``, which ``npm run bot-map`` builds from the TypeScript content and
 sim (``packages/shared/src/sim/botMap.ts``) in three stages, a file each, and joins them: the
 ground (the structures, the same list the server collides with, and a graph of the spots a player
-can stand on a 1 m grid, joined where the sim walks between neighbours), the jumps of each way of
-moving, and each avatar's body. ``clear`` mirrors the sim's line of sight (``Structures.clear``), and the map's
+can stand on a 1 m grid round whatever stands and of the rectangles of open floor between, joined
+where the sim walks between them), the jumps of each way of moving, and each avatar's body. ``clear`` mirrors the sim's line of sight (``Structures.clear``), and the map's
 own sight checks pin it to the sim's answers.
 """
 
@@ -28,6 +28,9 @@ MAP_DIR = Path(__file__).with_name("map")
 EYE_HEIGHT = 1.7  # metres from feet to eyes (EYE_HEIGHT in packages/shared/src/sim/constants.ts)
 CELL = 8.0  # metres per side of the grid that sight lines look structures up in
 RAY_STEP = 0.05  # metres between samples where a sight line crosses a sloped top (collision.ts)
+OPEN_STEP = 0.5  # metres between the spots a straight walk across open floor is checked at
+ONTO = 1.5  # metres at either end of a straight walk it may take to get onto open floor: a diagonal step
+FLOOR = 0.6  # metres up or down from the floor that still stand on it
 JUMP_COST = 2.0  # metres of walking a route would rather take than one jump
 
 
@@ -73,6 +76,25 @@ class Hitbox:
 
 
 @dataclass(frozen=True, slots=True)
+class Area:
+    """A rectangle of open floor (``openFloor`` in packages/shared/src/sim/botMap.ts): its corner
+    with the least x and z, and its metres along x and z. Nothing stands on it or near it, so a body
+    walks straight from anywhere on it to anywhere else, and onto it from a step off it."""
+
+    x: float
+    z: float
+    w: float
+    d: float
+
+    def holds(self, x: float, z: float) -> bool:
+        return self.x <= x < self.x + self.w and self.z <= z < self.z + self.d
+
+    def off(self, x: float, z: float) -> float:
+        """Metres from (x, z) to the rectangle, 0 on it."""
+        return math.hypot(max(self.x - x, 0, x - self.x - self.w), max(self.z - z, 0, z - self.z - self.d))
+
+
+@dataclass(frozen=True, slots=True)
 class Piece:
     """One structure placed in the world: a w x d footprint turned by yaw, from ``base`` up to
     ``top(lx, lz)`` above it at each local point."""
@@ -100,6 +122,12 @@ class WorldMap:
         # the ones only a running jump reaches.
         self.nodes = tuple(Vec3(float(x), float(y), float(z)) for x, y, z in ground["nodes"])
         self.edges = tuple(tuple(int(j) for j in out) for out in ground["edges"])
+        # The rectangles of open floor by their nodes, and by the cells of the sight grid they cover.
+        self.areas = {int(i): Area(float(x), float(z), float(w), float(d)) for i, x, z, w, d in ground["areas"]}
+        self._area_cells: dict[tuple[int, int], list[int]] = {}
+        for i, a in self.areas.items():
+            for key in _cells_over(a.x, a.z, a.x + a.w, a.z + a.d):
+                self._area_cells.setdefault(key, []).append(i)
         # Per node, the nodes only a running jump reaches: for each way a look on foot moves (its
         # walk and jump power), and which of those each avatar's is. ``jumps`` is the standard body's.
         self._jump_sets = {
@@ -173,8 +201,29 @@ class WorldMap:
         d = ((b.x - a.x) / length, (b.y - a.y) / length, (b.z - a.z) / length)
         return all(not self._hits(self.pieces[i], a, d, length) for i in self._along(a, b))
 
+    def area_at(self, feet: Vec3) -> int | None:
+        """The node of the rectangle of open floor ``feet`` stands on, if it's on one."""
+        if abs(feet.y) > FLOOR:
+            return None
+        cell = (math.floor(feet.x / CELL), math.floor(feet.z / CELL))
+        return next((i for i in self._area_cells.get(cell, ()) if self.areas[i].holds(feet.x, feet.z)), None)
+
+    def straight(self, a: Vec3, b: Vec3) -> bool:
+        """Whether a walk straight from ``a`` to ``b`` (feet) keeps to open floor, but for a step
+        onto it at either end."""
+        if abs(a.y) > FLOOR or abs(b.y) > FLOOR:
+            return False
+        length = math.hypot(b.x - a.x, b.z - a.z)
+        steps = math.ceil(length / OPEN_STEP)
+        return all(
+            self.area_at(Vec3(a.x + (b.x - a.x) * k / steps, 0, a.z + (b.z - a.z) * k / steps)) is not None
+            for k in range(1, steps)
+            if ONTO < length * k / steps < length - ONTO
+        )
+
     def node_at(self, feet: Vec3, reach: float = 3) -> int | None:
-        """The node nearest ``feet`` (a player's ``pos`` less EYE_HEIGHT) within ``reach`` metres."""
+        """The node nearest ``feet`` (a player's ``pos`` less EYE_HEIGHT) within ``reach`` metres,
+        a rectangle of open floor as near as the nearest of it."""
         best: int | None = None
         best_distance = reach
         span = math.ceil(reach)
@@ -184,8 +233,17 @@ class WorldMap:
                 for i in self._columns.get((cx + dx, cz + dz), ()):
                     n = self.nodes[i]
                     distance = math.dist((n.x, n.y, n.z), (feet.x, feet.y, feet.z))
-                    if distance < best_distance:
+                    if distance < best_distance and i not in self.areas:
                         best, best_distance = i, distance
+        if abs(feet.y) <= FLOOR:
+            for i in {
+                i
+                for key in _cells_over(feet.x - reach, feet.z - reach, feet.x + reach, feet.z + reach)
+                for i in self._area_cells.get(key, ())
+            }:
+                distance = self.areas[i].off(feet.x, feet.z)
+                if distance < best_distance:
+                    best, best_distance = i, distance
         return best
 
     def nodes_in(self, region: Region, rise: float = 0.6) -> list[int]:
