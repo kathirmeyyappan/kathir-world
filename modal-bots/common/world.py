@@ -31,6 +31,8 @@ RAY_STEP = 0.05  # metres between samples where a sight line crosses a sloped to
 OPEN_STEP = 0.5  # metres between the spots a straight walk across open floor is checked at
 ONTO = 1.5  # metres at either end of a straight walk it may take to get onto open floor: a diagonal step
 FLOOR = 0.6  # metres up or down from the floor that still stand on it
+CHEST = 1.0  # metres up from the feet that a walk runs into a door at
+BY_DOOR = 2.0  # metres round a door's slab that a spot whose ways out may go through its doorway is within
 JUMP_COST = 2.0  # metres of walking a route would rather take than one jump
 
 
@@ -118,6 +120,9 @@ class Piece:
 class WorldMap:
     def __init__(self, ground: Mapping[str, Any], moves: Mapping[str, Any], bodies: Mapping[str, Any]):
         self.pieces = tuple(_piece(s) for s in ground["structures"])
+        # Every door's slab where it stands shut, by the door's id (a double door has two); the
+        # graph walks through each as if it stood open.
+        self.doors = tuple((str(d["id"]), _piece(d["slab"])) for d in ground["doors"])
         # Where a player can stand (feet); for each, the neighbours they can walk straight to, and
         # the ones only a running jump reaches.
         self.nodes = tuple(Vec3(float(x), float(y), float(z)) for x, y, z in ground["nodes"])
@@ -173,6 +178,10 @@ class WorldMap:
         self._columns: dict[tuple[int, int], list[int]] = {}
         for i, n in enumerate(self.nodes):
             self._columns.setdefault((round(n.x), round(n.z)), []).append(i)
+        # The spots by a door, whose ways out may go through its doorway, and the door each of
+        # those ways goes through, as asked.
+        self._by_doors = frozenset(i for _, slab in self.doors for i in self._nodes_by(slab))
+        self._doorways: dict[tuple[int, int], tuple[str, Piece] | None] = {}
 
     def hitbox(self, avatar: str) -> Hitbox:
         """An avatar's hitbox, the standard one's for an avatar the map doesn't know."""
@@ -221,6 +230,32 @@ class WorldMap:
             if ONTO < length * k / steps < length - ONTO
         )
 
+    def doorway(self, i: int, j: int) -> tuple[str, Piece] | None:
+        """The door, and its slab, whose doorway the way from node ``i`` to node ``j`` goes
+        through: what stands across it when the door is shut."""
+        if i not in self._by_doors:
+            return None
+        if (i, j) not in self._doorways:
+            a, b = self.nodes[i], self.nodes[j]
+            length = math.hypot(b.x - a.x, b.z - a.z)
+            chest = Vec3(a.x, a.y + CHEST, a.z)
+            d = ((b.x - a.x) / length, 0.0, (b.z - a.z) / length)
+            self._doorways[(i, j)] = next(
+                ((door, slab) for door, slab in self.doors if self._hits(slab, chest, d, length)), None
+            )
+        return self._doorways[(i, j)]
+
+    def _nodes_by(self, slab: Piece) -> Iterator[int]:
+        """The nodes within BY_DOOR of a door's slab, about its height."""
+        span = math.ceil(math.hypot(slab.hw, slab.hd) + BY_DOOR)
+        for dx in range(-span, span + 1):
+            for dz in range(-span, span + 1):
+                for i in self._columns.get((round(slab.x) + dx, round(slab.z) + dz), ()):
+                    n = self.nodes[i]
+                    lx, lz = slab.local(n.x, n.z)
+                    if abs(lx) <= slab.hw + BY_DOOR and abs(lz) <= slab.hd + BY_DOOR and abs(n.y - slab.base) < FLOOR:
+                        yield i
+
     def node_at(self, feet: Vec3, reach: float = 3) -> int | None:
         """The node nearest ``feet`` (a player's ``pos`` less EYE_HEIGHT) within ``reach`` metres,
         a rectangle of open floor as near as the nearest of it."""
@@ -264,10 +299,11 @@ class WorldMap:
             and abs(self.nodes[i].y - feet.y) <= rise
         ]
 
-    def path(self, start: int, goal: int, avatar: str = "standard") -> list[int] | None:
+    def path(self, start: int, goal: int, avatar: str = "standard", doors: bool = False) -> list[int] | None:
         """The shortest way from node ``start`` to node ``goal`` (both ends included) for a body
         that moves as ``avatar`` does, or None when there's none. It jumps only where walking
-        can't get there, and only where that avatar's jump does (``jumps_of``)."""
+        can't get there, and only where that avatar's jump does (``jumps_of``), and goes through a
+        doorway only with ``doors``, for a bot whose ``Route`` opens them."""
         jumps = self.jumps_of(avatar)
         target = self.nodes[goal]
         frontier = [(0.0, start)]
@@ -282,6 +318,8 @@ class WorldMap:
                 return route[::-1]
             here = self.nodes[i]
             for j in (*self.edges[i], *jumps[i]):
+                if not doors and self.doorway(i, j) is not None:
+                    continue
                 there = self.nodes[j]
                 step = cost[i] + math.dist((here.x, here.y, here.z), (there.x, there.y, there.z))
                 if j in jumps[i]:

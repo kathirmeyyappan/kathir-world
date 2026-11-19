@@ -281,6 +281,57 @@ def test_a_route_walks_up_the_tower_stair_and_out_onto_a_balcony(room_server: st
     assert math.hypot(eye.x - 112, eye.z) > 20, "outside the wall"
 
 
+def test_a_route_told_the_doors_opens_the_pineapples_front_door_on_its_way_in(room_server: str) -> None:
+    world = load_world_map()
+    slab = next(slab for door, slab in world.doors if door == "front")
+    # Out from the doorway toward the middle of the world, and in from it, on the dune's floor.
+    out = Vec3(-slab.x, 0, -slab.z)
+    length = math.hypot(out.x, out.z)
+    outside = Vec3(slab.x + 4 * out.x / length, slab.base + 1, slab.z + 4 * out.z / length)
+    goal = world.node_at(Vec3(slab.x - 4 * out.x / length, slab.base, slab.z - 4 * out.z / length))
+    assert goal is not None
+
+    async def scenario() -> tuple[Vec3, list[Event]]:
+        person = await seat_person(room_server, "python-door")
+        walker = await connect(None, "python-door", "walker", direct_url=room_server, spawn=outside)
+        state = WorldState(walker.welcome, walker.room)
+        assert state.doors["front"] is False
+        controls = Controls(walker)
+        stop = asyncio.Event()
+        inputs = asyncio.create_task(run_input_loop(controls, stop))
+        route: Route | None = None
+        swung: list[Event] = []
+        try:
+            async with asyncio.timeout(30):
+                while True:
+                    message = await walker.receive()
+                    state.apply(message)
+                    if isinstance(message, Event) and message.t == "door":
+                        swung.append(message)
+                    me = state.me
+                    assert me is not None
+                    if route is None or route.stuck(state.tick):
+                        start = world.node_at(Vec3(me.pos.x, me.pos.y - 1.7, me.pos.z))
+                        assert start is not None
+                        path = world.path(start, goal, doors=True)
+                        assert path is not None
+                        route = Route(world, path, state.tick, doors=state.doors)
+                    if not route.steer(me.pos, state.tick, controls):
+                        return me.pos, swung
+        finally:
+            stop.set()
+            inputs.cancel()
+            with suppress(asyncio.CancelledError, RoomConnectionError):
+                await inputs
+            await walker.close()
+            await person.close()
+
+    eye, swung = asyncio.run(scenario())
+    assert [(e.data["id"], e.data["open"]) for e in swung] == [("front", True)], "it opened the door once"
+    there = world.nodes[goal]
+    assert math.hypot(eye.x - there.x, eye.z - there.z) < 1, "and walked in"
+
+
 def test_sniper_fires_at_a_person_in_sight_then_waits_out_its_cooldown(
     room_server: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:

@@ -34,6 +34,10 @@ def test_reduces_snapshots_and_roster_events() -> None:
     assert state.tick == 43
     assert set(state.cubes) == {"notion"}
 
+    assert state.doors == {"front": False}
+    state.apply(message({"t": "door", "id": "front", "open": True, "by": "p2"}))
+    assert state.doors == {"front": True}
+
     state.apply(message({"t": "leave", "id": "p2", "name": "alice"}))
     assert set(state.players) == {"p1"}
     assert state.requested_room == "public-code"
