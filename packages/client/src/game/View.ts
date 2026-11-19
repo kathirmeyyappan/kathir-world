@@ -38,8 +38,11 @@ export const VIEWS: Record<PlayerClass, { boom: Boom; fov: number }> = {
   walker: { boom: { back: 3.4, right: 0.6, up: 0.6 }, fov: 1.2 },
   'asian-dragon': { boom: { back: 15, right: 0, up: 5 }, fov: 1.45 },
 };
-// A kart's driver's boom, whatever their look: behind the kart and over it, looking down its middle.
-export const KART_BOOM: Boom = { back: 4.2, right: 0, up: 1.1 };
+// How a kart is watched as it's driven, whoever drives it, so it sits in one place on screen at one
+// size: the boom, metres back and up from its seat at its model's size (behind it and over it, down
+// its middle, low and far enough back that all of it shows, tires on the ground, with room under
+// them), and how wide it's seen.
+export const KART_VIEW = { back: 5.6, up: 1.45, fov: VIEWS.walker.fov };
 // Each dragon skin's boom: far enough back and up to see a body of its size behind the head, for
 // the model as it comes, and as much again as the body is bigger than it (DragonShape.size).
 export const DRAGON_BOOMS: Record<AvatarsOf<'asian-dragon'>, Boom> = {
@@ -49,6 +52,12 @@ export const DRAGON_BOOMS: Record<AvatarsOf<'asian-dragon'>, Boom> = {
 
 function grown(boom: Boom, size: number): Boom {
   return { back: boom.back * size, right: boom.right * size, up: boom.up * size };
+}
+
+// The boom behind the driver of a kart `size` times its model's, their eyes `seated` metres over
+// its seat: KART_VIEW's at that size, taken from the eyes it hangs off.
+export function kartBoom(size: number, seated: number): Boom {
+  return { back: KART_VIEW.back * size, right: 0, up: KART_VIEW.up * size - seated };
 }
 
 // The boom the camera hangs on behind whoever wears `avatar`.
