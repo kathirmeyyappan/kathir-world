@@ -4,11 +4,15 @@
 // rails around it. A disc can carry `rings`, circles drawn evenly inside it (Tung Tung Tower has one
 // per floor above the ground, which marks it out from the one-storey buildings), or an `inner`
 // radius it's open within, and a bridge can be `wood`, drawn brown under the grey. SpongeBob's house
-// and the Krusty Krab are drawn as themselves (PineappleMark, KrustyKrabMark).
+// and the Krusty Krab are drawn as themselves (PineappleMark, KrustyKrabMark), and a road's climbs
+// (sim/roads.ts `Slope`) as arrowheads pointing up them, so a hill and the ramps either side of a
+// gap read from the map.
 //
 // Up past HIGH_UP the map greys in HIGH_LANDMARKS as well: the walkways up there, which would only
 // clutter the map on the ground.
 import type { Bridge, Disc } from '../sim/ground';
+import { ROADS } from '../sim/outline';
+import type { Slope } from '../sim/roads';
 import { STANDING_KEEPS } from './buildings';
 import { KRUSTY_KRAB_FOOTPRINT } from './krustyKrab';
 import { PINEAPPLE_DECK, PINEAPPLE_FOOTPRINT } from './pineapple';
@@ -38,13 +42,14 @@ export interface KrustyKrabMark {
 }
 
 export type Landmark =
-  (Disc & { rings?: number; inner?: number }) | (Bridge & { wood?: boolean }) | PineappleMark | KrustyKrabMark;
+  (Disc & { rings?: number; inner?: number }) | (Bridge & { wood?: boolean }) | PineappleMark | KrustyKrabMark | Slope;
 
 export const LANDMARKS: Landmark[] = [
   { ...TUNG_TUNG_TOWER_FOOTPRINT, rings: TUNG_TUNG_TOWER_ROOMS.length - 1 },
   ...STANDING_KEEPS.map((k) => k.footprint),
   { ...PINEAPPLE_FOOTPRINT, kind: 'pineapple', sand: PINEAPPLE_PROFILE.dune.foot },
   { ...KRUSTY_KRAB_FOOTPRINT, kind: 'krusty-krab' },
+  ...ROADS.flatMap((road) => road.slopes),
 ];
 
 export const HIGH_UP = 35; // metres: the height of your feet past which the map shows HIGH_LANDMARKS

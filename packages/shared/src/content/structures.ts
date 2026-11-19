@@ -12,7 +12,8 @@
 import type { Structure } from '../sim/structures';
 import { BUILDINGS } from './buildings';
 import { KRUSTY_KRAB } from './krustyKrab';
+import { ROAD_BANKS } from './roads';
 import { TERRACE } from './terrace';
 import { TUNG_TUNG_TOWER } from './tower';
 
-export const STRUCTURES: Structure[] = [...TUNG_TUNG_TOWER, ...BUILDINGS, ...KRUSTY_KRAB, ...TERRACE];
+export const STRUCTURES: Structure[] = [...TUNG_TUNG_TOWER, ...BUILDINGS, ...KRUSTY_KRAB, ...TERRACE, ...ROAD_BANKS];

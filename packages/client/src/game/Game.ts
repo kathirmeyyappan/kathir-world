@@ -11,6 +11,7 @@ import {
   INPUT_WAIT_TICKS,
   WALL_FRAMES,
   INTERIOR_BUILDINGS,
+  HOME_GROUND,
   WORLD_GROUND,
   DOOR_REACH,
   lookVector,
@@ -642,8 +643,8 @@ export class Game {
         this.myId = m.id;
         // The sky is seeded by the room's key (the Modal session id), which welcome carries, so
         // everyone in a session shares one sky and a new session gets a new one.
-        for (const sky of placeSkyObjects(this.engine, SKY_OBJECTS, WORLD_GROUND, createRng(hashSeed(m.room))))
-          this.skyByMesh.set(sky.mesh.name, sky);
+        const sky = placeSkyObjects(this.engine, SKY_OBJECTS, HOME_GROUND, WORLD_GROUND, createRng(hashSeed(m.room)));
+        for (const object of sky) this.skyByMesh.set(object.mesh.name, object);
         const me = m.players.find((p) => p.id === m.id)!;
         this.prediction = new Prediction(me, WORLD_STRUCTURES);
         this.prediction.reconcile(

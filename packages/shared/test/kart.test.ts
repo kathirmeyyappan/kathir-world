@@ -9,14 +9,16 @@ import {
   TRICK,
   TURBO,
   createKart,
+  ramp,
   stepKart,
   wall,
   type KartControls,
   type KartState,
+  type Structure,
 } from '../src/index';
 
 // Open floor a kilometre round, with whatever stands on it.
-function world(...pieces: ReturnType<typeof wall>[]): Structures {
+function world(...pieces: Structure[]): Structures {
   return new Structures(pieces, new Ground([{ kind: 'disc', x: 0, z: 0, r: 1000 }]));
 }
 
@@ -79,4 +81,22 @@ test('a kart driven into a wall stops at it and says how hard it hit', () => {
   const hit = drive(k, { gas: 1, steer: 0, drift: false }, 4, structures);
   assert.ok(hit > 15, `head on at about its speed: ${hit}`);
   assert.ok(k.pos.z < 30 - KARTS.standard.body.length / 2 + 0.1, `short of the wall: ${k.pos.z}`);
+});
+
+test('a kart flat out climbs a ramp rather than running into it, flies off its lip, and comes down on the ramp past the gap', () => {
+  // Up 5 m over 14 m, 8 m of nothing, and back down, along +z.
+  const structures = world(ramp({ x: 0, z: 40 }, { x: 0, z: 54 }, 5, 9), ramp({ x: 0, z: 76 }, { x: 0, z: 62 }, 5, 9));
+  const k = createKart('standard', 1, { x: 0, y: 0, z: 0 }, 0);
+  let impact = 0;
+  let overGap = Infinity; // the lowest it was over the middle of the gap
+  let landed = 0;
+  for (let t = 0; k.pos.z < 80; t += TICK_DT) {
+    const step = stepKart(k, { gas: 1, steer: 0, drift: false }, TICK_DT, structures);
+    impact = Math.max(impact, step.impact);
+    if (k.pos.z > 56 && k.pos.z < 60) overGap = Math.min(overGap, k.pos.y);
+    if (step.landing > 0 && landed === 0) landed = k.pos.z;
+  }
+  assert.equal(impact, 0, 'nothing in its way');
+  assert.ok(overGap > 5, `over the gap above the lips: ${overGap}`);
+  assert.ok(landed > 62, `down past the gap: ${landed}`);
 });

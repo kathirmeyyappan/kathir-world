@@ -12,7 +12,7 @@
 // A trick: a press of the drift key in the air (off a ramp or a ledge; not its own hop's) tricks
 // it left or right, the way the wheel is held or, with it held neither way, either, and landing
 // after one is a boost like a mini-turbo's held for TRICK.hold.
-import type { Structures } from '../collision';
+import type { Footing, Structures } from '../collision';
 import { EYE_HEIGHT, GRAVITY } from '../constants';
 import type { ActionSpec, ItemAction } from '../items';
 import { takeLook } from '../player';
@@ -116,6 +116,10 @@ const BRAKING = 2.5; // times its acceleration: braking while still rolling forw
 const COAST = 1.5; // times its acceleration: slowing with no key held, so it stops soon after the gas is let go
 const WHEEL_RATE = 5; // per second: how fast the wheel follows the keys, full over in a fifth of a second
 const STEP = 0.4; // metres: a kerb or a ramp's lip it rolls up onto rather than running into
+const ROLL = 0.25; // of its width: the most it moves between looks at the ground under it
+// m/s: over a crest, how much faster upward it's going than the ground it comes onto would carry
+// it, past which it leaves the ground: at its speed, a slope's top a sixth steeper than what follows.
+const LIFT = 3;
 const HOP = 3.5; // m/s up: a press of the drift key
 const DRIFT_HOLD = 0.3; // of the wheel: held over as a hop lands, the way the drift goes
 // In a drift, how tight it turns, as a share of its turn with the wheel full over: with the wheel
@@ -210,8 +214,8 @@ export function stepKart(k: KartState, c: KartControls, dt: number, structures: 
   }
   k.yaw += turnRate(k, spec, speed) * dt;
   if (k.grounded) drive(k, spec, c.gas, dt, structures);
-  const impact = move(k, dt, structures);
-  const landing = settle(k, dt, structures);
+  const { impact, footing } = move(k, dt, structures);
+  const landing = settle(k, dt, footing);
   if (landing > 0 && k.trick) {
     k.turbo = { hold: TRICK.hold, t: 0, spark: null };
     k.trick = null;
@@ -309,40 +313,57 @@ function drive(k: KartState, spec: KartSpec, gas: number, dt: number, structures
 
 // Across the ground by its velocity as two circles, at its nose and its tail, each as wide as it,
 // pushed out of what's in the way: a corner hit turns it, and what it ran into takes the speed it
-// had into it, square to it, all but a bounce. Returns that speed.
-function move(k: KartState, dt: number, structures: Structures): number {
+// had into it, square to it, all but a bounce. Each circle, and its middle, rolls along the ground
+// under it, a ROLL at a time, up onto whatever is within a kerb's height of where it was, so a
+// slope is climbed end by end however fast it's taken and only a face taller than a kerb is a
+// wall. Returns the speed it ran into something at, and the ground its middle has rolled onto.
+function move(k: KartState, dt: number, structures: Structures): { impact: number; footing: Footing } {
   const { width, length, height } = bodyOf(k);
   const f = noseOf(k.yaw);
   const half = (length - width) / 2;
-  const body = { head: k.pos.y + height, reach: k.pos.y + STEP, radius: width / 2 };
   const dx = k.vel.x * dt;
   const dz = k.vel.z * dt;
-  const nose = { x: k.pos.x + f.x * half, y: k.pos.y, z: k.pos.z + f.z * half };
-  const tail = { x: k.pos.x - f.x * half, y: k.pos.y, z: k.pos.z - f.z * half };
-  structures.move(nose, dx, dz, body);
-  structures.move(tail, dx, dz, body);
+  // The highest ground at a spot within a kerb's height of the ground it came from, or of its underside.
+  const rolled = (x: number, z: number, from: number) => structures.footing(x, z, Math.max(from, k.pos.y) + STEP);
+  const end = (side: 1 | -1) => {
+    const [x, z] = [k.pos.x + side * f.x * half, k.pos.z + side * f.z * half];
+    return { x, y: k.pos.y, z, ground: rolled(x, z, k.pos.y).y };
+  };
+  const nose = end(1);
+  const tail = end(-1);
+  let footing = rolled(k.pos.x, k.pos.z, k.pos.y);
+  const steps = Math.max(1, Math.ceil(Math.hypot(dx, dz) / (width * ROLL)));
+  for (let i = 0; i < steps; i++) {
+    for (const e of [nose, tail]) {
+      e.ground = rolled(e.x + dx / steps, e.z + dz / steps, e.ground).y;
+      const under = Math.max(k.pos.y, e.ground);
+      structures.move(e, dx / steps, dz / steps, { head: under + height, reach: under + STEP, radius: width / 2 });
+    }
+    footing = rolled((nose.x + tail.x) / 2, (nose.z + tail.z) / 2, footing.y);
+  }
   const push = { x: (nose.x + tail.x) / 2 - (k.pos.x + dx), z: (nose.z + tail.z) / 2 - (k.pos.z + dz) };
   k.pos.x += dx + push.x;
   k.pos.z += dz + push.z;
   if (Math.hypot(nose.x - tail.x, nose.z - tail.z) > 1e-6) k.yaw = Math.atan2(nose.x - tail.x, nose.z - tail.z);
   const pushed = Math.hypot(push.x, push.z);
-  if (pushed < 1e-6) return 0;
+  if (pushed < 1e-6) return { impact: 0, footing };
   const n = { x: push.x / pushed, z: push.z / pushed };
   const into = -(k.vel.x * n.x + k.vel.z * n.z);
-  if (into <= 0) return 0;
+  if (into <= 0) return { impact: 0, footing };
   k.vel.x += n.x * into * (1 + BOUNCE);
   k.vel.z += n.z * into * (1 + BOUNCE);
-  return into;
+  return { impact: into, footing };
 }
 
-// Onto the ground under its middle: followed while it's down, as long as it falls away no faster
-// than a slope it's on would carry it, else left to fly and fall. Returns how fast it came down
-// if it landed.
-function settle(k: KartState, dt: number, structures: Structures): number {
-  const ground = structures.groundAt(k.pos.x, k.pos.z, k.pos.y + STEP);
+// Onto the ground its middle has rolled onto: followed while it's down, as long as it falls away
+// no faster than a slope it's on would carry it and doesn't turn down from under it over a crest
+// (LIFT), else left to fly and fall. Returns how fast it came down if it landed.
+function settle(k: KartState, dt: number, footing: Footing): number {
+  const ground = footing.y;
+  const along = footing.slope.x * k.vel.x + footing.slope.z * k.vel.z; // m/s up, kept to this ground
   if (k.grounded) {
     const follows = Math.max(STEP / 4, -k.vel.y * dt + STEP / 8);
-    if (ground >= k.pos.y - follows) {
+    if (ground >= k.pos.y - follows && k.vel.y - along <= LIFT) {
       k.pos.y = ground;
       return 0;
     }
@@ -351,8 +372,9 @@ function settle(k: KartState, dt: number, structures: Structures): number {
   k.vel.y -= GRAVITY * dt;
   k.pos.y += k.vel.y * dt;
   if (k.pos.y > ground) return 0;
-  const landing = -k.vel.y;
   k.pos.y = ground;
+  if (k.vel.y > along) return 0; // going up faster than the ground under it: just off a crest, not down on it
+  const landing = -k.vel.y;
   k.vel.y = 0;
   k.grounded = true;
   return Math.max(landing, 1e-6);
