@@ -1,8 +1,8 @@
 // The world's heights as a picture, a pixel a metre: how high the top of whatever stands at each
 // spot is over the floor (a keep's roof, a road's bank, the terrace), coloured from blue low to
 // pale yellow high, and clear where there's only floor or nothing at all. A map lays it over
-// its floor (MapCanvas.drawWorld). It's worked out a few rows a frame, the first time it's asked
-// for, so no frame waits on it, and fills in from the south as it goes.
+// its floor (MapCanvas), working out a few more rows each time it's drawn, so no frame waits on
+// it and it fills in from the south as it goes; `legend` is the scale that goes beside it.
 import { WORLD_GROUND, WORLD_STRUCTURES } from '@world/shared';
 
 const CELL = 1; // metres a pixel
@@ -42,9 +42,17 @@ export class Elevation {
     this.heights = new Float32Array(this.canvas.width * this.canvas.height);
   }
 
-  // The scale's colours as a CSS gradient, low to high along `way`.
-  static gradient(way: string): string {
-    return `linear-gradient(${way}, ${RAMP.map(([r, g, b]) => `rgb(${r}, ${g}, ${b})`).join(', ')})`;
+  // The scale the picture is coloured by, the floor to the highest there is: an `.elevation-scale`
+  // for the page to place and style, its `.bar` painted here.
+  legend(): HTMLElement {
+    const scale = document.createElement('div');
+    scale.className = 'elevation-scale';
+    const bar = document.createElement('span');
+    bar.className = 'bar';
+    bar.style.background = `linear-gradient(to right, ${RAMP.map(([r, g, b]) => `rgb(${r}, ${g}, ${b})`).join(', ')})`;
+    const end = (text: string) => Object.assign(document.createElement('span'), { textContent: text });
+    scale.append(end('floor'), bar, end(`${Math.round(this.top)} m`));
+    return scale;
   }
 
   // Works out more of the picture, for up to `budget` milliseconds.

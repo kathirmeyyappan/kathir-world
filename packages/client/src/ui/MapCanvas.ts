@@ -51,6 +51,7 @@ const RES = Math.min(3, Math.max(2, Math.ceil(window.devicePixelRatio || 1)));
 // Metres from you to the nearer edge in each view centred on you.
 const RANGES: Record<Exclude<MinimapView, 'world'>, number> = { close: 32, wide: 100 };
 const WORLD_MARGIN = 8; // metres round the outline in the world view
+const HEIGHTS_BUDGET = 8; // milliseconds a draw spends working out the heights, until they're all in
 const GRID_SPACING = 10;
 const EDGE = 2.2; // CSS pixels of outline outside the world's edge
 const ACCENT = '127, 209, 174'; // the UI's mint
@@ -113,13 +114,14 @@ export class MapCanvas {
     this.bounds = WORLD_GROUND.bounds;
   }
 
-  // The frame in `view`, filling the canvas at the size it's shown at.
-  draw(frame: MinimapFrame, view: MinimapView, framing: Framing = STILL): void {
+  // The frame in `view`, filling the canvas at the size it's shown at: the floor with its
+  // landmarks, or with `heights` under how high everything on it stands, in their place.
+  draw(frame: MinimapFrame, view: MinimapView, framing: Framing = STILL, heights: Elevation | null = null): void {
     this.fit();
     if (!this.width) return;
     const { x, y, z } = frame.me;
     const t = this.transform(frame.me, view, framing);
-    this.drawFloor(t, y - EYE_HEIGHT > HIGH_UP ? [...LANDMARKS, ...HIGH_LANDMARKS] : LANDMARKS);
+    this.drawGround(t, y - EYE_HEIGHT > HIGH_UP ? [...LANDMARKS, ...HIGH_LANDMARKS] : LANDMARKS, heights);
 
     const ctx = this.ctx;
     ctx.setTransform(RES, 0, 0, RES, 0, 0); // markers in CSS pixels
@@ -137,13 +139,19 @@ export class MapCanvas {
   }
 
   // The whole world, north up, with no one on it: its floor and landmarks as from the ground, or
-  // with `heights` its floor under how high everything on it stands, in their place.
+  // with `heights` its floor under how high everything on it stands.
   drawWorld(framing: Framing = STILL, heights: Elevation | null = null): void {
     this.fit();
     if (!this.width) return;
-    const t = this.transform({ x: 0, y: 0, z: 0, yaw: 0 }, 'world', framing);
-    this.drawFloor(t, heights ? [] : LANDMARKS);
+    this.drawGround(this.transform({ x: 0, y: 0, z: 0, yaw: 0 }, 'world', framing), LANDMARKS, heights);
+  }
+
+  // The floor through `t` with `landmarks` on it, or with `heights` laid over it in their place:
+  // their picture, a little more of it worked out each time it's drawn until it's all there.
+  private drawGround(t: Transform, landmarks: Landmark[], heights: Elevation | null): void {
+    this.drawFloor(t, heights ? [] : landmarks);
     if (!heights) return;
+    heights.advance(HEIGHTS_BUDGET);
     const ctx = this.ctx;
     this.toWorld(ctx, t);
     ctx.imageSmoothingEnabled = false; // a metre a pixel, each kept square

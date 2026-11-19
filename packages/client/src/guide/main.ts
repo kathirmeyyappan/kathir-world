@@ -482,8 +482,6 @@ function placeTitle(place: Place): string {
 
 const CLICK_SLOP = 5; // CSS pixels a press may move and still be a click rather than a drag
 
-const ELEVATION_BUDGET = 10; // milliseconds a frame spent working out the heights, until they're all in
-
 // The world's map at the top of the World tab, the game's own (MapCanvas: the minimap's WORLD view,
 // with no one on it), to drag about and zoom, as the game's map shows it or as its heights: the MAP
 // and ELEVATION toggle, elevation being the floor under how high everything on it stands (Elevation:
@@ -496,8 +494,8 @@ class WorldMap {
   private readonly map = new MapCanvas(this.canvas);
   private readonly controls = new MapControls(this.canvas, () => this.map.baseScale('world'));
   private readonly toggle = el('div', 'toggle');
-  private readonly scale = el('div', 'scale');
-  private heights: Elevation | null = null; // made the first time heights are shown
+  private readonly box = el('div', 'view');
+  private heights: Elevation | null = null; // made, with its scale, the first time heights are shown
   private showsHeights = false;
   private readonly label = el('span', 'label');
   private readonly spots = placeSpots();
@@ -505,7 +503,6 @@ class WorldMap {
 
   constructor(onPick: (id: Place['id']) => void) {
     const zoom = matchMedia('(pointer: coarse)').matches ? 'pinch' : 'scroll';
-    const box = el('div', 'view');
     for (const heights of [false, true]) {
       const button = el('button', '', heights ? 'ELEVATION' : 'MAP');
       button.addEventListener('click', () => this.show(heights));
@@ -521,12 +518,11 @@ class WorldMap {
       const spot = this.spotAt(e);
       if (spot) onPick(spot.id);
     });
-    box.append(this.canvas, this.label, this.toggle, this.scale, el('span', 'hint', `drag to slide · ${zoom} to zoom`));
-    this.el.append(el('h2', '', 'Map'), box);
+    this.box.append(this.canvas, this.label, this.toggle, el('span', 'hint', `drag to slide · ${zoom} to zoom`));
+    this.el.append(el('h2', '', 'Map'), this.box);
   }
 
   draw(): void {
-    if (this.showsHeights) this.heights?.advance(ELEVATION_BUDGET);
     this.map.drawWorld(this.controls.framing, this.showsHeights ? this.heights : null);
   }
 
@@ -534,11 +530,9 @@ class WorldMap {
     this.showsHeights = heights;
     if (heights && !this.heights) {
       this.heights = new Elevation();
-      const bar = el('span', 'bar');
-      bar.style.background = Elevation.gradient('to right');
-      this.scale.append(el('span', '', 'floor'), bar, el('span', '', `${Math.round(this.heights.top)} m`));
+      this.box.append(this.heights.legend());
     }
-    this.scale.classList.toggle('on', heights);
+    this.box.classList.toggle('heights', heights);
     [...this.toggle.children].forEach((b, i) => b.classList.toggle('on', i === Number(heights)));
   }
 

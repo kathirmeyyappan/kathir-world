@@ -1173,7 +1173,9 @@ from WORLD back to CLOSE), drawn by the same
 renderer (`ui/MapCanvas.ts`, which draws a `MinimapFrame` onto any canvas at the size it has; the
 HUD's `Minimap` is a panel round one, and keeps the view and the latest frame for the menu's),
 with the same toggle (P too), a wheel or a pinch to zoom it and a drag to slide it; on touch,
-where the HUD has no minimap, it's the only map. A texture a renderer draws once and shares (the
+where the HUD has no minimap, it's the only map. Its ELEVATION button, apart from the views, lays
+the world's heights over the floor in whichever view is up (`ui/Elevation.ts`, as the guide's map
+does), in the landmarks' place, with the scale they're coloured by. A texture a renderer draws once and shares (the
 shadow, a storm's fog) is made per scene (`render/perScene.ts`), since a second
 scene can't use the first's.
 
@@ -1268,8 +1270,10 @@ a literal where it's played, so a look can't make a sound the guide doesn't show
 move's sound goes through one of those, or a new one, and into `linesOf`. The World tab opens on the world's map (`MapCanvas`, to drag about and zoom, `ui/mapControls.ts` as
 the menu's map is), with a MAP and ELEVATION toggle: elevation is the floor under how high everything
 on it stands (`ui/Elevation.ts`, a picture a pixel a metre of `Structures.groundAt`, worked out a few
-rows a frame the first time it's shown, coloured by the root of the height so a road's bank reads
-beside the tower), with its scale and the height under the pointer. Its photos are in `public/assets/guide/places/`, taken in the game offline with the
+rows each time `MapCanvas` draws it until it's all there, coloured by the root of the height so a
+road's bank reads beside the tower), with its scale (`Elevation.legend`, which each page styles) and
+the height under the pointer. Any map shows it by handing `MapCanvas.draw` or `drawWorld` the
+picture; the menu's map does too. Its photos are in `public/assets/guide/places/`, taken in the game offline with the
 boundary wall hidden, each with a `-thumb` for its gallery. The Gallery tab is the game as it's
 played, three photos to a row (`GALLERY` in `guide/content.ts`, `public/assets/guide/gallery/`, taken the
 same way with the HUD hidden, 1600 × 900 with a 480 × 270 `-thumb`), and the README's Photo Gallery

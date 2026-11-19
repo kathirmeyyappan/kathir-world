@@ -1,6 +1,9 @@
 // The map in the menu's PLAY tab: the HUD minimap's view (MapCanvas.ts; CLOSE, WIDE or WORLD, the
 // same toggle, P too) drawn in the preview's window, with a wheel or a pinch to zoom it, about the point
 // under the pointer, and a drag to slide it about. A change of view starts the framing afresh.
+// ELEVATION, a button of its own, lays the world's heights over the floor in whichever view
+// (Elevation.ts), with the scale they're coloured by under it.
+import { Elevation } from '../Elevation';
 import { MINIMAP_VIEWS, MapCanvas, coordsOf, type MinimapView } from '../MapCanvas';
 import { MapControls } from '../mapControls';
 import type { Minimap } from '../Minimap';
@@ -12,6 +15,9 @@ export class MenuMap {
   private readonly controls = new MapControls(this.canvas, () => this.map.baseScale(this.view));
   private readonly toggle = document.createElement('div');
   private readonly coords = document.createElement('span');
+  private readonly elevation = Object.assign(document.createElement('button'), { textContent: 'ELEVATION' });
+  private heights: Elevation | null = null; // made, with its scale, the first time heights are shown
+  private showsHeights = false;
   private view: MinimapView; // the view the framing is for
 
   constructor(private readonly minimap: Minimap) {
@@ -25,7 +31,19 @@ export class MenuMap {
       this.toggle.append(button);
     }
     this.coords.className = 'coords';
-    this.el.append(this.canvas, this.toggle, this.coords);
+    this.elevation.className = 'elevation';
+    this.elevation.addEventListener('click', () => this.show(!this.showsHeights));
+    this.el.append(this.canvas, this.toggle, this.elevation, this.coords);
+  }
+
+  private show(heights: boolean): void {
+    this.showsHeights = heights;
+    if (heights && !this.heights) {
+      this.heights = new Elevation();
+      this.el.append(this.heights.legend());
+    }
+    this.el.classList.toggle('heights', heights);
+    this.elevation.classList.toggle('on', heights);
   }
 
   // Once a frame while it's in view: the latest frame the HUD's minimap had, in its view.
@@ -41,6 +59,6 @@ export class MenuMap {
     const frame = this.minimap.frame;
     if (!frame) return;
     this.coords.textContent = coordsOf(frame.me);
-    this.map.draw(frame, view, this.controls.framing);
+    this.map.draw(frame, view, this.controls.framing, this.showsHeights ? this.heights : null);
   }
 }

@@ -561,7 +561,7 @@ h2.command .args {
 }
 
 /* The scale the heights are coloured by, low to high, under the toggle while they show. */
-.world-map .scale {
+.world-map .elevation-scale {
   position: absolute;
   top: 44px;
   right: 8px;
@@ -576,11 +576,11 @@ h2.command .args {
   pointer-events: none;
 }
 
-.world-map .scale.on {
+.world-map .heights .elevation-scale {
   display: flex;
 }
 
-.world-map .scale .bar {
+.world-map .elevation-scale .bar {
   width: 96px;
   height: 8px;
 }
