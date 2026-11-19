@@ -17,6 +17,10 @@ export const STANDARD_KART: KartModel = {
     { at: [0.691, 0.253, -0.777], front: false },
     { at: [-0.691, 0.253, -0.777], front: false },
   ],
+  exhausts: [
+    { at: [0.456, 0.821, -1.381], way: [0.104, 0.354, -0.929] },
+    { at: [-0.456, 0.821, -1.381], way: [-0.104, 0.354, -0.929] },
+  ],
   paints: {
     mario: { colours: ['#183ab9', '#aa0f10'], emblem: 'mario' },
     luigi: { colours: ['#10287e', '#156d05'], emblem: 'luigi' },

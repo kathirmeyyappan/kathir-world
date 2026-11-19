@@ -60,7 +60,7 @@ import {
 } from '@world/shared';
 import { Footsteps } from '../audio/Footsteps';
 import { Driving } from './Driving';
-import { ITEM_SOUNDS, heard, loopsOf, PLACE_THEMES, Sfx, voiceOf, type SoundId } from '../audio/Sfx';
+import { ITEM_SOUNDS, KART_SOUNDS, heard, loopsOf, PLACE_THEMES, Sfx, voiceOf, type SoundId } from '../audio/Sfx';
 import { swingOf, take, twirlOf, VOICES } from '../audio/voices';
 import { InputManager } from '../input/InputManager';
 import { MobileActions, type MobileActionState } from '../input/MobileActions';
@@ -80,6 +80,7 @@ import { Loader } from '../render/Loader';
 import { Models } from '../render/models/Models';
 import { buildStructures } from '../render/Structures';
 import { Pickups } from '../render/Pickups';
+import { blast } from '../render/Blast';
 import { poof } from '../render/Poof';
 import { poundRing } from '../render/PoundRing';
 import { WallFrames, type HungFrame } from '../render/WallFrames';
@@ -277,6 +278,7 @@ export class Game {
   private localCooldownUntil = 0; // when the viewmodel may kick again; mirrors the server's cooldown
   private kick = 0; // camera recoil, radians of upward pitch that decays back
   private stepEase = 0; // metres the camera trails the predicted eye height after leaving the ground or landing
+  private hearsKarts = false; // a kart's sounds have been sent for
   private riding: number | null = null; // metres the camera's ground is over the sim's feet while it rides the ground
   private walkDir = { x: 0, z: 1 }; // the way the body last moved across the floor, for the ride
   private lastPos: { x: number; z: number } | null = null;
@@ -308,7 +310,8 @@ export class Game {
     this.frost = new FrostLayer(this.engine, WORLD_STRUCTURES.list);
     this.interiors = new Interiors(INTERIOR_BUILDINGS, (door) => this.models.ajar(door));
     this.models = new Models(this.engine, this.loader, this.interiors);
-    this.driving = new Driving(this.engine.scene);
+    this.driving = new Driving(this.engine);
+    this.driving.onKnock = (at) => this.sfx.play(KART_SOUNDS.knock, at);
     this.wallFrames = new WallFrames(this.engine, WALL_FRAMES, this.interiors);
     this.camera = new UniversalCamera('camera', new Vector3(0, 1.7, 0), this.engine.scene);
     this.camera.minZ = NEAR;
@@ -708,6 +711,10 @@ export class Game {
       case 'door':
         WORLD_STRUCTURES.setDoor(m.id, m.open);
         this.models.setDoor(m.id, m.open);
+        return;
+      case 'boom':
+        blast(this.engine, new Vector3(m.at.x, m.at.y, m.at.z));
+        this.sfx.play(KART_SOUNDS.boom, m.at);
         return;
       case 'frost':
         this.setFrost(m.on, true);
@@ -1211,6 +1218,11 @@ export class Game {
         : k,
     );
     this.driving.draw(karts, dt);
+    // What's heard of a kart is sent for as the first is seen, to be here by its first knock.
+    if (karts.length > 0 && !this.hearsKarts) {
+      this.hearsKarts = true;
+      for (const id of Object.values(KART_SOUNDS)) this.sfx.want(id);
+    }
     const readers = new Map<string, number>();
     const seen = new Set<string>();
     for (const rp of sampled.players) {

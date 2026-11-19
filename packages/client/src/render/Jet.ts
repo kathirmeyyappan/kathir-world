@@ -2,11 +2,11 @@
 // blocks of fire (FlameJet.ts), or the ice blower's crystals, the "+"s of a corpse's poof (Poof.ts)
 // flying out white and fading to blue in a glowing mist. Cosmetic only; the server decides who
 // burns or freezes. One per nozzle (viewmodel or avatar), running along its parent's +z.
-import { Color4, DynamicTexture, Mesh, ParticleSystem, Texture, type TransformNode } from '@babylonjs/core';
+import { Color4, Mesh, ParticleSystem, type TransformNode } from '@babylonjs/core';
 import type { Element, ItemSpec } from '@world/shared';
 import type { Engine } from './Engine';
 import { FlameJet } from './FlameJet';
-import { plusSprites } from './Poof';
+import { plusSprites, softDisc } from './Poof';
 
 export interface Jet {
   set(on: boolean): void; // spraying or not
@@ -51,7 +51,6 @@ const START_SIZE = 0.16; // metres across as a crystal leaves the nozzle
 const GROWTH = 0.6; // metres it grows on the way out of a jet of BASE_LENGTH
 const MIST_START = 0.1; // the same for the puffs of mist round the crystals: small at the nozzle, which is right under the rider's eyes
 const MIST_GROWTH = 1.2;
-const MIST_PIXELS = 32; // across a puff's sprite, a soft disc
 
 // The crystals and the mist are a particle system each, drawn in a call each, kept in the nozzle's
 // own space so the whole spray swings with the hand like the flame does. Both add their light to
@@ -107,7 +106,7 @@ class IceJet implements Jet {
     crystals.addColorGradient(0.4, new Color4(0.6, 0.85, 1, 0.9));
     crystals.addColorGradient(1, new Color4(0.3, 0.6, 1, 0));
     const mist = system('mist');
-    mist.particleTexture = mistSprite(engine);
+    mist.particleTexture = softDisc(engine);
     mist.addSizeGradient(0, MIST_START * size);
     mist.addSizeGradient(1, MIST_START * size + MIST_GROWTH * stretch);
     mist.addColorGradient(0, new Color4(0.85, 0.95, 1, 0.35));
@@ -130,21 +129,4 @@ class IceJet implements Jet {
   dispose(): void {
     for (const ps of this.systems) ps.dispose();
   }
-}
-
-// A puff's sprite: a disc fading out to its edge, the system's own (disposed with it).
-function mistSprite(engine: Engine): DynamicTexture {
-  const tex = new DynamicTexture('iceMist', MIST_PIXELS, engine.scene, false, Texture.BILINEAR_SAMPLINGMODE);
-  tex.hasAlpha = true;
-  const ctx = tex.getContext() as CanvasRenderingContext2D;
-  const mid = MIST_PIXELS / 2;
-  const fade = ctx.createRadialGradient(mid, mid, 0, mid, mid, mid);
-  fade.addColorStop(0, 'rgba(255, 255, 255, 1)');
-  fade.addColorStop(0.5, 'rgba(255, 255, 255, 0.35)');
-  fade.addColorStop(1, 'rgba(255, 255, 255, 0)');
-  ctx.clearRect(0, 0, MIST_PIXELS, MIST_PIXELS);
-  ctx.fillStyle = fade;
-  ctx.fillRect(0, 0, MIST_PIXELS, MIST_PIXELS);
-  tex.update();
-  return tex;
 }

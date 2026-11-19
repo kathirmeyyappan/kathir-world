@@ -172,6 +172,8 @@ export type SoundId =
   | 'spongebob-death'
   | 'mike-death'
   | 'boat-horn'
+  | 'kart-crash'
+  | 'kart-boom'
   | 'land'
   | 'land-hard'
   | 'pound-twirl'
@@ -373,6 +375,10 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'spongebob-death': { file: 'spongebob-death.mp3', half: 6, reach: 30, volume: 0.25, swell: 0.8, lazy: true },
   'mike-death': { file: 'mike-death.mp3', half: 6, reach: 30, volume: 0.25, swell: 0.15, fade: 0.15, lazy: true },
   'boat-horn': { file: 'boat-horn.mp3', half: 10, reach: 40, volume: 0.3, lazy: true }, // the foghorn alarm clock in SpongeBob's bedroom, at a click
+  // A kart's (KART_SOUNDS), sent for as the first kart is seen: a knock that costs it wrenches, and
+  // its blowing up, which carries as far as a gunshot's whizz doesn't.
+  'kart-crash': { file: 'kart-crash.mp3', half: 10, reach: 60, volume: 0.3, lazy: true },
+  'kart-boom': { file: 'kart-boom.mp3', half: 16, reach: 150, volume: 0.4, lazy: true },
   land: { file: 'land.mp3', half: 8, reach: 35, volume: 0.1 },
   'land-hard': { file: 'land-hard.mp3', half: 10, reach: 40, volume: 0.14 },
   'pound-twirl': { file: 'pound-twirl.mp3', half: 6, reach: 30, volume: 0.08 }, // a ground pound turning over (sim/avatars.ts `Pound`)
@@ -511,6 +517,10 @@ export const ITEM_SOUNDS: Record<
 export const GEAR_SOUNDS: Record<GearId, { thrusting?: SoundId }> = {
   jetpack: { thrusting: 'jet' },
 };
+
+// What's heard of a kart: a knock that costs it wrenches (a wall, another kart, a shot), and its
+// blowing up.
+export const KART_SOUNDS = { knock: 'kart-crash', boom: 'kart-boom' } satisfies Record<string, SoundId>;
 
 // A call: the take heard up close and, where there is one, the take heard from FAR metres off.
 export interface Call {
