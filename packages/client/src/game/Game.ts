@@ -803,7 +803,9 @@ export class Game {
       this.sfx.soon(said.sound, said.at, undefined, id);
       return true;
     }
-    if (this.sfx.play(said.sound, said.at, { delay, by: id })) return true;
+    // Each line cuts its speaker's last but the death, which plays over the cry of the hit that killed them.
+    const by = line === 'death' ? undefined : id;
+    if (this.sfx.play(said.sound, said.at, { delay, by })) return true;
     // A kill line not here yet (lazy in SOUNDS, sent for in wantVoice) is played as it arrives.
     if (line === 'kill') this.sfx.soon(said.sound, said.at, undefined, id);
     return line === 'kill';
