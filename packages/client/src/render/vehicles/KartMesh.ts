@@ -18,7 +18,7 @@ import {
   Vector3,
   type Scene,
 } from '@babylonjs/core';
-import { WORLD_STRUCTURES, noseOf, type AvatarId, type Kart, type KartId } from '@world/shared';
+import { WORLD_STRUCTURES, forwardSpeed, noseOf, type AvatarId, type Kart, type KartId } from '@world/shared';
 import { smooth } from '../avatars/motion';
 import type { Engine } from '../Engine';
 import { begin, type Fetch } from '../fetchOnce';
@@ -90,6 +90,7 @@ export function wantKart(scene: Scene, kart: KartId, look: AvatarId): void {
 }
 
 export class KartMesh {
+  private readonly scene: Scene;
   readonly root: TransformNode; // where it stands, turned its way
   private readonly tilt: TransformNode; // tipped with the ground under its tires
   private readonly twirl: TransformNode; // turned round under its driver through a trick
@@ -112,7 +113,6 @@ export class KartMesh {
   private lean = { roll: 0, nose: 0 }; // radians it leans into a hop or a drift, and lifts its nose
   private was = { hop: false, grounded: true }; // as it was last frame, to see a hop begin and a landing
   private flashed = 0; // seconds of a knock's flash left
-  private readonly scene: Scene;
 
   constructor(
     engine: Engine,
@@ -120,7 +120,8 @@ export class KartMesh {
     private readonly kart: KartId,
     private readonly paint: AvatarId,
   ) {
-    const scene = (this.scene = engine.scene);
+    const scene = engine.scene;
+    this.scene = scene;
     this.model = KART_MODELS[kart];
     this.axis = Vector3.FromArray(this.model.steer.axis);
     this.seat = new Seat(this.model);
@@ -142,8 +143,7 @@ export class KartMesh {
     this.root.position.set(kart.pos.x, kart.pos.y, kart.pos.z);
     this.root.rotation.y = kart.yaw;
     this.size = this.size ? this.size + (kart.size - this.size) * (1 - Math.exp(-GROW_RATE * dt)) : kart.size;
-    const f = noseOf(kart.yaw);
-    const along = kart.vel.x * f.x + kart.vel.z * f.z;
+    const along = forwardSpeed(kart);
     this.rolled += (along * dt) / (this.model.tire.radius * this.size);
     if (kart.grounded) this.tipTo(kart, dt);
     this.spring(kart, dt);
