@@ -125,21 +125,28 @@ jobs:
       - name: Install the Modal CLI
         run: python -m pip install -r infra/requirements.txt
 
-      # The bots' map takes about five minutes to build and changes only with the world or the sim
-      # code that walks it, so a deploy's map is kept under a fingerprint of both. deploy.sh builds
-      # one only when neither the committed map nor a kept one was built from what is here.
+      # The bots' map's ground and moves take minutes to build and change only with the world, the
+      # ways of moving or the sim code that walks them, so a deploy's are kept, each under a
+      # fingerprint of what it was built from. deploy.sh builds a stage only when neither the
+      # committed one nor a kept one was built from what is here.
       - name: Fingerprint the bot map
         id: bot-map
         # The assignment on its own line, so a failed fingerprint fails the job.
         run: |
-          key=$(npm run --silent bot-map -- --key)
-          echo "key=$key" >> "$GITHUB_OUTPUT"
+          keys=$(npm run --silent bot-map -- --keys)
+          echo "$keys" >> "$GITHUB_OUTPUT"
 
-      - name: Restore the bot map
+      - name: Restore the bot map's ground
         uses: actions/cache@v4
         with:
-          path: modal-bots/common/world_map.json.gz
-          key: bot-map-${{ steps.bot-map.outputs.key }}
+          path: modal-bots/common/map/ground.json.gz
+          key: bot-map-ground-${{ steps.bot-map.outputs.ground }}
+
+      - name: Restore the bot map's moves
+        uses: actions/cache@v4
+        with:
+          path: modal-bots/common/map/moves.json.gz
+          key: bot-map-moves-${{ steps.bot-map.outputs.moves }}
 
       - name: Deploy to Modal
         run: ./deploy.sh

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { gunzipSync } from 'node:zlib';
-import { botMapSource, type BotMap } from '../src/sim/botMap';
+import { bodiesMapSource, groundMapSource, movesMapSource } from '../src/sim/botMap';
 import {
   CHILL_SECONDS,
   CHILLED_SPEED_MULTIPLIER,
@@ -762,9 +762,12 @@ test('a dead dragon drapes over an edge, its body a link apart, rather than stre
 });
 
 test('the Python bots’ map of the world is up to date (else run npm run bot-map)', () => {
-  const file = new URL('../../../modal-bots/common/world_map.json.gz', import.meta.url);
-  const map = JSON.parse(gunzipSync(readFileSync(file)).toString()) as BotMap;
-  assert.equal(map.source, botMapSource());
+  const stages = { ground: groundMapSource(), moves: movesMapSource(), bodies: bodiesMapSource() };
+  for (const [stage, source] of Object.entries(stages)) {
+    const file = new URL(`../../../modal-bots/common/map/${stage}.json.gz`, import.meta.url);
+    const map = JSON.parse(gunzipSync(readFileSync(file)).toString()) as { source: number };
+    assert.equal(map.source, source, `the ${stage}`);
+  }
 });
 
 test('a wall frame is as wide as its picture, centred mid-storey, hugging the wall, and kept off doors and the stair', () => {

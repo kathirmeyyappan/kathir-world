@@ -1,10 +1,11 @@
 """The world's structures and walkable ground, for bots that need to see past walls or find a way
 somewhere (up the tower's stair, say).
 
-It reads ``world_map.json.gz``, which ``npm run bot-map`` builds from the TypeScript content and
-sim (``packages/shared/src/sim/botMap.ts``): the structures, the same list the server collides
-with, and a graph of the spots a player can stand on a 1 m grid, joined where the sim walks
-between neighbours. ``clear`` mirrors the sim's line of sight (``Structures.clear``), and the map's
+It reads the map in ``map/``, which ``npm run bot-map`` builds from the TypeScript content and
+sim (``packages/shared/src/sim/botMap.ts``) in three stages, a file each, and joins them: the
+ground (the structures, the same list the server collides with, and a graph of the spots a player
+can stand on a 1 m grid, joined where the sim walks between neighbours), the jumps of each way of
+moving, and each avatar's body. ``clear`` mirrors the sim's line of sight (``Structures.clear``), and the map's
 own sight checks pin it to the sim's answers.
 """
 
@@ -23,7 +24,7 @@ from typing import Any
 
 from .protocol import Player, Vec3
 
-MAP_PATH = Path(__file__).with_name("world_map.json.gz")
+MAP_DIR = Path(__file__).with_name("map")
 EYE_HEIGHT = 1.7  # metres from feet to eyes (EYE_HEIGHT in packages/shared/src/sim/constants.ts)
 CELL = 8.0  # metres per side of the grid that sight lines look structures up in
 RAY_STEP = 0.05  # metres between samples where a sight line crosses a sloped top (collision.ts)
@@ -93,31 +94,33 @@ class Piece:
 
 
 class WorldMap:
-    def __init__(self, data: Mapping[str, Any]):
-        self.pieces = tuple(_piece(s) for s in data["structures"])
+    def __init__(self, ground: Mapping[str, Any], moves: Mapping[str, Any], bodies: Mapping[str, Any]):
+        self.pieces = tuple(_piece(s) for s in ground["structures"])
         # Where a player can stand (feet); for each, the neighbours they can walk straight to, and
         # the ones only a running jump reaches.
-        self.nodes = tuple(Vec3(float(x), float(y), float(z)) for x, y, z in data["nodes"])
-        self.edges = tuple(tuple(int(j) for j in out) for out in data["edges"])
+        self.nodes = tuple(Vec3(float(x), float(y), float(z)) for x, y, z in ground["nodes"])
+        self.edges = tuple(tuple(int(j) for j in out) for out in ground["edges"])
         # Per node, the nodes only a running jump reaches: for each way a look on foot moves (its
         # walk and jump power), and which of those each avatar's is. ``jumps`` is the standard body's.
-        self._jump_sets = tuple(tuple(frozenset(int(j) for j in out) for out in jumps) for jumps in data["jumpSets"])
-        self._jump_set = {avatar: int(k) for avatar, k in data["jumpSet"].items()}
+        self._jump_sets = {
+            str(move): tuple(frozenset(int(j) for j in out) for out in jumps) for move, jumps in moves["jumps"].items()
+        }
+        self._moves = {str(avatar): str(move) for avatar, move in bodies["moves"].items()}
         self.jumps = self.jumps_of("standard")
         # Spots well up with a wide view out (the balconies and decks), all reachable on foot.
-        self.lookouts = tuple(int(i) for i in data["lookouts"])
+        self.lookouts = tuple(int(i) for i in ground["lookouts"])
         # The lookouts by where they are: "tower" (its balconies and roof), "building" (a building's
         # roof and the foot of its staircase) or "elsewhere" (the terrace and the ways up to it).
         self.places: dict[str, tuple[int, ...]] = {}
-        for i, place in zip(self.lookouts, data["lookoutPlaces"], strict=True):
+        for i, place in zip(self.lookouts, ground["lookoutPlaces"], strict=True):
             self.places[str(place)] = (*self.places.get(str(place), ()), i)
         self.hitboxes = {
             avatar: Hitbox(float(h["top"]), float(h["radius"]), float(h["head"]))
-            for avatar, h in data["hitboxes"].items()
+            for avatar, h in bodies["hitboxes"].items()
         }
-        self.eyes = {avatar: float(e) for avatar, e in data["eyes"].items()}
+        self.eyes = {avatar: float(e) for avatar, e in bodies["eyes"].items()}
         # How fast each avatar walks at full input, m/s.
-        self.walks = {avatar: float(w) for avatar, w in data["walks"].items()}
+        self.walks = {avatar: float(w) for avatar, w in bodies["walks"].items()}
         # The floors indoors: the tower's four inside its wall, ground floor first, then each keep's.
         self.insides = tuple(
             Region(
@@ -129,11 +132,11 @@ class WorldMap:
                 w=float(r.get("w", 0)),
                 d=float(r.get("d", 0)),
             )
-            for r in data["insides"]
+            for r in ground["insides"]
         )
         # Every node inside a building's wall, the stairs between its floors included.
-        self.indoors = frozenset(int(i) for i in data["indoors"])
-        self.sight_checks = tuple(tuple(float(v) for v in check) for check in data["sightChecks"])
+        self.indoors = frozenset(int(i) for i in ground["indoors"])
+        self.sight_checks = tuple(tuple(float(v) for v in check) for check in ground["sightChecks"])
         self._cells: dict[tuple[int, int], list[int]] = {}
         for i, p in enumerate(self.pieces):
             r = math.hypot(p.hw, p.hd)
@@ -150,7 +153,7 @@ class WorldMap:
     def jumps_of(self, avatar: str) -> tuple[frozenset[int], ...]:
         """Per node, the nodes only ``avatar``'s running jump reaches; the standard body's for an
         avatar the map doesn't know."""
-        return self._jump_sets[self._jump_set.get(avatar, self._jump_set["standard"])]
+        return self._jump_sets[self._moves.get(avatar, self._moves["standard"])]
 
     def walk_speed(self, avatar: str) -> float:
         """How fast an avatar walks at full input, m/s; the standard one's for an avatar the map
@@ -271,8 +274,12 @@ class WorldMap:
 @cache
 def load_world_map() -> WorldMap:
     """The world, read once per process and shared by every bot in it."""
-    with gzip.open(MAP_PATH, "rt", encoding="utf-8") as f:
-        return WorldMap(json.load(f))
+    return WorldMap(*(_stage(name) for name in ("ground", "moves", "bodies")))
+
+
+def _stage(name: str) -> Any:
+    with gzip.open(MAP_DIR / f"{name}.json.gz", "rt", encoding="utf-8") as f:
+        return json.load(f)
 
 
 def _piece(s: Mapping[str, Any]) -> Piece:

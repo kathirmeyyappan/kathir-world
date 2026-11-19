@@ -6,10 +6,20 @@
 // rail onto a floor), that's a jump edge. With them come the lookouts (high spots with a view) and
 // the place each is in, each avatar's hitbox, for aiming, and the buildings' insides (their floors,
 // and every spot within their walls), where a sniper starts out and lies in wait.
-// `npm run bot-map` writes it, gzipped, to modal-bots/common/world_map.json.gz; it carries a
-// fingerprint of everything it was built from, and a test fails when that no longer matches, so a
-// change to the world regenerates it. It carries a hash of the sim code that built it as well,
-// which no test holds it to: a deploy builds the map afresh when either is off (deploy.sh).
+//
+// It's built in three stages, each its own file in modal-bots/common/map/ with a fingerprint of
+// what it was built from (its `source`), so a change rebuilds only the stages it touches:
+// - the ground (`GroundMap`): the structures, the nodes and walks between them, the standard
+//   body's jumps, the lookouts and the insides, from the world and the standard body;
+// - the moves (`MovesMap`): for every way a look on foot moves (its walk and jump power), its
+//   jumps between the ground's nodes, each worked out once, so a look that moves as one already
+//   there costs nothing, and one that moves its own way costs only its own jumps;
+// - the bodies (`BodiesMap`): every avatar's hitbox, eyes, walk and which way it moves, from
+//   their rows alone, built at once.
+// A test fails when a stage's fingerprint no longer matches. The ground and the moves carry a hash
+// of the sim code that built them as well (scripts/botMapCode.ts), which no test holds them to: a
+// deploy builds either afresh when its source or its code is off (deploy.sh). world.py joins the
+// three back into one map.
 import {
   EYE_HEIGHT,
   GRAVITY,
@@ -64,23 +74,19 @@ const INDOORS_MARGIN = 0.5; // metres under a roof, or over a ground floor, that
 // and staircases up to it).
 export type LookoutPlace = 'tower' | 'building' | 'elsewhere';
 
-export interface BotMap {
-  source: number; // botMapSource() when it was built
-  code: number; // a hash of the sim code that built it (scripts/botMapCode.ts)
+// A stage the sim builds, slowly: what it was built from, and the code that built it.
+interface Simulated {
+  source: number;
+  code: number;
+}
+
+export interface GroundMap extends Simulated {
   structures: Structure[]; // as content/structures.ts lists them, without their looks
   nodes: [number, number, number][]; // feet x, y, z
   edges: number[][]; // per node, the nodes a player walking straight from it reaches
   jumps: number[][]; // per node, the ones only the standard body's running jump toward them reaches
-  // The same for every way a look on foot moves (its walk and jump power, sim/avatars.ts), each
-  // once, and which of them each avatar's is: a look's jump goes as far as its walk and as high as
-  // its power take it.
-  jumpSets: number[][][];
-  jumpSet: Record<string, number>;
   lookouts: number[]; // nodes well up with a wide view out, all reachable on foot from the ground
   lookoutPlaces: LookoutPlace[]; // each lookout's place, in the same order
-  hitboxes: Record<string, Hitbox>; // what a shot has to land in, by avatar id (sim/avatars.ts)
-  eyes: Record<string, number>; // metres from the feet to each avatar's eyes, where its shots leave (sim/avatars.ts)
-  walks: Record<string, number>; // how fast each avatar walks at full keys, m/s (sim/avatars.ts walkSpeedOf)
   insides: Region[]; // the floors indoors, inside the tower's wall and the keeps': where a sniper starts and lies in wait
   indoors: number[]; // every node inside a building's wall, the stairs between its floors included
   // Segments the sim answered for (a x, y, z, b x, y, z, 1 when nothing stands between): the
@@ -88,9 +94,41 @@ export interface BotMap {
   sightChecks: number[][];
 }
 
-// A fingerprint of what the map depends on: the world's outline and structures, the body and
-// movement constants, this file's own settings, the avatars' hitboxes, eyes, walks and jumps, and the buildings' insides.
-export function botMapSource(): number {
+export interface MovesMap extends Simulated {
+  ground: number; // the source of the ground its jumps are between
+  // By way of moving (`Move`), per node, the ones only a running jump reaches: a look's jump goes
+  // as far as its walk and as high as its power take it.
+  jumps: Record<Move, number[][]>;
+}
+
+export interface BodiesMap {
+  source: number;
+  hitboxes: Record<string, Hitbox>; // what a shot has to land in, by avatar id (sim/avatars.ts)
+  eyes: Record<string, number>; // metres from the feet to each avatar's eyes, where its shots leave (sim/avatars.ts)
+  walks: Record<string, number>; // how fast each avatar walks at full keys, m/s (sim/avatars.ts walkSpeedOf)
+  moves: Record<string, Move>; // how each avatar moves, the moves' key to its jumps
+}
+
+// A way of moving on foot: a walk in m/s and a jump's velocity, as `${walk} ${jump}`. Every class
+// but the walker moves as the standard body does here.
+type Move = string;
+
+function moveOf(id: AvatarId): Move {
+  const as = AVATARS[id].class === 'walker' ? id : 'standard';
+  return `${walkSpeedOf(as)} ${jumpVelocityOf(as)}`;
+}
+
+// Each way of moving there is, with the look that stands for it: the first to move that way, the
+// standard body for its own.
+function movers(): Map<Move, AvatarId> {
+  const movers = new Map<Move, AvatarId>();
+  for (const id of ['standard', ...AVATAR_IDS] as const) if (!movers.has(moveOf(id))) movers.set(moveOf(id), id);
+  return movers;
+}
+
+// What the ground depends on: the world's outline and structures, the body and the standard body's
+// movement constants, this file's own settings, and the buildings' insides.
+export function groundMapSource(): number {
   const physics = [
     EYE_HEIGHT,
     CAPSULE_TOP,
@@ -114,24 +152,17 @@ export function botMapSource(): number {
     LOOKOUT_FLOOR,
     KEEP_REACH,
   ];
-  return hashSeed(JSON.stringify([WORLD_OUTLINE, shapes(), physics, settings, hitboxes(), eyes(), moves(), BUILDINGS]));
+  return hashSeed(JSON.stringify([WORLD_OUTLINE, shapes(), physics, settings, BUILDINGS]));
 }
 
-function hitboxes(): Record<string, Hitbox> {
-  return Object.fromEntries(AVATAR_IDS.map((id) => [id, AVATARS[id].hitbox]));
+// What the moves depend on: the ground they're measured over, and the ways there are of moving.
+export function movesMapSource(): number {
+  return hashSeed(JSON.stringify([groundMapSource(), [...movers().keys()].sort()]));
 }
 
-function eyes(): Record<string, number> {
-  return Object.fromEntries(AVATAR_IDS.map((id) => [id, AVATARS[id].eye]));
-}
-
-function walks(): Record<string, number> {
-  return Object.fromEntries(AVATAR_IDS.map((id) => [id, walkSpeedOf(id)]));
-}
-
-// How every avatar walks and jumps, which its walk speed and jumps follow.
-function moves(): Record<string, [number, number]> {
-  return Object.fromEntries(AVATAR_IDS.map((id) => [id, [walkSpeedOf(id), jumpVelocityOf(id)]]));
+// What the bodies depend on: nothing but what they are.
+export function bodiesMapSource(): number {
+  return hashSeed(JSON.stringify(bodies()));
 }
 
 // The structures without their looks, which nothing here depends on; a leaning ladder as the
@@ -152,8 +183,71 @@ function shapes(): Structure[] {
   });
 }
 
-export function buildBotMap(code: number): BotMap {
+export function buildGroundMap(code: number): GroundMap {
   const nodes = walkableNodes();
+  const columns = columnsOf(nodes);
+  const edges: number[][] = [];
+  const jumps: number[][] = [];
+  for (const a of nodes) {
+    const walk: number[] = [];
+    const jump: number[] = [];
+    for (const j of neighbours(a, nodes, columns)) {
+      if (reaches(a, nodes[j], false, 'standard')) walk.push(j);
+      else if (reaches(a, nodes[j], true, 'standard')) jump.push(j);
+    }
+    edges.push(walk);
+    jumps.push(jump);
+  }
+  const found = lookouts(nodes, edges, jumps);
+  return {
+    source: groundMapSource(),
+    code,
+    structures: shapes(),
+    nodes: nodes.map((n) => [n.x, Math.round(n.y * 100) / 100, n.z]),
+    edges,
+    jumps,
+    lookouts: found,
+    lookoutPlaces: found.map((i) => placeOf(nodes[i])),
+    insides: INSIDES,
+    indoors: nodes.flatMap((n, i) => (indoors(n) ? [i] : [])),
+    sightChecks: sightChecks(nodes),
+  };
+}
+
+// For every way of moving, its jumps between the ground's neighbouring nodes that walking doesn't
+// join: the standard body's the ground's own, and any `kept` from a build over the same ground by
+// the same code taken as they are, so only a new way of moving is worked out.
+export function buildMovesMap(ground: GroundMap, code: number, kept?: MovesMap): MovesMap {
+  // Written to the centimetre: each node is the top within that of where it's written.
+  const nodes = ground.nodes.map(([x, y, z]) => ({ x, y: MAP_STRUCTURES.groundAt(x, z, y + 0.01), z }));
+  const columns = columnsOf(nodes);
+  const known: Record<Move, number[][]> = { [moveOf('standard')]: ground.jumps };
+  if (kept && kept.ground === ground.source && kept.code === code) Object.assign(known, kept.jumps);
+  const jumps: Record<Move, number[][]> = {};
+  for (const [move, avatar] of movers())
+    jumps[move] =
+      known[move] ??
+      nodes.map((a, i) =>
+        neighbours(a, nodes, columns).filter((j) => !ground.edges[i].includes(j) && reaches(a, nodes[j], true, avatar)),
+      );
+  return { source: movesMapSource(), code, ground: ground.source, jumps };
+}
+
+export function buildBodiesMap(): BodiesMap {
+  return { source: bodiesMapSource(), ...bodies() };
+}
+
+function bodies(): Omit<BodiesMap, 'source'> {
+  const each = <T>(f: (id: AvatarId) => T) => Object.fromEntries(AVATAR_IDS.map((id) => [id, f(id)]));
+  return {
+    hitboxes: each((id) => AVATARS[id].hitbox),
+    eyes: each((id) => AVATARS[id].eye),
+    walks: each(walkSpeedOf),
+    moves: each(moveOf),
+  };
+}
+
+function columnsOf(nodes: Vec3[]): Map<string, number[]> {
   const columns = new Map<string, number[]>();
   nodes.forEach((n, i) => {
     const key = columnKey(n.x, n.z);
@@ -161,41 +255,16 @@ export function buildBotMap(code: number): BotMap {
     if (list) list.push(i);
     else columns.set(key, [i]);
   });
-  const { movers, jumpSet } = moversOf();
-  const edges: number[][] = [];
-  const jumpSets: number[][][] = movers.map(() => []);
-  for (const a of nodes) {
-    const walk: number[] = [];
-    const jump: number[][] = movers.map(() => []);
-    for (const [di, dj] of NEIGHBOURS)
-      for (const j of columns.get(columnKey(a.x + di * SPACING, a.z + dj * SPACING)) ?? []) {
-        if (Math.abs(nodes[j].y - a.y) > MAX_RISE) continue;
-        if (reaches(a, nodes[j], false, 'standard')) walk.push(j);
-        else movers.forEach((avatar, k) => reaches(a, nodes[j], true, avatar) && jump[k].push(j));
-      }
-    edges.push(walk);
-    jump.forEach((out, k) => jumpSets[k].push(out));
-  }
-  const jumps = jumpSets[jumpSet.standard];
-  const found = lookouts(nodes, edges, jumps);
-  return {
-    source: botMapSource(),
-    code,
-    structures: shapes(),
-    nodes: nodes.map((n) => [n.x, Math.round(n.y * 100) / 100, n.z]),
-    edges,
-    jumps,
-    jumpSets,
-    jumpSet,
-    lookouts: found,
-    lookoutPlaces: found.map((i) => placeOf(nodes[i])),
-    hitboxes: hitboxes(),
-    eyes: eyes(),
-    walks: walks(),
-    insides: INSIDES,
-    indoors: nodes.flatMap((n, i) => (indoors(n) ? [i] : [])),
-    sightChecks: sightChecks(nodes),
-  };
+  return columns;
+}
+
+// The nodes in the eight columns round `a`'s near enough its height to try an edge to.
+function neighbours(a: Vec3, nodes: Vec3[], columns: Map<string, number[]>): number[] {
+  return NEIGHBOURS.flatMap(([di, dj]) =>
+    (columns.get(columnKey(a.x + di * SPACING, a.z + dj * SPACING)) ?? []).filter(
+      (j) => Math.abs(nodes[j].y - a.y) <= MAX_RISE,
+    ),
+  );
 }
 
 const NEIGHBOURS = [
@@ -243,21 +312,6 @@ function topAt(s: Structure, x: number, z: number): number[] {
   const lz = dx * Math.sin(yaw) + dz * Math.cos(yaw);
   if (Math.abs(lx) > s.w / 2 || Math.abs(lz) > s.d / 2) return [];
   return [(s.y ?? 0) + surfaceOf(s).top(lx, lz)];
-}
-
-// Each way a look on foot moves, once (the first look to move that way stands for it), and which
-// of them each avatar's is; any other class's is the standard body's.
-function moversOf(): { movers: AvatarId[]; jumpSet: Record<string, number> } {
-  const movers: AvatarId[] = [];
-  const jumpSet: Record<string, number> = {};
-  const moves = (id: AvatarId) => `${walkSpeedOf(id)} ${jumpVelocityOf(id)}`;
-  for (const id of AVATAR_IDS) {
-    const as = AVATARS[id].class === 'walker' ? id : 'standard';
-    let k = movers.findIndex((m) => moves(m) === moves(as));
-    if (k < 0) k = movers.push(as) - 1;
-    jumpSet[id] = k;
-  }
-  return { movers, jumpSet };
 }
 
 // Whether `avatar` heading straight for b from a at full speed (jumping as they set off, if
