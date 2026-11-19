@@ -47,7 +47,7 @@ export interface KartBlow {
   how: 'kart' | 'explosion';
 }
 
-export const KART_REACH = 4; // metres along the look from the eye that a click gets in within
+export const KART_REACH = 6; // metres along the look from the eye that a click gets in within: a step or two off
 // Metres past KART_REACH the Room takes a click from: the clicker's own view of where they stand is
 // a step ahead of the Room's.
 const REACH_SLACK = 1;

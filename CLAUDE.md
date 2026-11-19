@@ -1004,8 +1004,9 @@ the rest of driving on the client: every kart drawn, the driven one where its dr
 has it (`Prediction` rides it as the Room does, rewinding and replaying it with them); the kart
 under the crosshair, which a click gets in (the same prompt and `use` as a door's); the look
 turned with the kart and settled back behind it once the mouse is let be; and the drift on Space
-and E to get out. A driver is watched along `KART_BOOM`, their legend is the kart's keys, and on
-touch the pad steers alone, GAS and BRAKE hold W and S, the jump button drifts and OUT gets out.
+and E to get out (`KART_ACTIONS`). A driver is watched along `KART_BOOM`, their legend is the
+kart's keys and the hint bar says how to get out, and on touch the pad steers alone, GAS (red) and
+BRAKE hold W and S, the jump button (grey) drifts and OUT gets out.
 Their kart's wrenches are a row of pixel wrenches under their hearts (`Hearts` with the `wrench`
 sprite). A frame the Room steps a driver without (one arriving late) drives on with the keys as
 their last frame held them. A kart's meshes and its paint's materials are made once per scene and

@@ -5,6 +5,7 @@
 // that drive it besides the movement keys: the drift held on Space, and E to get out.
 import type { Scene } from '@babylonjs/core';
 import {
+  KART_ACTIONS,
   KART_REACH,
   kartAt,
   type ItemAction,
@@ -75,13 +76,13 @@ export class Driving {
     this.left = { yaw: look.yaw, pitch: look.pitch };
   }
 
-  // The actions a driver's keys hold this frame: the drift while Space is down, getting out on a
-  // press of E.
+  // The actions a driver's keys hold this frame (KART_ACTIONS): one that's held while its key is
+  // down, one that's a tap on a press of its key.
   actions(input: InputManager): ItemAction[] {
-    const actions: ItemAction[] = [];
-    if (input.isDown('Space')) actions.push('drift');
-    if (input.wasPressed('KeyE')) actions.push('exit');
-    return actions;
+    return (Object.keys(KART_ACTIONS) as (keyof typeof KART_ACTIONS)[]).filter((action) => {
+      const { key, mode } = KART_ACTIONS[action];
+      return mode === 'hold' ? input.isDown(key) : input.wasPressed(key);
+    });
   }
 }
 

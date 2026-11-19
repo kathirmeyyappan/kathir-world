@@ -52,28 +52,63 @@ const CRYSTAL_BROKEN = [
   '........#........',
 ];
 
-// 9x8 pixel wrench, its jaw up to the right; the broken one snapped across the handle, the half one
-// grey from the jaw down to the snap.
-const WRENCH = ['......#.#', '......#+#', '.....###.', '....#+#..', '...#+#...', '..#+#....', '.#+#.....', '##.......'];
+// 16x16 pixel wrench, an open-ended spanner lying aslant: its jaw up to the left, its handle down to
+// a ring at the right, in a dark outline ('o') and lit along its upper edges ('+'). The broken one
+// is snapped across the handle; the half one is that with the jaw's side of the snap gone grey ('R',
+// and 'e' its outline).
+const WRENCH = [
+  '....ooo.........',
+  '...o+++o........',
+  '.o..o##+o.......',
+  'o+o..o##+o......',
+  'o#+o.o##+o......',
+  'o##+o+##+o......',
+  '.o##+####+o.....',
+  '..o#######+o....',
+  '...o#######+o...',
+  '....ooo####+ooo.',
+  '.......o####+++o',
+  '........o#####+o',
+  '.........o#+o#+o',
+  '.........o##+#+o',
+  '..........o##+o.',
+  '...........ooo..',
+];
 const WRENCH_BROKEN = [
-  '......#.#',
-  '......#+#',
-  '.....###.',
-  '....#+#..',
-  '...#.....',
-  '..#+#....',
-  '.#+#.....',
-  '##.......',
+  '....ooo.........',
+  '...o+++o........',
+  '.o..o##+o.......',
+  'o+o..o##+o......',
+  'o#+o.o##+o......',
+  'o##+o+##+o......',
+  '.o##+####+o.....',
+  '..o#####+ooo....',
+  '...o###+oo++o...',
+  '....ooooo+#+ooo.',
+  '.......o+###+++o',
+  '........o#####+o',
+  '.........o#+o#+o',
+  '.........o##+#+o',
+  '..........o##+o.',
+  '...........ooo..',
 ];
 const WRENCH_HALF = [
-  '......R.R',
-  '......R+R',
-  '.....RRR.',
-  '....R+R..',
-  '...L.....',
-  '..L+L....',
-  '.L+L.....',
-  'LL.......',
+  '....eee.........',
+  '...eRRRe........',
+  '.e..eRRRe.......',
+  'eRe..eRRRe......',
+  'eRRe.eRRRe......',
+  'eRRReRRRRe......',
+  '.eRRRRRRRRe.....',
+  '..eRRRRRReoo....',
+  '...eRRRReo++o...',
+  '....eeeeo+#+ooo.',
+  '.......o+###+++o',
+  '........o#####+o',
+  '.........o#+o#+o',
+  '.........o##+#+o',
+  '..........o##+o.',
+  '...........ooo..',
 ];
 
 const SPRITES: Record<HeartSprite, { full: string[]; broken: string[]; half: string[]; pix: Record<string, string> }> =
@@ -85,7 +120,12 @@ const SPRITES: Record<HeartSprite, { full: string[]; broken: string[]; half: str
       half: CRYSTAL_BROKEN,
       pix: { '+': 'hi', o: 'shade', O: 'dark', '=': 'facet', '*': 'glint' },
     },
-    wrench: { full: WRENCH, broken: WRENCH_BROKEN, half: WRENCH_HALF, pix: { '+': 'hi', R: 'grey' } },
+    wrench: {
+      full: WRENCH,
+      broken: WRENCH_BROKEN,
+      half: WRENCH_HALF,
+      pix: { '+': 'hi', o: 'edge', R: 'grey', e: 'edge grey' },
+    },
   };
 const FILL_MS = 70; // between one heart filling and the next as hearts come back
 const RANK = { lost: 0, half: 1, full: 2 };
