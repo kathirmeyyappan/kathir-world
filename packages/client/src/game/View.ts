@@ -43,6 +43,11 @@ export const VIEWS: Record<PlayerClass, { boom: Boom; fov: number }> = {
 // its middle, low and far enough back that all of it shows, tires on the ground, with room under
 // them), and how wide it's seen.
 export const KART_VIEW = { back: 5.6, up: 1.45, fov: VIEWS.walker.fov };
+// A boost as its driver sees it, by how far into one their kart is (its `rush`, 0 to 1): the view
+// opens out until, at the full of one, `wide` times as much of the world lies across the screen,
+// and the camera closes in on the kart until it's drawn `near` times its size. So the kart stands
+// a little bigger while the road and everything beside it stream out past it.
+export const RUSH = { wide: 1.3, near: 1.06 };
 // Each dragon skin's boom: far enough back and up to see a body of its size behind the head, for
 // the model as it comes, and as much again as the body is bigger than it (DragonShape.size).
 export const DRAGON_BOOMS: Record<AvatarsOf<'asian-dragon'>, Boom> = {
@@ -55,9 +60,21 @@ function grown(boom: Boom, size: number): Boom {
 }
 
 // The boom behind the driver of a kart `size` times its model's, their eyes `seated` metres over
-// its seat: KART_VIEW's at that size, taken from the eyes it hangs off.
-export function kartBoom(size: number, seated: number): Boom {
-  return { back: KART_VIEW.back * size, right: 0, up: KART_VIEW.up * size - seated };
+// its seat: KART_VIEW's at that size, closed in on the seat by its `rush` (RUSH), taken from the
+// eyes it hangs off.
+export function kartBoom(size: number, seated: number, rush: number): Boom {
+  const reach = size / (widened(rush) * (1 + (RUSH.near - 1) * rush));
+  return { back: KART_VIEW.back * reach, right: 0, up: KART_VIEW.up * reach - seated };
+}
+
+// The field of view a kart's driver has through its `rush` (RUSH), `fov` being theirs out of one.
+export function kartFov(fov: number, rush: number): number {
+  return 2 * Math.atan(Math.tan(fov / 2) * widened(rush));
+}
+
+// How many times as much of the world lies across the screen at `rush` of a boost.
+function widened(rush: number): number {
+  return 1 + (RUSH.wide - 1) * rush;
 }
 
 // The boom the camera hangs on behind whoever wears `avatar`.

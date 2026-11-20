@@ -124,7 +124,7 @@ import { NameTags } from '../ui/NameTags';
 import { Pins } from '../ui/Pins';
 import { Menu, toggleFullscreen } from '../ui/menu/Menu';
 import { rideGround } from './ride';
-import { KART_VIEW, VIEWS, View, boomOf, kartBoom, screenBoom, screenFov, type Boom } from './View';
+import { KART_VIEW, VIEWS, View, boomOf, kartBoom, kartFov, screenBoom, screenFov, type Boom } from './View';
 
 const CORRECTION_HALF_LIFE = 0.06;
 // Seconds for the camera to catch up when it goes from riding the ground (ride.ts) to following the
@@ -601,10 +601,11 @@ export class Game {
     document.getElementById('scope')!.classList.toggle('hidden', !on);
   }
 
-  // The view the player has when not scoped: driving, their kart's; else the worn avatar's class's,
-  // for a walker a little wider or narrower by its stature. Either is widened for a portrait screen.
+  // The view the player has when not scoped: driving, their kart's, opened out through a boost;
+  // else the worn avatar's class's, for a walker a little wider or narrower by its stature. Either
+  // is widened for a portrait screen.
   private wornFov(): number {
-    if (this.prediction?.kart) return screenFov(KART_VIEW.fov, this.aspect());
+    if (this.prediction?.kart) return kartFov(screenFov(KART_VIEW.fov, this.aspect()), this.driving.rush);
     const cls = this.prediction ? classOf(this.prediction.state.avatar) : null;
     const fov = (cls ? VIEWS[cls.id].fov : VIEWS.walker.fov) * Math.pow(this.stature ?? 1, -FOV_SHRINK);
     return screenFov(fov, this.aspect());
@@ -629,7 +630,10 @@ export class Game {
   // a walker's stature, fitted to a portrait screen.
   private boom(): Boom {
     const kart = this.prediction!.kart;
-    if (kart) return screenBoom(kartBoom(kart.size, this.seatedEyes()), this.wornFov(), this.aspect());
+    if (kart) {
+      const boom = kartBoom(kart.size, this.seatedEyes(), this.driving.rush);
+      return screenBoom(boom, this.wornFov(), this.aspect());
+    }
     const avatar = this.prediction!.state.avatar;
     const boom = boomOf(avatar);
     const scale = classOf(avatar).id === 'walker' ? (this.stature ?? 1) : 1;
