@@ -142,6 +142,8 @@ export const ISLANDS: Disc[] = [
 const JUMP = { run: 14, rise: 5, across: 8 };
 const hop = (): Stretch[] => jump(JUMP.run, JUMP.rise, JUMP.across).map((s) => (s.gap ? s : padded(s)));
 const kicker = (): Stretch[] => [padded(climb(13, 5)), padded(climb(13, -5))];
+// A level straight with a boost pad lying across its middle, pointing the way the road runs.
+const dash = (): Stretch[] => [level(), padded(level(10)), level()];
 const hump = (rise: number): Stretch[] => [climb(rise * 4, rise), climb(rise * 4, -rise)];
 const hill = (up: number, rise: number, down: number, top?: number): Stretch[] => [
   climb(up, rise),
@@ -158,7 +160,7 @@ const over = (before: number): Stretch[] => [
   span(OVER.deck),
   level(OVER.shoulder),
   climb(OVER.ramp, -OVER.rise),
-  level(),
+  ...dash(),
 ];
 // Metres from a along a to b to where it crosses c to d.
 const crossing = (a: Point, b: Point, c: Point, d: Point): number => {
@@ -173,23 +175,23 @@ const road = (name: string, from: Point, runs: Parameters<typeof layRoad>[0]['ru
 const CIRCUIT: Road[] = [
   road('circuit north', KEEP_2_GROUNDS, [
     { to: { x: -150, z: 180 }, radius: 70, stretches: [level(45), climb(45, 6), level()] },
-    { to: NORTH_ISLAND, stretches: [level(30), climb(28, -6), level()] },
+    { to: NORTH_ISLAND, stretches: [level(30), climb(28, -6), ...dash()] },
   ]),
   road('circuit northwest', NORTH_ISLAND, [
-    { to: NORTH_BEND, radius: 120, stretches: [level(), ...kicker(), level()] },
-    { to: NORTHWEST_ISLAND, stretches: [level(), ...hop(), level()] },
+    { to: NORTH_BEND, radius: 120, stretches: [level(), ...kicker(), ...dash()] },
+    { to: NORTHWEST_ISLAND, stretches: [level(), ...hop(), ...dash()] },
   ]),
   road('circuit west, north', NORTHWEST_ISLAND, [
-    { to: NORTHWEST_BEND, radius: 110, stretches: [level(), ...hump(4), level()] },
+    { to: NORTHWEST_BEND, radius: 110, stretches: [...dash(), ...hump(4), level()] },
     { to: WEST_ISLAND, stretches: [level(30), ...hill(60, 8, 40), level(40)] },
   ]),
   road('circuit west, south', WEST_ISLAND, [
-    { to: SOUTHWEST_BEND, radius: 110, stretches: [level(), ...kicker(), level()] },
-    { to: SOUTHWEST_ISLAND, stretches: [level(), ...hump(3.5), level()] },
+    { to: SOUTHWEST_BEND, radius: 110, stretches: [level(), ...kicker(), ...dash()] },
+    { to: SOUTHWEST_ISLAND, stretches: [...dash(), ...hump(3.5), level()] },
   ]),
   road('circuit southwest', SOUTHWEST_ISLAND, [
-    { to: SOUTH_BEND, radius: 120, stretches: [level(), ...hop(), level()] },
-    { to: SOUTH_ISLAND },
+    { to: SOUTH_BEND, radius: 120, stretches: [level(), ...hop(), ...dash()] },
+    { to: SOUTH_ISLAND, stretches: dash() },
   ]),
   road('circuit south', SOUTH_ISLAND, [
     { to: { x: -30, z: -250 }, radius: 60, stretches: [level(), ...hump(3.5), level(15)] },
@@ -198,13 +200,13 @@ const CIRCUIT: Road[] = [
 ];
 const WEB: Road[] = [
   road('west', ROAD_PLATEAU, [
-    { to: WEST_ISLAND, stretches: [level(60), ...kicker(), level(), ...hill(45, 7, 45, 30), level(60)] },
+    { to: WEST_ISLAND, stretches: [level(60), ...kicker(), ...dash(), ...hill(45, 7, 45, 30), level(60)] },
   ]),
   // Level where the high road's deck crosses over it, its hill beyond.
   road('northwest spoke', ROAD_PLATEAU, [
-    { to: NORTHWEST_ISLAND, stretches: [level(200), ...hill(40, 5, 40, 30), level()] },
+    { to: NORTHWEST_ISLAND, stretches: [level(95), padded(level(10)), level(95), ...hill(40, 5, 40, 30), level()] },
   ]),
-  road('southwest spoke', ROAD_PLATEAU, [{ to: SOUTHWEST_ISLAND, stretches: [level(), ...kicker(), level()] }]),
+  road('southwest spoke', ROAD_PLATEAU, [{ to: SOUTHWEST_ISLAND, stretches: [...dash(), ...kicker(), level()] }]),
   road('inner north', NORTH_ISLAND, [{ to: INNER_NORTH, stretches: [level(), ...hump(3), level()] }]),
   road('inner northwest', INNER_NORTH, [{ to: ROAD_PLATEAU, stretches: [level(), ...hill(40, 6, 40), level()] }]),
   road('inner southwest', ROAD_PLATEAU, [{ to: INNER_SOUTH, stretches: [level(), ...hop(), level()] }]),
@@ -225,12 +227,12 @@ const REACHES: Road[] = [
 ];
 const EAST: Road[] = [
   road('east, north', NORTH_ISLAND, [
-    { to: NORTHEAST_BEND, radius: 150, stretches: [level(), ...hump(4), level()] },
-    { to: EAST_ISLAND, stretches: [level(), ...hill(60, 8, 60, 40), level(60)] },
+    { to: NORTHEAST_BEND, radius: 150, stretches: [...dash(), ...hump(4), ...dash()] },
+    { to: EAST_ISLAND, stretches: [...dash(), ...hill(60, 8, 60, 40), level(60)] },
   ]),
   road('east, south', EAST_ISLAND, [
-    { to: SOUTHEAST_BEND, radius: 150, stretches: [level(), ...kicker(), level()] },
-    { to: SOUTH_ISLAND, stretches: [level(), ...hop(), level()] },
+    { to: SOUTHEAST_BEND, radius: 150, stretches: [level(), ...kicker(), ...dash()] },
+    { to: SOUTH_ISLAND, stretches: [level(), ...hop(), ...dash()] },
   ]),
   road('tower east', ANNEX, [{ to: EAST_ISLAND, stretches: [level(45), ...hill(40, 5, 40), level(45)] }]),
   road('house north', HOUSE_GROUNDS, [{ to: NORTH_ISLAND, stretches: [level(85), ...hill(40, 6, 40), level(60)] }]),
