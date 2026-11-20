@@ -10,7 +10,7 @@ export class Minimap {
   private readonly toggleBar = document.getElementById('minimap-toggle')!;
   private readonly coords = document.getElementById('minimap-coords')!;
   private readonly map = new MapCanvas(document.getElementById('minimap-canvas') as HTMLCanvasElement);
-  view: MinimapView = MINIMAP_VIEWS[0];
+  view: MinimapView = 'wide';
   frame: MinimapFrame | null = null; // the latest, as the menu's map draws it too
 
   constructor() {
