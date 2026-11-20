@@ -7,10 +7,10 @@
 // screen's own pixel density (RES canvas pixels to the CSS pixel), so edges stay smooth at any zoom
 // and as the near view turns: the outline's parts (discs, bridges, bends and slices), landmarks grey
 // on the floor (SpongeBob's house and the Krusty Krab as themselves, a road's climbs as arrowheads
-// pointing up them), and up past HIGH_UP the walkways up there too. Markers go on top: cubes as
-// faint specks, people as smaller copies of your arrow pointing their way, bots as squares, and
-// anyone on another level (a floor above, a bridge below) faded. The canvas can be any size and
-// change it; each draw fits the view to the size it has.
+// pointing up them and its boost pads as rainbows), and up past HIGH_UP the walkways up there too.
+// Markers go on top: cubes as faint specks, people as smaller copies of your arrow pointing their
+// way, bots as squares, and anyone on another level (a floor above, a bridge below) faded. The
+// canvas can be any size and change it; each draw fits the view to the size it has.
 import {
   EYE_HEIGHT,
   HIGH_LANDMARKS,
@@ -19,11 +19,14 @@ import {
   WORLD_GROUND,
   type KrustyKrabMark,
   type Landmark,
+  type Pad,
   type PineappleMark,
   type Bounds,
+  type RoadMark,
   type Slope,
   type WorldPart,
 } from '@world/shared';
+import { BOOST_RAINBOW } from '../render/BoostPads';
 import type { Elevation } from './Elevation';
 
 export interface MinimapFrame {
@@ -278,8 +281,16 @@ export class MapCanvas {
     ctx.lineJoin = 'miter';
     for (const l of landmarks)
       if (l.kind === 'slope') ctx.stroke(climbPath(l, Math.max(CLIMB_SPACING.m, px(CLIMB_SPACING.px))));
+    for (const l of landmarks) {
+      if (l.kind !== 'pad') continue;
+      const rainbow = ctx.createLinearGradient(l.ax, l.az, l.bx, l.bz);
+      BOOST_RAINBOW.forEach((colour, i) => rainbow.addColorStop(i / (BOOST_RAINBOW.length - 1), colour));
+      ctx.fillStyle = rainbow;
+      ctx.fill(padPath(l));
+    }
     const marks = landmarks.filter(
-      (l): l is Footprint => l.kind !== 'pineapple' && l.kind !== 'krusty-krab' && l.kind !== 'slope',
+      (l): l is Footprint =>
+        l.kind !== 'pineapple' && l.kind !== 'krusty-krab' && l.kind !== 'slope' && l.kind !== 'pad',
     );
     const wooden = (l: Footprint) => l.kind === 'bridge' && !!l.wood;
     place(this.landmarkLayer);
@@ -424,7 +435,20 @@ function layer(): CanvasRenderingContext2D {
 }
 
 // A landmark filled in grey: any but those drawn as themselves.
-type Footprint = Exclude<Landmark, PineappleMark | KrustyKrabMark | Slope>;
+type Footprint = Exclude<Landmark, PineappleMark | KrustyKrabMark | RoadMark>;
+
+// A boost pad's rectangle, from its one end to its other.
+function padPath(s: Pad): Path2D {
+  const length = Math.hypot(s.bx - s.ax, s.bz - s.az);
+  const [px, pz] = [(-(s.bz - s.az) / length) * s.halfWidth, ((s.bx - s.ax) / length) * s.halfWidth];
+  const path = new Path2D();
+  path.moveTo(s.ax + px, s.az + pz);
+  path.lineTo(s.bx + px, s.bz + pz);
+  path.lineTo(s.bx - px, s.bz - pz);
+  path.lineTo(s.ax - px, s.az - pz);
+  path.closePath();
+  return path;
+}
 
 // A road's climb as arrowheads across it, `spacing` metres apart at the least, each pointing up it.
 function climbPath(s: Slope, spacing: number): Path2D {

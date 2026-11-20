@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import {
   Ground,
   KARTS,
+  PAD,
   SPARKS,
   Structures,
   TICK_DT,
@@ -73,6 +74,25 @@ test('a press in the air tricks a kart the way its wheel is held and boosts it a
   assert.equal(k.trick, null);
   drive(k, gas, 1, structures);
   assert.equal(k.turbo, null);
+});
+
+test('a boost pad drives a kart rolling over it up to its boosted speed with no gas and holds the boost on past it, and leaves one parked on it alone', () => {
+  // A pad 40 m long across the kart's way, from 10 m ahead of it.
+  const structures = world({ kind: 'box', x: 0, z: 30, w: 10, d: 40, h: 0.04, surface: 'boost' });
+  const boosted = TURBO.boost * KARTS.standard.speed;
+  const gas = { gas: 1, steer: 0, drift: false };
+  const none = { gas: 0, steer: 0, drift: false };
+  const k = createKart('standard', 1, { x: 0, y: 0, z: 0 }, 0);
+  while (k.pos.z < 11) drive(k, gas, TICK_DT, structures);
+  while (k.pos.z < 49) drive(k, none, TICK_DT, structures);
+  assert.ok(speed(k) > boosted - 0.5, `boosted along the pad with the gas let go: ${speed(k)}`);
+  drive(k, gas, PAD.hold - 0.1, structures);
+  assert.ok(speed(k) > boosted - 0.5, `held for the pad's hold past it: ${speed(k)}`);
+  drive(k, gas, TURBO.fall + 0.3, structures);
+  assert.equal(k.turbo, null);
+  const parked = createKart('standard', 2, { x: 0, y: 0.04, z: 30 }, 0);
+  drive(parked, none, 1, structures);
+  assert.equal(speed(parked), 0);
 });
 
 test('a kart driven into a wall stops at it and says how hard it hit', () => {
