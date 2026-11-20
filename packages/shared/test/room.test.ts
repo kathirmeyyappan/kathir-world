@@ -1350,7 +1350,7 @@ test("a kart worn out by a wall blows up, hurting its driver and everyone near b
   assert.ok(inboxes[0].some((m) => m.t === 'boom'));
   const me = room.players.find((p) => p.id === driver)!;
   assert.equal(me.riding, null, 'thrown out');
-  assert.ok(me.vz < 0 && me.vy > 0, `back off its tail: ${me.vz}, ${me.vy}`);
+  assert.ok(me.vz < 0 && me.vy > -me.vz, `up, and back off its tail: ${me.vy}, ${me.vz}`);
   assert.equal(me.hearts, MAX_HEARTS - BLAST.damage);
   assert.equal(carol.hearts, MAX_HEARTS - BLAST.damage);
 });

@@ -1086,7 +1086,8 @@ still (`LANDING`: half how fast it comes down counts, so it's worn only from a 1
 shot's damage from anyone, a shot stopping at a kart nearer than whoever it would have hit. At
 no wrenches it explodes (`boom`): it's gone, its driver is left where they sat, and everyone on foot
 within `BLAST.reach` with nothing between takes `BLAST.damage` and is thrown away from it (its
-driver back off its tail, so the blast is before their eyes and whatever it ran into beyond that),
+driver high and back off its tail, `BLAST.driver`, so the blast is before their eyes and whatever
+it ran into beyond that),
 credited to whoever took its last wrench; what wore it down never reaches the driver. A kill by a kart is
 announced as one (`kill` with `item: 'kart'` or `'explosion'`), and a death of one's own doing in
 one as `crashed`.
