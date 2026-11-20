@@ -35,13 +35,20 @@ import { classOf, heartsOf } from './sim/classes';
 import { findStrikeHits, resolveFire, strikeCone } from './sim/combat';
 import { frostDisc, sprayFrost } from './sim/frost';
 import { PositionHistory, rewindTick } from './sim/rewind';
-import { REGEN_RATE, applyDamage, damageFor, fallDamage } from './sim/health';
+import {
+  OUT_OF_BOUNDS_DAMAGE,
+  OUT_OF_BOUNDS_SECONDS,
+  REGEN_RATE,
+  applyDamage,
+  damageFor,
+  fallDamage,
+} from './sim/health';
 import { BOTS, botArguments, botRequest, type BotId, type BotPlacement, type BotRequest } from './sim/bots';
 import { defaultBotsFor } from './sim/defaultBots';
 import { GEAR, createGear, gearHelp, type GearId } from './sim/gear';
 import { ITEMS, createItem, itemHelp, type Element, type ItemAction, type ItemId, type ItemSpec } from './sim/items';
 import { createCubes, stepCubes } from './sim/cubes';
-import { OUTSIDE_HEIGHT } from './sim/ground';
+import { onOutsideGround } from './sim/ground';
 import { randomPointInDisc, randomPointInRegion } from './sim/regions';
 import { createPickups, dropPickup, stepPickups, takePickups, type PickupArea, type PickupField } from './sim/pickups';
 import { becomeAvatar, createPlayer, stepPlayer } from './sim/player';
@@ -64,6 +71,7 @@ const SPAWN_MARGIN = 1; // metres a spawn keeps inside its area: more than a bod
 // Browsers leave whenever the player rejoins during the death screen, with a little extra time
 // as a fallback. Bots cannot rejoin themselves, so approximate that window's midpoint.
 const BOT_CORPSE_TICKS = 5 * TICK_RATE;
+const OUT_OF_BOUNDS_STEPS = Math.round(OUT_OF_BOUNDS_SECONDS * TICK_RATE);
 const BROWSER_CORPSE_TICKS = (DEATH_SCREEN_SECONDS + 3) * TICK_RATE;
 const SPAWN_CUBE_MARGIN = 4;
 const GONE: ClientLink = { send() {} }; // the link of a body whose client has left
@@ -81,6 +89,7 @@ interface Seat {
   lastRenameTick: number;
   held: ItemAction[]; // last frame's actions, for the press edge of tap ones
   diedTick: number | null;
+  outSteps: number; // steps taken stood on the ground past the edge, one heart lost every OUT_OF_BOUNDS_STEPS
   state: PlayerState;
   link: ClientLink;
   queue: InputFrame[];
@@ -225,6 +234,7 @@ export class Room {
       lastRenameTick: -Infinity,
       held: [],
       diedTick: null,
+      outSteps: 0,
     });
     link.send({
       t: 'welcome',
@@ -465,9 +475,14 @@ export class Room {
     this.pound(seat);
     const damage = fallDamage(speed);
     if (damage > 0 && !me.dead) this.damage(me, damage, null);
-    // Down on the ground past the edge (ground.ts), a body on foot is done for, whatever the fall.
-    if (!me.dead && classOf(me.avatar).id === 'walker' && me.pos.y - EYE_HEIGHT <= OUTSIDE_HEIGHT + 1e-6)
-      this.damage(me, me.hearts, null, 'out');
+    this.outOfBounds(seat);
+  }
+
+  // A body on foot stood on the ground past the edge (ground.ts) bleeds hearts there.
+  private outOfBounds(seat: Seat): void {
+    const me = seat.state;
+    if (me.dead || classOf(me.avatar).id !== 'walker' || !onOutsideGround(me.pos.y - EYE_HEIGHT)) return;
+    if (++seat.outSteps % OUT_OF_BOUNDS_STEPS === 0) this.damage(me, OUT_OF_BOUNDS_DAMAGE, null, 'out');
   }
 
   // A ground pound landing this tick (avatars.ts `Pound`) hurts everyone else on foot within its

@@ -14,7 +14,7 @@
 // after one is a boost like a mini-turbo's held for TRICK.hold.
 import type { Footing, Structures } from '../collision';
 import { EYE_HEIGHT, GRAVITY } from '../constants';
-import { OUTSIDE_HEIGHT } from '../ground';
+import { onOutsideGround } from '../ground';
 import type { ActionSpec, ItemAction } from '../items';
 import { takeLook } from '../player';
 import { SURFACES } from '../surfaces';
@@ -214,7 +214,7 @@ export function ride(
 // onto the floor from there, and a driver who gets out is on that ground on foot, which is the end
 // of them (room.ts `land`).
 export function stranded(k: KartState): boolean {
-  return k.grounded && k.pos.y <= OUTSIDE_HEIGHT + 1e-6;
+  return k.grounded && onOutsideGround(k.pos.y);
 }
 
 // The box kart `k` drives as, at the size it's built at.

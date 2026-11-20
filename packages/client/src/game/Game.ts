@@ -13,6 +13,7 @@ import {
   INTERIOR_BUILDINGS,
   HOME_GROUND,
   stranded,
+  onOutsideGround,
   WORLD_GROUND,
   WORLD_OUTLINE,
   DOOR_REACH,
@@ -1192,10 +1193,16 @@ export class Game {
     this.gearHud.set(this.dead ? null : self.gear);
     this.condition.set(this.dead ? 0 : self.chilled);
     this.kartGauge.set(driving ? this.prediction.kartPace() : null);
-    // Driving a kart that's down past the world's edge, there's nothing left to do but get out.
+    // Driving a kart that's down past the world's edge, there's nothing left to do but get out. On
+    // foot there, the Room bleeds hearts.
     const lost = !this.dead && !!self.riding && !!this.prediction.kart && stranded(this.prediction.kart);
+    const out = !this.dead && !self.riding && cls === 'walker' && onOutsideGround(self.pos.y - EYE_HEIGHT);
     this.alert.hold(
-      lost ? `you're off the map!\n${IS_TOUCH ? 'tap OUT' : 'press E'} to exit and seal your fate` : null,
+      lost
+        ? `you're off the map!\n${IS_TOUCH ? 'tap OUT' : 'press E'} to exit and seal your fate`
+        : out
+          ? "you're out of bounds!\nget back on the map"
+          : null,
     );
     this.commandHint.update(this.isBlocked());
     this.minimap.update({

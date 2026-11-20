@@ -254,8 +254,10 @@ wire: server and client both build the world from that file.
   sides a drop of `OUTSIDE_HEIGHT` (10 m) to the ground past the edge, all three of them solid to
   bodies and to rays (`Structures` stands bodies on it, holds a body below the floor off the drop's
   face as a wall, and stops shots and sprays on it). Nothing keeps a walker on the floor: one walks
-  off the edge, falls down the drop, and dies the moment it's down on the ground past it (an `out`,
-  `room.ts` `land`), with nothing dropped where it lies. The one barrier is a circle round the
+  off the edge, falls down the drop, and for every half second (`OUT_OF_BOUNDS_SECONDS`) it stands
+  on the grey ground past it (`onOutsideGround`) loses a heart, time to jetpack out, or dies there
+  (an `out`, `room.ts` `outOfBounds`), with nothing dropped where it lies; the red box
+  (`ui/Alert.ts`) tells a walker stood there they're out of bounds. The one barrier is a circle round the
   world's reach (`Ground.keepWithin`, the red wall shown as you come near it), the same for a
   walker and a dragon. Keep structures inside the outline.
   The slab is drawn a `CHUNK` at a time (`render/Floor.ts`, one mesh each, streamed in by the
@@ -1173,8 +1175,7 @@ the keys held, so it's the kart's acceleration now, not a difference between fra
 stands under the hearts (the area's title, the condition's banner) stands under them both
 (`--under-hearts`). A kart driven off the floor lands on the ground past the edge with its driver alive in it
 and no way back up (`stranded` in `kart.ts`); the red box (`ui/Alert.ts`) tells the driver they're
-off the map and that getting out, the one thing left to do, is the end of them, as it is for
-anyone on foot down there. A tick the Room steps a driver's kart with no frame (theirs is late) is taken on the keys
+off the map and that getting out, the one thing left to do, leaves them on foot down there. A tick the Room steps a driver's kart with no frame (theirs is late) is taken on the keys
 of their last, ahead of the frame it stood in for, which is then taken for its keys alone
 (`Garage.drive`): a kart steps once for each of its driver's frames, as their client predicted,
 however late they come. Past `AHEAD_TICKS` of that its keys are let go and it rolls to a stop. A kart's meshes and its paint's materials are made once per scene and
@@ -1600,8 +1601,9 @@ protocol.
 - Falls hurt by landing speed: slower than a 15 m drop from rest is free, as fast as an 80 m drop
   takes every heart, and damage rises linearly between, in half hearts (a jetpack that brakes the
   fall lands slower). That arrives as a `hit` with `shooter: None`, and a fatal fall as a `fell`
-  event rather than `kill`. Landing on the ground past the world's edge is an `out` whatever the
-  height: a bot that walks off the floor dies, so keep routes on the map. A death by one's own
+  event rather than `kill`. Stood on the ground past the world's edge a heart goes every half second
+  (a `hit` with `shooter: None`) and death there is an `out`: a bot that walks off the floor has
+  no way back up but a jetpack, so keep routes on the map. A death by one's own
   kart is a `crashed` event.
 - Snapshots reveal players globally, and shots pass through cubes; only structures block them. Perfect aim
   can therefore be much stronger than a human player. Fairness constraints such as field of view,
