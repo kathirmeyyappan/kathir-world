@@ -30,6 +30,7 @@ export interface Loadable {
   x: number;
   z: number;
   r?: number; // metres round (x, z) it stands over: it's as far off as the nearest of it
+  reach?: number; // metres within which it's wanted, where that's further than the loader's own: what's seen from further off
   load: () => Job;
   unload?: () => void;
 }
@@ -82,9 +83,10 @@ export class Loader {
       const thing = this.things[(this.next + k) % this.things.length];
       if (!thing.item.unload) continue;
       const off = distance(thing.item, x, z);
-      if (thing.status === 'gone' && off <= this.reach) thing.status = 'pending';
-      else if (thing.status === 'pending' && off > this.reach) thing.status = 'gone';
-      else if (thing.status === 'here' && off > this.reach + SLACK && !letGo) {
+      const reach = thing.item.reach ?? this.reach;
+      if (thing.status === 'gone' && off <= reach) thing.status = 'pending';
+      else if (thing.status === 'pending' && off > reach) thing.status = 'gone';
+      else if (thing.status === 'here' && off > reach + SLACK && !letGo) {
         thing.item.unload();
         thing.status = 'gone';
         letGo = true;

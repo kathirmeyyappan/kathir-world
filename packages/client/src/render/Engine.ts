@@ -13,6 +13,7 @@ import {
   StandardMaterial,
   Vector3,
   type AbstractMesh,
+  type Mesh,
 } from '@babylonjs/core';
 import { SIGHT } from '@world/shared';
 import { Picture } from './Picture';
@@ -34,6 +35,7 @@ export class Engine {
   readonly scene: Scene;
   readonly picture: Picture;
   private readonly glowing = new Set<number>(); // the meshes that glow (`glow`), by uniqueId
+  private readonly halo: GlowLayer;
   private drawnAt = performance.now(); // when the last frame was drawn
   private due = performance.now(); // when the next frame is due: the frame rate's interval on from the last
   private ran = performance.now(); // when the loop last ran, on a tick of the display
@@ -64,11 +66,13 @@ export class Engine {
     // The glow is a blurred picture of the scene drawn over it. Every opaque mesh is drawn into that
     // picture with depth, black unless it glows, so whatever stands in front of a glowing mesh covers
     // its glow as it covers the mesh: drawing the glowing meshes alone would shine through walls.
-    const glow = new GlowLayer('glow', this.scene, { mainTextureRatio: 0.25, blurKernelSize: 24 });
-    glow.intensity = 0.8;
-    glow.customEmissiveColorSelector = (mesh, _subMesh, material, result) => {
+    // A glow is the light of the thing itself, so the fog takes as much of it as it takes of the
+    // thing: far off, where the thing is all fog, it has no halo.
+    this.halo = new GlowLayer('glow', this.scene, { mainTextureRatio: 0.25, blurKernelSize: 24 });
+    this.halo.intensity = 0.8;
+    this.halo.customEmissiveColorSelector = (mesh, _subMesh, material, result) => {
       if (this.glowing.has(mesh.uniqueId) && material instanceof StandardMaterial) {
-        const level = material.emissiveTexture?.level ?? 1;
+        const level = (material.emissiveTexture?.level ?? 1) * this.clearTo(mesh);
         const { r, g, b } = material.emissiveColor;
         result.set(r * level, g * level, b * level, material.alpha);
       } else result.set(0, 0, 0, 1);
@@ -101,10 +105,26 @@ export class Engine {
   }
 
   // Gives a mesh a soft halo of its own light (its material's emissive colour and texture), hidden
-  // by anything in front of it.
+  // by anything in front of it and thinned by the fog as the mesh is.
   glow(mesh: AbstractMesh): void {
     this.glowing.add(mesh.uniqueId);
     mesh.onDisposeObservable.add(() => this.glowing.delete(mesh.uniqueId));
+  }
+
+  // Leaves a mesh out of the glow's picture, sparing it a second drawing every frame: one too far
+  // off, where it's seen at all, for a glow behind it to be there to cover.
+  keepFromGlow(mesh: Mesh): void {
+    this.halo.addExcludedMesh(mesh);
+    mesh.onDisposeObservable.add(() => this.halo.removeExcludedMesh(mesh));
+  }
+
+  // How much of a mesh the fog leaves to be seen from the camera, 0 to 1 (the scene's fog, EXP2).
+  private clearTo(mesh: AbstractMesh): number {
+    const camera = this.scene.activeCamera;
+    if (!camera) return 1;
+    const middle = mesh.getBoundingInfo().boundingSphere.centerWorld;
+    const thick = Vector3.Distance(camera.globalPosition, middle) * this.scene.fogDensity;
+    return Math.exp(-thick * thick);
   }
 
   // Every tick of the display, a frame when one is due: each is due the frame rate's interval on

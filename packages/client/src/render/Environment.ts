@@ -14,17 +14,9 @@ import {
   VertexData,
   type Scene,
 } from '@babylonjs/core';
-import { CHUNK, EYE_HEIGHT, OUTSIDE_HEIGHT, type Ground, type Raised } from '@world/shared';
+import { CHUNK, OUTSIDE_HEIGHT, type Ground, type Raised } from '@world/shared';
 import { BASE_FOG_DENSITY, Engine, FOG_COLOR } from './Engine';
-import {
-  GROUND_FOG,
-  GROUND_FRAGMENT,
-  GROUND_VERTEX,
-  SKY_FRAGMENT,
-  SKY_VERTEX,
-  WALL_FRAGMENT,
-  WALL_VERTEX,
-} from './shaders';
+import { GROUND_FRAGMENT, GROUND_VERTEX, SKY_FRAGMENT, SKY_VERTEX, WALL_FRAGMENT, WALL_VERTEX } from './shaders';
 import { floorChunk } from './Floor';
 import type { Loader } from './Loader';
 import { RISEN_SIDE, raisedGround } from './RaisedGround';
@@ -38,7 +30,9 @@ const SIDE_PER_VERTEX = -1;
 const FOG_HALF_LIFE = 0.12; // seconds, for the scope's fog change
 const ZENITH_COLOR = new Color3(0.01, 0.01, 0.04);
 const HORIZON_COLOR = new Color3(0.12, 0.03, 0.14);
-const FADED = Math.log(10); // the floor's fog exponent at 90% fogged: where the horizon sits
+// What the ground past the edge fades to, and the sky is at the horizon: a grey a little lighter
+// than the fog's colour, so the world, all fog far off, lies on it as a darker shape.
+const HAZE_COLOR = new Color3(0.05, 0.05, 0.07);
 
 const ENVIRONMENTS = new WeakMap<Scene, Environment>();
 
@@ -50,7 +44,6 @@ export function environmentOf(scene: Scene): Environment | null {
 export class Environment {
   private readonly materials: ShaderMaterial[] = [];
   private readonly grounds: ShaderMaterial[] = []; // the floor's, the ground's past the edge, the kerb's and any ripple's
-  private sky!: ShaderMaterial; // set in createSky
   private fogScale = 1;
   private fogTarget = 1;
   private readonly bounds;
@@ -165,11 +158,9 @@ export class Environment {
         'majorColor',
         'floorColor',
         'fogColor',
+        'hazeColor',
         'fogScale',
         'time',
-        'zenithColor',
-        'horizonColor',
-        'horizon',
         'relief',
         'reliefBase',
         'reliefHeight',
@@ -185,10 +176,8 @@ export class Environment {
     mat.setColor3('majorColor', new Color3(0.45, 1.0, 0.7));
     mat.setColor3('floorColor', new Color3(0.03, 0.06, 0.05));
     mat.setColor3('fogColor', FOG_COLOR);
+    mat.setColor3('hazeColor', HAZE_COLOR);
     mat.setFloat('fogScale', 1);
-    mat.setColor3('zenithColor', ZENITH_COLOR);
-    mat.setColor3('horizonColor', HORIZON_COLOR);
-    mat.setFloat('horizon', 0);
     mat.backFaceCulling = false;
     this.grounds.push(mat);
     this.materials.push(mat);
@@ -229,13 +218,11 @@ export class Environment {
     sky.applyFog = false;
     const mat = new ShaderMaterial('skyMat', scene, 'worldSky', {
       attributes: ['position'],
-      uniforms: ['worldViewProjection', 'fogColor', 'zenithColor', 'horizonColor', 'horizon', 'time'],
+      uniforms: ['worldViewProjection', 'fogColor', 'zenithColor', 'horizonColor', 'time'],
     });
-    mat.setColor3('fogColor', FOG_COLOR);
+    mat.setColor3('fogColor', HAZE_COLOR);
     mat.setColor3('zenithColor', ZENITH_COLOR);
     mat.setColor3('horizonColor', HORIZON_COLOR);
-    mat.setFloat('horizon', 0);
-    this.sky = mat;
     mat.backFaceCulling = false;
     mat.disableDepthWrite = true;
     sky.material = mat;
@@ -286,8 +273,7 @@ export class Environment {
     this.fogTarget = fogScale;
   }
 
-  // Once per frame: the shaders need the camera position for fades, a clock for pulses, and the
-  // horizon: where the floor fades out, which is at eye level on the floor and well below it up high.
+  // Once per frame: the shaders need the camera position for fades and a clock for pulses.
   update(dt: number, cameraPos: Vector3): void {
     this.time += dt;
     if (this.fogScale !== this.fogTarget) {
@@ -301,10 +287,5 @@ export class Environment {
       m.setFloat('time', this.time);
       m.setVector3('cameraPos', cameraPos);
     }
-    const height = Math.max(0, cameraPos.y - EYE_HEIGHT);
-    const faded = Math.sqrt(FADED / (GROUND_FOG * this.fogScale)); // metres to where the floor is 90% fog
-    const horizon = -height / Math.hypot(height, faded); // the sine of the angle down to it
-    this.sky.setFloat('horizon', horizon);
-    for (const g of this.grounds) g.setFloat('horizon', horizon);
   }
 }

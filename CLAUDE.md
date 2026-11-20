@@ -132,8 +132,19 @@ drawn from a model (the pineapple, the Krusty Krab) has a shell (`render/models/
 of a few thousand triangles in its own colours, made at once from the shape the content already
 has and kept for good, that keeps its outline against the sky wherever its parts aren't all here,
 and they're drawn only once every one of them is, all at once in the shell's place, so the two
-never overlap. A landmark of structures (the keeps, the tower, the terrace) has none: past 700 m
-it's lost in the fog. With its roads the world is about 1,250 m by 1,000 m, the buildings toward its east: from them
+never overlap. Everything else that's too far to be loaded still stands against the sky, as the
+skyline (`render/Skyline.ts`): the world's whole shape in the fog's colour, the floor's slab part
+by part, the roads' risen lengths and every built piece 8 m or more some way, made from the
+content with no texture, a mesh to each 960 m square (`TILE`), through the loader with a reach of
+its own (`SKYLINE_REACH`, 2,400 m, about where a deck is down to a pixel; today's whole world is
+4 tiles, 14,400 triangles and 0.5 MB, built in 26 ms across the loader's frames, and however big
+the world grows only the tiles within that reach are kept). Each of its shapes stands 0.3 m inside
+the real thing, which covers it wherever that's loaded, and anything far enough off to be let go is
+all fog, the skyline's own colour, so nothing shows where one takes over from the other (the floor
+too: its shader fades it, its kerb and its risen roads to the fog's colour, and the ground past
+the edge to a grey haze a little lighter, which the sky takes up at the horizon,
+`render/shaders.ts`, so far off the world is one dark shape lying on ground that reads as ground). A new
+landmark of structures is in it with nothing to do. With its roads the world is about 1,250 m by 1,000 m, the buildings toward its east: from them
 everything east of the west island is within reach, and the roads' far west (the west island, the
 world's end, the lookouts) is let go and comes back as it's driven toward, as the buildings are
 from out there.
@@ -152,6 +163,7 @@ was settled. As they stand:
 | `CRISP_RANGE` | 45 m | 45 m | a wall frame's picture drawn crisp rather than as a texture |
 | `LET_GO`, `FORGET` | 200 m, 30 s | same | an interior let go, neither seen nor wanted for `FORGET`; past every unscoped fetch, so no line flaps |
 | `REACH`, `SLACK` (`Loader.ts`) | 600 m, 700 m | same | what stands somewhere (a slab chunk, a region, a model's parts) wanted, and let go; past where a scope sees, so nothing is seen go and no rooms inside a shell are seen |
+| `SKYLINE_REACH` (`Skyline.ts`) | 2,400 m | same | a tile of the skyline kept (let go `SLACK` further out): what's past `REACH` is still seen, as its outline in the fog's colour; `REACH` is twice past where the fog is whole, so the outline and the thing itself are one colour wherever one gives way to the other |
 
 Known and accepted: an interior a scope fetched past 200 m is let go 30 s after it's last seen and
 fetched again from the browser's cache if it's scoped again. `SIGHT` and `SCOPED_SIGHT`
@@ -330,7 +342,8 @@ rise, across)` is one with a ramp either side, so it's jumped both ways. A boost
 across, hidden, whose surface (`boost`) boosts a kart rolling forward over it (see Surfaces and
 frost, and Karts); the client draws it (`render/BoostPads.ts`, from the road's `Pad` marks, `ROAD_PADS`) as a panel let into a frame that stands proud of the
 road: lanes of rainbow arrowheads pointing up a climb, or along a level stretch the way the road
-runs, running that way, with a halo of their colours that swells and falls (`Engine.glow`). The
+runs, running that way, with a halo of their colours that swells and falls (`Engine.glow`, which the fog
+thins as it thins whatever glows, so nothing far off has a halo). The
 frame's rim is only drawn, as the floor's kerb is. A road is authored as runs, each cut into stretches (`level`, `climb`, `gap`, `span`, any of them
 `padded`; one with no length takes an even share of what the others leave), and `layRoad` turns it
 into its floor (square bridges and bends, for the outline), its bank with its pads (for
@@ -639,7 +652,8 @@ and put the answers in it.
   Render viewpoints all round it with `Interiors.everything` on and off and compare them.
 - **Far off:** whatever of it stands somewhere registers with the loader with an `unload`, so it's
   let go past 700 m and comes back within 600 m; a model landmark has a shell in its `MODELS` row
-  (see Models and doors). Look at the shell beside the full model from the same spot (lower the
+  (see Models and doors), and its structures are in the skyline as they are (`render/Skyline.ts`:
+  check its outline from past 700 m). Look at the shell beside the full model from the same spot (lower the
   loader's `reach` to see it close), from the front, the side and above.
 - **The distance table:** where it sits against every distance in Client loading, scoped and
   unscoped: nothing of it let go while it can be seen, no fetch and let-go either side of one line,
