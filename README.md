@@ -19,12 +19,7 @@ Visit [world.kathirm.com](https://world.kathirm.com) to give it a shot. And read
 </p>
 
 <p>
-  <a href="packages/client/public/assets/guide/gallery/anime-building.jpg"><img src="packages/client/public/assets/guide/gallery/anime-building-thumb.jpg" width="32%" alt="Elizabeth in the Anime Building" /></a>
-  <a href="packages/client/public/assets/guide/gallery/light-dragon.jpg"><img src="packages/client/public/assets/guide/gallery/light-dragon-thumb.jpg" width="32%" alt="The light dragon breathing fire" /></a>
   <a href="packages/client/public/assets/guide/gallery/pineapple.jpg"><img src="packages/client/public/assets/guide/gallery/pineapple-thumb.jpg" width="32%" alt="Outside SpongeBob's house" /></a>
-</p>
-
-<p>
   <a href="packages/client/public/assets/guide/gallery/dragons-standoff.jpg"><img src="packages/client/public/assets/guide/gallery/dragons-standoff-thumb.jpg" width="32%" alt="Colgera and the light dragon before Tung Tung Tower" /></a>
   <a href="packages/client/public/assets/guide/gallery/dragons-clash.jpg"><img src="packages/client/public/assets/guide/gallery/dragons-clash-thumb.jpg" width="32%" alt="Frost against fire before Tung Tung Tower" /></a>
 </p>
