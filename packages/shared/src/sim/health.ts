@@ -31,8 +31,8 @@ export const FALL_SAFE_DROP = 15;
 export const FALL_DEADLY_DROP = 80;
 export const FALL_DAMAGE_STEP = 0.5;
 
-// Down on the ground past the world's edge (ground.ts), a walker loses OUT_OF_BOUNDS_DAMAGE every
-// OUT_OF_BOUNDS_SECONDS until it's back up at the floor's height, time to jetpack out.
+// Stood on the ground past the world's edge (ground.ts), a walker loses OUT_OF_BOUNDS_DAMAGE for
+// every OUT_OF_BOUNDS_SECONDS there, time to jetpack out.
 export const OUT_OF_BOUNDS_DAMAGE = 1;
 export const OUT_OF_BOUNDS_SECONDS = 0.5;
 

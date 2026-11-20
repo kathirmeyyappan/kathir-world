@@ -48,7 +48,7 @@ import { defaultBotsFor } from './sim/defaultBots';
 import { GEAR, createGear, gearHelp, type GearId } from './sim/gear';
 import { ITEMS, createItem, itemHelp, type Element, type ItemAction, type ItemId, type ItemSpec } from './sim/items';
 import { createCubes, stepCubes } from './sim/cubes';
-import { OUTSIDE_HEIGHT } from './sim/ground';
+import { onOutsideGround } from './sim/ground';
 import { randomPointInDisc, randomPointInRegion } from './sim/regions';
 import { createPickups, dropPickup, stepPickups, takePickups, type PickupArea, type PickupField } from './sim/pickups';
 import { becomeAvatar, createPlayer, stepPlayer } from './sim/player';
@@ -89,7 +89,7 @@ interface Seat {
   lastRenameTick: number;
   held: ItemAction[]; // last frame's actions, for the press edge of tap ones
   diedTick: number | null;
-  outSteps: number | null; // steps since landing on the ground past the edge, till back up at the floor's height
+  outSteps: number; // steps taken stood on the ground past the edge, one heart lost every OUT_OF_BOUNDS_STEPS
   state: PlayerState;
   link: ClientLink;
   queue: InputFrame[];
@@ -234,7 +234,7 @@ export class Room {
       lastRenameTick: -Infinity,
       held: [],
       diedTick: null,
-      outSteps: null,
+      outSteps: 0,
     });
     link.send({
       t: 'welcome',
@@ -478,19 +478,10 @@ export class Room {
     this.outOfBounds(seat);
   }
 
-  // A body on foot that comes down on the ground past the edge (ground.ts) bleeds hearts there, and
-  // on any jump or thrust from it, until it's back up at the floor's height or dead.
+  // A body on foot stood on the ground past the edge (ground.ts) bleeds hearts there.
   private outOfBounds(seat: Seat): void {
     const me = seat.state;
-    const feet = me.pos.y - EYE_HEIGHT;
-    if (me.dead || classOf(me.avatar).id !== 'walker' || feet >= 0) {
-      seat.outSteps = null;
-      return;
-    }
-    if (seat.outSteps === null) {
-      if (feet <= OUTSIDE_HEIGHT + 1e-6) seat.outSteps = 0;
-      return;
-    }
+    if (me.dead || classOf(me.avatar).id !== 'walker' || !onOutsideGround(me.pos.y - EYE_HEIGHT)) return;
     if (++seat.outSteps % OUT_OF_BOUNDS_STEPS === 0) this.damage(me, OUT_OF_BOUNDS_DAMAGE, null, 'out');
   }
 

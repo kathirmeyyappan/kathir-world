@@ -13,6 +13,7 @@ import {
   INTERIOR_BUILDINGS,
   HOME_GROUND,
   stranded,
+  onOutsideGround,
   WORLD_GROUND,
   WORLD_OUTLINE,
   DOOR_REACH,
@@ -1193,9 +1194,9 @@ export class Game {
     this.condition.set(this.dead ? 0 : self.chilled);
     this.kartGauge.set(driving ? this.prediction.kartPace() : null);
     // Driving a kart that's down past the world's edge, there's nothing left to do but get out. On
-    // foot below the floor's height (only ever past its edge), the Room bleeds hearts once down.
+    // foot there, the Room bleeds hearts.
     const lost = !this.dead && !!self.riding && !!this.prediction.kart && stranded(this.prediction.kart);
-    const out = !this.dead && !self.riding && cls === 'walker' && self.pos.y - EYE_HEIGHT < -1e-6;
+    const out = !this.dead && !self.riding && cls === 'walker' && onOutsideGround(self.pos.y - EYE_HEIGHT);
     this.alert.hold(
       lost
         ? `you're off the map!\n${IS_TOUCH ? 'tap OUT' : 'press E'} to exit and seal your fate`

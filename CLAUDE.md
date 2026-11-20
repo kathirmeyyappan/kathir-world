@@ -254,10 +254,10 @@ wire: server and client both build the world from that file.
   sides a drop of `OUTSIDE_HEIGHT` (10 m) to the ground past the edge, all three of them solid to
   bodies and to rays (`Structures` stands bodies on it, holds a body below the floor off the drop's
   face as a wall, and stops shots and sprays on it). Nothing keeps a walker on the floor: one walks
-  off the edge, falls down the drop, and once it's down on the ground past it loses a heart every
-  half second (`OUT_OF_BOUNDS_SECONDS`) until it's back up at the floor's height, time to jetpack
-  out, or dies there (an `out`, `room.ts` `outOfBounds`), with nothing dropped where it lies; the
-  red box (`ui/Alert.ts`) tells a walker below the floor's height they're out of bounds. The one barrier is a circle round the
+  off the edge, falls down the drop, and for every half second (`OUT_OF_BOUNDS_SECONDS`) it stands
+  on the grey ground past it (`onOutsideGround`) loses a heart, time to jetpack out, or dies there
+  (an `out`, `room.ts` `outOfBounds`), with nothing dropped where it lies; the red box
+  (`ui/Alert.ts`) tells a walker stood there they're out of bounds. The one barrier is a circle round the
   world's reach (`Ground.keepWithin`, the red wall shown as you come near it), the same for a
   walker and a dragon. Keep structures inside the outline.
   The slab is drawn a `CHUNK` at a time (`render/Floor.ts`, one mesh each, streamed in by the
@@ -1601,7 +1601,7 @@ protocol.
 - Falls hurt by landing speed: slower than a 15 m drop from rest is free, as fast as an 80 m drop
   takes every heart, and damage rises linearly between, in half hearts (a jetpack that brakes the
   fall lands slower). That arrives as a `hit` with `shooter: None`, and a fatal fall as a `fell`
-  event rather than `kill`. On the ground past the world's edge a heart goes every half second
+  event rather than `kill`. Stood on the ground past the world's edge a heart goes every half second
   (a `hit` with `shooter: None`) and death there is an `out`: a bot that walks off the floor has
   no way back up but a jetpack, so keep routes on the map. A death by one's own
   kart is a `crashed` event.
