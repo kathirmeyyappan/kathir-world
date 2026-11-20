@@ -1,6 +1,6 @@
 // What a character says in its own voice: every one has a row, and its intro is the line each is
 // expected to have (none, until its recording is added); the rest only some have: a jump, a long
-// jump, a hit, a kill, a kart's trick, dying, and a theme of its own. Each line but the jump is a
+// jump, a hit, a kill, a kart's boost, dying, and a theme of its own. Each line but the jump is a
 // list of takes, one picked each time. Anything a row leaves out is the sound every body makes there.
 import { floatOf, poundOf, strikeOf, type AvatarId } from '@world/shared';
 import type { SoundId } from './Sfx';
@@ -25,9 +25,10 @@ export interface Voice {
   leap?: SoundId[]; // leaving it on a long jump (sim/avatars.ts `Leap`): the jump's sound unless given
   hurt?: SoundId[]; // taking damage, heard by everyone near
   kill?: SoundId[]; // a moment after killing someone
-  // Its cry as the kart it drives tricks (sim/vehicles/kart.ts), heard by everyone near: takes
-  // borrowed from its other lines, each played at TRICK_CRY whichever line it's from; none unless given.
-  trick?: SoundId[];
+  // Its cry as the kart it drives begins a boost (sim/vehicles/kart.ts: a drift's, a trick's or a
+  // boost pad's), heard by everyone near: takes borrowed from its other lines, each played at
+  // BOOST_CRY whichever line it's from; none unless given.
+  boost?: SoundId[];
   // Its player's own death, heard by them alone: over the death screen, after the sound of the hit
   // that killed them. Sent for as a player takes the look (Sfx.want), so only who can die as it
   // fetches it.
@@ -37,10 +38,10 @@ export interface Voice {
   theme?: Theme;
 }
 
-// What a trick's cry plays at, whichever of a look's lines it borrows: the lines' recordings are
+// What a boost's cry plays at, whichever of a look's lines it borrows: the lines' recordings are
 // level with each other and it's their volumes that differ by what they're for (an intro's is over
 // twice a jump's), so the one volume makes every cry as loud as the next.
-export const TRICK_CRY = 0.16;
+export const BOOST_CRY = 0.16;
 
 // Everyone from Bikini Bottom dies to the one song.
 const BIKINI_BOTTOM = { death: ['spongebob-death'] } satisfies Partial<Voice>;
@@ -53,7 +54,7 @@ export const VOICES: Record<AvatarId, Voice> = {
     leap: ['mario-leap-1', 'mario-leap-2', 'mario-leap-3'],
     hurt: ['mario-hurt-1', 'mario-hurt-2', 'mario-hurt-3'],
     kill: ['mario-kill-1', 'mario-kill-2'],
-    trick: ['mario-leap-1', 'mario-leap-2', 'mario-leap-3', 'mario-jump-3'],
+    boost: ['mario-leap-1', 'mario-leap-2', 'mario-leap-3', 'mario-jump-3'],
     death: ['mario-death'],
   },
   luigi: {
@@ -62,7 +63,7 @@ export const VOICES: Record<AvatarId, Voice> = {
     leap: ['luigi-leap-1', 'luigi-leap-2'],
     hurt: ['luigi-hurt-1', 'luigi-hurt-2'],
     kill: ['luigi-kill-1', 'luigi-kill-2'],
-    trick: ['luigi-enter-2', 'luigi-leap-2', 'luigi-jump-3'],
+    boost: ['luigi-enter-2', 'luigi-leap-2', 'luigi-jump-3'],
     death: ['mario-death'],
   },
   wario: {
@@ -71,7 +72,7 @@ export const VOICES: Record<AvatarId, Voice> = {
     leap: ['wario-leap-1', 'wario-leap-2'],
     hurt: ['wario-hurt-1'],
     kill: ['wario-kill-1', 'wario-kill-2'],
-    trick: ['wario-enter', 'wario-enter-2', 'wario-leap-2'],
+    boost: ['wario-enter', 'wario-enter-2', 'wario-leap-2'],
     death: ['mario-death'],
     twirl: 'pound-twirl-heavy',
   },
@@ -82,7 +83,7 @@ export const VOICES: Record<AvatarId, Voice> = {
     leap: ['peach-leap-1', 'peach-leap-2'],
     hurt: ['peach-hurt-1'],
     kill: ['peach-kill-1', 'peach-kill-2'],
-    trick: ['peach-enter', 'peach-jump-3', 'peach-leap-1', 'peach-leap-2'],
+    boost: ['peach-enter', 'peach-jump-3', 'peach-leap-1', 'peach-leap-2'],
     death: ['mario-death'],
   },
   // As Peach, the swoosh for her first jump.
@@ -92,7 +93,7 @@ export const VOICES: Record<AvatarId, Voice> = {
     leap: ['daisy-leap-1', 'daisy-leap-2'],
     hurt: ['daisy-hurt-1', 'daisy-hurt-2'],
     kill: ['daisy-kill-1', 'daisy-kill-2'],
-    trick: ['daisy-jump-3', 'daisy-leap-1', 'daisy-leap-2'],
+    boost: ['daisy-jump-3', 'daisy-leap-1', 'daisy-leap-2'],
     death: ['mario-death'],
   },
   waluigi: {
@@ -101,7 +102,7 @@ export const VOICES: Record<AvatarId, Voice> = {
     leap: ['waluigi-leap-1', 'waluigi-leap-2'],
     hurt: ['waluigi-hurt-1', 'waluigi-hurt-2'],
     kill: ['waluigi-kill-1', 'waluigi-kill-2', 'waluigi-kill-3'],
-    trick: ['waluigi-enter', 'waluigi-leap-1', 'waluigi-leap-2', 'waluigi-jump-3'],
+    boost: ['waluigi-enter', 'waluigi-leap-1', 'waluigi-leap-2', 'waluigi-jump-3'],
     death: ['mario-death'],
     twirl: 'pound-twirl-heavy',
   },
@@ -109,28 +110,28 @@ export const VOICES: Record<AvatarId, Voice> = {
     enter: ['spongebob-enter', 'spongebob-enter-2'],
     hurt: ['spongebob-hurt'],
     kill: ['spongebob-kill-1', 'spongebob-kill-2'],
-    trick: ['spongebob-kill-1'],
+    boost: ['spongebob-kill-1'],
     ...BIKINI_BOTTOM,
   },
   patrick: {
     enter: ['patrick-enter'],
     hurt: ['patrick-hurt-1', 'patrick-hurt-2'],
     kill: ['patrick-kill-1', 'patrick-kill-2'],
-    trick: ['patrick-kill-1'],
+    boost: ['patrick-kill-1'],
     ...BIKINI_BOTTOM,
   },
   krabs: {
     enter: ['krabs-enter', 'krabs-enter-2'],
     hurt: ['krabs-hurt'],
     kill: ['krabs-kill-1', 'krabs-kill-2', 'krabs-kill-3'],
-    trick: ['krabs-enter-2'],
+    boost: ['krabs-enter-2'],
     ...BIKINI_BOTTOM,
   },
   squidward: {
     enter: ['squidward-enter-1', 'squidward-enter-2'],
     hurt: ['squidward-hurt-1', 'squidward-hurt-2', 'squidward-hurt-3'],
     kill: ['squidward-kill-1', 'squidward-kill-2'],
-    trick: ['squidward-hurt-3'],
+    boost: ['squidward-hurt-3'],
     ...BIKINI_BOTTOM,
   },
   gary: {
@@ -149,21 +150,21 @@ export const VOICES: Record<AvatarId, Voice> = {
     enter: ['sandy-enter', 'sandy-enter-2'],
     hurt: ['sandy-hurt-1'],
     kill: ['sandy-kill-1', 'sandy-kill-2'],
-    trick: ['sandy-enter-2'],
+    boost: ['sandy-enter-2'],
     ...BIKINI_BOTTOM,
   },
   puff: {
     enter: ['puff-enter', 'puff-enter-2'],
     hurt: ['puff-hurt-1', 'puff-hurt-2', 'puff-hurt-3'],
     kill: ['puff-kill-1', 'puff-kill-2'],
-    trick: ['puff-hurt-2'],
+    boost: ['puff-hurt-2'],
     ...BIKINI_BOTTOM,
   },
   larry: {
     enter: ['larry-enter', 'larry-enter-2'],
     hurt: ['larry-hurt-1', 'larry-hurt-2'],
     kill: ['larry-kill-1', 'larry-kill-2'],
-    trick: ['larry-enter'],
+    boost: ['larry-enter'],
     ...BIKINI_BOTTOM,
   },
   sahur: { enter: ['sahur-enter'] },

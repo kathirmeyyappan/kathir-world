@@ -1,12 +1,15 @@
 // A kart as it's drawn (a Kart from the room, sim/vehicles/garage.ts): its model's body in its paint,
 // its emblem, its four tires turning as it rolls (the front two steering), its steering wheel
 // turning, the body tipped to the ground under its tires, and all of it at the size it's built at
-// for its driver, eased there; its body sprung over its tires, kicked up off them as a hop begins
-// and driven down onto them as it lands, leaning into a hop's turn and a drift's; twirling a whole
-// turn under its driver through a trick (theirs to sit through as they will); flashing grey at a
-// knock; what it gives off (KartEffects.ts); and its seat as it's drawn, for its driver to sit in. Its model's parts
-// and its paint are sent for as one is likely to be dropped (`wantKart`), or else as it's first
-// drawn, and until both are here nothing of it is.
+// for its driver, eased there; its body sprung over its tires, kicked up off them as a hop begins,
+// as its drift reaches a spark and as a boost begins, and driven down onto them as hard as it
+// lands; leaning into a hop's turn and a drift's, and turned into the drift's turn, its tail out,
+// its nose up through a hop and as a boost rises; twirling a whole turn under its driver through a
+// trick (theirs to sit through as they will); flashing grey at a knock; what it gives off
+// (KartEffects.ts); and its seat as it's drawn, for its driver to sit in. It says what it sees its
+// kart begin from one frame to the next (`Began`), for whatever else shows or sounds that. Its
+// model's parts and its paint are sent for as one is likely to be dropped (`wantKart`), or else as
+// it's first drawn, and until both are here nothing of it is.
 import {
   Color3,
   Mesh,
@@ -20,14 +23,18 @@ import {
 } from '@babylonjs/core';
 import {
   KARTS,
+  TRICK,
+  TURBO,
   WORLD_STRUCTURES,
   createKart,
   forwardSpeed,
   noseOf,
   sizeFor,
+  sparkOf,
   type AvatarId,
   type Kart,
   type KartId,
+  type Spark,
 } from '@world/shared';
 import { smooth } from '../avatars/motion';
 import type { Engine } from '../Engine';
@@ -43,17 +50,40 @@ const MAX_TURN = 0.5; // radians the front tires turn with the wheel full over
 const WHEEL_TURN = 1.6; // radians the steering wheel turns, full over
 const TIP_RATE = 10; // per second: how fast the body settles to the tilt of the ground under it
 const GROW_RATE = 4; // per second: how fast it grows or shrinks to the size it's built at for its driver
-const TRICK_SECONDS = 0.7; // a trick as it's drawn, from the press: the kart's twirl, its driver's leap
 // The body on its springs over its tires: how hard it's pulled back to rest and how fast that's
-// damped (per s² and per s: a bounce or two), the kick up it gets as a hop begins and down as it
-// lands (m/s), the metres its tires hang under it in the air, and how fast they drop there and
-// come back (per second).
-const SPRING = { pull: 260, damp: 15, hop: 2, land: 2.4, droop: 0.07, rate: 18 };
+// damped (per s² and per s: a couple of bounces); the kicks up it gets as a hop begins, as its
+// drift reaches a spark and as a boost begins (m/s); the kick down as it lands, `land` of the speed
+// it came down at up to `hard`; the metres it can sink onto its tires; the metres its tires hang
+// under it in the air, and how fast they drop there and come back (per second).
+const SPRING = {
+  pull: 220,
+  damp: 10,
+  hop: 2.6,
+  spark: 1.3,
+  boost: 1.5,
+  land: 0.6,
+  hard: 4.5,
+  sink: 0.09,
+  droop: 0.09,
+  rate: 18,
+};
 const SPRING_STEP = 1 / 120; // seconds: the longest step the spring is run in, short enough to stay steady
-// Radians it leans over into the turn through a hop and through a drift, and lifts its nose in a
-// hop, each eased there at `rate` per second.
-const LEAN = { hop: 0.16, drift: 0.07, nose: 0.09, rate: 12 };
+// Radians it leans over into the turn through a hop and through a drift; lifts its nose in a hop,
+// and as a boost rises and for `kick` seconds after; and is turned into a drift's turn, its tail
+// out: by `slip`, `steer` more or less with the wheel held into the drift or out of it, and half a
+// slip toward the wheel through the hop before. Each is eased there at `rate` per second.
+const LEAN = { hop: 0.2, drift: 0.08, nose: 0.12, boost: 0.07, kick: 0.15, slip: 0.3, steer: 0.1, rate: 12 };
 const FLASH_SECONDS = 0.12; // a knock's grey flash
+
+// What a kart is seen to have begun since the frame before.
+export interface Began {
+  hop: boolean;
+  landing: number; // m/s it came down onto the ground at, or 0
+  trick: boolean; // its first in the air or another after
+  boost: boolean;
+  spark: Spark | null; // the spark its drift has just reached
+  knock: boolean; // it lost wrenches
+}
 
 // A model's meshes in a scene, hidden, every drawn kart a clone of them sharing their geometry, and
 // what its tires are drawn in, whatever its paint.
@@ -116,6 +146,7 @@ export class KartMesh {
   private readonly scene: Scene;
   readonly root: TransformNode; // where it stands, turned its way
   private readonly tilt: TransformNode; // tipped with the ground under its tires
+  private readonly slid: TransformNode; // turned into a drift's turn, on that ground
   private readonly twirl: TransformNode; // turned round under its driver through a trick
   private readonly chassis: TransformNode; // its body, sprung over its tires
   private readonly effects: KartEffects;
@@ -133,8 +164,18 @@ export class KartMesh {
   private roll = 0;
   private sprung = { y: 0, v: 0 }; // metres its body rides over its rest on its tires, and m/s that's changing
   private droop = 0; // metres its tires hang under it
-  private lean = { roll: 0, nose: 0 }; // radians it leans into a hop or a drift, and lifts its nose
-  private was = { hop: false, grounded: true }; // as it was last frame, to see a hop begin and a landing
+  private lean = { roll: 0, nose: 0, slip: 0 }; // radians it leans into a hop or a drift, lifts its nose, and is turned into a drift
+  // Its kart as last drawn, to see what it has begun since: in its hop, on the ground, m/s it was
+  // falling at, the seconds into its trick, in a boost, the spark its drift had, its wrenches.
+  private was: {
+    hop: boolean;
+    grounded: boolean;
+    fall: number;
+    trick: number | null;
+    boost: boolean;
+    spark: Spark | null;
+    wrenches: number;
+  } | null = null;
   private flashed = 0; // seconds of a knock's flash left
 
   constructor(
@@ -151,34 +192,39 @@ export class KartMesh {
     this.root = new TransformNode(`kart-${id}`, scene);
     this.tilt = new TransformNode(`kart-${id}-tilt`, scene);
     this.tilt.parent = this.root;
+    this.slid = new TransformNode(`kart-${id}-slid`, scene);
+    this.slid.parent = this.tilt;
     this.twirl = new TransformNode(`kart-${id}-twirl`, scene);
-    this.twirl.parent = this.tilt;
+    this.twirl.parent = this.slid;
     this.chassis = new TransformNode(`kart-${id}-chassis`, scene);
     this.chassis.parent = this.twirl;
-    this.effects = new KartEffects(engine, id, this.tilt, this.chassis, this.model);
+    this.effects = new KartEffects(engine, id, this.slid, this.chassis, this.model);
     wantKart(scene, kart, paint);
   }
 
   // Draws it where `kart` is, its tires rolled on by how far it went in `dt` seconds, and puts its
-  // seat there.
-  update(kart: Kart, dt: number): void {
+  // seat there. Returns what the kart has begun since it was last drawn.
+  update(kart: Kart, dt: number): Began {
     if (!this.built) this.build();
+    const began = this.see(kart);
+    if (began.knock) this.flash();
     this.root.position.set(kart.pos.x, kart.pos.y, kart.pos.z);
     this.root.rotation.y = kart.yaw;
     this.size = this.size ? this.size + (kart.size - this.size) * (1 - Math.exp(-GROW_RATE * dt)) : kart.size;
     const along = forwardSpeed(kart);
     this.rolled += (along * dt) / (this.model.tire.radius * this.size);
     if (kart.grounded) this.tipTo(kart, dt);
-    this.spring(kart, dt);
+    this.spring(kart, began, dt);
     const pitch = this.pitch - this.lean.nose;
     const roll = this.roll + this.lean.roll;
     this.tilt.rotation.set(pitch, 0, roll);
     this.tilt.scaling.setAll(this.size);
+    this.slid.rotation.y = this.lean.slip;
     this.chassis.position.y = this.sprung.y;
     // The sim's trick while it's in the air, then on through its landing until it's drawn through.
     if (kart.trick) this.trick = { ...kart.trick };
-    else if (this.trick && (this.trick.t += dt) >= TRICK_SECONDS) this.trick = null;
-    const through = this.trick ? Math.min(1, this.trick.t / TRICK_SECONDS) : 0;
+    else if (this.trick && (this.trick.t += dt) >= TRICK.seconds) this.trick = null;
+    const through = this.trick ? Math.min(1, this.trick.t / TRICK.seconds) : 0;
     this.twirl.rotation.y = this.trick ? this.trick.way * 2 * Math.PI * smooth(through) : 0;
     for (const tire of this.tires) {
       tire.spin.rotation.x = this.rolled;
@@ -188,6 +234,7 @@ export class KartMesh {
     Quaternion.RotationAxisToRef(this.axis, -kart.wheel * WHEEL_TURN, STEER);
     if (this.steer) (this.steer.rotationQuaternion ??= new Quaternion()).copyFrom(STEER);
     Quaternion.RotationYawPitchRollToRef(kart.yaw, pitch, roll, TURN);
+    TURN.multiplyInPlace(Quaternion.RotationYawPitchRollToRef(this.lean.slip, 0, 0, SLIP));
     this.seat.place(
       kart,
       this.root.position,
@@ -198,13 +245,37 @@ export class KartMesh {
       along,
       this.trick && { way: this.trick.way, through },
     );
-    this.effects.update(kart, dt);
+    this.effects.update(kart, began, dt);
     if (this.flashed > 0 && (this.flashed -= dt) <= 0)
       for (const { mesh, material } of this.pieces) mesh.material = material;
+    return began;
+  }
+
+  // What `kart` has begun since it was last drawn; nothing the first time it's seen.
+  private see(kart: Kart): Began {
+    const now = {
+      hop: kart.hop,
+      grounded: kart.grounded,
+      fall: -kart.vel.y,
+      trick: kart.trick?.t ?? null,
+      boost: kart.turbo !== null,
+      spark: kart.drift && sparkOf(kart.drift.t, KARTS[kart.kart]),
+      wrenches: kart.wrenches,
+    };
+    const was = this.was ?? now;
+    this.was = now;
+    return {
+      hop: now.hop && !was.hop,
+      landing: now.grounded && !was.grounded ? Math.max(was.fall, 0) : 0,
+      trick: now.trick !== null && (was.trick === null || now.trick < was.trick),
+      boost: now.boost && !was.boost,
+      spark: now.spark !== was.spark ? now.spark : null,
+      knock: now.wrenches < was.wrenches,
+    };
   }
 
   // A knock that cost it wrenches: every piece of it grey for a moment.
-  flash(): void {
+  private flash(): void {
     this.flashed = FLASH_SECONDS;
     const grey = knockedIn(this.scene);
     for (const { mesh } of this.pieces) mesh.material = grey;
@@ -217,24 +288,32 @@ export class KartMesh {
     this.root.dispose();
   }
 
-  // The body on its springs this frame: kicked up as a hop begins and down as it lands, and pulled
-  // back to rest; its tires hanging while it's in the air; and its lean into a hop's turn or a
-  // drift's, nose up through the hop.
-  private spring(kart: Kart, dt: number): void {
+  // The body on its springs this frame: kicked by what the kart has `began`, pulled back to rest,
+  // and stopped where it's down on its tires; its tires hanging while it's in the air; and its
+  // lean: over into a hop's turn or a drift's, nose up through a hop and a boost's rise, and turned
+  // into a drift.
+  private spring(kart: Kart, began: Began, dt: number): void {
     const s = this.sprung;
-    if (kart.hop && !this.was.hop) s.v += SPRING.hop;
-    if (kart.grounded && !this.was.grounded) s.v -= SPRING.land;
-    this.was = { hop: kart.hop, grounded: kart.grounded };
+    if (began.hop) s.v += SPRING.hop;
+    if (began.spark) s.v += SPRING.spark;
+    if (began.boost) s.v += SPRING.boost;
+    s.v -= Math.min(SPRING.hard, SPRING.land * began.landing);
     for (let left = Math.min(dt, 0.1); left > 0; left -= SPRING_STEP) {
       const step = Math.min(left, SPRING_STEP);
       s.v += (-SPRING.pull * s.y - SPRING.damp * s.v) * step;
       s.y += s.v * step;
+      if (s.y < -SPRING.sink) [s.y, s.v] = [-SPRING.sink, Math.max(s.v, 0)];
     }
     this.droop += ((kart.grounded ? 0 : SPRING.droop) - this.droop) * (1 - Math.exp(-SPRING.rate * dt));
-    const over = kart.hop ? -kart.wheel * LEAN.hop : kart.drift ? -kart.drift.way * LEAN.drift : 0;
+    const { hop, drift, turbo, wheel } = kart;
+    const over = hop ? -wheel * LEAN.hop : drift ? -drift.way * LEAN.drift : 0;
+    const rising = turbo !== null && turbo.t < TURBO.rise + LEAN.kick;
+    const nose = hop ? LEAN.nose : rising ? LEAN.boost : 0;
+    const slip = drift ? drift.way * LEAN.slip + wheel * LEAN.steer : hop ? (wheel * LEAN.slip) / 2 : 0;
     const k = 1 - Math.exp(-LEAN.rate * dt);
     this.lean.roll += (over - this.lean.roll) * k;
-    this.lean.nose += ((kart.hop ? LEAN.nose : 0) - this.lean.nose) * k;
+    this.lean.nose += (nose - this.lean.nose) * k;
+    this.lean.slip += (slip - this.lean.slip) * k;
   }
 
   // Eases the body toward the tilt of the ground under its tires: nose up or down by the ground
@@ -307,6 +386,7 @@ export class KartMesh {
 // Scratch for a frame's turns, shared by every kart: none of it survives a call.
 const STEER = new Quaternion();
 const TURN = new Quaternion();
+const SLIP = new Quaternion();
 
 // A model's meshes, made once every one of its parts is here.
 async function fetchParts(scene: Scene, kart: KartId, model: KartModel): Promise<Parts> {

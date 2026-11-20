@@ -32,6 +32,9 @@ function drive(k: KartState, c: KartControls, seconds: number, structures: Struc
 
 const speed = (k: KartState) => Math.hypot(k.vel.x, k.vel.z);
 
+// A block 6 m high, 20 m square (its near edge at z 10, its far one at z 30), off to one side of the open floor.
+const platform: Structure & { h: number } = { kind: 'box', x: 100, z: 20, w: 20, d: 20, h: 6 };
+
 test('a kart drifts, sparks blue, yellow and purple by its mini-turbo time, and boosts by the spark let go on', () => {
   const structures = world();
   const spec = KARTS.standard;
@@ -39,8 +42,10 @@ test('a kart drifts, sparks blue, yellow and purple by its mini-turbo time, and 
   const gas = { gas: 1, steer: 0, drift: false };
   drive(k, gas, spec.acceleration, structures);
   assert.ok(Math.abs(speed(k) - spec.speed) < 0.5, `flat out after its acceleration: ${speed(k)}`);
-  // A press with the wheel over hops it, and it lands drifting that way.
-  drive(k, { gas: 1, steer: 1, drift: true }, 0.5, structures);
+  // A press hops it, and with the key held on the ground the wheel going over begins a drift that way.
+  drive(k, { gas: 1, steer: 0, drift: true }, 0.6, structures);
+  assert.deepEqual([k.grounded, k.drift], [true, null], 'landed, the wheel straight');
+  drive(k, { gas: 1, steer: 1, drift: true }, TICK_DT, structures);
   assert.equal(k.drift?.way, 1);
   // Held on through a yellow spark and let go short of purple.
   const [, yellow] = SPARKS;
@@ -57,23 +62,61 @@ test('a kart drifts, sparks blue, yellow and purple by its mini-turbo time, and 
   assert.ok(speed(k) < spec.speed + 0.5, `back at its own speed once it's let down: ${speed(k)}`);
 });
 
-test('a press in the air tricks a kart the way its wheel is held and boosts it as it lands, but not in its own hop', () => {
-  const structures = world();
-  const k = createKart('standard', 1, { x: 0, y: 3, z: 0 }, 0);
+test('a press in the air tricks a kart the way its wheel is held, again once that trick is through, and boosts it once as it lands, a moment early or late too, but not in its own hop', () => {
+  // The platform, and a jump along +z: up 5 m over 14 m, 8 m of nothing, and back down.
+  const structures = world(
+    platform,
+    ramp({ x: 0, z: 40 }, { x: 0, z: 54 }, 5, 9),
+    ramp({ x: 0, z: 76 }, { x: 0, z: 62 }, 5, 9),
+  );
+  const k = createKart('standard', 1, { x: 0, y: 16, z: 0 }, 0);
   const gas = { gas: 1, steer: 0, drift: false };
-  drive(k, { gas: 1, steer: -1, drift: true }, TICK_DT, structures);
+  const press = (steer: number) => drive(k, { gas: 1, steer, drift: true }, TICK_DT, structures);
+  press(-1);
   assert.equal(k.trick?.way, -1);
+  // Another press early in it is nothing; one after it's through is the next trick.
+  drive(k, gas, TRICK.seconds / 4, structures);
+  press(1);
+  assert.equal(k.trick?.way, -1);
+  drive(k, gas, TRICK.seconds, structures);
+  press(1);
+  assert.equal(k.trick?.way, 1);
+  assert.ok(k.trick.t < 2 * TICK_DT, `begun afresh: ${k.trick.t}`);
   drive(k, gas, 1, structures);
   assert.equal(k.trick, null);
   assert.equal(k.turbo?.hold, TRICK.hold);
   drive(k, gas, TURBO.rise + TRICK.hold + TURBO.fall + 0.2, structures);
   // A press hops it, and another in the hop is no trick.
-  drive(k, { gas: 1, steer: 0, drift: true }, TICK_DT, structures);
+  press(0);
   drive(k, gas, TICK_DT, structures);
-  drive(k, { gas: 1, steer: 0, drift: true }, TICK_DT, structures);
+  press(0);
   assert.equal(k.trick, null);
   drive(k, gas, 1, structures);
   assert.equal(k.turbo, null);
+  // Up a jump's ramp flat out, a press well short of the lip waits for it, and is the trick off it.
+  const early = createKart('standard', 1, { x: 0, y: 0, z: 0 }, 0);
+  while (early.pos.z < 46) drive(early, gas, TICK_DT, structures);
+  drive(early, { gas: 1, steer: 0, drift: true }, TICK_DT, structures);
+  assert.ok(early.grounded && !early.hop, 'no hop up the ramp');
+  while (early.grounded) drive(early, gas, TICK_DT, structures);
+  drive(early, gas, TICK_DT, structures);
+  assert.ok(early.trick, 'a trick off the lip');
+  // And one a moment after landing from a flight with no trick in it is that trick, late.
+  const late = createKart('standard', 1, { x: 0, y: 0, z: 0 }, 0);
+  while (late.pos.z < 58 || !late.grounded) drive(late, gas, TICK_DT, structures);
+  drive(late, gas, 0.1, structures);
+  drive(late, { gas: 1, steer: 0, drift: true }, TICK_DT, structures);
+  assert.ok(late.trick && late.grounded && !late.hop, 'a late trick, no hop');
+  assert.equal(late.turbo?.hold, TRICK.hold);
+  // Hopped off the platform's edge, it's off a ledge once it's falling faster than a hop comes down.
+  const off = createKart('standard', 1, { x: 100, y: platform.h, z: 12 }, 0);
+  while (off.pos.z < 28) drive(off, gas, TICK_DT, structures);
+  drive(off, { gas: 1, steer: 0, drift: true }, TICK_DT, structures);
+  assert.ok(off.hop && off.pos.y > platform.h, 'hopped, short of the edge');
+  drive(off, gas, 0.6, structures);
+  assert.ok(!off.grounded && off.pos.y < platform.h, `past the edge and falling: ${off.pos.y}`);
+  drive(off, { gas: 1, steer: 0, drift: true }, TICK_DT, structures);
+  assert.ok(off.trick, 'a trick, past its hop');
 });
 
 test('a boost pad drives a kart rolling over it up to its boosted speed with no gas and holds the boost on past it, and leaves one parked on it alone', () => {

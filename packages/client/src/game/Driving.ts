@@ -1,6 +1,6 @@
 // Driving a kart, as the player sees it (sim/vehicles/): every kart drawn, the one they drive from
 // its prediction and the rest from the snapshots, with its seat for its driver's body to sit in,
-// and flashed at a knock that costs it wrenches;
+// and what each has begun said, for what's heard of it;
 // the kart under the crosshair, which a click gets them into; the look carried round with the kart
 // they drive and, once the mouse has been let be a moment, settled back behind it; and the keys
 // that drive it besides the movement keys: the drift held on Space, and E to get out.
@@ -11,6 +11,7 @@ import {
   type ItemAction,
   type Kart,
   type KartState,
+  type Spark,
   type Structures,
   type Vec3,
 } from '@world/shared';
@@ -25,45 +26,31 @@ const SETTLED_PITCH = 0.12; // radians down the settled look is, over the kart's
 
 export class Driving {
   onKnock: ((at: Vec3) => void) | null = null; // a kart there lost wrenches to a knock: for what's heard of it
-  onBoost: ((at: Vec3) => void) | null = null; // a kart there began a boost: for what's heard of it
-  onTrick: ((at: Vec3, driver: string | null) => void) | null = null; // a kart there began a trick, with `driver` in it
-  // Each kart drawn, with its wrenches and whether it was boosting and in a trick as last seen.
-  private readonly drawn = new Map<
-    string,
-    { mesh: KartMesh; wrenches: number; boosting: boolean; tricking: boolean }
-  >();
+  onBoost: ((at: Vec3, driver: string | null) => void) | null = null; // a kart there began a boost, with `driver` in it
+  onTrick: ((at: Vec3) => void) | null = null; // a kart there began a trick: for what's heard of it
+  onSpark: ((at: Vec3, spark: Spark) => void) | null = null; // a kart's drift there reached `spark`
+  private readonly drawn = new Map<string, KartMesh>(); // each kart drawn
   private kartYaw: number | null = null; // the yaw of the kart they drive, as last followed
   private left: { yaw: number; pitch: number } | null = null; // the look as it was last left
   private still = 0; // seconds the look has been let be
 
   constructor(private readonly engine: Engine) {}
 
-  // Draws `karts` as they are this frame, each flashed if it has lost wrenches since the last, says
-  // which were knocked and which began a boost or a trick, and lets go of any that are gone.
+  // Draws `karts` as they are this frame, says what each has begun since the last (a knock that
+  // cost it wrenches, a boost, a trick, a spark of its drift), and lets go of any that are gone.
   draw(karts: Kart[], dt: number): void {
     const here = new Set<string>();
     for (const k of karts) {
       here.add(k.id);
-      const boosting = k.turbo !== null;
-      const tricking = k.trick !== null;
-      let kart = this.drawn.get(k.id);
-      if (!kart) {
-        const mesh = new KartMesh(this.engine, k.id, k.kart, k.paint);
-        kart = { mesh, wrenches: k.wrenches, boosting, tricking };
-        this.drawn.set(k.id, kart);
-      }
-      kart.mesh.update(k, dt);
-      if (k.wrenches < kart.wrenches) {
-        kart.mesh.flash();
-        this.onKnock?.(k.pos);
-      }
-      if (boosting && !kart.boosting) this.onBoost?.(k.pos);
-      if (tricking && !kart.tricking) this.onTrick?.(k.pos, k.driver);
-      kart.wrenches = k.wrenches;
-      kart.boosting = boosting;
-      kart.tricking = tricking;
+      let mesh = this.drawn.get(k.id);
+      if (!mesh) this.drawn.set(k.id, (mesh = new KartMesh(this.engine, k.id, k.kart, k.paint)));
+      const began = mesh.update(k, dt);
+      if (began.knock) this.onKnock?.(k.pos);
+      if (began.boost) this.onBoost?.(k.pos, k.driver);
+      if (began.trick) this.onTrick?.(k.pos);
+      if (began.spark) this.onSpark?.(k.pos, began.spark);
     }
-    for (const [id, { mesh }] of this.drawn)
+    for (const [id, mesh] of this.drawn)
       if (!here.has(id)) {
         mesh.dispose();
         this.drawn.delete(id);
@@ -72,7 +59,7 @@ export class Driving {
 
   // The seat of the kart `id` as it was last drawn, for its driver's body to sit in.
   seatOf(id: string): Seat | null {
-    return this.drawn.get(id)?.mesh.seat ?? null;
+    return this.drawn.get(id)?.seat ?? null;
   }
 
   // The kart a click from `eye` along unit `dir` gets into: the nearest of `karts` within
