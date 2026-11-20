@@ -46,7 +46,7 @@ export function commandGroups(): Group[] {
         command('unequip', 'put away your weapon and gear'),
       ],
     },
-    { title: 'drop kart', rows: KART_IDS.map((id) => command(KARTS[id].command, KARTS[id].blurb)) },
+    { title: 'vehicle', rows: KART_IDS.map((id) => command(KARTS[id].command, KARTS[id].blurb)) },
     {
       title: 'bot commands',
       rows: [
