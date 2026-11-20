@@ -308,11 +308,11 @@ wire: server and client both build the world from that file.
   `worldTop: true` on them so their tops map alike. The same goes for anything else the client
   draws: never lay a decal, glow or second mesh exactly on a surface.
 - Client cost: the renderer merges pieces with the same look in the same 48 m square into one mesh,
-  so draw calls stay in the tens however many pieces there are. The world's 13,561 pieces (5,642
+  so draw calls stay in the tens however many pieces there are. The world's 13,552 pieces (5,642
   drawn; the house's rooms and shell are 7,516 hidden pieces, the Krusty Krab 175 and the roads'
-  228: their risen banks, their decks and their boost pads) render as
+  219: their risen banks, their decks and their boost pads) render as
   about 100 meshes (about 15 in view at once; the roads' built ramps are 24 pieces in 17 of them, each
-  of their 77 lengths of risen road is a small mesh of its own and each of their 64 boost pads two, and
+  of their 77 lengths of risen road is a small mesh of its own and each of their 55 boost pads two, and
   the floor is 275 chunks), and a raycast tries the pieces a stretch of grid cells at a
   time, so one across open floor costs a few µs, one through the Krusty Krab about 10 µs and one
   through the house about 130 µs. The sim's grid has height bands as well as cells, so a walker's
@@ -381,9 +381,11 @@ foot) with a pad on the ramp either side of it (`hop`), so a kart that rolls ont
 slowly leaves the lip boosted, about 1.4 s in the air, time for a trick, and comes down some 20 m
 past the far ramp's foot (so keep 50 m of straight road past a jump; a `kicker` is a hill as
 steep with a pad up each side, flown off the same with floor under the whole flight; a `dash` is
-a level straight with a pad across its middle and a `crest` a hill with one across its top: a
-straight has a pad every 100 to 170 m or so, on the flat, on a hill's top, before a deck's ramp,
-and a bend has none, so there's road to drift and road at a kart's own speed between boosts), a bend of
+a level straight with a pad across its middle, `early` the start of a straight out of an island
+with a pad 30 m clear of it, and a `crest` a hill with one across its top: a straight's pads lie
+early along it or on its hill, none at an island's way in nor just before a bend and none on one,
+so a kart is boosted down the straight and back at its own speed by the turn, where a drift is
+what earns the next boost), a bend of
 60 m or more, taken flat out, and where one road crosses another between islands, a deck over it,
 the whole sweep it crosses in (`up` and `down`: a ramp to 9 m at either end of the deck, on the
 straights, since a bend doesn't climb). A slope's top a sixth or more steeper than what
