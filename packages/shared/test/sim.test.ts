@@ -179,7 +179,7 @@ test("a road's boost pad lies a hair over its stretch, level or climbing, short 
   );
 });
 
-test("a road's open stretch is a deck with the floor clear under it, and isn't laid without headroom", () => {
+test("a road's open stretch or bend is a deck with the floor clear under it, and isn't laid without headroom", () => {
   // North 100 m: up `rise` over 30 m, 20 m of deck, and back down.
   const over = (rise: number) =>
     layRoad({
@@ -195,6 +195,26 @@ test("a road's open stretch is a deck with the floor clear under it, and isn't l
   assert.ok(structures.fits(0, 50, 0, 4, 5), 'room for what passes beneath');
   assert.equal(road.marks.filter((mark) => mark.kind === 'span').length, 1);
   assert.throws(() => over(3), /deck/);
+  // North and round a bend to the east, up `rise` before it and down after: the bend's the deck.
+  const round = (rise: number) =>
+    layRoad({
+      name: 'test',
+      from: { x: 0, z: 0 },
+      width: 20,
+      runs: [
+        { to: { x: 0, z: 100 }, radius: 60, open: true, stretches: [level(10), climb(30, rise)] },
+        { to: { x: 100, z: 100 }, stretches: [climb(30, -rise), level()] },
+      ],
+    });
+  const swept = round(8);
+  const under = new Structures(swept.bank, new Ground(swept.floor));
+  // Halfway round it, 60 m from the bend's middle at (60, 40).
+  const [x, z] = [60 - 60 * Math.SQRT1_2, 40 + 60 * Math.SQRT1_2];
+  assert.equal(under.groundAt(x, z, 50), 8, "the bend's deck's top");
+  assert.equal(under.groundAt(x, z, 6), 0, 'the floor under it');
+  assert.ok(under.fits(x, z, 0, 4, 5), 'room for what passes beneath');
+  assert.equal(swept.marks.filter((mark) => mark.kind === 'sweep').length, 1);
+  assert.throws(() => round(3), /deck/);
 });
 
 test('jump only from the ground, and gravity brings you back', () => {

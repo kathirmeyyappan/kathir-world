@@ -1,7 +1,7 @@
 // The world's outline: the parts of the floor (ground.ts), in a module of their own so content can
 // place things relative to them without importing the structures, which import the content.
 import { Ground, type Bridge, type Disc, type Sector, type WorldPart } from './ground';
-import { climb, jump, layRoad, level, padded, span, type Point, type Road, type Stretch } from './roads';
+import { climb, jump, layRoad, level, padded, type Point, type Road, type Stretch } from './roads';
 
 export const MAIN_DISC: Disc = { kind: 'disc', x: 0, z: 0, r: 50 }; // the cubes' home
 export const ANNEX: Disc = { kind: 'disc', x: 112, z: 0, r: 30 }; // Tung Tung Tower's grounds
@@ -91,14 +91,10 @@ const SOUTHWEST_BEND: Point = { x: -660, z: -250 };
 const SOUTH_BEND: Point = { x: -300, z: -420 };
 const NORTHEAST_BEND: Point = { x: 190, z: 340 };
 const SOUTHEAST_BEND: Point = { x: 190, z: -340 };
-// The corners the roads up on decks sweep round: the skyway's, out toward the Krusty Krab; the
-// high road's, over the northwest spoke; and the serpent's two, the second over the southwest spoke.
-const SKYWAY_BEND: Point = { x: -160, z: 0 };
+// The corners the roads up on decks sweep round: the skyway's, a little out toward the Krusty
+// Krab, and the high road's, over the northwest spoke.
+const SKYWAY_BEND: Point = { x: -205, z: 0 };
 const HIGH_BEND: Point = { x: -440, z: 195 };
-const SERPENT_BENDS: [Point, Point] = [
-  { x: -560, z: -170 },
-  { x: -420, z: -140 },
-];
 // A disc of floor beside a straight of road from a to b, lapping onto it: `along` of the way, `r`
 // across, on the road's left (1) or its right (-1) as it runs. A place to pull off.
 const layBy = (a: Point, b: Point, along: number, side: 1 | -1, r: number): Disc => {
@@ -110,10 +106,10 @@ const layBy = (a: Point, b: Point, along: number, side: 1 | -1, r: number): Disc
 const LAY_BYS: Disc[] = [
   layBy(NORTH_ISLAND, NORTH_BEND, 0.3, -1, 16),
   layBy(NORTHWEST_BEND, WEST_ISLAND, 0.25, -1, 18),
-  layBy(WEST_ISLAND, SOUTHWEST_BEND, 0.35, -1, 16),
+  layBy(WEST_ISLAND, SOUTHWEST_BEND, 0.35, 1, 16),
   layBy(ROAD_PLATEAU, WEST_ISLAND, 0.5, 1, 18),
   layBy(ROAD_PLATEAU, NORTHWEST_ISLAND, 0.8, 1, 16),
-  layBy(ROAD_PLATEAU, SOUTHWEST_ISLAND, 0.25, 1, 16),
+  layBy(ROAD_PLATEAU, SOUTHWEST_ISLAND, 0.25, -1, 16),
   layBy(SOUTHEAST_BEND, SOUTH_ISLAND, 0.2, -1, 18),
   layBy(NORTHEAST_BEND, EAST_ISLAND, 0.25, 1, 18),
 ];
@@ -137,10 +133,9 @@ export const ISLANDS: Disc[] = [
 // closing across the floor between the keeps. Inside it a web: the Krusty Krab's road on west from
 // the crossroads to the west island, a spoke from the crossroads to each of the northwest and
 // southwest islands, and an inner ring from the north island by two small islands to the south
-// one. Over those go three roads on decks, each a long sweep up off the floor: the skyway, an arc
-// from one of the ring's small islands to the other, out over the Krusty Krab's road; the high
-// road, from the west island round over the northwest spoke to the ring; and the serpent, from
-// the west island one way and then the other, over the southwest spoke, to the ring. Outside it, a road out
+// one. Over those go two roads on decks, each a long sweep up off the floor: the skyway, an arc
+// from one of the ring's small islands to the other, over the Krusty Krab's road, and the high
+// road, from the west island round over the northwest spoke to the ring. Outside it, a road out
 // to a small island at each of three corners of the world. Round the east goes one road, from the
 // north island by the east island to the south, with a way out to it from the tower, from
 // SpongeBob's house and from Building 4.
@@ -210,17 +205,12 @@ const WEB: Road[] = [
   road('inner southwest', ROAD_PLATEAU, [{ to: INNER_SOUTH, stretches: [level(), ...hop(), level()] }]),
   road('inner south', INNER_SOUTH, [{ to: SOUTH_ISLAND, stretches: [level(), ...kicker(), level()] }]),
   road('skyway', INNER_NORTH, [
-    { to: SKYWAY_BEND, radius: 260, open: true, stretches: [level(), ...up()] },
+    { to: SKYWAY_BEND, radius: 400, open: true, stretches: [level(), ...up()] },
     { to: INNER_SOUTH, stretches: [...down(), level()] },
   ]),
   road('high road', WEST_ISLAND, [
     { to: HIGH_BEND, radius: 240, open: true, stretches: [...dash(), ...up()] },
     { to: INNER_NORTH, stretches: [...down(), level()] },
-  ]),
-  road('serpent', WEST_ISLAND, [
-    { to: SERPENT_BENDS[0], radius: 90, open: true, stretches: [level(), ...up()] },
-    { to: SERPENT_BENDS[1], radius: 150, open: true, stretches: [span()] },
-    { to: INNER_SOUTH, stretches: [...down(), level()] },
   ]),
 ];
 const REACHES: Road[] = [
