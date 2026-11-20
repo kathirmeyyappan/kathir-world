@@ -45,8 +45,19 @@ test('a kart drifts, sparks blue, yellow and purple by its mini-turbo time, and 
   // A press hops it, and with the key held on the ground the wheel going over begins a drift that way.
   drive(k, { gas: 1, steer: 0, drift: true }, 0.6, structures);
   assert.deepEqual([k.grounded, k.drift], [true, null], 'landed, the wheel straight');
-  drive(k, { gas: 1, steer: 1, drift: true }, TICK_DT, structures);
+  const hard = { gas: 1, steer: 1, drift: true };
+  drive(k, hard, TICK_DT, structures);
   assert.equal(k.drift?.way, 1);
+  // The drift's turn comes on over a moment: gentler than the wheel alone at first, tighter once in.
+  const turn = () => {
+    const from = k.yaw;
+    drive(k, hard, TICK_DT, structures);
+    return (k.yaw - from) / TICK_DT;
+  };
+  const wheel = spec.speed / (spec.handling / 2); // radians a second, the wheel full over with no drift
+  assert.ok(turn() < 0.6 * wheel, 'eased in');
+  drive(k, hard, 0.6, structures);
+  assert.ok(turn() > wheel, 'tighter than the wheel once it has come round');
   // Held on through a yellow spark and let go short of purple.
   const [, yellow] = SPARKS;
   drive(k, { gas: 1, steer: 0.5, drift: true }, yellow.after * spec.miniTurboTime, structures);

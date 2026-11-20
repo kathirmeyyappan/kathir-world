@@ -57,7 +57,9 @@ export interface KartState {
   // still be that trick (TRICK.late).
   down: number | null;
   hop: boolean; // it left the ground by the hop a press gives, until it lands
-  drift: { way: 1 | -1; t: number } | null; // its way (1 right) and the seconds of it on the ground
+  // Its drift: its way (1 right), the seconds of it on the ground, and the share of its full turn
+  // it was turning at as the drift began, which it eases from.
+  drift: { way: 1 | -1; t: number; from: number } | null;
   // In the air: the way of its trick, or of its last where it has done several (1 right), and the
   // seconds since that one began.
   trick: { way: 1 | -1; t: number } | null;
@@ -145,6 +147,9 @@ const DRIFT_HOLD = 0.3; // of the wheel: held over with the drift key down on th
 // held out of the drift's way (all but straight, so a drift can be carried round a long bend),
 // let be, and held into it (tighter than any turn without one).
 const DRIFT_TURN = { wide: 0.2, neutral: 0.6, tight: 1.25 };
+// Seconds of a drift on the ground it takes to come round to that turn from the one it began
+// with, eased, so a hop's slight turn doesn't snap into the drift's as it lands.
+const DRIFT_EASE = 0.45;
 const AIR_STEER = 0.3; // of its turn, in the air
 const BOUNCE = 0.3; // of the speed it ran into a wall at, back off it
 
@@ -259,7 +264,8 @@ export function stepKart(k: KartState, c: KartControls, dt: number, structures: 
     if (spark) k.turbo = { hold: SPARKS[spark - 1].hold, t: 0, spark };
     k.drift = null;
   }
-  k.yaw += turnRate(k, spec, speed) * dt;
+  const lock = lockOf(k);
+  k.yaw += ((lock * speed) / (spec.handling / 2)) * dt;
   if (k.grounded) drive(k, spec, c.gas, dt, structures);
   const { impact, footing } = move(k, dt, structures);
   const landing = settle(k, dt, footing);
@@ -271,7 +277,7 @@ export function stepKart(k: KartState, c: KartControls, dt: number, structures: 
   // The drift key held on the ground at speed: the wheel over begins a drift that way, as the hop
   // lands or whenever it goes over after.
   if (k.grounded && !k.drift && c.drift && Math.abs(steer) >= DRIFT_HOLD && forwardSpeed(k) >= DRIFT_FROM * spec.speed)
-    k.drift = { way: steer > 0 ? 1 : -1, t: 0 };
+    k.drift = { way: steer > 0 ? 1 : -1, t: 0, from: lock };
   if (k.drift && k.grounded) k.drift.t += dt;
   if (k.turbo) {
     k.turbo.t += dt;
@@ -324,11 +330,18 @@ export function forwardSpeed(k: KartState): number {
   return k.vel.x * f.x + k.vel.z * f.z;
 }
 
-// Radians a second it turns: the wheel's share of its full turn, which at any speed is a circle
-// `handling` across, so slower is no tighter; backing up turns it the other way, as a car does.
-function turnRate(k: KartState, spec: KartSpec, speed: number): number {
-  const lock = k.drift ? k.drift.way * driftTurn(k.drift.way * k.wheel) : k.wheel;
-  return ((lock * speed) / (spec.handling / 2)) * (k.grounded ? 1 : AIR_STEER);
+// The share of its full turn it's turning at, a circle `handling` across at any speed, so slower
+// is no tighter, and backing up turns it the other way, as a car does: the wheel's, or in a drift
+// the drift's, come round to from the turn it began with over DRIFT_EASE; less in the air.
+function lockOf(k: KartState): number {
+  const lock = k.drift ? eased(k.drift, k.drift.way * driftTurn(k.drift.way * k.wheel)) : k.wheel;
+  return lock * (k.grounded ? 1 : AIR_STEER);
+}
+
+// A drift's turn on its way from the one it began with to `settled`.
+function eased({ t, from }: NonNullable<KartState['drift']>, settled: number): number {
+  const through = Math.min(1, t / DRIFT_EASE);
+  return from + (settled - from) * through * through * (3 - 2 * through);
 }
 
 // A drift's share of the full turn with the wheel held `into` it: -1 full out of its way, 0 let
