@@ -71,6 +71,8 @@ export interface KartState {
   boosts: number;
   // Rolling forward over a boost pad as of its last tick: rolling onto one is a boost begun.
   pad: boolean;
+  // Seconds left of reeling from what it ran into (REEL), its tires doing nothing: 0 out of one.
+  reel: number;
 }
 
 // What came of a tick: how fast it was going into what it ran into, square to it (0 for nothing),
@@ -157,6 +159,10 @@ const DRIFT_TURN = { wide: 0.2, neutral: 0.6, tight: 1.25 };
 const DRIFT_EASE = 0.45;
 const AIR_STEER = 0.3; // of its turn, in the air
 const BOUNCE = 0.3; // of the speed it ran into a wall at, back off it
+// Run into at `from` m/s or more, square to what it hit, a kart reels for `seconds`: its tires do
+// nothing, neither driving it nor slowing it, so it rolls back off the wall as it bounced and the
+// gas, held, doesn't take the bounce back at once. A slower touch, or a scrape along a wall, is none.
+const REEL = { from: 4, seconds: 0.25 };
 
 export function createKart(kart: KartId, size: number, pos: Vec3, yaw: number): KartState {
   return {
@@ -177,6 +183,7 @@ export function createKart(kart: KartId, size: number, pos: Vec3, yaw: number): 
     turbo: null,
     boosts: 0,
     pad: false,
+    reel: 0,
   };
 }
 
@@ -273,9 +280,10 @@ export function stepKart(k: KartState, c: KartControls, dt: number, structures: 
   }
   const lock = lockOf(k);
   k.yaw += ((lock * speed) / (spec.handling / 2)) * dt;
-  if (k.grounded) drive(k, spec, c.gas, dt, structures);
+  if (k.grounded && k.reel === 0) drive(k, spec, c.gas, dt, structures);
   else k.pad = false;
   const { impact, footing } = move(k, dt, structures);
+  k.reel = impact >= REEL.from ? REEL.seconds : Math.max(0, k.reel - dt);
   const landing = settle(k, dt, footing);
   if (landing > 0 && k.trick) {
     boost(k, TRICK.hold);

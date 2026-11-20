@@ -1051,7 +1051,9 @@ and the brake along it (the brake backing it up once it stops; with neither it s
 stop from flat out in under two seconds, `COAST`), a turn as tight at any speed,
 the wheels taking back what slides across, rolling up anything within a kerb's height and
 flying off a ramp's lip, and walls in the way, which it meets as two circles, at its nose and its
-tail, so a corner hit turns it. Each circle, and its middle, rolls along the ground under it a
+tail, so a corner hit turns it; it bounces off one at a share of the speed it ran in at (`BOUNCE`),
+and from a real hit it reels a moment (`REEL`, `KartState.reel`), its tires doing nothing, so it
+rolls back as it bounced before the gas, held, takes hold again. Each circle, and its middle, rolls along the ground under it a
 quarter of its width at a time, up onto whatever is within a kerb's height of where it was, so a
 slope is climbed however fast it's taken and only a face taller than a kerb is a wall; and it
 leaves the ground at a lip, or over a crest it's going `LIFT` faster upward than the ground past
