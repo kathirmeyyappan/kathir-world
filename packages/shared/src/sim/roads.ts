@@ -2,15 +2,22 @@
 // round a bend at each one between, with what stands on it where it's raised. The floor under a
 // road is flat like all the floor (ground.ts), so a road's height is its bank, structures stood on
 // that floor: a wedge under each stretch that climbs or drops, a block under each that runs level
-// up off the floor. A gap is a stretch with neither floor nor bank, there to be jumped: a climb up
-// to it one side and a drop away from it the other are a ramp each way.
+// up off the floor, or where it's `open` a deck with room under it, for another road to pass
+// beneath. A gap is a stretch with neither floor nor bank, there to be jumped: a climb up
+// to it one side and a drop away from it the other are a ramp each way. A stretch with a `pad` has
+// a boost pad lying along it: to the sim a thin hidden piece whose surface boosts a kart
+// (surfaces.ts `boost`), which the client draws as a panel (render/BoostPads.ts).
+//
+// A bank looks one of two ways. Under a padded stretch it's a ramp built on the floor, of stone.
+// Anywhere else it's the floor itself risen: its pieces are hidden, and the client draws the road
+// there with the floor's own look (`Raised`, render/RaisedGround.ts).
 //
 // A road is authored as runs (the world's are in outline.ts): each a straight to its point, cut
 // into stretches end to end, and the bend it takes round that point into the next. `layRoad`
-// turns one into its floor for the outline, its bank for the structures and its slopes for the
+// turns one into its floor for the outline, its bank for the structures and its marks for the
 // maps.
 import type { Bend, WorldPart } from './ground';
-import { ramp, type Structure, type StructureMaterial } from './structures';
+import { ramp, type Box, type Structure, type StructureMaterial } from './structures';
 
 export interface Point {
   x: number;
@@ -23,6 +30,8 @@ export interface Stretch {
   length?: number; // metres; left out, an even share of what the run's other stretches leave of it
   rise?: number; // metres the road climbs along it, or drops (negative); none, it runs level
   gap?: boolean; // no floor and no bank: the road carries on past it at the height it left at
+  open?: boolean; // level, up off the floor: a deck with nothing under it, where a bank would wall off what passes beneath
+  pad?: boolean; // a boost pad lies along it
 }
 
 export interface Run {
@@ -40,25 +49,61 @@ export interface RoadSpec {
   runs: Run[];
 }
 
-// A stretch that climbs, from its foot to its top, as the maps mark it.
-export interface Slope {
-  kind: 'slope';
+// A length of a road the maps mark, from one end to the other along its middle.
+interface Strip {
   ax: number;
   az: number;
   bx: number;
   bz: number;
   halfWidth: number;
 }
+// A stretch that climbs, from its foot to its top.
+export interface Slope extends Strip {
+  kind: 'slope';
+}
+// A boost pad, from the end its arrows point from to the one they point at (up a climb, and along
+// a level stretch the way the road runs), with the height of its top at each.
+export interface Pad extends Strip {
+  kind: 'pad';
+  ay: number;
+  by: number;
+}
+// A deck something can pass under.
+export interface Span extends Strip {
+  kind: 'span';
+}
+export type RoadMark = Slope | Pad | Span;
+
+// A length of a road up off the floor that's drawn as the floor risen, as wide as its bank: a
+// straight from a to b with the height of its top at each and of what it stands on (`under`: the
+// floor's, or a deck's own underside), or a level bend, a strip round (x, z) from one bearing to
+// another (radians, from +x toward +z).
+export type Raised =
+  | {
+      kind: 'straight';
+      ax: number;
+      ay: number;
+      az: number;
+      bx: number;
+      by: number;
+      bz: number;
+      under: number;
+      halfWidth: number;
+    }
+  | { kind: 'bend'; x: number; z: number; r: number; from: number; to: number; y: number; halfWidth: number };
 
 export interface Road {
   floor: WorldPart[];
-  bank: Structure[];
-  slopes: Slope[];
+  bank: Structure[]; // with its boost pads' pieces
+  marks: RoadMark[];
+  raised: Raised[];
 }
 
 export const level = (length?: number): Stretch => ({ length });
 export const climb = (length: number, rise: number): Stretch => ({ length, rise });
 export const gap = (length: number): Stretch => ({ length, gap: true });
+export const span = (length: number): Stretch => ({ length, open: true });
+export const padded = (stretch: Stretch): Stretch => ({ ...stretch, pad: true });
 // A gap with a ramp either side of it, `run` long and `rise` high, so it's jumped both ways.
 export const jump = (run: number, rise: number, across: number): Stretch[] => [
   climb(run, rise),
@@ -73,17 +118,22 @@ const SHOULDER = 0.25;
 // Metres each piece runs on into the next, floor and bank alike, so no seam between two is a gap.
 const LAP = 0.05;
 const SLICE = 6; // metres of a bend, along its middle, under one block of its bank
+const DECK = 0.8; // metres through an open stretch's deck
+const HEADROOM = 4; // metres clear under a deck, at the least: a kart, its driver and the eye that follows them
+// A boost pad: its share of the road's width, the metres it stops short of its stretch's ends, and
+// the metres its top lies over the road's, so the two share no plane.
+const PAD = { across: 0.8, inset: 1, lift: 0.04 };
 
 // A road cut into the pieces it's laid as, in order, each with the height the road has there.
 type Leg =
-  | { kind: 'straight'; run: number; a: Point; b: Point; from: number; to: number }
+  | { kind: 'straight'; run: number; a: Point; b: Point; from: number; to: number; open: boolean; pad: boolean }
   | { kind: 'bend'; x: number; z: number; r: number; start: number; turn: number; height: number }
   | { kind: 'gap' };
 
 export function layRoad(spec: RoadSpec): Road {
   const legs = legsOf(spec);
   const half = spec.width / 2;
-  const road: Road = { floor: [], bank: [], slopes: [] };
+  const road: Road = { floor: [], bank: [], marks: [], raised: [] };
   let floorFrom: Point | null = null; // where the floor being laid began: one part for a run's stretches with no gap between
   legs.forEach((leg, i) => {
     if (leg.kind === 'gap') return;
@@ -92,7 +142,11 @@ export function layRoad(spec: RoadSpec): Road {
     if (leg.kind === 'bend') {
       const lap = LAP / leg.r;
       road.floor.push(bendPart(leg, after ? lap : 0, half));
-      if (leg.height > 0) road.bank.push(...bendBank(leg, half - SHOULDER, lap));
+      if (leg.height > 0) {
+        const { x, z, r, start, turn, height: y } = leg;
+        road.bank.push(...bendBank(leg, half - SHOULDER, lap).map(risen));
+        road.raised.push({ kind: 'bend', x, z, r, from: start, to: start + turn, y, halfWidth: half - SHOULDER });
+      }
       return;
     }
     const along = unit(leg.a, leg.b);
@@ -110,11 +164,50 @@ export function layRoad(spec: RoadSpec): Road {
     const b = moved(leg.b, after ? 0 : -SHOULDER);
     const width = spec.width - 2 * SHOULDER;
     const low = Math.min(leg.from, leg.to);
-    if (low > 0) road.bank.push(block(moved(a, before ? -LAP : 0), moved(b, after ? LAP : 0), width, low));
-    if (leg.from === leg.to) return;
-    const [foot, top] = leg.from < leg.to ? [a, b] : [b, a];
-    road.bank.push({ ...ramp(foot, top, Math.abs(leg.to - leg.from), width, low), material: BANK });
-    road.slopes.push({ kind: 'slope', ax: foot.x, az: foot.z, bx: top.x, bz: top.z, halfWidth: half });
+    const rise = Math.abs(leg.to - leg.from);
+    // Its low end and its high one; a level stretch's are the way the road runs.
+    const [foot, top] = leg.from <= leg.to ? [a, b] : [b, a];
+    // A padded stretch's bank is a ramp built there; any other is the floor risen.
+    const looked = leg.pad ? (piece: Structure) => piece : risen;
+    const base = leg.open ? low - DECK : 0; // what its bank stands on: the floor, or for a deck its own underside
+    if (low > 0) {
+      const whole = block(moved(a, before ? -LAP : 0), moved(b, after ? LAP : 0), width, low);
+      road.bank.push(looked(leg.open ? { ...whole, h: DECK, y: base } : whole));
+      if (leg.open) road.marks.push({ kind: 'span', ax: a.x, az: a.z, bx: b.x, bz: b.z, halfWidth: half });
+    }
+    if (rise > 0) {
+      road.bank.push(looked({ ...ramp(foot, top, rise, width, low), material: BANK }));
+      road.marks.push({ kind: 'slope', ax: foot.x, az: foot.z, bx: top.x, bz: top.z, halfWidth: half });
+    }
+    if (!leg.pad && low + rise > 0) {
+      const [ay, by] = [leg.from, leg.to];
+      road.raised.push({
+        kind: 'straight',
+        ax: a.x,
+        ay,
+        az: a.z,
+        bx: b.x,
+        by,
+        bz: b.z,
+        under: base,
+        halfWidth: width / 2,
+      });
+    }
+    if (!leg.pad) return;
+    // The pad: a sliver of the stretch's own shape lying on it, in from its ends and its sides,
+    // hidden, the panel drawn there being the client's.
+    const length = distance(foot, top);
+    const way = unit(foot, top);
+    const from = { x: foot.x + way.x * PAD.inset, z: foot.z + way.z * PAD.inset };
+    const to = { x: top.x - way.x * PAD.inset, z: top.z - way.z * PAD.inset };
+    const across = spec.width * PAD.across;
+    const under = low + (rise * PAD.inset) / length; // the road's height where the pad begins
+    const climbs = rise * (1 - (2 * PAD.inset) / length); // and what it climbs under the pad
+    const pad =
+      rise > 0 ? ramp(from, to, climbs, across, under + PAD.lift) : { ...block(from, to, across, PAD.lift), y: under };
+    road.bank.push({ ...pad, hidden: true, surface: 'boost' });
+    const [ay, by] = [under + PAD.lift, under + PAD.lift + climbs];
+    road.marks.push({ kind: 'pad', ax: from.x, ay, az: from.z, bx: to.x, by, bz: to.z, halfWidth: across / 2 });
   });
   return road;
 }
@@ -153,7 +246,10 @@ function legsOf(spec: RoadSpec): Leg[] {
       } else {
         const to = snapped(height + (s.rise ?? 0));
         if (to < 0) throw bad(`run ${i} drops below the floor`);
-        legs.push({ kind: 'straight', run: i, a: point(at), b: point(at + d), from: height, to });
+        if (s.open && (s.rise || height < DECK + HEADROOM))
+          throw bad(`a deck in run ${i} isn't level with ${HEADROOM} m clear under it`);
+        const [open, pad] = [s.open ?? false, s.pad ?? false];
+        legs.push({ kind: 'straight', run: i, a: point(at), b: point(at + d), from: height, to, open, pad });
         height = to;
       }
       at += d;
@@ -178,6 +274,11 @@ function legsOf(spec: RoadSpec): Leg[] {
   });
   if (height !== 0) throw bad(`ends ${height} m up`);
   return legs;
+}
+
+// A piece of the bank where it's the floor risen: collided with, and drawn by the client as that.
+function risen(piece: Structure): Structure {
+  return { ...piece, hidden: true };
 }
 
 // A height with the rounding of summed rises taken off, so a road that comes back down is on the floor.
@@ -213,7 +314,7 @@ function bendBank(leg: Extract<Leg, { kind: 'bend' }>, halfWidth: number, lap: n
 }
 
 // A block of the bank from a to b, `width` across, from the floor up to `height`.
-function block(a: Point, b: Point, width: number, height: number): Structure {
+function block(a: Point, b: Point, width: number, height: number): Box {
   return {
     kind: 'box',
     x: (a.x + b.x) / 2,

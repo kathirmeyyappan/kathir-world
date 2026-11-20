@@ -73,20 +73,23 @@ void main() {
 
 // Two-scale grid, anti-aliased with screen-space derivatives, fading with distance into the sky's
 // colour in that direction, so the floor meets the horizon wherever you're standing. It's drawn on
-// three parts (side): the floor, the ground past the edge OUTSIDE_HEIGHT down, and the kerb along
-// the edge between them (Floor.ts); past the edge the grid dims and turns grey, and the kerb is
+// four parts (side): the floor, the ground past the edge OUTSIDE_HEIGHT down, the kerb along
+// the edge between them (Floor.ts), and a road risen off the floor (RaisedGround.ts); past the edge
+// the grid dims and turns grey, and the kerb is
 // drawn as a bold line of the grid along the top of the drop (green on its top, grey down the face)
 // and along its toe at the foot (grey), so where the floor ends reads from afar, its inner face
 // (vRim) the grid's own colour. The kerb's face down the drop carries the grid on down from the
-// floor to the ground below (surfaceGridLine).
+// floor to the ground below (surfaceGridLine). A risen road is the same again up off the floor: the
+// floor's grid on what faces up, a bold green line down each side of it, and its walls the drop's
+// grey face with a bold line along their top.
 export const GROUND_FRAGMENT = `
 precision highp float;
 varying vec3 vWorld;
 varying vec3 vNormal;
 varying float vRim;
 varying float vSide;
-// 0 the floor, 1 the ground past the edge, 2 the kerb; below 0 each vertex's own (vSide, the slab's
-// meshes carrying the floor and the kerb both, Floor.ts).
+// 0 the floor, 1 the ground past the edge, 2 the kerb, 3 a risen road; below 0 each vertex's own
+// (vSide, the slab's meshes carrying the floor and the kerb both, Floor.ts).
 uniform float sideOf;
 uniform vec3 cameraPos;
 uniform vec3 lineColor;
@@ -146,7 +149,15 @@ void main() {
   // its inner face the grid's colour; and the drop between them gridded.
   float lit = 0.0;
   float rim = 0.0;
-  if (side > 1.5) {
+  // Risen floor (RaisedGround.ts): what faces up is the floor and the rest the drop's face, with a
+  // bold line within a kerb's width of the edge its uv measures from.
+  bool risen = side > 2.5;
+  bool top = risen && normalize(vNormal).y > 0.7;
+  if (risen) {
+    float edge = (1.0 - abs(vRim)) * vSide;
+    float soft = fwidth(edge);
+    lit = 1.0 - smoothstep(${KERB_WIDTH.toFixed(3)} - soft, ${KERB_WIDTH.toFixed(3)} + soft, edge);
+  } else if (side > 1.5) {
     rim = vRim;
     lit = (1.0 - rim) * max(step(${-KERB_WIDTH / 2}, vWorld.y), step(vWorld.y, ${(OUTSIDE_HEIGHT + KERB_HEIGHT + KERB_WIDTH / 2).toFixed(3)}));
   }
@@ -162,13 +173,13 @@ void main() {
     major = gridLine(p, 10.0, 0.09);
   }
   // How bright the grid is: all of it on the floor, dim on the ground past the edge, and between on the kerb.
-  float inside = side < 0.5 ? 1.0 : side < 1.5 ? 0.0 : 0.8;
+  float inside = side < 0.5 || top ? 1.0 : side < 1.5 ? 0.0 : 0.8;
   float pulse = 0.85 + 0.15 * sin(time * 1.5 - length(p) * 0.15);
   vec3 col = floorColor;
   col = mix(col, lineColor * pulse, minor * 0.55 * (0.4 + 0.6 * inside));
   col = mix(col, majorColor * pulse, major * 0.9 * (0.5 + 0.5 * inside));
   // Grey past the edge: the ground there and all of the kerb but its top, at the floor's edge.
-  float outside = side > 1.5 ? 1.0 - step(${(KERB_HEIGHT - 0.001).toFixed(3)}, vWorld.y) : side > 0.5 ? 1.0 : 0.0;
+  float outside = risen ? 1.0 - float(top) : side > 1.5 ? 1.0 - step(${(KERB_HEIGHT - 0.001).toFixed(3)}, vWorld.y) : side > 0.5 ? 1.0 : 0.0;
   col = mix(col, vec3(dot(col, vec3(0.299, 0.587, 0.114))), outside);
   col = mix(col, lineColor * 0.45, rim);
   if (relief > 0.5) {

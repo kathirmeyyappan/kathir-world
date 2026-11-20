@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { gunzipSync } from 'node:zlib';
 import { bodiesMapSource, groundMapSource, movesMapSource } from '../src/sim/botMap';
-import { gap, layRoad, level } from '../src/sim/roads';
+import { climb, gap, layRoad, level, padded, span } from '../src/sim/roads';
 import {
   CHILL_SECONDS,
   CHILLED_SPEED_MULTIPLIER,
@@ -135,6 +135,66 @@ test("a road's floor runs straight and round its bend, stops square at a gap, an
     ground.clamp(spot, 1);
     assert.ok(ground.edge(spot.x, spot.z) <= -1 + 1e-9, `clamped a metre inside: ${ground.edge(spot.x, spot.z)}`);
   }
+});
+
+test("a road's boost pad lies a hair over its stretch, level or climbing, short of its ends and its sides, and only a padded stretch's bank is built there, the rest the floor risen", () => {
+  // North 100 m: level 20 m, up 6 m over 30 m, each with a pad, level and back down.
+  const road = layRoad({
+    name: 'test',
+    from: { x: 0, z: 0 },
+    width: 20,
+    runs: [{ to: { x: 0, z: 100 }, stretches: [padded(level(20)), padded(climb(30, 6)), level(), climb(30, -6)] }],
+  });
+  const structures = new Structures(road.bank, new Ground(road.floor));
+  // Along the middle: the pad's top over the road's own height there.
+  for (const [z, height] of [
+    [10, 0],
+    [22, 0.4],
+    [35, 3],
+    [48, 5.6],
+  ]) {
+    const { surface, y } = structures.footing(0, z, 50);
+    assert.equal(surface, 'boost', `on the pad at ${z}`);
+    assert.ok(y > height && y < height + 0.05, `a hair over the road at ${z}: ${y}`);
+  }
+  for (const [x, z] of [
+    [9, 35],
+    [0, 20],
+    [0, 60],
+  ])
+    assert.equal(structures.footing(x, z, 50).surface, 'hard', `off the pads at ${x}, ${z}`);
+  assert.equal(road.marks.filter((mark) => mark.kind === 'pad').length, 2);
+  // The padded climb's ramp is drawn as it stands; the level top and the way down are hidden, and
+  // listed for the client to draw as the floor.
+  assert.deepEqual(
+    road.bank.filter((piece) => !piece.hidden).map((piece) => piece.kind),
+    ['ramp'],
+  );
+  assert.deepEqual(
+    road.raised.map((length) => length.kind === 'straight' && [length.ay, length.by]),
+    [
+      [6, 6],
+      [6, 0],
+    ],
+  );
+});
+
+test("a road's open stretch is a deck with the floor clear under it, and isn't laid without headroom", () => {
+  // North 100 m: up `rise` over 30 m, 20 m of deck, and back down.
+  const over = (rise: number) =>
+    layRoad({
+      name: 'test',
+      from: { x: 0, z: 0 },
+      width: 20,
+      runs: [{ to: { x: 0, z: 100 }, stretches: [level(10), climb(30, rise), span(20), climb(30, -rise), level()] }],
+    });
+  const road = over(8);
+  const structures = new Structures(road.bank, new Ground(road.floor));
+  assert.equal(structures.groundAt(0, 50, 50), 8, "the deck's top");
+  assert.equal(structures.groundAt(0, 50, 6), 0, 'the floor under it');
+  assert.ok(structures.fits(0, 50, 0, 4, 5), 'room for what passes beneath');
+  assert.equal(road.marks.filter((mark) => mark.kind === 'span').length, 1);
+  assert.throws(() => over(3), /deck/);
 });
 
 test('jump only from the ground, and gravity brings you back', () => {

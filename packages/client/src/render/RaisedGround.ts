@@ -1,0 +1,85 @@
+// The lengths of road drawn as the floor itself risen (sim/roads.ts `Raised`; their bank's pieces
+// are hidden): the road's top, a wall down each side of it and across each end to what it stands
+// on (the floor, or for a deck its own underside, drawn too), all in the floor's look (shaders.ts,
+// the risen side). What faces up is the
+// floor's grid carried on up, with the bold line of a kerb along each side, and the walls are the
+// drop's face, a bold line along their top, so the road's border reads all the way over a hill.
+import type { VertexData } from '@babylonjs/core';
+import type { Raised } from '@world/shared';
+import { Quads, cross, flipped, minus, unit, type Vec } from './Quads';
+
+// What the ground's shader draws these meshes as (its `sideOf`).
+export const RISEN_SIDE = 3;
+// A vertex's uv says how far it is from the edge a bold line runs along, as two numbers the
+// shader multiplies back together between vertices: metres = (1 - |u|) * v. Across a top, u runs
+// from -1 at one side to 1 at the other and v is half its width, so the line runs down both
+// sides; down a wall, the line is along the top.
+const across = (side: -1 | 1, half: number): [number, number] => [side, half];
+const DEEP = 64; // metres: more than twice as far down as any wall goes
+const down = (depth: number): [number, number] => [1 - (2 * depth) / DEEP, DEEP];
+const UNLIT = down(DEEP / 2); // nowhere near such an edge
+const SLICE = 3; // metres of a bend's outer side to one flat length of it
+
+// The road's top edge across it at one spot: its left and its right, as the road runs.
+interface Section {
+  left: Vec;
+  right: Vec;
+}
+
+export function raisedGround(raised: Raised): VertexData {
+  const quads = new Quads();
+  const sections = raised.kind === 'straight' ? straight(raised) : bend(raised);
+  const half = raised.halfWidth;
+  const under = raised.kind === 'straight' ? raised.under : 0;
+  const lowered = ([x, , z]: Vec): Vec => [x, under, z];
+  for (let k = 0; k + 1 < sections.length; k++) {
+    const [a, b] = [sections[k], sections[k + 1]];
+    const up = unit(cross(minus(b.left, a.left), minus(a.right, a.left)));
+    quads.add([a.left, a.right, b.right, b.left], up[1] < 0 ? flipped(up) : up, {
+      uvs: [across(-1, half), across(1, half), across(1, half), across(-1, half)],
+    });
+    const out = unit(minus(a.left, a.right));
+    wall(quads, a.left, b.left, out, under);
+    wall(quads, a.right, b.right, flipped(out), under);
+    if (under > 0)
+      quads.add([a.left, a.right, b.right, b.left].map(lowered), [0, -1, 0], { uvs: [UNLIT, UNLIT, UNLIT, UNLIT] });
+  }
+  const [first, second] = sections;
+  const [last, before] = [sections[sections.length - 1], sections[sections.length - 2]];
+  wall(quads, first.left, first.right, flat(minus(first.left, second.left)), under);
+  wall(quads, last.left, last.right, flat(minus(last.left, before.left)), under);
+  return quads.data();
+}
+
+// A wall from the top edge p to q straight down to `under`, facing `out`; none where the edge is
+// down there already.
+function wall(quads: Quads, p: Vec, q: Vec, out: Vec, under: number): void {
+  if (p[1] <= under && q[1] <= under) return;
+  quads.add([p, q, [q[0], under, q[2]], [p[0], under, p[2]]], out, {
+    uvs: [down(0), down(0), down(q[1] - under), down(p[1] - under)],
+  });
+}
+
+// The level way a vector points.
+function flat(v: Vec): Vec {
+  return unit([v[0], 0, v[2]]);
+}
+
+function straight(r: Extract<Raised, { kind: 'straight' }>): Section[] {
+  const length = Math.hypot(r.bx - r.ax, r.bz - r.az);
+  // To the left of the way it runs.
+  const [lx, lz] = [(-(r.bz - r.az) / length) * r.halfWidth, ((r.bx - r.ax) / length) * r.halfWidth];
+  return [
+    { left: [r.ax + lx, r.ay, r.az + lz], right: [r.ax - lx, r.ay, r.az - lz] },
+    { left: [r.bx + lx, r.by, r.bz + lz], right: [r.bx - lx, r.by, r.bz - lz] },
+  ];
+}
+
+function bend(r: Extract<Raised, { kind: 'bend' }>): Section[] {
+  const slices = Math.max(1, Math.ceil(((r.r + r.halfWidth) * Math.abs(r.to - r.from)) / SLICE));
+  return Array.from({ length: slices + 1 }, (_, k) => {
+    const angle = r.from + ((r.to - r.from) * k) / slices;
+    const at = (radius: number): Vec => [r.x + radius * Math.cos(angle), r.y, r.z + radius * Math.sin(angle)];
+    return { left: at(r.r - r.halfWidth), right: at(r.r + r.halfWidth) };
+  });
+}

@@ -7,10 +7,10 @@
 // screen's own pixel density (RES canvas pixels to the CSS pixel), so edges stay smooth at any zoom
 // and as the near view turns: the outline's parts (discs, bridges, bends and slices), landmarks grey
 // on the floor (SpongeBob's house and the Krusty Krab as themselves, a road's climbs as arrowheads
-// pointing up them), and up past HIGH_UP the walkways up there too. Markers go on top: cubes as
-// faint specks, people as smaller copies of your arrow pointing their way, bots as squares, and
-// anyone on another level (a floor above, a bridge below) faded. The canvas can be any size and
-// change it; each draw fits the view to the size it has.
+// pointing up them and its boost pads as rainbows), and up past HIGH_UP the walkways up there too.
+// Markers go on top: cubes as faint specks, people as smaller copies of your arrow pointing their
+// way, bots as squares, and anyone on another level (a floor above, a bridge below) faded. The
+// canvas can be any size and change it; each draw fits the view to the size it has.
 import {
   EYE_HEIGHT,
   HIGH_LANDMARKS,
@@ -19,11 +19,15 @@ import {
   WORLD_GROUND,
   type KrustyKrabMark,
   type Landmark,
+  type Pad,
   type PineappleMark,
   type Bounds,
+  type RoadMark,
   type Slope,
+  type Span,
   type WorldPart,
 } from '@world/shared';
+import { BOOST_RAINBOW } from '../render/BoostPads';
 import type { Elevation } from './Elevation';
 
 export interface MinimapFrame {
@@ -61,6 +65,7 @@ const OUTLINE = `rgba(${ACCENT}, 0.9)`;
 const LANDMARK = 'rgba(150, 150, 158, 0.78)';
 const RING = 'rgb(70, 70, 78)'; // a landmark's inner circles
 const CLIMB = `rgba(${ACCENT}, 0.85)`; // the arrowheads up a road's slope
+const DECK = 'rgb(46, 84, 72)'; // a deck's top, lighter than the floor it crosses over
 // A slope's arrowheads: CSS pixels from one to the next at the least (and metres, zoomed in), and
 // how much of the road's width each spans.
 const CLIMB_SPACING = { px: 7, m: 5 };
@@ -278,8 +283,29 @@ export class MapCanvas {
     ctx.lineJoin = 'miter';
     for (const l of landmarks)
       if (l.kind === 'slope') ctx.stroke(climbPath(l, Math.max(CLIMB_SPACING.m, px(CLIMB_SPACING.px))));
+    // A deck is drawn over the road that passes under it: its top, and its sides run on across.
+    ctx.fillStyle = DECK;
+    ctx.strokeStyle = OUTLINE;
+    ctx.lineWidth = px(EDGE);
+    for (const l of landmarks) {
+      if (l.kind !== 'span') continue;
+      ctx.fill(stripPath(l));
+      ctx.stroke(deckPath(l));
+    }
+    for (const l of landmarks) {
+      if (l.kind !== 'pad') continue;
+      const rainbow = ctx.createLinearGradient(l.ax, l.az, l.bx, l.bz);
+      BOOST_RAINBOW.forEach((colour, i) => rainbow.addColorStop(i / (BOOST_RAINBOW.length - 1), colour));
+      ctx.fillStyle = rainbow;
+      ctx.fill(stripPath(l));
+    }
     const marks = landmarks.filter(
-      (l): l is Footprint => l.kind !== 'pineapple' && l.kind !== 'krusty-krab' && l.kind !== 'slope',
+      (l): l is Footprint =>
+        l.kind !== 'pineapple' &&
+        l.kind !== 'krusty-krab' &&
+        l.kind !== 'slope' &&
+        l.kind !== 'pad' &&
+        l.kind !== 'span',
     );
     const wooden = (l: Footprint) => l.kind === 'bridge' && !!l.wood;
     place(this.landmarkLayer);
@@ -424,7 +450,38 @@ function layer(): CanvasRenderingContext2D {
 }
 
 // A landmark filled in grey: any but those drawn as themselves.
-type Footprint = Exclude<Landmark, PineappleMark | KrustyKrabMark | Slope>;
+type Footprint = Exclude<Landmark, PineappleMark | KrustyKrabMark | RoadMark>;
+
+// The corners of a strip of road from its one end to its other, its left side then its right.
+function stripCorners(s: Pad | Span): [number, number][] {
+  const length = Math.hypot(s.bx - s.ax, s.bz - s.az);
+  const [px, pz] = [(-(s.bz - s.az) / length) * s.halfWidth, ((s.bx - s.ax) / length) * s.halfWidth];
+  return [
+    [s.ax + px, s.az + pz],
+    [s.bx + px, s.bz + pz],
+    [s.bx - px, s.bz - pz],
+    [s.ax - px, s.az - pz],
+  ];
+}
+
+// A strip of road, filled.
+function stripPath(s: Pad | Span): Path2D {
+  const path = new Path2D();
+  stripCorners(s).forEach(([x, z], i) => (i ? path.lineTo(x, z) : path.moveTo(x, z)));
+  path.closePath();
+  return path;
+}
+
+// A deck's two sides, which cross whatever road passes under it.
+function deckPath(s: Span): Path2D {
+  const [a, b, c, d] = stripCorners(s);
+  const path = new Path2D();
+  path.moveTo(...a);
+  path.lineTo(...b);
+  path.moveTo(...d);
+  path.lineTo(...c);
+  return path;
+}
 
 // A road's climb as arrowheads across it, `spacing` metres apart at the least, each pointing up it.
 function climbPath(s: Slope, spacing: number): Path2D {

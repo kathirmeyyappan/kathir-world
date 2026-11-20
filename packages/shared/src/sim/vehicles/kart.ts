@@ -90,6 +90,10 @@ export const SPARKS = [
 // A press may come late too: up to `late` seconds after landing, where it came down at `fall`
 // m/s or more (a flight, not a kerb), it's the trick the flight didn't have, boosting at once.
 export const TRICK = { early: 0.3, late: 0.25, fall: 2.5, seconds: 0.7, hold: 0.8 };
+// A boost pad's boost (surfaces.ts `boost`): held at full for as long as the kart is on the pad,
+// which drives it on as the gas would whatever its pedal, and for `hold` seconds after it leaves,
+// unless the boost it came with has longer than that left.
+export const PAD = { hold: 1.2 };
 
 // What a knock costs, by how fast the two close on each other square to where they touch, m/s:
 // nothing under `least`, then `at20` at 20 m/s and on in step, to the nearest quarter (of a heart,
@@ -340,6 +344,14 @@ function drive(k: KartState, spec: KartSpec, gas: number, dt: number, structures
   const r = rightOf(k.yaw);
   let along = k.vel.x * f.x + k.vel.z * f.z;
   let across = k.vel.x * r.x + k.vel.z * r.z;
+  const footing = structures.footing(k.pos.x, k.pos.z, k.pos.y + STEP);
+  const surface = SURFACES[footing.surface];
+  // On a boost pad, rolling forward: the pad's push for its gas, and its boost, held at full.
+  if (surface.boosts && along > 0) {
+    gas = Math.max(gas, 1);
+    const left = k.turbo ? TURBO.rise + k.turbo.hold - k.turbo.t : 0; // seconds its own boost stays at full
+    if (left < PAD.hold) k.turbo = { hold: PAD.hold, t: Math.min(k.turbo?.t ?? 0, TURBO.rise), spark: null };
+  }
   const accel = spec.speed / spec.acceleration;
   const top = spec.speed * turboShare(k.turbo);
   // A boost pushes it up to its boosted speed over its rise and lets it down from there over its
@@ -351,8 +363,7 @@ function drive(k: KartState, spec: KartSpec, gas: number, dt: number, structures
   else if (gas < 0 && along > 0) toward(0, BRAKING * accel * -gas);
   else if (gas < 0) toward(-REVERSE * spec.speed, accel * -gas);
   else toward(0, COAST * accel);
-  const footing = structures.footing(k.pos.x, k.pos.z, k.pos.y + STEP);
-  const grip = Math.min(TRACTION, SURFACES[footing.surface].grip);
+  const grip = Math.min(TRACTION, surface.grip);
   across -= Math.sign(across) * Math.min(Math.abs(across), grip * dt);
   k.vel.x = f.x * along + r.x * across;
   k.vel.z = f.z * along + r.z * across;

@@ -18,6 +18,8 @@ import {
   lookVector,
   movesHelp,
   WORLD_STRUCTURES,
+  ROAD_PADS,
+  ROAD_RAISED,
   PINEAPPLE_HORN,
   Structures,
   actionForKey,
@@ -92,6 +94,7 @@ import { Interiors } from '../render/Interiors';
 import { FrostLayer } from '../render/Frost';
 import { Loader } from '../render/Loader';
 import { Models } from '../render/models/Models';
+import { buildBoostPads } from '../render/BoostPads';
 import { buildStructures } from '../render/Structures';
 import { Pickups } from '../render/Pickups';
 import { blast } from '../render/Blast';
@@ -322,8 +325,9 @@ export class Game {
   ) {
     const canvas = canvasEl;
     this.engine = new Engine(canvas, true);
-    this.environment = new Environment(this.engine, WORLD_GROUND, this.loader);
+    this.environment = new Environment(this.engine, WORLD_GROUND, this.loader, ROAD_RAISED);
     buildStructures(this.engine, WORLD_STRUCTURES.list, this.loader);
+    buildBoostPads(this.engine, ROAD_PADS, this.loader);
     this.frost = new FrostLayer(this.engine, WORLD_STRUCTURES.list);
     this.interiors = new Interiors(INTERIOR_BUILDINGS, (door) => this.models.ajar(door));
     this.models = new Models(this.engine, this.loader, this.interiors);

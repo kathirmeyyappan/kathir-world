@@ -1,12 +1,13 @@
 // What a surface is like underfoot, apart from its shape (structures.ts) and its look (a
 // structure's `material`): how the feet take hold of it, and what a footfall on it sounds like.
 // Every structure has one, named in `surface` or implied by its material (MATERIAL_SURFACES),
-// the bare floor is hard, and frost (frost.ts) makes any top ice for as long as it lasts. The
-// walker reads `grip` every tick (walker.ts); the client's Footsteps plays `footfall`. A new
-// surface is a row here and, with a footfall of its own, sounds for it in the client.
+// the bare floor is hard, and frost (frost.ts) makes any top ice for as long as it lasts, a boost
+// pad's (roads.ts) with the rest. The walker reads `grip` every tick (walker.ts); the client's
+// Footsteps plays `footfall`. A new surface is a row here and, with a footfall of its own, sounds
+// for it in the client.
 import type { Structure, StructureMaterial } from './structures';
 
-export type SurfaceId = 'hard' | 'sand' | 'ice';
+export type SurfaceId = 'hard' | 'sand' | 'ice' | 'boost';
 
 // What a step on it sounds like, for avatars whose steps are the ground's (the thuds).
 export type Footfall = 'thud' | 'crunch';
@@ -19,6 +20,7 @@ export interface SurfaceSpec {
   // slope the feet can't hold against (walker.ts).
   grip: number;
   footfall: Footfall;
+  boosts?: true; // a kart on it is boosted, driven on whatever its pedal (vehicles/kart.ts): a boost pad
 }
 
 export const SURFACES: Record<SurfaceId, SurfaceSpec> = {
@@ -27,6 +29,7 @@ export const SURFACES: Record<SurfaceId, SurfaceSpec> = {
   // From a full walk to a stop in 1.6 s and 6 m; a slope of 15° or more pulls harder than the
   // feet can push, so the slide can't be climbed.
   ice: { id: 'ice', grip: 5, footfall: 'thud' },
+  boost: { id: 'boost', grip: Infinity, footfall: 'thud', boosts: true },
 };
 
 // The surface a material implies when the structure names none.
