@@ -204,21 +204,6 @@ export class Garage {
     return kartAt(o, d, maxT, this.karts.values());
   }
 
-  // Every kart with any of it within `range` of `o` and `halfAngle` of `d`, in sight: what a spray
-  // reaches.
-  within(o: Vec3, d: Vec3, range: number, halfAngle: number): Kart[] {
-    return this.list.filter((k) => {
-      const { length, height } = bodyOf(k);
-      const mid = { x: k.pos.x - o.x, y: k.pos.y + height / 2 - o.y, z: k.pos.z - o.z };
-      const dist = Math.hypot(mid.x, mid.y, mid.z);
-      if (dist - length / 2 > range) return false;
-      const cos = dist > 1e-6 ? (mid.x * d.x + mid.y * d.y + mid.z * d.z) / dist : 1;
-      const angle = Math.acos(Math.max(-1, Math.min(1, cos)));
-      const widen = Math.asin(Math.min(1, length / 2 / Math.max(dist, 1e-6)));
-      return angle <= halfAngle + widen && this.structures.clear(o, { x: k.pos.x, y: o.y + mid.y, z: k.pos.z });
-    });
-  }
-
   // Wrenches off kart `id` from a shot by `by`.
   shoot(id: string, wrenches: number, by: string): void {
     const k = this.karts.get(id);
