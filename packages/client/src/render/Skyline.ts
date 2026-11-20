@@ -133,10 +133,10 @@ function shrunk(s: Extract<Structure, { kind: 'box' | 'ramp' }>): { w: number; d
 // ends are drawn open: a wall across one would lie in the plane of the real one, and an open end
 // looks no different, every face of the skyline being the one colour from either side.
 function within(r: Raised): Raised {
-  const [halfWidth, under] = [r.halfWidth - INSIDE, r.under > 0 ? r.under + INSIDE / 2 : 0];
+  const [halfWidth, deep] = [r.halfWidth - INSIDE, r.deep - 1.5 * INSIDE];
   return r.kind === 'straight'
-    ? { ...r, ay: r.ay - INSIDE, by: r.by - INSIDE, halfWidth, under }
-    : { ...r, y: r.y - INSIDE, halfWidth, under };
+    ? { ...r, ay: r.ay - INSIDE, by: r.by - INSIDE, halfWidth, deep }
+    : { ...r, y: r.y - INSIDE, halfWidth, deep };
 }
 
 function middleOf(p: WorldPart): [number, number] {

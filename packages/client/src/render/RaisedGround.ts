@@ -31,8 +31,8 @@ interface Section {
 export function raisedGround(raised: Raised, quads = new Quads(), ends: 'walled' | 'open' = 'walled'): Quads {
   const sections = raised.kind === 'straight' ? straight(raised) : bend(raised);
   const half = raised.halfWidth;
-  const under = raised.under;
-  const lowered = ([x, , z]: Vec): Vec => [x, under, z];
+  // What a spot of the top stands on: the floor, or for a deck its own underside, `deep` below it.
+  const under = ([x, y, z]: Vec): Vec => [x, Math.max(0, y - raised.deep), z];
   for (let k = 0; k + 1 < sections.length; k++) {
     const [a, b] = [sections[k], sections[k + 1]];
     const up = unit(cross(minus(b.left, a.left), minus(a.right, a.left)));
@@ -42,8 +42,8 @@ export function raisedGround(raised: Raised, quads = new Quads(), ends: 'walled'
     const out = unit(minus(a.left, a.right));
     wall(quads, a.left, b.left, out, under);
     wall(quads, a.right, b.right, flipped(out), under);
-    if (under > 0)
-      quads.add([a.left, a.right, b.right, b.left].map(lowered), [0, -1, 0], { uvs: [UNLIT, UNLIT, UNLIT, UNLIT] });
+    if (Number.isFinite(raised.deep))
+      quads.add([a.left, a.right, b.right, b.left].map(under), [0, -1, 0], { uvs: [UNLIT, UNLIT, UNLIT, UNLIT] });
   }
   if (ends === 'open') return quads;
   const [first, second] = sections;
@@ -69,12 +69,13 @@ export function over(raised: Raised): Circle {
   };
 }
 
-// A wall from the top edge p to q straight down to `under`, facing `out`; none where the edge is
-// down there already.
-function wall(quads: Quads, p: Vec, q: Vec, out: Vec, under: number): void {
-  if (p[1] <= under && q[1] <= under) return;
-  quads.add([p, q, [q[0], under, q[2]], [p[0], under, p[2]]], out, {
-    uvs: [down(0), down(0), down(q[1] - under), down(p[1] - under)],
+// A wall from the top edge p to q straight down to what each stands on, facing `out`; none where
+// the edge is down there already.
+function wall(quads: Quads, p: Vec, q: Vec, out: Vec, under: (top: Vec) => Vec): void {
+  const [below, beyond] = [under(p), under(q)];
+  if (p[1] <= below[1] && q[1] <= beyond[1]) return;
+  quads.add([p, q, beyond, below], out, {
+    uvs: [down(0), down(0), down(q[1] - beyond[1]), down(p[1] - below[1])],
   });
 }
 
