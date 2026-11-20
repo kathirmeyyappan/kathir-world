@@ -1173,7 +1173,7 @@ any other from where it is, and only those within earshot are played at all, so 
 karts costs the few that are near. A loop here is cut on exact samples and encoded as a theme's is
 (see Player classes), so it repeats without a gap.
 
-A kart is in every menu a command or a key is: the commands card's `drop kart` group (its
+A kart is in every menu a command or a key is: the commands card's `vehicle` group (its
 `command`), the guide's Items tab under Karts (standing empty in Mario's paint, its numbers read
 off its row, `kart.ts` and `garage.ts` in `guide/stats.ts`, its words `KART_TEXT`), and the
 guide's Kart controls, the legend's `DRIVING` cells.
