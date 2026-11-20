@@ -130,7 +130,7 @@ test('a press in the air tricks a kart the way its wheel is held, again once tha
   assert.ok(off.trick, 'a trick, past its hop');
 });
 
-test('a boost pad drives a kart rolling over it up to its boosted speed with no gas and holds the boost on past it, and leaves one parked on it alone', () => {
+test('a boost pad drives a kart rolling over it up to its boosted speed with no gas, is a boost begun each time it rolls on, holds the boost on past it, and leaves one parked on it alone', () => {
   // A pad 40 m long across the kart's way, from 10 m ahead of it.
   const structures = world({ kind: 'box', x: 0, z: 30, w: 10, d: 40, h: 0.04, surface: 'boost' });
   const boosted = TURBO.boost * KARTS.standard.speed;
@@ -138,6 +138,13 @@ test('a boost pad drives a kart rolling over it up to its boosted speed with no 
   const none = { gas: 0, steer: 0, drift: false };
   const k = createKart('standard', 1, { x: 0, y: 0, z: 0 }, 0);
   while (k.pos.z < 11) drive(k, gas, TICK_DT, structures);
+  while (k.pos.z < 25) drive(k, none, TICK_DT, structures);
+  assert.equal(k.boosts, 1, 'one boost begun, however long it rolls on the pad');
+  // Hopped along the pad and down onto it, its boost still held, it has begun another.
+  drive(k, { ...none, drift: true }, TICK_DT, structures);
+  while (!k.grounded) drive(k, none, TICK_DT, structures);
+  drive(k, none, TICK_DT, structures);
+  assert.deepEqual([k.boosts, k.turbo !== null], [2, true]);
   while (k.pos.z < 49) drive(k, none, TICK_DT, structures);
   assert.ok(speed(k) > boosted - 0.5, `boosted along the pad with the gas let go: ${speed(k)}`);
   drive(k, gas, PAD.hold - 0.1, structures);

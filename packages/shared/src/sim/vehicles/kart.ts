@@ -66,6 +66,11 @@ export interface KartState {
   // A boost: the seconds it holds at full, the seconds into it, and the spark of the drift it came
   // of (none for a trick's).
   turbo: { hold: number; t: number; spark: Spark | null } | null;
+  // How many boosts it has begun, a mini-turbo's, a trick's or a boost pad's: what tells one begun
+  // while another still holds from the one held.
+  boosts: number;
+  // Rolling forward over a boost pad as of its last tick: rolling onto one is a boost begun.
+  pad: boolean;
 }
 
 // What came of a tick: how fast it was going into what it ran into, square to it (0 for nothing),
@@ -170,6 +175,8 @@ export function createKart(kart: KartId, size: number, pos: Vec3, yaw: number): 
     drift: null,
     trick: null,
     turbo: null,
+    boosts: 0,
+    pad: false,
   };
 }
 
@@ -244,7 +251,7 @@ export function stepKart(k: KartState, c: KartControls, dt: number, structures: 
   if (pressed && k.grounded && k.down !== null) {
     // Just down from a flight with no trick in it: the press is that trick, late.
     k.trick = { way: trickWay(k, steer), t: 0 };
-    k.turbo = { hold: TRICK.hold, t: 0, spark: null };
+    boost(k, TRICK.hold);
     k.press = k.down = null;
   } else if (pressed && k.grounded && !k.drift && !climbing) {
     k.vel.y = HOP;
@@ -261,16 +268,17 @@ export function stepKart(k: KartState, c: KartControls, dt: number, structures: 
   const speed = forwardSpeed(k);
   if (k.drift && (!c.drift || speed < DRIFT_FROM * spec.speed)) {
     const spark = c.drift ? null : sparkOf(k.drift.t, spec);
-    if (spark) k.turbo = { hold: SPARKS[spark - 1].hold, t: 0, spark };
+    if (spark) boost(k, SPARKS[spark - 1].hold, spark);
     k.drift = null;
   }
   const lock = lockOf(k);
   k.yaw += ((lock * speed) / (spec.handling / 2)) * dt;
   if (k.grounded) drive(k, spec, c.gas, dt, structures);
+  else k.pad = false;
   const { impact, footing } = move(k, dt, structures);
   const landing = settle(k, dt, footing);
   if (landing > 0 && k.trick) {
-    k.turbo = { hold: TRICK.hold, t: 0, spark: null };
+    boost(k, TRICK.hold);
     k.trick = null;
   } else if (landing >= TRICK.fall && !hopped) k.down = 0;
   if (landing > 0) k.hop = false;
@@ -284,6 +292,13 @@ export function stepKart(k: KartState, c: KartControls, dt: number, structures: 
     if (turboShare(k.turbo) === 1 && k.turbo.t > TURBO.rise) k.turbo = null;
   }
   return { impact, landing };
+}
+
+// Begins a boost that holds at full for `hold` seconds, a mini-turbo's of its drift's `spark` or a
+// trick's of none.
+function boost(k: KartState, hold: number, spark: Spark | null = null): void {
+  k.turbo = { hold, t: 0, spark };
+  k.boosts++;
 }
 
 // Whether it's in the hop a press gave it: up and back down to where it left the ground. Falling
@@ -359,12 +374,16 @@ function drive(k: KartState, spec: KartSpec, gas: number, dt: number, structures
   let across = k.vel.x * r.x + k.vel.z * r.z;
   const footing = structures.footing(k.pos.x, k.pos.z, k.pos.y + STEP);
   const surface = SURFACES[footing.surface];
-  // On a boost pad, rolling forward: the pad's push for its gas, and its boost, held at full.
-  if (surface.boosts && along > 0) {
+  // On a boost pad, rolling forward: the pad's push for its gas, and its boost, held at full. Rolling
+  // onto it is a boost begun, whatever boost it comes with.
+  const pad = surface.boosts === true && along > 0;
+  if (pad) {
     gas = Math.max(gas, 1);
     const left = k.turbo ? TURBO.rise + k.turbo.hold - k.turbo.t : 0; // seconds its own boost stays at full
     if (left < PAD.hold) k.turbo = { hold: PAD.hold, t: Math.min(k.turbo?.t ?? 0, TURBO.rise), spark: null };
+    if (!k.pad) k.boosts++;
   }
+  k.pad = pad;
   const accel = spec.speed / spec.acceleration;
   const top = spec.speed * turboShare(k.turbo);
   // A boost pushes it up to its boosted speed over its rise and lets it down from there over its
