@@ -271,11 +271,14 @@ class WorldMap:
                     if distance < best_distance and i not in self.areas:
                         best, best_distance = i, distance
         if abs(feet.y) <= FLOOR:
-            for i in {
+            near = {
                 i
                 for key in _cells_over(feet.x - reach, feet.z - reach, feet.x + reach, feet.z + reach)
                 for i in self._area_cells.get(key, ())
-            }:
+            }
+            # Nearest middle first, so a spot on the line between two rectangles is the one's whose
+            # middle it's nearer, whatever order they come in.
+            for i in sorted(near, key=lambda i: math.hypot(self.nodes[i].x - feet.x, self.nodes[i].z - feet.z)):
                 distance = self.areas[i].off(feet.x, feet.z)
                 if distance < best_distance:
                     best, best_distance = i, distance
