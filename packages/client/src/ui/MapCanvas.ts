@@ -267,6 +267,10 @@ export class MapCanvas {
     ctx.stroke(outlines);
     ctx.globalCompositeOperation = 'destination-out';
     for (const p of parts) ctx.fill(p);
+    // A deck hides the edge of whatever floor it's over, as it hides the rest of it.
+    for (const l of landmarks)
+      if (l.kind === 'span') ctx.fill(stripPath(l));
+      else if (l.kind === 'sweep') ctx.fill(partPath({ ...l, kind: 'bend' }));
     ctx.globalCompositeOperation = 'destination-over';
 
     ctx.strokeStyle = RING;
@@ -475,14 +479,19 @@ function stripPath(s: Pad | Span): Path2D {
   return path;
 }
 
-// A deck's two sides, which cross whatever road passes under it.
+// A deck's two sides, its left and its right as it runs, which cross whatever road passes under
+// it; a side another deck runs along (where a road splits) has no line.
 function deckPath(s: Span): Path2D {
   const [a, b, c, d] = stripCorners(s);
   const path = new Path2D();
-  path.moveTo(...a);
-  path.lineTo(...b);
-  path.moveTo(...d);
-  path.lineTo(...c);
+  if (s.bare !== 'left') {
+    path.moveTo(...a);
+    path.lineTo(...b);
+  }
+  if (s.bare !== 'right') {
+    path.moveTo(...d);
+    path.lineTo(...c);
+  }
   return path;
 }
 

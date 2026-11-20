@@ -456,10 +456,15 @@ function walkableNodes(open: OpenFloor): Vec3[] {
   const nodes: Vec3[] = [];
   for (let x = Math.ceil(b.minX / SPACING) * SPACING; x <= b.maxX; x += SPACING) {
     for (let z = Math.ceil(b.minZ / SPACING) * SPACING; z <= b.maxZ; z += SPACING) {
-      if (WORLD_GROUND.edge(x, z) > -EDGE_MARGIN || !open.crowded(x, z)) continue;
-      const heights = new Set([0, ...MAP_STRUCTURES.list.flatMap((s) => topAt(s, x, z))]);
-      for (const y of heights) {
+      if (!open.crowded(x, z)) continue;
+      // The floor is stood on only EDGE_MARGIN inside its edge. A top out past that (a road's
+      // deck, which has no floor under it) is its own floor, with a drop of its own round it, and
+      // is stood on only where it carries on EDGE_MARGIN every way.
+      const floored = WORLD_GROUND.edge(x, z) <= -EDGE_MARGIN;
+      const tops = MAP_STRUCTURES.list.flatMap((s) => topAt(s, x, z));
+      for (const y of new Set(floored ? [0, ...tops] : tops)) {
         if (Math.abs(MAP_STRUCTURES.groundAt(x, z, y + STEP_UP) - y) > 1e-9) continue;
+        if (!floored && !carriesOn(x, z, y)) continue;
         const ceiling = MAP_STRUCTURES.ceilingAt(x, z, y + 1e-6);
         if (ceiling < y + EYE_HEIGHT + CAPSULE_TOP) continue;
         const pos = { x, y: y + EYE_HEIGHT, z };
@@ -470,6 +475,17 @@ function walkableNodes(open: OpenFloor): Vec3[] {
     }
   }
   return nodes;
+}
+
+// Whether the top at height y over (x, z) is still there, within a step, EDGE_MARGIN from it each
+// way along the grid.
+function carriesOn(x: number, z: number, y: number): boolean {
+  return [
+    [EDGE_MARGIN, 0],
+    [-EDGE_MARGIN, 0],
+    [0, EDGE_MARGIN],
+    [0, -EDGE_MARGIN],
+  ].every(([dx, dz]) => Math.abs(MAP_STRUCTURES.groundAt(x + dx, z + dz, y + STEP_UP) - y) <= STEP_UP);
 }
 
 // The height of a structure's top over (x, z), if its footprint covers it.

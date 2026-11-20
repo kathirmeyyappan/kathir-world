@@ -1,7 +1,19 @@
 // The world's outline: the parts of the floor (ground.ts), in a module of their own so content can
 // place things relative to them without importing the structures, which import the content.
 import { Ground, type Bridge, type Disc, type Sector, type WorldPart } from './ground';
-import { climb, jump, layRoad, level, padded, span, type Point, type Road, type Stretch } from './roads';
+import {
+  climb,
+  jump,
+  layRoad,
+  level,
+  padded,
+  span,
+  split,
+  type Point,
+  type Road,
+  type Split,
+  type Stretch,
+} from './roads';
 
 export const MAIN_DISC: Disc = { kind: 'disc', x: 0, z: 0, r: 50 }; // the cubes' home
 export const ANNEX: Disc = { kind: 'disc', x: 112, z: 0, r: 30 }; // Tung Tung Tower's grounds
@@ -91,26 +103,26 @@ const SOUTHWEST_BEND: Point = { x: -660, z: -250 };
 const SOUTH_BEND: Point = { x: -300, z: -420 };
 const NORTHEAST_BEND: Point = { x: 190, z: 340 };
 const SOUTHEAST_BEND: Point = { x: 190, z: -340 };
-// The corners the roads up on decks turn at, one way and then the other. The flyover's are either
-// side of the world's long straight, the west road and the Krusty Krab's: south of it, north of it
-// over the middle of the crossroads, and south of it again, so it snakes over the straight and
-// crosses it twice, each time at a slant. The skyway's three are east of the flyover's way in to
-// the south island (it leaves both its islands on their east, clear of the ring's roads to the
-// crossroads), the middle one over the Krusty Krab's road. The high road's two are north of the
-// west road, the second over the northwest spoke (and into its island clear of the ring's road
-// there).
+// The corners the roads up on decks turn at. A deck has no floor of its own under it: each is over
+// the roads it crosses and otherwise over nothing. The flyover's are either side of the world's
+// long straight, the west road and the Krusty Krab's: south of it, north of it over the crossroads,
+// and south of it again, so it snakes over the straight and crosses it twice, each time at a
+// slant. The skyway's two are east of the flyover's way in to the south island (it leaves both
+// its islands on their east, clear of the ring's roads to the crossroads), with a straight between
+// them over the Krusty Krab's road. The high road's two are north of the west road, the second
+// over the northwest spoke (and into its island clear of the ring's road there). Each has one
+// long straight, where it splits in two.
 const FLYOVER_BENDS: [Point, Point, Point] = [
-  { x: -570, z: -75 },
-  { x: -374, z: 38 },
-  { x: -232, z: -44 },
+  { x: -561, z: -80 },
+  { x: -357, z: 38 },
+  { x: -235, z: -44 },
 ];
-const SKYWAY_BENDS: [Point, Point, Point] = [
-  { x: -150, z: 110 },
-  { x: -200, z: 0 },
-  { x: -150, z: -110 },
+const SKYWAY_BENDS: [Point, Point] = [
+  { x: -170, z: 112 },
+  { x: -170, z: -112 },
 ];
 const HIGH_BENDS: [Point, Point] = [
-  { x: -580, z: 150 },
+  { x: -590, z: 137 },
   { x: -393, z: 154 },
 ];
 // A disc of floor beside a straight of road from a to b, lapping onto it: `along` of the way, `r`
@@ -152,10 +164,11 @@ export const ISLANDS: Disc[] = [
 // the crossroads to the west island, a spoke from the crossroads to each of the northwest and
 // southwest islands, and an inner ring from the north island by two small islands to the south
 // one. Over those go three roads on decks, a triangle between the west island and the ring's two
-// small ones, each up off the floor from one island's rim to the other's: the skyway, from one
-// small island to the other, over the Krusty Krab's road; the high road, from the west island
-// round over the northwest spoke to the ring; and the flyover, from the west island in an S over
-// the west road, the crossroads and the Krusty Krab's road to the ring. Outside it, a road out
+// small ones, each up off the floor from one island's rim to the other's, with no floor of its own
+// under its deck, and each split in two along its long straight: the skyway, from one small island
+// to the other, over the Krusty Krab's road; the high road, from the west island round over the
+// northwest spoke to the ring; and the flyover, from the west island in an S over the west road,
+// the crossroads and the Krusty Krab's road to the ring. Outside it, a road out
 // to a small island at each of three corners of the world. Round the east goes one road, from the
 // north island by the east island to the south, with a way out to it from the tower, from
 // SpongeBob's house and from Building 4.
@@ -186,7 +199,7 @@ const crest = (up: number, rise: number, down: number, top?: number): Stretch[] 
 // A road that goes over others leaves the floor as it leaves its island and comes back to it only
 // as it reaches the next: a ramp up to the deck's height from just clear of the island's rim, and
 // one down to just clear of the other's, each with a few metres of level bank at its top for the
-// deck to land on. All between is deck.
+// deck to land on. All between is deck, over the roads it crosses and otherwise over nothing.
 const DECK = { rise: 9, ramp: 60, landing: 6, clear: 2 };
 const lift = (from: Disc, rise = DECK.rise, ramp = DECK.ramp): Stretch[] => [
   level(from.r + DECK.clear),
@@ -200,6 +213,11 @@ const land = (to: Disc, from = DECK.rise, ramp = DECK.ramp): Stretch[] => [
 ];
 // A length of deck that climbs, or drops.
 const slope = (length: number, rise: number): Stretch => ({ ...span(length), rise });
+// How a road on a deck splits, as Rainbow Road does: its two strands part over the first quarter of
+// the split, run side by side 14 m apart, one climbing 2.4 m and the other dropping as far, with a
+// pad each, and come together again over its last quarter. A kart off the high strand's inner
+// side at speed comes down on the low one.
+const SPLIT: Split = { out: 17, fork: 36, rise: 2.4, fall: 2.4, climb: 16, pad: true };
 const [HOUSE_GROUNDS, KEEP_2_GROUNDS, KEEP_3_GROUNDS, KEEP_4_GROUNDS] = BUILDING_GROUNDS;
 const road = (name: string, from: Point, runs: Parameters<typeof layRoad>[0]['runs']): Road =>
   layRoad({ name, from, width: ROAD_WIDTH, runs });
@@ -257,48 +275,35 @@ const WEB: Road[] = [
   ]),
   road('inner southwest', ROAD_PLATEAU, [{ to: INNER_SOUTH, stretches: [level(), ...hop(), level()] }]),
   road('inner south', INNER_SOUTH, [{ to: SOUTH_ISLAND, stretches: [level(), ...kicker(), level()] }]),
-  // Up to 8 m in the room its short ends leave, then three bends, east, west and east again,
-  // dipping to the middle one, over the Krusty Krab's road, and climbing away from it; a pad on
-  // each straight between.
+  // Up to 8 m in the room its short ends leave and round to the south; down the straight it
+  // splits, its east strand climbing and its west one dropping, over the Krusty Krab's road; and
+  // round to the south small island.
   road('skyway', INNER_NORTH, [
     { to: SKYWAY_BENDS[0], radius: 60, open: true, stretches: [...lift(INNER_NORTH, 8, 52), span()] },
-    { to: SKYWAY_BENDS[1], radius: 60, open: true, stretches: [span(), padded(span(10)), slope(20, -2)] },
-    { to: SKYWAY_BENDS[2], radius: 60, open: true, stretches: [slope(20, 2), padded(span(10)), span()] },
+    { to: SKYWAY_BENDS[1], radius: 60, open: true, stretches: [span(), split(150, SPLIT), span()] },
     { to: INNER_SOUTH, stretches: [span(), ...land(INNER_SOUTH, 8, 52)] },
   ]),
-  // Up from the west island, round one way, a pad and a rise and a longer fall along the straight
-  // between, round the other way lower down, over a spoke, and down to its island.
+  // Up from the west island and round to the east, where it splits along its straight, the strands
+  // meeting again over the northwest spoke; and round to the north small island.
   road('high road', WEST_ISLAND, [
-    { to: HIGH_BENDS[0], radius: 110, open: true, pads: [0.5], stretches: [...lift(WEST_ISLAND), span()] },
-    {
-      to: HIGH_BENDS[1],
-      radius: 250,
-      open: true,
-      pads: [0.5],
-      stretches: [span(10), padded(span(10)), slope(30, 4), span(), slope(35, -5), span(10)],
-    },
-    { to: INNER_NORTH, stretches: [span(), ...land(INNER_NORTH, 8)] },
+    { to: HIGH_BENDS[0], radius: 70, open: true, stretches: [...lift(WEST_ISLAND), span()] },
+    { to: HIGH_BENDS[1], radius: 120, open: true, stretches: [span(), split(142, SPLIT), span()] },
+    { to: INNER_NORTH, stretches: [span(), ...land(INNER_NORTH)] },
   ]),
   // Up from the west island beside the west road, then an S over the world's long straight: north
-  // over the west road at a slant, climbing to the top of its sweep over the crossroads, south
-  // again over the Krusty Krab's road, falling, and round to the south island. A pad on each
-  // slant, where it's over the road under it, and one at the top.
+  // over the west road at a slant, split in two, its strands meeting again over the crossroads'
+  // edge; round the top of its sweep over the crossroads with a pad; south again over the Krusty
+  // Krab's road, lower, and round to the south small island.
   road('flyover', WEST_ISLAND, [
-    { to: FLYOVER_BENDS[0], radius: 80, open: true, stretches: [...lift(WEST_ISLAND, 8, 52), span()] },
-    {
-      to: FLYOVER_BENDS[1],
-      radius: 90,
-      open: true,
-      pads: [0.5],
-      stretches: [span(), padded(span(10)), span(20), slope(24, 3), span(8)],
-    },
+    { to: FLYOVER_BENDS[0], radius: 70, open: true, stretches: [...lift(WEST_ISLAND, 8, 52), span()] },
+    { to: FLYOVER_BENDS[1], radius: 80, open: true, pads: [0.5], stretches: [span(), split(142, SPLIT), span()] },
     {
       to: FLYOVER_BENDS[2],
       radius: 60,
       open: true,
-      stretches: [span(8), slope(24, -3), padded(span(10)), span()],
+      stretches: [span(8), slope(12, -1.5), padded(span(10)), span()],
     },
-    { to: INNER_SOUTH, stretches: [span(), ...land(INNER_SOUTH, 8, 52)] },
+    { to: INNER_SOUTH, stretches: [span(), ...land(INNER_SOUTH, 6.5, 44)] },
   ]),
 ];
 const REACHES: Road[] = [
