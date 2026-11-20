@@ -3,7 +3,6 @@
 // Body (Body.ts): his head is most of him. Worn with /plankton; its hit capsule is
 // AVATARS.plankton.hitbox. Far too small to reach a kart's pedals, he drives one standing on top of
 // its steering wheel, running on it.
-import type { RemotePlayer } from '../../net/Interpolation';
 import type { Seat } from '../vehicles/Seat';
 import type { BodySpec } from './Body';
 import { PLANKTON_MODEL } from './planktonModel';
@@ -25,7 +24,7 @@ const RUN_LEAN = 0.35;
 class PlanktonAvatar extends WalkerAvatar {
   private running = 0; // radians into his stride on the wheel
 
-  protected override sit(p: RemotePlayer, seat: Seat, dt: number): Pose {
+  protected override sit(seat: Seat, dt: number): Pose {
     const f = this.figure;
     this.place(seat);
     this.running += dt * (RUN + Math.abs(seat.speed) * RUN_PER_SPEED);
@@ -41,7 +40,7 @@ class PlanktonAvatar extends WalkerAvatar {
       hang(arm.node);
       arm.node.rotation.set(-side * swing * RUN_ARMS, 0, side * ARMS_DOWN);
     }
-    if (f.tilt) f.tilt.node.rotation.x = p.pitch * f.tilt.follow;
+    if (f.tilt) f.tilt.node.rotation.x = 0;
     return { phase: this.running, effort: 1, on: 'kart' };
   }
 }
