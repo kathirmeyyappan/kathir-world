@@ -52,3 +52,7 @@ def test_the_road_is_open_floor_walked_in_one_line() -> None:
     # On under the skyway's deck to the plateau at the road's end, by the spots the map has there.
     plateau = world.node_at(Vec3(-330, 0, 0))
     assert plateau is not None and world.path(road, plateau) is not None
+    # And up onto the flyover's deck where it has no floor under it, past its ramp from the west
+    # island: a deck's top is walked like the floor.
+    deck = world.node_at(Vec3(-585, 8, -67))
+    assert deck is not None and world.path(plateau, deck) is not None
