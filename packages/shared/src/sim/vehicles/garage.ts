@@ -60,9 +60,10 @@ const DROP_SPEED = 2; // m/s down: a kart coming down on someone, not resting on
 // along the knock at a share of the speed the two closed at, and up.
 const KNOCK = { least: 9, share: 0.6, lift: 5, grip: 6 };
 // An explosion: hearts off everyone on foot within reach of it with nothing between, and the throw
-// it gives them away from it. Its own driver, at its middle, it throws back off its tail: they face
-// the way the kart did, so the blast is before their eyes, and what the kart ran into beyond it.
-export const BLAST = { reach: 6, damage: 3, speed: 9, lift: 6, grip: 6 };
+// it gives them: `speed` away from it and `lift` up. Its own driver, at its middle, it throws high
+// and back off its tail: they face the way the kart did, so the blast is before their eyes, and
+// what the kart ran into beyond it.
+export const BLAST = { reach: 6, damage: 3, speed: 9, lift: 6, grip: 6, driver: { speed: 6, lift: 14 } };
 const BUMP = 0.3; // of the speed two karts closed at that they part at
 
 // What only the Room keeps of a kart: who's credited with what it does (its driver, else whoever
@@ -347,8 +348,8 @@ export class Garage {
   }
 
   // Kart `k` blown up: gone, its driver left where they sat, and everyone on foot within the
-  // blast's reach with nothing between hurt and thrown away from it (its driver back off its
-  // tail), credited to whoever took its last wrench. Returns where it blew up.
+  // blast's reach with nothing between hurt and thrown away from it (its driver up and back off
+  // its tail), credited to whoever took its last wrench. Returns where it blew up.
   private explode(k: Kart, players: PlayerState[], blows: KartBlow[]): Vec3 {
     const at = { x: k.pos.x, y: k.pos.y + bodyOf(k).height / 2, z: k.pos.z };
     const by = this.keeps.get(k.id)?.breaker ?? this.credit(k);
@@ -372,7 +373,8 @@ export class Garage {
         p === driver || flat < 1e-6
           ? { x: -nose.x, z: -nose.z }
           : { x: (mid.x - at.x) / flat, z: (mid.z - at.z) / flat };
-      throwWalker(p, { x: out.x * BLAST.speed, y: BLAST.lift, z: out.z * BLAST.speed }, BLAST.grip);
+      const { speed, lift } = p === driver ? BLAST.driver : BLAST;
+      throwWalker(p, { x: out.x * speed, y: lift, z: out.z * speed }, BLAST.grip);
       blows.push({ victim: p.id, hearts: BLAST.damage, by, how: 'explosion' });
     }
     return at;
