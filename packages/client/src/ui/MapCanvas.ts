@@ -284,6 +284,15 @@ export class MapCanvas {
     ctx.lineJoin = 'miter';
     for (const l of landmarks)
       if (l.kind === 'slope') ctx.stroke(climbPath(l, Math.max(CLIMB_SPACING.m, px(CLIMB_SPACING.px))));
+    // Each layer here goes under what's drawn already, so the pads come first: one lying on a deck
+    // shows on it.
+    for (const l of landmarks) {
+      if (l.kind !== 'pad') continue;
+      const rainbow = ctx.createLinearGradient(l.ax, l.az, l.bx, l.bz);
+      BOOST_RAINBOW.forEach((colour, i) => rainbow.addColorStop(i / (BOOST_RAINBOW.length - 1), colour));
+      ctx.fillStyle = rainbow;
+      ctx.fill(stripPath(l));
+    }
     // A deck is drawn over the road that passes under it: its top, and its sides run on across.
     ctx.fillStyle = DECK;
     ctx.strokeStyle = OUTLINE;
@@ -296,13 +305,6 @@ export class MapCanvas {
         ctx.fill(partPath({ ...l, kind: 'bend' }));
         ctx.stroke(sweepPath(l));
       }
-    }
-    for (const l of landmarks) {
-      if (l.kind !== 'pad') continue;
-      const rainbow = ctx.createLinearGradient(l.ax, l.az, l.bx, l.bz);
-      BOOST_RAINBOW.forEach((colour, i) => rainbow.addColorStop(i / (BOOST_RAINBOW.length - 1), colour));
-      ctx.fillStyle = rainbow;
-      ctx.fill(stripPath(l));
     }
     const marks = landmarks.filter(
       (l): l is Footprint =>

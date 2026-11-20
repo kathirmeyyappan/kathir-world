@@ -308,11 +308,11 @@ wire: server and client both build the world from that file.
   `worldTop: true` on them so their tops map alike. The same goes for anything else the client
   draws: never lay a decal, glow or second mesh exactly on a surface.
 - Client cost: the renderer merges pieces with the same look in the same 48 m square into one mesh,
-  so draw calls stay in the tens however many pieces there are. The world's 13,559 pieces (5,642
+  so draw calls stay in the tens however many pieces there are. The world's 13,566 pieces (5,642
   drawn; the house's rooms and shell are 7,516 hidden pieces, the Krusty Krab 175 and the roads'
-  226: their risen banks, their decks and their boost pads) render as
+  233: their risen banks, their decks and their boost pads) render as
   about 100 meshes (about 15 in view at once; the roads' built ramps are 24 pieces in 17 of them, each
-  of their 77 lengths of risen road is a small mesh of its own and each of their 62 boost pads two, and
+  of their 84 lengths of risen road is a small mesh of its own and each of their 62 boost pads two, and
   the floor is 275 chunks), and a raycast tries the pieces a stretch of grid cells at a
   time, so one across open floor costs a few µs, one through the Krusty Krab about 10 µs and one
   through the house about 130 µs. The sim's grid has height bands as well as cells, so a walker's
@@ -361,11 +361,12 @@ between the keeps: a lap of about 2.4 km. Inside it a web (`WEB`): the Krusty Kr
 laid over the floor the home has there for the pad on it, and carried
 on west from the crossroads at its end to the west island, a spoke from the crossroads to each of
 the northwest and southwest islands, and an inner ring from the north island by two small islands
-to the south one. Over those go three roads up on decks, each a long sweep 9 m off the floor
-with a ramp at either end, a triangle between the west island and the ring's two small ones: the
-skyway, an arc from one small island to the other, over the Krusty Krab's road; the high road,
-from the west island round over the northwest spoke to the ring; and the flyover, from the west
-island up at once and round over the southwest spoke to the ring, on its deck nearly all the way.
+to the south one. Over those go three roads up on decks, a triangle between the west island and
+the ring's two small ones, each off the floor from one island's rim to the other's: a ramp up to
+9 m as it leaves, a ramp down as it arrives, and deck all between, straight and sweep alike. The
+skyway is an arc from one small island to the other, over the Krusty Krab's road; the high road
+goes from the west island round over the northwest spoke to the ring; and the flyover is its
+mirror, over the southwest spoke.
 Outside it (`REACHES`) a road out to a small island at each of three corners of the world: the
 world's end and two lookouts. Round the east (`EAST`) goes one road, from the north island by the
 east island to the south, with a way out to it from the tower, from SpongeBob's house and from
@@ -389,8 +390,8 @@ boosted down the straight and back at its own speed by the turn, where a drift i
 next boost; a deck's long sweep is the one bend with pads, a run's `pads`, each a straight length
 lying along it where it's that far round), a bend of
 60 m or more, taken flat out, and where one road crosses another between islands, a deck over it,
-the whole sweep it crosses in (`up` and `down`: a ramp to 9 m at either end of the deck, on the
-straights, since a bend doesn't climb). A slope's top a sixth or more steeper than what
+the whole sweep it crosses in (`lift` and `land`: a ramp to 9 m from just clear of the island at either end,
+on the straights, since a bend doesn't climb). A slope's top a sixth or more steeper than what
 follows is left in the air at a kart's speed (`LIFT` in `kart.ts`), so a `hump` and the steep side
 of a hill are flown off and a gentle ridge isn't. After changing one, drive every road both ways
 with `stepKart` in a scratch script, flat out and boosted, and check nothing is hit and no landing

@@ -147,7 +147,7 @@ const LAP = 0.05;
 // further than the kerb the client draws in from an edge (Floor.ts), which would leave a slit.
 const FLOOR_LAP = 1;
 const SLICE = 6; // metres of a bend, along its middle, under one block of its bank
-const DECK = 0.8; // metres through an open stretch's deck
+const DECK = 1.4; // metres through an open stretch's deck
 const HEADROOM = 4; // metres clear under a deck, at the least: a kart, its driver and the eye that follows them
 // A boost pad: its share of the road's width, the metres it stops short of its stretch's ends, and
 // the metres its top lies over the road's, so the two share no plane.
