@@ -1079,10 +1079,10 @@ wrenches off a kart (`WEAR`, 2 at 20 m/s, so it takes crash after crash flat out
 another kart (which also part by their `weight`s) and from the ground it lands on, more gently
 still (`LANDING`: half how fast it comes down counts, so it's worn only from a 10 m drop), and a
 shot's damage from anyone, a shot stopping at a kart nearer than whoever it would have hit. At
-no wrenches it explodes (`boom`): it's gone, its driver is thrown up out of where they sat (and a
-little back off its nose, so the blast is before their eyes), and everyone on foot
-within `BLAST.reach` with nothing between takes `BLAST.damage` and is thrown away, credited to
-whoever took its last wrench; what wore it down never reaches the driver. A kill by a kart is
+no wrenches it explodes (`boom`): it's gone, its driver is left where they sat, and everyone on foot
+within `BLAST.reach` with nothing between takes `BLAST.damage` and is thrown away from it (its
+driver back off its tail, so the blast is before their eyes and whatever it ran into beyond that),
+credited to whoever took its last wrench; what wore it down never reaches the driver. A kill by a kart is
 announced as one (`kill` with `item: 'kart'` or `'explosion'`), and a death of one's own doing in
 one as `crashed`.
 
