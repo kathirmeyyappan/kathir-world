@@ -88,7 +88,8 @@ export interface Sweep {
 }
 export type RoadMark = Slope | Pad | Span | Sweep;
 
-// A length of a road up off the floor that's drawn as the floor risen, as wide as its bank: a
+// A length of a road up off the floor that's drawn as the floor risen, a hair wider than the
+// floor under it (PROUD): a
 // straight from a to b with the height of its top at each, or a level bend, a strip round (x, z)
 // from one bearing to another (radians, from +x toward +z) at height y; either with the height of
 // what it stands on (`under`: the floor's, or a deck's own underside).
@@ -139,6 +140,10 @@ const BANK: StructureMaterial = 'flagstone';
 // Metres a bank stands in from the floor's edge, along the road's sides and at a gap, so its faces
 // rise out of the kerb drawn there (the client's Floor.ts) and none lies in the plane of the drop.
 const SHOULDER = 0.25;
+// Metres past the floor's edge under it, each side, that a risen road is drawn out to: its walls
+// stand a hair proud of the drop's face there and cover the kerb along it, so a risen road's side
+// is one grey wall up from the drop, with none of the kerb's green along its foot.
+const PROUD = 0.02;
 // Metres each piece of the bank runs on into the next, so no seam between two is a gap.
 const LAP = 0.05;
 // Metres a length of the floor runs on, at each end, into the leg it joins there. The ground's
@@ -204,7 +209,7 @@ export function layRoad(spec: RoadSpec): Road {
         const under = leg.open ? y - DECK : 0; // what its bank stands on: the floor, or for a deck its own underside
         const [from, to] = turn > 0 ? [start, start + turn] : [start + turn, start];
         road.bank.push(...bendBank(leg, half - SHOULDER, lap, under).map(risen));
-        road.raised.push({ kind: 'bend', x, z, r, from, to, y, under, halfWidth: half - SHOULDER });
+        road.raised.push({ kind: 'bend', x, z, r, from, to, y, under, halfWidth: half + PROUD });
         if (leg.open) road.marks.push({ kind: 'sweep', x, z, r, from, to, halfWidth: half });
       }
       // Its pads, each lying along the bend where it's that far round, the way the road runs.
@@ -258,7 +263,7 @@ export function layRoad(spec: RoadSpec): Road {
         by,
         bz: b.z,
         under: base,
-        halfWidth: width / 2,
+        halfWidth: half + PROUD,
       });
     }
     if (!leg.pad) return;
