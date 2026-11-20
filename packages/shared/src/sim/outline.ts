@@ -152,10 +152,10 @@ export const ISLANDS: Disc[] = [
 // the crossroads to the west island, a spoke from the crossroads to each of the northwest and
 // southwest islands, and an inner ring from the north island by two small islands to the south
 // one. Over those go three roads on decks, a triangle between the west island and the ring's two
-// small ones, each up off the floor from one island's rim to the other's: the skyway, an arc from
-// one small island to the other, over the Krusty Krab's road; the high road, from the west island
-// round over the northwest spoke to the ring; and the flyover, its mirror, over the southwest
-// spoke. Outside it, a road out
+// small ones, each up off the floor from one island's rim to the other's: the skyway, from one
+// small island to the other, over the Krusty Krab's road; the high road, from the west island
+// round over the northwest spoke to the ring; and the flyover, from the west island in an S over
+// the west road, the crossroads and the Krusty Krab's road to the ring. Outside it, a road out
 // to a small island at each of three corners of the world. Round the east goes one road, from the
 // north island by the east island to the south, with a way out to it from the tower, from
 // SpongeBob's house and from Building 4.
