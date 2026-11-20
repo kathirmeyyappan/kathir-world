@@ -197,7 +197,7 @@ export class WalkerAvatar implements Avatar {
       p.climb && !p.dead
         ? this.climb(p, feetY, dt)
         : seat && !p.dead
-          ? this.sit(p, seat, dt)
+          ? this.sit(seat, dt)
           : this.walk(p, feetY, step, dt);
     if (p.dead) {
       this.gone = this.dead ? this.gone + dt : this.stood > 0 ? 0 : Infinity;
@@ -310,9 +310,10 @@ export class WalkerAvatar implements Avatar {
   // Sat in a kart: its hips on the seat (back from its middle as far as keeps its trunk behind the
   // steering wheel's), its legs out ahead and, with two arms, a hand on each grip, turning the
   // wheel, the body leaning back or forward as far as brings them there and into the turn; the head
-  // turns to the look as it does on foot. A trick throws it up out of the seat, standing with its
-  // hands up, as the kart twirls under it, and back down.
-  protected sit(p: RemotePlayer, seat: Seat, dt: number): Pose {
+  // faces ahead whatever the look, which with nothing in hand to aim is the camera's alone, free
+  // to come round and see the driver's face. A trick throws it up out of the seat, standing with
+  // its hands up, as the kart twirls under it, and back down.
+  protected sit(seat: Seat, dt: number): Pose {
     const f = this.figure;
     const { hips, shoulders, front } = this.joints;
     this.place(seat);
@@ -333,9 +334,8 @@ export class WalkerAvatar implements Avatar {
       leg.node.rotation.x = this.lean - ahead;
       if (leg.foot) leg.foot.node.rotation.x = 0;
     }
-    if (f.tilt) f.tilt.node.rotation.x = p.pitch * f.tilt.follow;
-    const off = wrap(p.yaw - this.facing);
-    if (f.head) f.head.rotation.y = clamp(off, HEAD_LIMIT) * headShare(off);
+    if (f.tilt) f.tilt.node.rotation.x = 0;
+    if (f.head) f.head.rotation.y = 0;
     if (shoulders && f.armL) {
       this.handTo(f.armL, seat.grips[0]);
       this.handTo(f.armR, seat.grips[1]);

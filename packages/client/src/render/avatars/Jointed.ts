@@ -583,9 +583,9 @@ export class JointedAvatar extends WalkerAvatar {
   // In a kart, where the walker has put it, driving as Mario Kart 8 has it drive: at the wheel,
   // backing up, drifting, boosting or hopping as its kart is, each steered by the wheel and eased
   // into the next; stopped a while, waiting; hit, its hands off the wheel; and through a trick, the
-  // trick's way. Its hips are on the seat, and the hands each clip keeps on the wheel are closed on
+  // trick's way; its head as the clip has it, whatever the look. Its hips are on the seat, and the hands each clip keeps on the wheel are closed on
   // the kart's own grips.
-  protected override sit(p: RemotePlayer, seat: Seat, dt: number): Pose {
+  protected override sit(seat: Seat, dt: number): Pose {
     this.place(seat);
     this.base.rotation.set(0, 0, 0);
     this.base.position.set(0, 0, 0);
@@ -635,8 +635,7 @@ export class JointedAvatar extends WalkerAvatar {
       over(move, smooth(Math.min(through, 1 - through) / TRICK_EASE));
     }
     rig.seat(seat, out);
-    const off = wrap(p.yaw - this.facing);
-    rig.play(out, GRIP_RUN, 0, 0, Math.max(-HEAD_LIMIT, Math.min(HEAD_LIMIT, off)), p.pitch * this.style.follow);
+    rig.play(out, GRIP_RUN, 0, 0, 0, 0);
     rig.grasp(seat.grips, left, right);
     return { phase: this.gait.phase, effort: 0, on: 'kart' };
   }

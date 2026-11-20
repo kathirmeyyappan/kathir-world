@@ -1173,6 +1173,8 @@ the seat, back from its middle as far as keeps its trunk (measured off its verti
 steering wheel's middle, its legs straight out to the pedals or, longer, to the floor under the
 nose, and, with two arms, a hand on each grip, the body leaning back or forward as far as brings its
 hands there, and into the turn; a big one is cramped in, round the wheel and through the nose. A
+driver's head faces ahead whatever their look: with nothing in hand to aim, the look is the
+camera's alone, free to come round and see their face. A
 jointed body drives as Mario Kart 8 Deluxe has its character drive: its `kart` clips
 (`<name>KartClips.ts`, baked by `scripts/kart-clips.py` from each character's driver file, which
 `scripts/bfres.py` reads, through `clips.py` with the hips sat rather than stood) at the wheel,
