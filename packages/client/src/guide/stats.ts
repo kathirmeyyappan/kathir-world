@@ -4,7 +4,6 @@
 // damage a tick and how often it ticks.
 import {
   AVATARS,
-  BLAST,
   BOT_DEFAULT_SECONDS,
   BOT_FLAGS,
   botFlags,
@@ -19,8 +18,6 @@ import {
   ITEMS,
   JUMP_RISE,
   KARTS,
-  LANDING,
-  WEAR,
   PICKUPS,
   PICKUP_AREAS,
   REGEN_RATE,
@@ -30,11 +27,8 @@ import {
   SPEEDY_MULTIPLIER,
   SPEEDY_SECONDS,
   TICK_RATE,
-  TRICK,
   TURBO,
   climbSpeedOf,
-  impactDamage,
-  wearOf,
   dragonShape,
   jumpVelocityOf,
   chainOf,
@@ -98,8 +92,15 @@ export function characterStats(id: AvatarId): Stat[] {
 // What a character can do that the rest can't, each with its own numbers.
 export type AbilityId = 'leap' | 'pound' | 'chain' | 'crouch' | 'backflip' | 'strike' | 'float';
 
+// A special ability: which it is, the keys that do it (for its heading), and its numbers.
+export interface Ability {
+  id: AbilityId;
+  use: string;
+  stats: Stat[];
+}
+
 // A character's special abilities, read off its row: none for most.
-export function abilityStats(id: AvatarId): { id: AbilityId; stats: Stat[] }[] {
+export function abilityStats(id: AvatarId): Ability[] {
   return [
     ...leapStats(id),
     ...chainStats(id),
@@ -110,14 +111,14 @@ export function abilityStats(id: AvatarId): { id: AbilityId; stats: Stat[] }[] {
   ];
 }
 
-function strikeStats(id: AvatarId): { id: AbilityId; stats: Stat[] }[] {
+function strikeStats(id: AvatarId): Ability[] {
   const strike = strikeOf(id);
   if (!strike) return [];
   return [
     {
       id: 'strike',
+      use: 'X',
       stats: [
-        { label: 'Use', value: 'Hit X, with a weapon in hand or none' },
         { label: 'Damage', value: `${num(strike.damage)} hearts` },
         { label: 'Reach', value: `${num(strike.reach)} m` },
         { label: 'Knockback', value: `${num(strike.knock.speed)} m/s` },
@@ -127,7 +128,7 @@ function strikeStats(id: AvatarId): { id: AbilityId; stats: Stat[] }[] {
   ];
 }
 
-function chainStats(id: AvatarId): { id: AbilityId; stats: Stat[] }[] {
+function chainStats(id: AvatarId): Ability[] {
   const chain = chainOf(id);
   const look = AVATARS[id];
   if (!chain || look.class !== 'walker') return [];
@@ -135,8 +136,8 @@ function chainStats(id: AvatarId): { id: AbilityId; stats: Stat[] }[] {
   return [
     {
       id: 'chain',
+      use: 'Space as you land',
       stats: [
-        { label: 'Use', value: 'Hit Space again as you land' },
         { label: 'Heights', value: `${heights.map(num).join(', ')} m` },
         { label: 'Time to jump again', value: `${num(chain.gap)} s` },
       ],
@@ -144,14 +145,14 @@ function chainStats(id: AvatarId): { id: AbilityId; stats: Stat[] }[] {
   ];
 }
 
-function floatStats(id: AvatarId): { id: AbilityId; stats: Stat[] }[] {
+function floatStats(id: AvatarId): Ability[] {
   const float = floatOf(id);
   if (!float) return [];
   return [
     {
       id: 'float',
+      use: 'hold Space in the air',
       stats: [
-        { label: 'Use', value: 'Hold Space in the air' },
         { label: 'Time', value: `${num(float.seconds)} s` },
         { label: 'Sink speed', value: `${num(float.sink)} m/s` },
       ],
@@ -159,37 +160,32 @@ function floatStats(id: AvatarId): { id: AbilityId; stats: Stat[] }[] {
   ];
 }
 
-function crouchStats(id: AvatarId): { id: AbilityId; stats: Stat[] }[] {
+function crouchStats(id: AvatarId): Ability[] {
   const crouch = crouchOf(id);
   const look = AVATARS[id];
   if (!crouch || look.class !== 'walker') return [];
   return [
     {
       id: 'crouch',
-      stats: [
-        { label: 'Use', value: 'Hold X on the ground' },
-        { label: 'Crawl speed', value: `${num(look.walk * crouch.crawl)} m/s` },
-      ],
+      use: 'hold X',
+      stats: [{ label: 'Crawl speed', value: `${num(look.walk * crouch.crawl)} m/s` }],
     },
     {
       id: 'backflip',
-      stats: [
-        { label: 'Use', value: 'Hit Space while crouched' },
-        { label: 'Height', value: `${num(JUMP_RISE * look.jump * crouch.flip)} m` },
-      ],
+      use: 'Space while crouched',
+      stats: [{ label: 'Height', value: `${num(JUMP_RISE * look.jump * crouch.flip)} m` }],
     },
   ];
 }
 
-function poundStats(id: AvatarId): { id: AbilityId; stats: Stat[] }[] {
+function poundStats(id: AvatarId): Ability[] {
   const pound = poundOf(id);
   if (!pound) return [];
   return [
     {
       id: 'pound',
+      use: 'X in the air',
       stats: [
-        { label: 'Use', value: 'Hit X in the air' },
-        { label: 'Height', value: 'More height gives more power' },
         { label: 'Ground pound damage', value: `${num(pound.damage)} hearts` },
         { label: 'Reach', value: `${num(pound.reach)} m` },
         { label: 'Knockback', value: `${num(pound.knock.speed)} m/s` },
@@ -199,7 +195,7 @@ function poundStats(id: AvatarId): { id: AbilityId; stats: Stat[] }[] {
   ];
 }
 
-function leapStats(id: AvatarId): { id: AbilityId; stats: Stat[] }[] {
+function leapStats(id: AvatarId): Ability[] {
   const leap = leapOf(id);
   if (!leap) return [];
   // The long jump as walker.ts flies it: up at a share of the jump under a share of gravity, across
@@ -211,8 +207,8 @@ function leapStats(id: AvatarId): { id: AbilityId; stats: Stat[] }[] {
   return [
     {
       id: 'leap',
+      use: 'Shift + Space',
       stats: [
-        { label: 'Use', value: 'Hit Space while running with Shift' },
         { label: 'Distance', value: `${num(speed * seconds)} m` },
         { label: 'Height', value: `${num(JUMP_RISE * (jump.class === 'walker' ? jump.jump : 1) * leap.rise)} m` },
         { label: 'Speed', value: `${num(speed)} m/s` },
@@ -279,7 +275,8 @@ export function kartStats(id: KartId): Stat[] {
   return [
     { label: 'Drop', value: `/${spec.command}` },
     { label: 'Top speed', value: `${num(spec.speed)} m/s` },
-    { label: 'Acceleration', value: `${num(spec.acceleration)} s to top speed` },
+    { label: 'Boosted speed', value: `${num(spec.speed * TURBO.boost)} m/s` },
+    { label: 'Acceleration', value: `${num(spec.acceleration)} s` },
     { label: 'Turning circle', value: `${num(spec.handling)} m` },
     { label: 'Weight', value: num(spec.weight) },
     { label: 'Wrenches', value: num(spec.wrenches) },
@@ -288,47 +285,19 @@ export function kartStats(id: KartId): Stat[] {
 
 const SPARK_NAMES = ['Blue', 'Yellow', 'Purple'];
 
-// What a drift, a trick and a crash come to in a kart, as kart.ts and garage.ts work them out.
+// What a drift comes to in a kart, as kart.ts works it out: only what its row in KARTS changes,
+// since what every kart shares is no help choosing one.
 export function kartMoves(id: KartId): { title: string; stats: Stat[] }[] {
   const spec = KARTS[id];
-  const boosted = num(spec.speed * TURBO.boost);
-  const crash = (speed: number) => num(wearOf({ impact: speed, landing: 0 }));
-  // The height a kart falls from rest to come down at the least speed that wears it, LANDING of it
-  // counting as running into the ground.
-  const unharmed = (WEAR.least / LANDING) ** 2 / (2 * GRAVITY);
   return [
     {
       title: 'Drift',
       stats: [
-        { label: 'Use', value: 'Hold Space and steer' },
         { label: 'Least speed', value: `${num(DRIFT_FROM * spec.speed)} m/s` },
-        ...SPARKS.map(({ after, hold }, i) => ({
+        ...SPARKS.map(({ after }, i) => ({
           label: `${SPARK_NAMES[i]} spark`,
-          value: `${num(after * spec.miniTurboTime)} s drifting, a ${num(hold)} s boost`,
+          value: `${num(after * spec.miniTurboTime)} s`,
         })),
-        { label: 'Boost speed', value: `${boosted} m/s` },
-      ],
-    },
-    {
-      title: 'Trick',
-      stats: [
-        { label: 'Use', value: 'Hit Space in the air off a ramp or a ledge' },
-        { label: 'Boost', value: `${num(TRICK.hold)} s on landing, to ${boosted} m/s` },
-      ],
-    },
-    {
-      title: 'Crashes',
-      stats: [
-        {
-          label: 'Run over',
-          value: `${num(impactDamage(spec.speed))} hearts at top speed, ${num(impactDamage(spec.speed * TURBO.boost))} boosted`,
-        },
-        {
-          label: 'Crash',
-          value: `${crash(spec.speed)} wrenches at top speed, ${crash(spec.speed * TURBO.boost)} boosted`,
-        },
-        { label: 'Unharmed by', value: `drops up to ${num(unharmed)} m` },
-        { label: 'Explosion', value: `${num(BLAST.damage)} hearts within ${num(BLAST.reach)} m` },
       ],
     },
   ];

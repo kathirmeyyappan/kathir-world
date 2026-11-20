@@ -1175,7 +1175,7 @@ karts costs the few that are near. A loop here is cut on exact samples and encod
 
 A kart is in every menu a command or a key is: the commands card's `vehicle` group (its
 `command`), the guide's Items tab under Karts (standing empty in Mario's paint, its numbers read
-off its row, `kart.ts` and `garage.ts` in `guide/stats.ts`, its words `KART_TEXT`), and the
+off its row and `kart.ts` in `guide/stats.ts`, its words `KART_TEXT`), and the
 guide's Kart controls, the legend's `DRIVING` cells.
 
 A driver sits in their kart as it's drawn: `KartMesh` puts its `Seat` (`render/vehicles/Seat.ts`)
@@ -1343,7 +1343,10 @@ floats on its own in one, and a kart stands there (`BodyView.syncThing`, built i
 from the shapes the game draws them with; a thing drawn with the scene's shared materials, as a
 kart is, says so, `Thing.shared`, so they outlive it), framed by its measured size, or by the box
 it gives (`Thing.bounds`) where its meshes are fetched, as a kart's are. Its numbers are worked out in `guide/stats.ts` from the
-registries the game runs on, never typed in, and its words are `guide/content.ts`, keyed by the
+registries the game runs on, never typed in: a table's value is a number and its unit (or a command
+or a key to type), never a sentence, with the keys that do an ability in its heading, and a thing's
+tables hold only what its own row changes, never a constant every one of its kind shares. Its words
+are `guide/content.ts`, keyed by the
 registries' ids, so a new skin, item, gear, kart or pickup doesn't build until it has an entry there:
 plain statements of what each thing is (Kathir writes anything more, and the fun facts), no numbers.
 A character's SOUNDS are a button for every sound it makes that not every look makes alike

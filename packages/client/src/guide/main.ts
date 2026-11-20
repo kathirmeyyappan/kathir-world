@@ -108,7 +108,8 @@ function characters(): Section[] {
     id,
     entry: CHARACTERS[id],
     stats: () => characterStats(id),
-    more: () => abilityStats(id).map((a) => ({ title: `Special ability: ${ABILITIES[a.id]}`, stats: a.stats })),
+    more: () =>
+      abilityStats(id).map((a) => ({ title: `Special ability: ${ABILITIES[a.id]} (${a.use})`, stats: a.stats })),
     view: { body: shown(id), kart: AVATARS[id].class === 'walker' ? SEATS_IN : undefined },
     lines: linesOf(id),
   });
