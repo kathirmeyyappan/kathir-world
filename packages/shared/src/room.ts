@@ -380,20 +380,16 @@ export class Room {
         player: p,
       };
     });
-    // A kart takes what reaches it first: a shot that would, stopped short of it, hits nobody
-    // nearer. A spray reaches every kart it takes in, as it does everyone.
+    // A kart takes a bullet that reaches it first: one that would, stopped short of it, hits nobody
+    // nearer. A spray washes over a kart, as over a dragon's crystal, and reaches whoever is past it.
     const eye = eyeOf(me);
     const aim = cls.aim(me);
-    const cost = damageFor(spec, false);
     const kart =
       spec.fire.kind === 'cone'
         ? null
         : this.garage.at(eye, aim, Math.min(spec.range, this.structures.raycast(eye, aim, spec.range)));
     const hits = resolveFire(kart ? { ...spec, range: kart.t } : spec, me, targets, this.structures);
-    if (kart && hits.length === 0) this.garage.shoot(kart.kart.id, cost, me.id);
-    if (spec.fire.kind === 'cone')
-      for (const k of this.garage.within(eye, aim, spec.range, spec.fire.halfAngle))
-        this.garage.shoot(k.id, cost, me.id);
+    if (kart && hits.length === 0) this.garage.shoot(kart.kart.id, damageFor(spec, false), me.id);
     // Ice chills from the last touch; fire thaws, as it thaws the frost it lands on.
     for (const hit of hits) {
       const victim = hit.target.player;

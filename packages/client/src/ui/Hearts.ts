@@ -181,8 +181,9 @@ export class Hearts {
     this.sprite = life.sprite;
     const n = Math.max(0, Math.min(this.max, count));
     this.hearts.forEach((heart, i) => {
-      heart.classList.toggle('half', n < i + 1 && n >= i + 0.5);
-      heart.classList.toggle('lost', n < i + 0.5);
+      const state = stateOf(n, i);
+      heart.classList.toggle('half', state === 'half');
+      heart.classList.toggle('lost', state === 'lost');
     });
     this.shown = this.target = n;
   }
@@ -203,13 +204,12 @@ export class Hearts {
     }
   }
 
-  // Hearts fill from the top-left in halves: heart i is full at count >= i+1, half at
-  // count >= i+0.5, else lost. A heart that just dropped a state gets the breaking animation, one
-  // that just gained one the filling one.
+  // Hearts fill from the top-left (stateOf). A heart that just dropped a state gets the breaking
+  // animation, one that just gained one the filling one.
   private draw(n: number): void {
     for (let i = 0; i < this.max; i++) {
       const heart = this.hearts[i];
-      const state: State = n >= i + 1 ? 'full' : n >= i + 0.5 ? 'half' : 'lost';
+      const state = stateOf(n, i);
       const was: State = heart.classList.contains('lost') ? 'lost' : heart.classList.contains('half') ? 'half' : 'full';
       if (state === was) continue;
       heart.classList.toggle('half', state === 'half');
@@ -224,4 +224,11 @@ export class Hearts {
     }
     this.shown = n;
   }
+}
+
+// Heart i (from 0) of a bar at `n`: full with all of it left, half with any part of it, lost with
+// none. Damage comes in quarters, so a heart with a quarter left is drawn half: the bar reads empty
+// only at 0.
+function stateOf(n: number, i: number): State {
+  return n >= i + 1 ? 'full' : n > i ? 'half' : 'lost';
 }

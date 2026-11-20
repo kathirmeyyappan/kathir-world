@@ -1083,7 +1083,8 @@ hearts off a player on foot a kart runs into (`IMPACT`, 5 at 20 m/s), who is thr
 wrenches off a kart (`WEAR`, 2 at 20 m/s, so it takes crash after crash flat out) from a wall or
 another kart (which also part by their `weight`s) and from the ground it lands on, more gently
 still (`LANDING`: half how fast it comes down counts, so it's worn only from a 10 m drop), and a
-shot's damage from anyone, a shot stopping at a kart nearer than whoever it would have hit. At
+bullet's damage from anyone, a bullet stopping at a kart nearer than whoever it would have hit (a
+spray, fire or ice, washes over a kart as over a dragon's crystal). At
 no wrenches it explodes (`boom`): it's gone, its driver is left where they sat, and everyone on foot
 within `BLAST.reach` with nothing between takes `BLAST.damage` and is thrown away from it (its
 driver high and back off its tail, `BLAST.driver`, so the blast is before their eyes and whatever
