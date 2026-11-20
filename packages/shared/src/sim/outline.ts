@@ -190,7 +190,7 @@ const CIRCUIT: Road[] = [
     { to: SOUTH_ISLAND, stretches: dash() },
   ]),
   road('circuit south', SOUTH_ISLAND, [
-    { to: { x: -30, z: -250 }, radius: 60, stretches: [level(), ...hump(3.5), level(15)] },
+    { to: { x: -30, z: -250 }, radius: 60, stretches: [...dash(), ...hump(3.5), level(15)] },
     { to: KEEP_3_GROUNDS, stretches: [level(10), ...hill(40, 5, 25), level(40)] },
   ]),
 ];
@@ -207,8 +207,8 @@ const WEB: Road[] = [
   road('southwest spoke', ROAD_PLATEAU, [
     { to: SOUTHWEST_ISLAND, stretches: [level(60), ...kicker(), level(40), padded(level(10)), level()] },
   ]),
-  road('inner north', NORTH_ISLAND, [{ to: INNER_NORTH, stretches: [level(), ...hump(3), level()] }]),
-  road('inner northwest', INNER_NORTH, [{ to: ROAD_PLATEAU, stretches: [level(), ...hill(40, 6, 40), level()] }]),
+  road('inner north', NORTH_ISLAND, [{ to: INNER_NORTH, stretches: [...dash(), ...hump(3), level()] }]),
+  road('inner northwest', INNER_NORTH, [{ to: ROAD_PLATEAU, stretches: [...dash(), ...hill(40, 6, 40), level()] }]),
   road('inner southwest', ROAD_PLATEAU, [{ to: INNER_SOUTH, stretches: [level(), ...hop(), level()] }]),
   road('inner south', INNER_SOUTH, [{ to: SOUTH_ISLAND, stretches: [level(), ...kicker(), level()] }]),
   road('skyway', INNER_NORTH, [
@@ -240,10 +240,15 @@ const EAST: Road[] = [
     { to: SOUTHEAST_BEND, radius: 150, stretches: [level(), ...kicker(), ...dash()] },
     { to: SOUTH_ISLAND, stretches: [level(), ...hop(), ...dash()] },
   ]),
-  road('tower east', ANNEX, [{ to: EAST_ISLAND, stretches: [level(45), ...hill(40, 5, 40), level(45)] }]),
-  road('house north', HOUSE_GROUNDS, [{ to: NORTH_ISLAND, stretches: [level(85), ...hill(40, 6, 40), level(60)] }]),
+  // Their pads at the far end from the building each leaves, so none drives a kart into one.
+  road('tower east', ANNEX, [
+    { to: EAST_ISLAND, stretches: [level(45), ...hill(40, 5, 40), level(10), padded(level(10)), level(35)] },
+  ]),
+  road('house north', HOUSE_GROUNDS, [
+    { to: NORTH_ISLAND, stretches: [level(85), ...hill(40, 6, 40), padded(level(10)), level(50)] },
+  ]),
   road('keep 4 south', KEEP_4_GROUNDS, [
-    { to: { x: KEEP_4_GROUNDS.x, z: SOUTH_ISLAND.z }, stretches: [level(60), ...hump(3), level()] },
+    { to: { x: KEEP_4_GROUNDS.x, z: SOUTH_ISLAND.z }, stretches: [level(60), ...hump(3), ...dash()] },
   ]),
 ];
 export const ROADS: Road[] = [...CIRCUIT, ...WEB, ...REACHES, ...EAST];

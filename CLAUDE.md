@@ -308,11 +308,11 @@ wire: server and client both build the world from that file.
   `worldTop: true` on them so their tops map alike. The same goes for anything else the client
   draws: never lay a decal, glow or second mesh exactly on a surface.
 - Client cost: the renderer merges pieces with the same look in the same 48 m square into one mesh,
-  so draw calls stay in the tens however many pieces there are. The world's 13,521 pieces (5,642
+  so draw calls stay in the tens however many pieces there are. The world's 13,527 pieces (5,642
   drawn; the house's rooms and shell are 7,516 hidden pieces, the Krusty Krab 175 and the roads'
-  188: their risen banks, their decks and their boost pads) render as
+  194: their risen banks, their decks and their boost pads) render as
   about 100 meshes (about 15 in view at once; the roads' built ramps are 24 pieces in 17 of them, each
-  of their 60 lengths of risen road is a small mesh of its own and each of their 41 boost pads two, and
+  of their 60 lengths of risen road is a small mesh of its own and each of their 47 boost pads two, and
   the floor is 275 chunks), and a raycast tries the pieces a stretch of grid cells at a
   time, so one across open floor costs a few µs, one through the Krusty Krab about 10 µs and one
   through the house about 130 µs. The sim's grid has height bands as well as cells, so a walker's
