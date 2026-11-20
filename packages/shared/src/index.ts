@@ -4,7 +4,7 @@ export * from './sim/rng';
 export * from './sim/world';
 export * from './sim/ground';
 export * from './sim/outline';
-export type { Pad, Raised, Road, RoadMark, Slope, Span } from './sim/roads';
+export type { Pad, Raised, Road, RoadMark, Slope, Span, Sweep } from './sim/roads';
 export * from './sim/structures';
 export * from './sim/surfaces';
 export * from './sim/frost';

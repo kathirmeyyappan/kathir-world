@@ -25,6 +25,7 @@ import {
   type RoadMark,
   type Slope,
   type Span,
+  type Sweep,
   type WorldPart,
 } from '@world/shared';
 import { BOOST_RAINBOW } from '../render/BoostPads';
@@ -288,9 +289,13 @@ export class MapCanvas {
     ctx.strokeStyle = OUTLINE;
     ctx.lineWidth = px(EDGE);
     for (const l of landmarks) {
-      if (l.kind !== 'span') continue;
-      ctx.fill(stripPath(l));
-      ctx.stroke(deckPath(l));
+      if (l.kind === 'span') {
+        ctx.fill(stripPath(l));
+        ctx.stroke(deckPath(l));
+      } else if (l.kind === 'sweep') {
+        ctx.fill(partPath({ ...l, kind: 'bend' }));
+        ctx.stroke(sweepPath(l));
+      }
     }
     for (const l of landmarks) {
       if (l.kind !== 'pad') continue;
@@ -305,7 +310,8 @@ export class MapCanvas {
         l.kind !== 'krusty-krab' &&
         l.kind !== 'slope' &&
         l.kind !== 'pad' &&
-        l.kind !== 'span',
+        l.kind !== 'span' &&
+        l.kind !== 'sweep',
     );
     const wooden = (l: Footprint) => l.kind === 'bridge' && !!l.wood;
     place(this.landmarkLayer);
@@ -484,6 +490,15 @@ function deckPath(s: Span): Path2D {
 }
 
 // A road's climb as arrowheads across it, `spacing` metres apart at the least, each pointing up it.
+// A curved deck's two sides.
+function sweepPath(s: Sweep): Path2D {
+  const path = new Path2D();
+  for (const r of [s.r - s.halfWidth, s.r + s.halfWidth]) {
+    path.moveTo(s.x + r * Math.cos(s.from), s.z + r * Math.sin(s.from));
+    path.arc(s.x, s.z, r, s.from, s.to);
+  }
+  return path;
+}
 function climbPath(s: Slope, spacing: number): Path2D {
   const path = new Path2D();
   const length = Math.hypot(s.bx - s.ax, s.bz - s.az);
@@ -589,6 +604,7 @@ function landmarkBox(l: Landmark): Bounds {
   if (l.kind === 'disc') return round(l.x, l.z, l.r);
   if (l.kind === 'pineapple') return round(l.x, l.z, l.sand);
   if (l.kind === 'krusty-krab') return round(l.x, l.z, Math.hypot(l.w, l.d) / 2);
+  if (l.kind === 'sweep') return round(l.x, l.z, l.r + l.halfWidth);
   return {
     minX: Math.min(l.ax, l.bx) - l.halfWidth,
     maxX: Math.max(l.ax, l.bx) + l.halfWidth,

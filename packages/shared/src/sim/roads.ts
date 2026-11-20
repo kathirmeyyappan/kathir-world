@@ -3,7 +3,8 @@
 // road is flat like all the floor (ground.ts), so a road's height is its bank, structures stood on
 // that floor: a wedge under each stretch that climbs or drops, a block under each that runs level
 // up off the floor, or where it's `open` a deck with room under it, for another road to pass
-// beneath. A gap is a stretch with neither floor nor bank, there to be jumped: a climb up
+// beneath; a bend up off the floor is a level bank round it, or a deck the same. A gap is a
+// stretch with neither floor nor bank, there to be jumped: a climb up
 // to it one side and a drop away from it the other are a ramp each way. A stretch with a `pad` has
 // a boost pad lying along it: to the sim a thin hidden piece whose surface boosts a kart
 // (surfaces.ts `boost`), which the client draws as a panel (render/BoostPads.ts).
@@ -39,6 +40,7 @@ export interface Run {
   // Metres, along the road's middle, of the bend round that corner into the next run; left out,
   // the two runs just meet there, as they do in the middle of a disc that covers the corner.
   radius?: number;
+  open?: boolean; // that bend, up off the floor, is a deck with nothing under it
   stretches?: Stretch[]; // the straight, end to end; left out, level the whole way
 }
 
@@ -72,12 +74,22 @@ export interface Pad extends Strip {
 export interface Span extends Strip {
   kind: 'span';
 }
-export type RoadMark = Slope | Pad | Span;
+// A deck round a bend: a strip round (x, z) from one bearing on to another (radians, from +x toward +z).
+export interface Sweep {
+  kind: 'sweep';
+  x: number;
+  z: number;
+  r: number;
+  from: number;
+  to: number;
+  halfWidth: number;
+}
+export type RoadMark = Slope | Pad | Span | Sweep;
 
 // A length of a road up off the floor that's drawn as the floor risen, as wide as its bank: a
-// straight from a to b with the height of its top at each and of what it stands on (`under`: the
-// floor's, or a deck's own underside), or a level bend, a strip round (x, z) from one bearing to
-// another (radians, from +x toward +z).
+// straight from a to b with the height of its top at each, or a level bend, a strip round (x, z)
+// from one bearing to another (radians, from +x toward +z) at height y; either with the height of
+// what it stands on (`under`: the floor's, or a deck's own underside).
 export type Raised =
   | {
       kind: 'straight';
@@ -90,7 +102,17 @@ export type Raised =
       under: number;
       halfWidth: number;
     }
-  | { kind: 'bend'; x: number; z: number; r: number; from: number; to: number; y: number; halfWidth: number };
+  | {
+      kind: 'bend';
+      x: number;
+      z: number;
+      r: number;
+      from: number;
+      to: number;
+      y: number;
+      under: number;
+      halfWidth: number;
+    };
 
 export interface Road {
   floor: WorldPart[];
@@ -102,7 +124,7 @@ export interface Road {
 export const level = (length?: number): Stretch => ({ length });
 export const climb = (length: number, rise: number): Stretch => ({ length, rise });
 export const gap = (length: number): Stretch => ({ length, gap: true });
-export const span = (length: number): Stretch => ({ length, open: true });
+export const span = (length?: number): Stretch => ({ length, open: true });
 export const padded = (stretch: Stretch): Stretch => ({ ...stretch, pad: true });
 // A gap with a ramp either side of it, `run` long and `rise` high, so it's jumped both ways.
 export const jump = (run: number, rise: number, across: number): Stretch[] => [
@@ -127,7 +149,7 @@ const PAD = { across: 0.8, inset: 1, lift: 0.04 };
 // A road cut into the pieces it's laid as, in order, each with the height the road has there.
 type Leg =
   | { kind: 'straight'; run: number; a: Point; b: Point; from: number; to: number; open: boolean; pad: boolean }
-  | { kind: 'bend'; x: number; z: number; r: number; start: number; turn: number; height: number }
+  | { kind: 'bend'; x: number; z: number; r: number; start: number; turn: number; height: number; open: boolean }
   | { kind: 'gap' };
 
 export function layRoad(spec: RoadSpec): Road {
@@ -144,8 +166,11 @@ export function layRoad(spec: RoadSpec): Road {
       road.floor.push(bendPart(leg, after ? lap : 0, half));
       if (leg.height > 0) {
         const { x, z, r, start, turn, height: y } = leg;
-        road.bank.push(...bendBank(leg, half - SHOULDER, lap).map(risen));
-        road.raised.push({ kind: 'bend', x, z, r, from: start, to: start + turn, y, halfWidth: half - SHOULDER });
+        const under = leg.open ? y - DECK : 0; // what its bank stands on: the floor, or for a deck its own underside
+        const [from, to] = turn > 0 ? [start, start + turn] : [start + turn, start];
+        road.bank.push(...bendBank(leg, half - SHOULDER, lap, under).map(risen));
+        road.raised.push({ kind: 'bend', x, z, r, from, to, y, under, halfWidth: half - SHOULDER });
+        if (leg.open) road.marks.push({ kind: 'sweep', x, z, r, from, to, halfWidth: half });
       }
       return;
     }
@@ -255,6 +280,9 @@ function legsOf(spec: RoadSpec): Leg[] {
       at += d;
     }
     const corner = corners[i];
+    const open = run.open ?? false;
+    if (open && (!corner || height < DECK + HEADROOM))
+      throw bad(`run ${i}'s bend is no deck: there's none, or not ${HEADROOM} m clear under it`);
     if (!corner) return;
     // Round the corner from where the straight stopped: the bend's middle is a radius off to the
     // side it turns to.
@@ -270,6 +298,7 @@ function legsOf(spec: RoadSpec): Leg[] {
       start: Math.atan2(start.z - z, start.x - x),
       turn: corner.turn,
       height,
+      open,
     });
   });
   if (height !== 0) throw bad(`ends ${height} m up`);
@@ -292,9 +321,10 @@ function bendPart(leg: Extract<Leg, { kind: 'bend' }>, lap: number, halfWidth: n
   return { kind: 'bend', x: leg.x, z: leg.z, r: leg.r, from, to, halfWidth };
 }
 
-// A level bank round a bend: blocks across the road, each over a slice of the bend and wide
-// enough along its outer side to meet the next, the first and last lapping into the legs it joins.
-function bendBank(leg: Extract<Leg, { kind: 'bend' }>, halfWidth: number, lap: number): Structure[] {
+// A level bank round a bend, standing on `under`: blocks across the road, each over a slice of the
+// bend and wide enough along its outer side to meet the next, the first and last lapping into the
+// legs it joins.
+function bendBank(leg: Extract<Leg, { kind: 'bend' }>, halfWidth: number, lap: number, under: number): Box[] {
   const slices = Math.ceil((leg.r * Math.abs(leg.turn)) / SLICE);
   const slice = leg.turn / slices;
   const depth = 2 * (leg.r + halfWidth) * Math.tan(Math.abs(slice) / 2 + lap);
@@ -306,7 +336,8 @@ function bendBank(leg: Extract<Leg, { kind: 'bend' }>, halfWidth: number, lap: n
       z: leg.z + leg.r * Math.sin(a),
       w: 2 * halfWidth,
       d: depth,
-      h: leg.height,
+      h: leg.height - under,
+      y: under,
       yaw: -a, // its length along the road, which runs square to the bearing from the bend's middle
       material: BANK,
     };

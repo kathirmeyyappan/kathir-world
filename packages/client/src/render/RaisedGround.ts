@@ -30,7 +30,7 @@ export function raisedGround(raised: Raised): VertexData {
   const quads = new Quads();
   const sections = raised.kind === 'straight' ? straight(raised) : bend(raised);
   const half = raised.halfWidth;
-  const under = raised.kind === 'straight' ? raised.under : 0;
+  const under = raised.under;
   const lowered = ([x, , z]: Vec): Vec => [x, under, z];
   for (let k = 0; k + 1 < sections.length; k++) {
     const [a, b] = [sections[k], sections[k + 1]];
