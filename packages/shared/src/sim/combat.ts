@@ -87,12 +87,7 @@ export function findStrikeHits<T extends Target>(
   strike: Pick<Strike, 'reach' | 'arc'>,
   structures: Structures = WORLD_STRUCTURES,
 ): Hit<T>[] {
-  const o = {
-    x: striker.pos.x,
-    y: capsuleFeetY(striker.pos.y) + AVATARS[striker.avatar].hitbox.top / 2,
-    z: striker.pos.z,
-  };
-  const dir = lookDirection(striker.yaw, 0);
+  const { o, dir } = strikeCone(striker);
   const hits: Hit<T>[] = [];
   for (const p of players) {
     if (p.id === striker.id || p.dead) continue;
@@ -100,6 +95,17 @@ export function findStrikeHits<T extends Target>(
     if (part !== null) hits.push({ target: p, headshot: false, part });
   }
   return hits;
+}
+
+// Where a strike's cone starts, the middle of the striker's body, and the way it points: the way the
+// body faces, level whatever its pitch.
+export function strikeCone(striker: Pick<Shooter, 'pos' | 'yaw' | 'avatar'>): { o: Vec3; dir: Vec3 } {
+  const o = {
+    x: striker.pos.x,
+    y: capsuleFeetY(striker.pos.y) + AVATARS[striker.avatar].hitbox.top / 2,
+    z: striker.pos.z,
+  };
+  return { o, dir: lookDirection(striker.yaw, 0) };
 }
 
 // The part of `shape` the cone takes in, or null: a weak point where the shooter is under it,
