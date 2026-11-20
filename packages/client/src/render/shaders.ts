@@ -7,24 +7,16 @@ import { KERB_HEIGHT, KERB_WIDTH } from './Floor';
 // own EXP2 fog, so the floor under anything far off fades exactly as much as it does.
 export const GROUND_FOG = BASE_FOG_DENSITY ** 2;
 
-// The sky's colour in a direction. Its horizon (`horizon`, the sine of its elevation) is where the
-// floor fades into the fog rather than eye level: 0 standing on the floor, below 0 up high, so
-// looking out from a tower the glow meets the floor instead of floating over a band of fog.
-// Needs fogColor declared first.
+// The sky's colour in a direction: at the horizon and under it the haze the ground past the edge
+// fades to (the sky's `fogColor`), so the two meet as one, the glow above that, and the dark
+// overhead. Needs fogColor declared first.
 const SKY_GRADIENT = `
 uniform vec3 zenithColor;
 uniform vec3 horizonColor;
-uniform float horizon;
-
-// Height above the horizon, rescaled so the horizon is 0 and straight up is 1.
-float aboveHorizon(vec3 dir) {
-  return (dir.y - horizon) / (1.0 - horizon);
-}
 
 vec3 skyColor(vec3 dir) {
-  float y = aboveHorizon(dir);
-  vec3 col = mix(horizonColor, zenithColor, pow(clamp(y, 0.0, 1.0), 0.6));
-  return mix(fogColor, col, smoothstep(-0.02, 0.12, y));
+  vec3 col = mix(horizonColor, zenithColor, pow(clamp(dir.y, 0.0, 1.0), 0.6));
+  return mix(fogColor, col, smoothstep(-0.02, 0.12, dir.y));
 }
 `;
 
@@ -71,10 +63,11 @@ void main() {
 }
 `;
 
-// Two-scale grid, anti-aliased with screen-space derivatives, fading with distance: the ground past
-// the edge into the sky's colour in that direction, so it meets the horizon wherever you're
-// standing, and the floor itself, with its kerb and its risen roads, to the fog's colour, as all
-// that stands on it does, so far off the world is one dark shape against that. It's drawn on
+// Two-scale grid, anti-aliased with screen-space derivatives, fading with distance: the floor
+// itself, with its kerb and its risen roads, to the fog's colour, as all that stands on it does,
+// and the ground past the edge to a grey haze of its own (hazeColor), a little lighter, which the
+// sky takes up at the horizon. So far off the world is one dark shape lying on ground that still
+// reads as ground, out to where the sky begins. It's drawn on
 // four parts (side): the floor, the ground past the edge OUTSIDE_HEIGHT down, the kerb along
 // the edge between them (Floor.ts), and a road risen off the floor (RaisedGround.ts); past the edge
 // the grid dims and turns grey, and the kerb is
@@ -98,6 +91,7 @@ uniform vec3 lineColor;
 uniform vec3 majorColor;
 uniform vec3 floorColor;
 uniform vec3 fogColor;
+uniform vec3 hazeColor;
 uniform float fogScale; // 1 normally, small while scoped so the far end is visible
 uniform float time;
 // A patch of the floor bent into ripples (render/GroundRipple.ts): shaded by its slope, as if lit
@@ -111,7 +105,6 @@ uniform vec3 reliefGlow;
 uniform vec2 reliefCentre;
 uniform float reliefRadius;
 uniform float reliefStrength;
-${SKY_GRADIENT}
 
 float gridLine1(float v, float spacing, float width) {
   float g = abs(fract(v / spacing - 0.5) - 0.5) * spacing;
@@ -193,7 +186,7 @@ void main() {
   }
   float fog = 1.0 - exp(-dist * dist * ${GROUND_FOG} * fogScale);
   bool past = side > 0.5 && side < 1.5;
-  col = mix(col, past ? skyColor(normalize(vWorld - cameraPos)) : fogColor, fog);
+  col = mix(col, past ? hazeColor : fogColor, fog);
   gl_FragColor = vec4(col, 1.0);
 }
 `;
@@ -223,7 +216,7 @@ float hash(vec2 p) {
 
 // A star cell for a direction: the direction projected onto the face of a cube around the camera
 // that it points through, cut into 400 × 400 cells per face (a few pixels each), so stars are spread evenly down to
-// whatever horizon the view has (it drops below eye level up high).
+// the horizon.
 vec2 starCell(vec3 d) {
   vec3 a = abs(d);
   vec2 uv;
@@ -244,7 +237,7 @@ vec2 starCell(vec3 d) {
 void main() {
   vec3 col = skyColor(vDir);
   vec2 cell = starCell(vDir);
-  float star = step(0.995, hash(cell)) * smoothstep(0.08, 0.35, aboveHorizon(vDir));
+  float star = step(0.995, hash(cell)) * smoothstep(0.08, 0.35, vDir.y);
   float twinkle = 0.6 + 0.4 * sin(time * 2.0 + hash(cell + 1.0) * 6.28);
   col += vec3(0.9, 0.95, 1.0) * star * twinkle * 0.8;
   gl_FragColor = vec4(col, 1.0);
