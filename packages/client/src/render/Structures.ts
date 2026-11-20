@@ -38,7 +38,7 @@ import {
 import type { Engine } from './Engine';
 import type { Loader } from './Loader';
 import { perScene } from './perScene';
-import { MATERIALS, TEXELS, paintMaterial, type TopMapping } from './structureMaterials';
+import { MATERIALS, TEXELS, paintMaterial } from './structureMaterials';
 
 const DEFAULT_COLORS: Record<StructureKind, string> = {
   box: '#39414f',
@@ -126,15 +126,6 @@ function material(scene: Scene, look: Look): StandardMaterial {
     tex.wrapU = tex.wrapV = Texture.WRAP_ADDRESSMODE;
     mat.diffuseTexture = tex;
     mat.emissiveColor = Color3.White();
-    const { scroll, tile } = MATERIALS[look as StructureMaterial];
-    if (scroll) {
-      // A pattern that runs is moved along a little each frame; frozen, a material binds its
-      // texture's offset only once, so this one is left to bind.
-      scene.onBeforeRenderObservable.add(() => {
-        tex.vOffset = (((performance.now() / 1000) * scroll) / tile) % 1;
-      });
-      return mat;
-    }
   } else {
     mat.emissiveColor = Color3.FromHexString(look);
   }
@@ -142,26 +133,24 @@ function material(scene: Scene, look: Look): StandardMaterial {
   return mat;
 }
 
-// How a piece's faces take their texture: metres per repeat, and the way its tops are mapped.
+// How a piece's faces take their texture: metres per repeat, and whether tops tile in world x/z.
 interface Mapping {
   tile: number;
-  top: TopMapping;
+  worldTop: boolean;
 }
 
 function mappingOf(s: Structure): Mapping {
   const spec = s.material ? MATERIALS[s.material] : null;
-  const top = s.worldTop === undefined ? (spec?.top ?? 'world') : s.worldTop ? 'world' : 'turned';
-  return { tile: spec?.tile ?? FLAT_TILE, top };
+  return { tile: spec?.tile ?? FLAT_TILE, worldTop: s.worldTop ?? spec?.worldTop ?? true };
 }
 
-// Where a top of `s` takes its texture at world (wx, wz): world x/z, or axes turned with the
-// piece, from the world's origin or from the piece's own middle (structureMaterials.ts `top`).
-export function topUv(s: Structure, wx: number, wz: number, { tile, top } = mappingOf(s)): [number, number] {
-  if (top === 'world') return [wx / tile, wz / tile];
+// Where a top of `s` takes its texture at world (wx, wz): world x/z when its tops tile in the
+// world, or else axes turned with the piece.
+export function topUv(s: Structure, wx: number, wz: number, { tile, worldTop } = mappingOf(s)): [number, number] {
+  if (worldTop) return [wx / tile, wz / tile];
   const yaw = s.yaw ?? 0;
   const [cos, sin] = [Math.cos(yaw), Math.sin(yaw)];
-  const [x, z] = top === 'own' ? [wx - s.x, wz - s.z] : [wx, wz];
-  return [(x * cos - z * sin) / tile, (x * sin + z * cos) / tile];
+  return [(wx * cos - wz * sin) / tile, (wx * sin + wz * cos) / tile];
 }
 
 // A piece's vertices where it stands in the world: built in its own frame, its underside at local
@@ -259,7 +248,7 @@ function heightfield(s: Terrain, mapping: Mapping): VertexData {
   data.positions = positions;
   data.normals = normals;
   data.indices = Array.from({ length: positions.length / 3 }, (_, i) => i);
-  paintFaces(data, s, positions, normals, 0, { ...mapping, top: 'world' });
+  paintFaces(data, s, positions, normals, 0, { ...mapping, worldTop: true });
   return data;
 }
 
@@ -267,18 +256,16 @@ function heightfield(s: Terrain, mapping: Mapping): VertexData {
 // Every coordinate is measured from the world origin, never from the piece, so two pieces of one
 // look whose faces overlap in the same plane paint the same texel there and can't flicker: sides
 // run along the face (the same way for every face pointing that way) and up world height, and tops
-// use world x/z, or else axes turned with the piece (a stair's planks run along each step), which
-// match only between pieces turned the same way; a look whose tops are its pieces' `own` is the
-// one that measures from the piece.
+// use world x/z when `worldTop`, or else axes turned with the piece (a stair's planks run along
+// each step), which match only between pieces turned the same way.
 function paintFaces(
   data: VertexData,
   s: Structure,
   positions: ArrayLike<number>,
   normals: ArrayLike<number>,
   lift: number,
-  mapping: Mapping,
+  { tile, worldTop }: Mapping,
 ): void {
-  const { tile } = mapping;
   const yaw = s.yaw ?? 0;
   const cos = Math.cos(yaw);
   const sin = Math.sin(yaw);
@@ -294,7 +281,7 @@ function paintFaces(
     let shade: number;
     if (Math.abs(ny) >= Math.abs(nx) && Math.abs(ny) >= Math.abs(nz)) {
       shade = ny > 0 ? SHADE.top : SHADE.bottom;
-      uvs.push(...topUv(s, wx, wz, mapping));
+      uvs.push(...topUv(s, wx, wz, { tile, worldTop }));
     } else {
       shade = Math.abs(nx) >= Math.abs(nz) ? SHADE.sideX : SHADE.sideZ;
       // The face's normal in the world, turned a quarter about the vertical: along the face.

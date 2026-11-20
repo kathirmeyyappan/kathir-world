@@ -2,9 +2,9 @@
 // structure's `material`): how the feet take hold of it, and what a footfall on it sounds like.
 // Every structure has one, named in `surface` or implied by its material (MATERIAL_SURFACES),
 // the bare floor is hard, and frost (frost.ts) makes any top ice for as long as it lasts, a boost
-// pad's with the rest. The walker reads `grip` every tick (walker.ts); the client's Footsteps plays
-// `footfall`. A new surface is a row here and, with a footfall of its own, sounds for it in the
-// client.
+// pad's (roads.ts) with the rest. The walker reads `grip` every tick (walker.ts); the client's
+// Footsteps plays `footfall`. A new surface is a row here and, with a footfall of its own, sounds
+// for it in the client.
 import type { Structure, StructureMaterial } from './structures';
 
 export type SurfaceId = 'hard' | 'sand' | 'ice' | 'boost';
@@ -41,7 +41,6 @@ export const MATERIAL_SURFACES: Record<StructureMaterial, SurfaceId> = {
   flagstone: 'hard',
   sand: 'sand',
   plaster: 'hard',
-  boost: 'boost',
 };
 
 export function isSurfaceId(v: unknown): v is SurfaceId {

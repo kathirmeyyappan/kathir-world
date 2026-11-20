@@ -26,7 +26,7 @@ import {
   type Slope,
   type WorldPart,
 } from '@world/shared';
-import { BOOST_RAINBOW } from '../render/structureMaterials';
+import { BOOST_RAINBOW } from '../render/BoostPads';
 import type { Elevation } from './Elevation';
 
 export interface MinimapFrame {

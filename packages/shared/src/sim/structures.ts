@@ -29,8 +29,8 @@ export interface Footprint {
   ring?: { x: number; z: number; r: number };
 }
 
-// Surface looks the renderer knows how to paint; `boost` is a boost pad's rainbow (surfaces.ts).
-export type StructureMaterial = 'brick' | 'wood' | 'red-tile' | 'flagstone' | 'sand' | 'plaster' | 'steel' | 'boost';
+// Surface looks the renderer knows how to paint.
+export type StructureMaterial = 'brick' | 'wood' | 'red-tile' | 'flagstone' | 'sand' | 'plaster' | 'steel';
 
 // A solid block: walls, buildings, platforms, pillars.
 export interface Box extends Footprint {

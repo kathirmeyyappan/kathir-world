@@ -279,8 +279,8 @@ wire: server and client both build the world from that file.
 - Terrain: keep edge heights at 0 so it meets the floor (no side walls are drawn), and keep sample
   grids modest (the default is one sample every 2 m); every sample is a vertex.
 - Looks: set `material` to a pixel texture (`brick`, `wood`, `red-tile`, `flagstone`, `sand`,
-  `plaster`, `steel`, and `boost`, a boost pad's rainbow, which a road lays itself; each is a painter
-  in `packages/client/src/render/structureMaterials.ts`, and a new one is another painter there). `color` is a flat fallback. Structures are unlit and shaded by face direction, so
+  `plaster`, `steel`; each is a painter in `packages/client/src/render/structureMaterials.ts`, and a
+  new one is another painter there). `color` is a flat fallback. Structures are unlit and shaded by face direction, so
   they look the same inside and out; don't reach for lights. `hidden` pieces are collided with but
   never drawn: the shape of something the client draws its own way.
 - Coplanar faces: two faces that overlap in the same plane and point the same way z-fight, and the
@@ -295,9 +295,11 @@ wire: server and client both build the world from that file.
   `worldTop: true` on them so their tops map alike. The same goes for anything else the client
   draws: never lay a decal, glow or second mesh exactly on a surface.
 - Client cost: the renderer merges pieces with the same look in the same 48 m square into one mesh,
-  so draw calls stay in the tens however many pieces there are. The world's 13,351 pieces (5,660
-  drawn; the house's rooms and shell are 7,516 hidden pieces and the Krusty Krab 175) render as
-  about 100 meshes (about 15 in view at once; the roads' banks and pads are 42 pieces in 23 of them, and
+  so draw calls stay in the tens however many pieces there are. The world's 13,351 pieces (5,656
+  drawn; the house's rooms and shell are 7,516 hidden pieces, the Krusty Krab 175 and the roads'
+  boost pads 4) render as
+  about 100 meshes (about 15 in view at once; the roads' banks are 38 pieces in 20 of them, each
+  boost pad is two small meshes of its own, and
   the floor is 105 chunks), and a raycast tries the pieces a stretch of grid cells at a
   time, so one across open floor costs a few µs, one through the Krusty Krab about 10 µs and one
   through the house about 130 µs. The sim's grid has height bands as well as cells, so a walker's
@@ -314,10 +316,12 @@ height is its bank, structures stood on that floor: a wedge under a stretch that
 block under one that runs level up off the floor, each a `SHOULDER` in from the floor's edge so its
 sides rise out of the kerb. A gap is a stretch with neither floor nor bank, to be jumped; `jump(run,
 rise, across)` is one with a ramp either side, so it's jumped both ways. A boost pad is a stretch
-`padded`: a sliver of its own shape lying a hair over it, four fifths of the road across, of the
-`boost` look (lanes of rainbow arrowheads pointing up a climb, or along a level stretch the way the
-road runs, and running that way: the look's `scroll`), whose surface boosts a kart rolling forward
-over it (see Surfaces and frost, and Karts). A road is authored as runs, each cut into stretches (`level`, `climb`, `gap`, any of them
+`padded`: to the sim a sliver of its own shape lying a hair over it, four fifths of the road
+across, hidden, whose surface (`boost`) boosts a kart rolling forward over it (see Surfaces and
+frost, and Karts); the client draws it (`render/BoostPads.ts`, from the road's `Pad` marks, `ROAD_PADS`) as a panel let into a frame that stands proud of the
+road: lanes of rainbow arrowheads pointing up a climb, or along a level stretch the way the road
+runs, running that way, with a halo of their colours that swells and falls (`Engine.glow`). The
+frame's rim is only drawn, as the floor's kerb is. A road is authored as runs, each cut into stretches (`level`, `climb`, `gap`, any of them
 `padded`; one with no length takes an even share of what the others leave), and `layRoad` turns it
 into its floor (square bridges and bends, for the outline), its bank with its pads (for
 `content/roads.ts`) and its marks (for the maps, which draw each slope as arrowheads pointing up it
@@ -395,8 +399,8 @@ the boat horn, for the player who clicked alone. Nothing of it reaches the Room.
 ### Surfaces and frost
 
 A structure's `material` is its look; its `surface` (`sim/surfaces.ts`) is what it's like underfoot:
-`hard`, `sand`, `ice` or `boost`, named on the piece or implied by its material (`MATERIAL_SURFACES`:
-sand is sand, a boost pad's look is `boost`, everything else hard; the bare floor is hard). A
+`hard`, `sand`, `ice` or `boost`, named on the piece (a boost pad's is) or implied by its material
+(`MATERIAL_SURFACES`: sand is sand, everything else hard; the bare floor is hard). A
 `SurfaceSpec` is its `grip` (m/s², how fast the feet can change the walk's velocity; `Infinity` is a
 sure footing, where the walk goes exactly where the keys send it, as every surface did before), its
 `footfall` (what a step on it sounds like: `thud` or `crunch`) and whether it `boosts` a kart on it

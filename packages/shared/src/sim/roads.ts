@@ -4,7 +4,8 @@
 // that floor: a wedge under each stretch that climbs or drops, a block under each that runs level
 // up off the floor. A gap is a stretch with neither floor nor bank, there to be jumped: a climb up
 // to it one side and a drop away from it the other are a ramp each way. A stretch with a `pad` has
-// a boost pad lying along it (surfaces.ts `boost`).
+// a boost pad lying along it: to the sim a thin hidden piece whose surface boosts a kart
+// (surfaces.ts `boost`), which the client draws as a panel (render/BoostPads.ts).
 //
 // A road is authored as runs (the world's are in outline.ts): each a straight to its point, cut
 // into stretches end to end, and the bend it takes round that point into the next. `layRoad`
@@ -54,16 +55,18 @@ interface Strip {
 export interface Slope extends Strip {
   kind: 'slope';
 }
-// A boost pad, from the end its arrows point from to the one they point at: up a climb, and
-// along a level stretch the way the road runs.
+// A boost pad, from the end its arrows point from to the one they point at (up a climb, and along
+// a level stretch the way the road runs), with the height of its top at each.
 export interface Pad extends Strip {
   kind: 'pad';
+  ay: number;
+  by: number;
 }
 export type RoadMark = Slope | Pad;
 
 export interface Road {
   floor: WorldPart[];
-  bank: Structure[]; // with its boost pads
+  bank: Structure[]; // with its boost pads' pieces
   marks: RoadMark[];
 }
 
@@ -134,7 +137,8 @@ export function layRoad(spec: RoadSpec): Road {
       road.marks.push({ kind: 'slope', ax: foot.x, az: foot.z, bx: top.x, bz: top.z, halfWidth: half });
     }
     if (!leg.pad) return;
-    // The pad: a sliver of the stretch's own shape lying on it, in from its ends and its sides.
+    // The pad: a sliver of the stretch's own shape lying on it, in from its ends and its sides,
+    // hidden, the panel drawn there being the client's.
     const length = distance(foot, top);
     const way = unit(foot, top);
     const from = { x: foot.x + way.x * PAD.inset, z: foot.z + way.z * PAD.inset };
@@ -144,8 +148,9 @@ export function layRoad(spec: RoadSpec): Road {
     const climbs = rise * (1 - (2 * PAD.inset) / length); // and what it climbs under the pad
     const pad =
       rise > 0 ? ramp(from, to, climbs, across, under + PAD.lift) : { ...block(from, to, across, PAD.lift), y: under };
-    road.bank.push({ ...pad, material: 'boost' });
-    road.marks.push({ kind: 'pad', ax: from.x, az: from.z, bx: to.x, bz: to.z, halfWidth: across / 2 });
+    road.bank.push({ ...pad, hidden: true, surface: 'boost' });
+    const [ay, by] = [under + PAD.lift, under + PAD.lift + climbs];
+    road.marks.push({ kind: 'pad', ax: from.x, ay, az: from.z, bx: to.x, by, bz: to.z, halfWidth: across / 2 });
   });
   return road;
 }

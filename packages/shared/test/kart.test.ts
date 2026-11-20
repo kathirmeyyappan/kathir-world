@@ -78,7 +78,7 @@ test('a press in the air tricks a kart the way its wheel is held and boosts it a
 
 test('a boost pad drives a kart rolling over it up to its boosted speed with no gas and holds the boost on past it, and leaves one parked on it alone', () => {
   // A pad 40 m long across the kart's way, from 10 m ahead of it.
-  const structures = world({ kind: 'box', x: 0, z: 30, w: 10, d: 40, h: 0.04, material: 'boost' });
+  const structures = world({ kind: 'box', x: 0, z: 30, w: 10, d: 40, h: 0.04, surface: 'boost' });
   const boosted = TURBO.boost * KARTS.standard.speed;
   const gas = { gas: 1, steer: 0, drift: false };
   const none = { gas: 0, steer: 0, drift: false };
