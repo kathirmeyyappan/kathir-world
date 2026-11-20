@@ -137,8 +137,13 @@ const BANK: StructureMaterial = 'flagstone';
 // Metres a bank stands in from the floor's edge, along the road's sides and at a gap, so its faces
 // rise out of the kerb drawn there (the client's Floor.ts) and none lies in the plane of the drop.
 const SHOULDER = 0.25;
-// Metres each piece runs on into the next, floor and bank alike, so no seam between two is a gap.
+// Metres each piece of the bank runs on into the next, so no seam between two is a gap.
 const LAP = 0.05;
+// Metres a length of the floor runs on, at each end, into the leg it joins there. The ground's
+// distance to its edge is each part's own (ground.ts), so where two only just meet, the joint
+// itself is nearly an edge to it; lapped this far, it's as deep in the floor there as the lap,
+// further than the kerb the client draws in from an edge (Floor.ts), which would leave a slit.
+const FLOOR_LAP = 1;
 const SLICE = 6; // metres of a bend, along its middle, under one block of its bank
 const DECK = 0.8; // metres through an open stretch's deck
 const HEADROOM = 4; // metres clear under a deck, at the least: a kart, its driver and the eye that follows them
@@ -163,7 +168,7 @@ export function layRoad(spec: RoadSpec): Road {
     const [before, after] = [joins(legs[i - 1]), joins(legs[i + 1])];
     if (leg.kind === 'bend') {
       const lap = LAP / leg.r;
-      road.floor.push(bendPart(leg, after ? lap : 0, half));
+      road.floor.push(bendPart(leg, before ? FLOOR_LAP / leg.r : 0, after ? FLOOR_LAP / leg.r : 0, half));
       if (leg.height > 0) {
         const { x, z, r, start, turn, height: y } = leg;
         const under = leg.open ? y - DECK : 0; // what its bank stands on: the floor, or for a deck its own underside
@@ -176,10 +181,10 @@ export function layRoad(spec: RoadSpec): Road {
     }
     const along = unit(leg.a, leg.b);
     const moved = (p: Point, by: number): Point => ({ x: p.x + along.x * by, z: p.z + along.z * by });
-    floorFrom ??= leg.a;
+    floorFrom ??= moved(leg.a, before ? -FLOOR_LAP : 0);
     const next = legs[i + 1];
     if (next?.kind !== 'straight' || next.run !== leg.run) {
-      const end = moved(leg.b, after ? LAP : 0);
+      const end = moved(leg.b, after ? FLOOR_LAP : 0);
       const [ax, az, bx, bz] = [floorFrom.x, floorFrom.z, end.x, end.z];
       road.floor.push({ kind: 'bridge', ax, az, bx, bz, halfWidth: half, square: true });
       floorFrom = null;
@@ -315,9 +320,10 @@ function snapped(height: number): number {
   return Math.abs(height) < 1e-9 ? 0 : height;
 }
 
-// A bend's floor, run on by `lap` radians past its end.
-function bendPart(leg: Extract<Leg, { kind: 'bend' }>, lap: number, halfWidth: number): Bend {
-  const [from, to] = leg.turn > 0 ? [leg.start, leg.start + leg.turn + lap] : [leg.start + leg.turn - lap, leg.start];
+// A bend's floor, run `back` radians before its start and `on` radians past its end.
+function bendPart(leg: Extract<Leg, { kind: 'bend' }>, back: number, on: number, halfWidth: number): Bend {
+  const { start, turn } = leg;
+  const [from, to] = turn > 0 ? [start - back, start + turn + on] : [start + turn - on, start + back];
   return { kind: 'bend', x: leg.x, z: leg.z, r: leg.r, from, to, halfWidth };
 }
 
