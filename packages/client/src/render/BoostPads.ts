@@ -6,11 +6,12 @@
 // unseen, as into the floor's kerb.
 // Each pad is two small meshes, streamed in by the loader like whatever else stands somewhere, and
 // every pad shares the scene's two materials and its one painted texture.
-import { Color3, DynamicTexture, Mesh, StandardMaterial, Texture, VertexData, type Scene } from '@babylonjs/core';
+import { Color3, DynamicTexture, Mesh, StandardMaterial, Texture, type Scene, type VertexData } from '@babylonjs/core';
 import type { Pad } from '@world/shared';
 import type { Engine } from './Engine';
 import type { Loader } from './Loader';
 import { perScene } from './perScene';
+import { Quads, flipped, type Vec } from './Quads';
 
 // A pad's colours, in the order they run along it.
 export const BOOST_RAINBOW = ['#ff5468', '#ffa23e', '#ffe85a', '#63dd73', '#3fd6c8', '#55b8ff', '#b784ff', '#ff7fd0'];
@@ -28,8 +29,6 @@ const FRAME = { across: 0.6, proud: 0.07, down: 0.3 };
 // The frame's colours: its top, its sides lengthwise and its ends, darker each, as structures are
 // shaded by the way a face points (Structures.ts).
 const STEEL = { top: '#3a3e55', side: '#2a2d40', end: '#1f2132' };
-
-type Vec = [number, number, number];
 
 // What every pad in a scene is drawn with: the panel's material, whose pattern runs and whose halo
 // swells with the clock, and the frame's.
@@ -116,48 +115,6 @@ function made(scene: Scene, name: string, data: VertexData, material: StandardMa
   mesh.freezeWorldMatrix();
   return mesh;
 }
-
-// Quads gathered into one mesh's data, each facing the way its normal points.
-class Quads {
-  private readonly positions: number[] = [];
-  private readonly normals: number[] = [];
-  private readonly uvs: number[] = [];
-  private readonly colors: number[] = [];
-  private readonly indices: number[] = [];
-
-  // A quad through `corners` in order round it, facing `normal`, in `colour` or mapped by `uvs`.
-  add(corners: Vec[], normal: Vec, look: { colour: string } | { uvs: [number, number][] }): void {
-    const first = this.positions.length / 3;
-    for (const corner of corners) {
-      this.positions.push(...corner);
-      this.normals.push(...normal);
-    }
-    if ('uvs' in look) this.uvs.push(...look.uvs.flat());
-    else {
-      const { r, g, b } = Color3.FromHexString(look.colour);
-      for (let k = 0; k < corners.length; k++) this.colors.push(r, g, b, 1);
-    }
-    // Wound the way the scene's front faces are, whichever way round the corners were given.
-    const [p, q, r] = corners;
-    const [u, v] = [minus(q, p), minus(r, p)];
-    const turn = dot([u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]], normal);
-    this.indices.push(...(turn < 0 ? [0, 1, 2, 0, 2, 3] : [0, 2, 1, 0, 3, 2]).map((k) => first + k));
-  }
-
-  data(): VertexData {
-    const data = new VertexData();
-    data.positions = this.positions;
-    data.normals = this.normals;
-    data.indices = this.indices;
-    if (this.uvs.length) data.uvs = this.uvs;
-    if (this.colors.length) data.colors = this.colors;
-    return data;
-  }
-}
-
-const minus = (a: Vec, b: Vec): Vec => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
-const dot = (a: Vec, b: Vec): number => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-const flipped = (v: Vec): Vec => [-v[0], -v[1], -v[2]];
 
 // A pad's panel and its frame, where they stand in the world.
 function shapes(pad: Pad): { panel: VertexData; frame: VertexData } {

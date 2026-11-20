@@ -19,6 +19,7 @@ import {
   movesHelp,
   WORLD_STRUCTURES,
   ROAD_PADS,
+  ROAD_RAISED,
   PINEAPPLE_HORN,
   Structures,
   actionForKey,
@@ -323,7 +324,7 @@ export class Game {
   ) {
     const canvas = canvasEl;
     this.engine = new Engine(canvas, true);
-    this.environment = new Environment(this.engine, WORLD_GROUND, this.loader);
+    this.environment = new Environment(this.engine, WORLD_GROUND, this.loader, ROAD_RAISED);
     buildStructures(this.engine, WORLD_STRUCTURES.list, this.loader);
     buildBoostPads(this.engine, ROAD_PADS, this.loader);
     this.frost = new FrostLayer(this.engine, WORLD_STRUCTURES.list);
