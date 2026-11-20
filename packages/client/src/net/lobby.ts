@@ -21,9 +21,9 @@ if (startParams.get('lobby')) sessionStorage.setItem('world.lobby', startParams.
 const home = startParams.get('home');
 if (home && home !== location.origin) sessionStorage.setItem('world.home', home);
 export const SERVED_BY_ROOM_HOST = sessionStorage.getItem('world.direct') === '1';
-// Home when it's another page: on the room host, the launcher (or dev page) the lobby named. Null on
-// home itself, and in a room host tab that was never told.
-export const HOME = sessionStorage.getItem('world.home');
+// Home when it's another page: on the room host, the launcher (or dev page) the lobby named, else the
+// launcher the room host puts in the page. Null on home itself.
+export const HOME = sessionStorage.getItem('world.home') || pageMeta('world-home');
 
 // localStorage: the name and the skin (a dropdown choice, app/skins.ts) the home screen offers first.
 export const NAME_KEY = 'world.name';
@@ -164,10 +164,17 @@ export class LobbyUnavailableError extends Error {}
 // Where the lobby is: what the lobby's own redirect told this tab, else what the room host put in
 // the page (a tab that never went through the lobby), else the build-time launcher setting.
 export function lobbyUrl(): string | null {
-  const meta = document.querySelector<HTMLMetaElement>('meta[name="world-lobby"]')?.content;
   const url =
-    sessionStorage.getItem('world.lobby') || meta || (import.meta.env.VITE_LOBBY_URL as string | undefined) || '';
+    sessionStorage.getItem('world.lobby') ||
+    pageMeta('world-lobby') ||
+    (import.meta.env.VITE_LOBBY_URL as string | undefined) ||
+    '';
   return url ? url.replace(/\/$/, '') : null;
+}
+
+// What the room host put in the page by `name` (server static.ts), if it served it.
+function pageMeta(name: string): string | null {
+  return document.querySelector<HTMLMetaElement>(`meta[name="${name}"]`)?.content || null;
 }
 
 // Wake the lobby while the player is still typing a name, so Join doesn't pay its cold start.

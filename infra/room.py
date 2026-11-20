@@ -14,6 +14,7 @@ from .common import app, room_image
 from .config import (
     APP_NAME,
     BOT_SIDECAR_PORT,
+    LAUNCHER_URL,
     MAX_SESSIONS_PER_CONTAINER,
     ROOM_PORT,
     ROOM_SCALEDOWN_WINDOW,
@@ -70,6 +71,7 @@ class Room:
                 "PATH": "/usr/local/bin:/usr/bin:/bin",
                 "STATIC_DIR": "/app/packages/client/dist",
                 "LOBBY_URL": lobby_url(),
+                "HOME_URL": LAUNCHER_URL,
                 "BOT_SPAWNER_URL": f"http://127.0.0.1:{BOT_SIDECAR_PORT}/bots",
             },
         )

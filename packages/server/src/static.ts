@@ -22,10 +22,14 @@ const TYPES: Record<string, string> = {
 // checked against its modification time on every load.
 const HASHED = /^\/assets\/[^/]+-[\w-]{8}\.[\w.]+$/;
 
-// The page is served with the lobby's URL in a meta tag when the host knows it, so a tab that
-// didn't arrive through the lobby (a pasted URL) can still reach it to join a room.
-export function createStaticHandler(dir: string, lobbyUrl = '') {
-  const meta = lobbyUrl ? `<meta name="world-lobby" content="${escapeAttr(lobbyUrl)}" />` : '';
+// The page is served with what the host knows of where it stands, each in a meta tag by name
+// (`world-lobby`, the lobby's URL; `world-home`, the launcher's), so a tab that didn't arrive
+// through the lobby (a pasted URL), or has lost what the lobby told it (a phone's tab restored from
+// its cache without its sessionStorage), can still reach them.
+export function createStaticHandler(dir: string, metas: Record<string, string | undefined> = {}) {
+  const meta = Object.entries(metas)
+    .flatMap(([name, content]) => (content ? [`<meta name="${name}" content="${escapeAttr(content)}" />`] : []))
+    .join('');
   const index = readFileSync(join(dir, 'index.html'), 'utf8').replace('</head>', `${meta}</head>`);
 
   return (req: IncomingMessage, res: ServerResponse): void => {
