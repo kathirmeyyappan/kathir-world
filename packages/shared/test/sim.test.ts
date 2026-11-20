@@ -180,20 +180,27 @@ test("a road's boost pad lies a hair over its stretch, level or climbing, short 
 });
 
 test("a road's open stretch or bend is a deck with the floor clear under it, and isn't laid without headroom", () => {
-  // North 100 m: up `rise` over 30 m, 20 m of deck, and back down.
+  // North 100 m: up `rise` over 30 m, 10 m of level deck and 10 m of deck climbing 2 m more, and
+  // back down.
   const over = (rise: number) =>
     layRoad({
       name: 'test',
       from: { x: 0, z: 0 },
       width: 20,
-      runs: [{ to: { x: 0, z: 100 }, stretches: [level(10), climb(30, rise), span(20), climb(30, -rise), level()] }],
+      runs: [
+        {
+          to: { x: 0, z: 100 },
+          stretches: [level(10), climb(30, rise), span(10), { ...span(10), rise: 2 }, climb(30, -rise - 2), level()],
+        },
+      ],
     });
   const road = over(8);
   const structures = new Structures(road.bank, new Ground(road.floor));
-  assert.equal(structures.groundAt(0, 50, 50), 8, "the deck's top");
-  assert.equal(structures.groundAt(0, 50, 6), 0, 'the floor under it');
-  assert.ok(structures.fits(0, 50, 0, 4, 5), 'room for what passes beneath');
-  assert.equal(road.marks.filter((mark) => mark.kind === 'span').length, 1);
+  assert.equal(structures.groundAt(0, 45, 50), 8, "the deck's top");
+  assert.equal(structures.groundAt(0, 45, 6), 0, 'the floor under it');
+  assert.ok(structures.fits(0, 45, 0, 4, 4), 'room for what passes beneath');
+  assert.ok(structures.ceilingAt(0, 59, 1) > 7.8, 'a deck that climbs is no thicker toward its high end');
+  assert.equal(road.marks.filter((mark) => mark.kind === 'span').length, 2);
   assert.throws(() => over(3), /deck/);
   // North and round a bend to the east, up `rise` before it and down after: the bend's the deck.
   const round = (rise: number) =>

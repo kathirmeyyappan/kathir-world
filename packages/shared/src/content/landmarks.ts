@@ -48,12 +48,21 @@ export type Landmark =
   | KrustyKrabMark
   | RoadMark;
 
+// The roads' marks from the highest down, and at one height what lies on a deck before the deck:
+// the order the maps draw them in, each going under the last, so a deck covers the road that
+// passes under it with all that's on it, and what lies on the deck shows on it.
+const top = (mark: RoadMark): number => (mark.kind === 'sweep' ? mark.y : Math.max(mark.ay, mark.by));
+const deck = (mark: RoadMark): boolean => mark.kind === 'span' || mark.kind === 'sweep';
+const ROAD_MARKS: RoadMark[] = ROADS.flatMap((road) => road.marks).sort(
+  (a, b) => top(b) - top(a) || Number(deck(a)) - Number(deck(b)),
+);
+
 export const LANDMARKS: Landmark[] = [
   { ...TUNG_TUNG_TOWER_FOOTPRINT, rings: TUNG_TUNG_TOWER_ROOMS.length - 1 },
   ...STANDING_KEEPS.map((k) => k.footprint),
   { ...PINEAPPLE_FOOTPRINT, kind: 'pineapple', sand: PINEAPPLE_PROFILE.dune.foot },
   { ...KRUSTY_KRAB_FOOTPRINT, kind: 'krusty-krab' },
-  ...ROADS.flatMap((road) => road.marks),
+  ...ROAD_MARKS,
 ];
 
 export const HIGH_UP = 35; // metres: the height of your feet past which the map shows HIGH_LANDMARKS

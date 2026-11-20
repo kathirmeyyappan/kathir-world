@@ -11,6 +11,7 @@ import { FOG_COLOR, type Engine } from './Engine';
 import type { Loader } from './Loader';
 import { perScene } from './perScene';
 import { over, raisedGround } from './RaisedGround';
+import { Quads } from './Quads';
 import { placed } from './Structures';
 
 const TILE = 20 * CHUNK; // metres across the square of the world one mesh of the skyline covers
@@ -18,6 +19,7 @@ const TILE = 20 * CHUNK; // metres across the square of the world one mesh of th
 // pixel or two of the picture, and past the whole of the world as it stands.
 export const SKYLINE_REACH = 2400;
 const INSIDE = 0.3; // metres everything stands in from the real thing's faces
+const END = 1; // metres a straight part of the floor stands in from its ends
 const ROUND = 12; // metres of a round edge to one flat length of it
 const BIG = 8; // metres: a built piece shorter than this every way is too small to tell from afar
 
@@ -58,7 +60,7 @@ export function buildSkyline(
   for (const part of floor) put(...middleOf(part), () => slab(part));
   for (const length of raised) {
     const { x, z } = over(length);
-    put(x, z, () => bare(raisedGround(within(length)).data()));
+    put(x, z, () => bare(raisedGround(within(length), new Quads(), 'open').data()));
   }
   for (const piece of structures)
     if (told(piece)) put(piece.x, piece.z, () => bare(placed({ ...piece, ...shrunk(piece) })));
@@ -127,12 +129,14 @@ function shrunk(s: Extract<Structure, { kind: 'box' | 'ramp' }>): { w: number; d
   return { w, d, h, y: y + (s.h - h) / 2 };
 }
 
-// A length of risen road brought INSIDE its own top and sides, and for a deck its underside.
+// A length of risen road brought INSIDE its own top and sides, and for a deck its underside. Its
+// ends are drawn open: a wall across one would lie in the plane of the real one, and an open end
+// looks no different, every face of the skyline being the one colour from either side.
 function within(r: Raised): Raised {
-  const [halfWidth, under] = [r.halfWidth - INSIDE, r.under > 0 ? r.under + INSIDE / 2 : 0];
+  const [halfWidth, deep] = [r.halfWidth - INSIDE, r.deep - 1.5 * INSIDE];
   return r.kind === 'straight'
-    ? { ...r, ay: r.ay - INSIDE, by: r.by - INSIDE, halfWidth, under }
-    : { ...r, y: r.y - INSIDE, halfWidth, under };
+    ? { ...r, ay: r.ay - INSIDE, by: r.by - INSIDE, halfWidth, deep }
+    : { ...r, y: r.y - INSIDE, halfWidth, deep };
 }
 
 function middleOf(p: WorldPart): [number, number] {
@@ -173,15 +177,19 @@ function slab(p: WorldPart): Shape {
   if (p.kind === 'bridge') {
     const length = Math.hypot(p.bx - p.ax, p.bz - p.az);
     const half = p.halfWidth - INSIDE;
-    const [sx, sz] = [(-(p.bz - p.az) / length) * half, ((p.bx - p.ax) / length) * half];
+    const [ux, uz] = [(p.bx - p.ax) / length, (p.bz - p.az) / length];
+    const [sx, sz] = [-uz * half, ux * half];
+    // Its ends in from the real ones too, where a road's floor ends in a face of its own at a gap:
+    // by END, since the real floor's corners there are cut off as far as its edge is traced.
+    const [ax, az, bx, bz] = [p.ax + ux * END, p.az + uz * END, p.bx - ux * END, p.bz - uz * END];
     ribbon([
       [
-        [p.ax + sx, p.az + sz],
-        [p.ax - sx, p.az - sz],
+        [ax + sx, az + sz],
+        [ax - sx, az - sz],
       ],
       [
-        [p.bx + sx, p.bz + sz],
-        [p.bx - sx, p.bz - sz],
+        [bx + sx, bz + sz],
+        [bx - sx, bz - sz],
       ],
     ]);
   } else if (p.kind === 'bend') {
