@@ -418,14 +418,10 @@ export class Room {
     if (on.length || off.length) this.broadcast({ t: 'frost', on, off });
   }
 
-  // A click on something within reach: a kart gets them in it (vehicles/garage.ts), and a door
-  // swings the other way, for everyone, a second click hard on the first being the same click.
+  // A click on a door within reach swings it the other way, for everyone, a second click hard on
+  // the first being the same click.
   private use(seat: Seat, id: string): void {
     const me = seat.state;
-    if (this.garage.has(id)) {
-      this.garage.getIn(me, id);
-      return;
-    }
     if (me.dead || !this.structures.doorIds.includes(id)) return;
     if (this.tick - (this.doorSwung.get(id) ?? -Infinity) < DOOR_DEBOUNCE_SECONDS * TICK_RATE) return;
     if (this.structures.doorAt(me.pos, lookVector(me.yaw, me.pitch), DOOR_REACH) !== id) return;

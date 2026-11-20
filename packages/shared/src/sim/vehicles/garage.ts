@@ -5,11 +5,10 @@
 // the ground, other karts and shots, blown up when worn out, and taken away when left empty long
 // enough. The Room keeps one, steps it, and does what it hands back: the hurts to players, with
 // who's credited with each, and where karts blew up.
-import { AVATARS, eyeOf, type AvatarId } from '../avatars';
+import { AVATARS, type AvatarId } from '../avatars';
 import { classOf } from '../classes';
 import type { Structures } from '../collision';
 import { EYE_HEIGHT, STEP_UP, TICK_RATE } from '../constants';
-import { lookVector } from '../doors';
 import type { GearState } from '../gear';
 import type { ItemState } from '../items';
 import { takeLook } from '../player';
@@ -48,10 +47,6 @@ export interface KartBlow {
   how: 'kart' | 'explosion';
 }
 
-export const KART_REACH = 6; // metres along the look from the eye that a click gets in within: a step or two off
-// Metres past KART_REACH the Room takes a click from: the clicker's own view of where they stand is
-// a step ahead of the Room's.
-const REACH_SLACK = 1;
 const DROP_AHEAD = 7; // metres in front of whoever asks for one that a kart drops
 const DROP_HEIGHT = 2; // metres over their feet it drops from: landing under what wears it (LANDING)
 const IDLE_SECONDS = 120; // an empty kart is taken away after this long
@@ -73,12 +68,14 @@ const BUMP = 0.3; // of the speed two karts closed at that they part at
 // What only the Room keeps of a kart: who's credited with what it does (its driver, else whoever
 // last drove or dropped it), the ticks it has stood empty, when it last hurt each player, what its
 // driver put away to drive, who took its last wrench, its driver's last frame, whose keys it
-// keeps to on a tick their frame is late for, and how many steps it has taken that way, ahead of
-// the frames they stood in for.
+// keeps to on a tick their frame is late for, how many steps it has taken that way, ahead of
+// the frames they stood in for, and who has got out of it and not stood clear of it since, whom
+// touching it doesn't get back in.
 interface Keep {
   owner: string | null;
   empty: number;
   struck: Map<string, number>;
+  left: Set<string>;
   stowed: { item: ItemState | null; gear: GearState | null };
   breaker: string | null;
   frame: InputFrame | null;
@@ -95,10 +92,6 @@ export class Garage {
 
   get list(): Kart[] {
     return [...this.karts.values()];
-  }
-
-  has(id: string): boolean {
-    return this.karts.has(id);
   }
 
   // Drops a kart in front of `p`, nose their way, built to seat them: DROP_AHEAD out, or short of a
@@ -129,6 +122,7 @@ export class Garage {
       owner: p.id,
       empty: 0,
       struck: new Map(),
+      left: new Set(),
       stowed: { item: null, gear: null },
       breaker: null,
       frame: null,
@@ -137,13 +131,10 @@ export class Garage {
     return k;
   }
 
-  // Gets `p` into kart `id`, if it's empty, they're on foot and their look reaches it: what they hold
-  // is put away until they get out, and whatever move they were in stopped.
-  getIn(p: PlayerState, id: string): boolean {
-    const k = this.karts.get(id);
-    const keep = this.keeps.get(id);
-    if (!k || !keep || k.driver !== null || p.dead || p.riding || classOf(p.avatar).id !== 'walker') return false;
-    if (this.at(eyeOf(p), lookVector(p.yaw, p.pitch), KART_REACH + REACH_SLACK)?.kart !== k) return false;
+  // Gets `p`, on foot and touching empty kart `k`, into it: what they hold is put away until they
+  // get out, and whatever move they were in stopped.
+  private getIn(p: PlayerState, k: Kart): void {
+    const keep = this.keeps.get(k.id)!;
     classOf(p.avatar).exit(p);
     keep.stowed = { item: p.item, gear: p.gear };
     p.item = null;
@@ -157,7 +148,6 @@ export class Garage {
     keep.frame = null;
     keep.ahead = 0;
     seat(p, k);
-    return true;
   }
 
   // Gets `p` out of the kart they drive, standing beside it (its left, its right, behind it or in
@@ -176,6 +166,7 @@ export class Garage {
     p.item = keep.stowed.item;
     p.gear = keep.stowed.gear;
     keep.stowed = { item: null, gear: null };
+    keep.left.add(p.id);
     const feet = this.beside(k, p);
     p.pos = { x: feet.x, y: feet.y + EYE_HEIGHT, z: feet.z };
     p.vx = p.vy = p.vz = 0;
@@ -293,19 +284,26 @@ export class Garage {
   }
 
   // `p`, on foot, against kart `k`: pushed out of it, and hurt by how fast the two closed on each
-  // other square to where they touch, or by its coming down on them.
+  // other square to where they touch, or by its coming down on them; or, unhurt, a person against
+  // an empty one, got into it: a kart is got into by walking or jumping into it.
   private runInto(k: Kart, p: PlayerState, blows: KartBlow[]): void {
     if (p.dead || p.riding || classOf(p.avatar).id !== 'walker') return;
+    const keep = this.keeps.get(k.id)!;
     const touch = touching(k, p);
-    if (!touch) return;
+    if (!touch) {
+      keep.left.delete(p.id);
+      return;
+    }
     const { n, depth, under } = touch;
     p.pos.x += n.x * depth;
     p.pos.z += n.z * depth;
-    const keep = this.keeps.get(k.id)!;
     if (this.tick - (keep.struck.get(p.id) ?? -Infinity) < STRUCK_SECONDS * TICK_RATE) return;
     const closing = (k.vel.x - p.vx) * n.x + (k.vel.z - p.vz) * n.z;
     const hearts = Math.max(under && k.vel.y < -DROP_SPEED ? DROP_DAMAGE : 0, impactDamage(closing));
-    if (hearts === 0) return;
+    if (hearts === 0) {
+      if (k.driver === null && !p.bot && !keep.left.has(p.id)) this.getIn(p, k);
+      return;
+    }
     keep.struck.set(p.id, this.tick);
     const away = Math.max(KNOCK.least, closing * KNOCK.share);
     throwWalker(p, { x: n.x * away, y: KNOCK.lift, z: n.z * away }, KNOCK.grip);

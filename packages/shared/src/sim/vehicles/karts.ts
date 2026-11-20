@@ -32,7 +32,7 @@ export const KARTS: Record<KartId, KartSpec> = {
   standard: {
     name: 'Standard Kart',
     command: 'kart',
-    blurb: 'a go-kart to drive, drift and run people over in',
+    blurb: 'a go-kart to drive, drift and run people over in: walk into it to get in',
     speed: 20,
     acceleration: 2.5,
     handling: 30,

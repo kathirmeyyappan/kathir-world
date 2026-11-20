@@ -1253,16 +1253,15 @@ function kartRoom(...at: Vec3[]): { room: Room; ids: string[]; inboxes: ServerMe
   return { room, ids, inboxes: links.map((l) => l.inbox) };
 }
 
-// `id` drops a kart, waits for it to land, walks up behind it and clicks it to get in.
+// `id` drops a kart, waits for it to land, and walks into its tail to get in.
 function getIn(room: Room, id: string): string {
   const me = room.players.find((p) => p.id === id)!;
   const kart = room.garage.drop(me, 'standard', room.playerCount);
   assert.ok(typeof kart !== 'string', 'a kart dropped');
   for (let i = 0; i < TICK_RATE; i++) tick(room);
-  me.pos = { x: kart.pos.x, y: EYE_HEIGHT, z: kart.pos.z - 3 };
-  const pitch = Math.atan2(EYE_HEIGHT - 0.45, 3 - KARTS.standard.body.length / 2 + 0.2);
-  room.receive(id, { t: 'input', f: frame(pitch, [], 0, kart.id) });
-  room.step();
+  assert.equal(me.riding, null, 'not in it yet, standing off');
+  me.pos = { x: kart.pos.x, y: EYE_HEIGHT, z: kart.pos.z - KARTS.standard.body.length / 2 };
+  tick(room);
   assert.equal(me.riding, kart.id, 'in the kart');
   return kart.id;
 }
@@ -1272,7 +1271,7 @@ function driving(room: Room, id: string, gas: number, actions: ItemAction[] = []
   room.step();
 }
 
-test('a kart is got into with a click, driven, and got out of with E, what the driver held put away meanwhile', () => {
+test('a kart is got into by walking into it, driven, and got out of with E, what the driver held put away meanwhile', () => {
   const { room, ids } = kartRoom({ x: 0, y: 0, z: 0 });
   const [id] = ids;
   const me = room.players[0];
@@ -1292,6 +1291,12 @@ test('a kart is got into with a click, driven, and got out of with E, what the d
   assert.equal(room.garage.list[0].driver, null);
   assert.ok(Math.hypot(out.pos.x - k.pos.x, out.pos.z - k.pos.z) > KARTS.standard.body.width / 2, 'stood beside it');
   assert.equal(room.garage.list[0].id, kart);
+  // Standing beside it they stay out, and jumping down onto it they're back in.
+  for (let i = 0; i < TICK_RATE; i++) tick(room);
+  assert.equal(out.riding, null, 'still out');
+  out.pos = { x: k.pos.x, y: k.pos.y + KARTS.standard.body.height + EYE_HEIGHT, z: k.pos.z };
+  tick(room);
+  assert.equal(out.riding, kart, 'in again');
 });
 
 test("a driver's late frames step their kart once each, however long the Room drove it on without them", () => {
