@@ -50,6 +50,12 @@ export interface KartState {
   gas: number; // the pedal as its driver last held it: 1 the gas to -1 the brake, 0 let go
   grounded: boolean;
   held: boolean; // the drift key was down last tick, so a press is the tick it goes down
+  // Seconds since the drift key went down, not counting those up a ramp, for as long as that
+  // press can still be a trick (TRICK.early): none once it has been one, or is older.
+  press: number | null;
+  // Seconds since it came down from a flight it did no trick in, for as long as a press can
+  // still be that trick (TRICK.late).
+  down: number | null;
   hop: boolean; // it left the ground by the hop a press gives, until it lands
   drift: { way: 1 | -1; t: number } | null; // its way (1 right) and the seconds of it on the ground
   // In the air: the way of its trick, or of its last where it has done several (1 right), and the
@@ -77,9 +83,13 @@ export const SPARKS = [
   { after: 2.25, hold: 2 },
   { after: 3.5, hold: 3 },
 ];
-// A trick: the seconds it takes, through which another can't begin, and the seconds its boost
-// holds at full, rising and falling as a mini-turbo's.
-export const TRICK = { seconds: 0.7, hold: 0.8 };
+// A trick: how long before the kart is in the air its press may come (shorter than a hop lasts,
+// so the press that hopped it is forgotten by the time it's down; on a ramp carrying it up it
+// keeps to the lip however long), the seconds it takes, through which another can't begin, and
+// the seconds its boost holds at full, rising and falling as a mini-turbo's.
+// A press may come late too: up to `late` seconds after landing, where it came down at `fall`
+// m/s or more (a flight, not a kerb), it's the trick the flight didn't have, boosting at once.
+export const TRICK = { early: 0.3, late: 0.25, fall: 2.5, seconds: 0.7, hold: 0.8 };
 
 // What a knock costs, by how fast the two close on each other square to where they touch, m/s:
 // nothing under `least`, then `at20` at 20 m/s and on in step, to the nearest quarter (of a heart,
@@ -145,6 +155,8 @@ export function createKart(kart: KartId, size: number, pos: Vec3, yaw: number): 
     gas: 0,
     grounded: false,
     held: false,
+    press: null,
+    down: null,
     hop: false,
     drift: null,
     trick: null,
@@ -212,12 +224,30 @@ export function stepKart(k: KartState, c: KartControls, dt: number, structures: 
   k.gas = Math.max(-1, Math.min(1, c.gas));
   const pressed = c.drift && !k.held;
   k.held = c.drift;
-  if (pressed && k.grounded && !k.drift) {
+  // A trick on the ground is a late one, begun last tick and boosted already.
+  if (k.trick && k.grounded) k.trick = null;
+  if (k.down !== null && (k.down += dt) > TRICK.late) k.down = null;
+  // Up a ramp as fast as a hop would lift it: there's no hop to make, and a press waits for the lip.
+  const climbing = k.grounded && k.vel.y >= HOP;
+  const hopped = hopping(k); // in its own hop as the tick begins, for whether a landing is a hop's
+  if (pressed) k.press = 0;
+  else if (k.press !== null && !climbing && (k.press += dt) > TRICK.early) k.press = null;
+  if (pressed && k.grounded && k.down !== null) {
+    // Just down from a flight with no trick in it: the press is that trick, late.
+    k.trick = { way: trickWay(k, steer), t: 0 };
+    k.turbo = { hold: TRICK.hold, t: 0, spark: null };
+    k.press = k.down = null;
+  } else if (pressed && k.grounded && !k.drift && !climbing) {
     k.vel.y = HOP;
     k.grounded = false;
     k.hop = true;
-  } else if (pressed && !k.grounded && !hopping(k) && !(k.trick && k.trick.t < TRICK.seconds))
+  }
+  // A press is a trick as soon as the kart is in the air (but for its own hop) with no trick
+  // still running: at once up there, and off the lip for one that came a moment early.
+  if (k.press !== null && !k.grounded && !hopping(k) && !(k.trick && k.trick.t < TRICK.seconds)) {
     k.trick = { way: trickWay(k, steer), t: 0 };
+    k.press = null;
+  }
   if (k.trick) k.trick.t += dt;
   const speed = forwardSpeed(k);
   if (k.drift && (!c.drift || speed < DRIFT_FROM * spec.speed)) {
@@ -232,7 +262,7 @@ export function stepKart(k: KartState, c: KartControls, dt: number, structures: 
   if (landing > 0 && k.trick) {
     k.turbo = { hold: TRICK.hold, t: 0, spark: null };
     k.trick = null;
-  }
+  } else if (landing >= TRICK.fall && !hopped) k.down = 0;
   if (landing > 0) k.hop = false;
   // The drift key held on the ground at speed: the wheel over begins a drift that way, as the hop
   // lands or whenever it goes over after.

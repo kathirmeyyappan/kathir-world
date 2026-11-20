@@ -172,6 +172,7 @@ export class Garage {
     k.driver = null;
     k.drift = k.trick = null;
     k.hop = k.held = false;
+    k.press = k.down = null;
     p.item = keep.stowed.item;
     p.gear = keep.stowed.gear;
     keep.stowed = { item: null, gear: null };
