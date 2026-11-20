@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { gunzipSync } from 'node:zlib';
 import { bodiesMapSource, groundMapSource, movesMapSource } from '../src/sim/botMap';
-import { climb, gap, layRoad, level, padded, span } from '../src/sim/roads';
+import { climb, gap, layRoad, level, padded, span, split } from '../src/sim/roads';
 import {
   CHILL_SECONDS,
   CHILLED_SPEED_MULTIPLIER,
@@ -229,6 +229,32 @@ test("a road's open stretch or bend is a deck with nothing under it, and isn't l
   assert.equal(swept.marks.filter((mark) => mark.kind === 'sweep').length, 1);
   assert.equal(under.footing(...at(0.5), 9).surface, 'boost', 'a pad lying along the bend, halfway round it');
   assert.throws(() => round(3), /deck/);
+  // North 300 m: up 10 m, and 140 m of the deck split in two, its strands 17 m to either side at
+  // their middle, the left (west) one 2 m higher there and the right one 2 m lower.
+  const forked = layRoad({
+    name: 'test',
+    from: { x: 0, z: 0 },
+    width: 20,
+    runs: [
+      {
+        to: { x: 0, z: 300 },
+        stretches: [
+          level(10),
+          climb(60, 10),
+          span(),
+          split(140, { out: 17, fork: 36, rise: 2, fall: 2, climb: 16 }),
+          span(),
+          climb(60, -10),
+          level(10),
+        ],
+      },
+    ],
+  });
+  const strands = new Structures(forked.bank, new Ground(forked.floor));
+  assert.equal(strands.groundAt(0, 85, 50), 10, 'one surface where the road forks');
+  assert.equal(strands.groundAt(-17, 150, 50), 12, 'the left strand, up');
+  assert.equal(strands.groundAt(17, 150, 50), 8, 'the right strand, down');
+  assert.equal(strands.groundAt(0, 150, 50), OUTSIDE_HEIGHT, 'nothing between them');
 });
 
 test('jump only from the ground, and gravity brings you back', () => {

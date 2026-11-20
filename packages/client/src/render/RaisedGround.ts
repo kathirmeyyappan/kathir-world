@@ -14,7 +14,7 @@ export const RISEN_SIDE = 3;
 // shader multiplies back together between vertices: metres = (1 - |u|) * v. Across a top, u runs
 // from -1 at one side to 1 at the other and v is half its width, so the line runs down both
 // sides; down a wall, the line is along the top.
-const across = (side: -1 | 1, half: number): [number, number] => [side, half];
+const across = (side: -1 | 0 | 1, half: number): [number, number] => [side, half];
 const DEEP = 64; // metres: more than twice as far down as any wall goes
 const down = (depth: number): [number, number] => [1 - (2 * depth) / DEEP, DEEP];
 const UNLIT = down(DEEP / 2); // nowhere near such an edge
@@ -33,15 +33,19 @@ export function raisedGround(raised: Raised, quads = new Quads(), ends: 'walled'
   const half = raised.halfWidth;
   // What a spot of the top stands on: the floor, or for a deck its own underside, `deep` below it.
   const under = ([x, y, z]: Vec): Vec => [x, Math.max(0, y - raised.deep), z];
+  // A side another deck runs along has no line and no wall: the top's uv is measured from its
+  // other side alone, across the whole width.
+  const bare = raised.kind === 'straight' ? raised.bare : undefined;
+  const [left, right] = bare
+    ? [across(bare === 'left' ? 0 : -1, 2 * half), across(bare === 'right' ? 0 : 1, 2 * half)]
+    : [across(-1, half), across(1, half)];
   for (let k = 0; k + 1 < sections.length; k++) {
     const [a, b] = [sections[k], sections[k + 1]];
     const up = unit(cross(minus(b.left, a.left), minus(a.right, a.left)));
-    quads.add([a.left, a.right, b.right, b.left], up[1] < 0 ? flipped(up) : up, {
-      uvs: [across(-1, half), across(1, half), across(1, half), across(-1, half)],
-    });
+    quads.add([a.left, a.right, b.right, b.left], up[1] < 0 ? flipped(up) : up, { uvs: [left, right, right, left] });
     const out = unit(minus(a.left, a.right));
-    wall(quads, a.left, b.left, out, under);
-    wall(quads, a.right, b.right, flipped(out), under);
+    if (bare !== 'left') wall(quads, a.left, b.left, out, under);
+    if (bare !== 'right') wall(quads, a.right, b.right, flipped(out), under);
     if (Number.isFinite(raised.deep))
       quads.add([a.left, a.right, b.right, b.left].map(under), [0, -1, 0], { uvs: [UNLIT, UNLIT, UNLIT, UNLIT] });
   }
