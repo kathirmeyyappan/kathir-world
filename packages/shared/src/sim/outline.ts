@@ -295,7 +295,7 @@ const WEB: Road[] = [
   // edge; round the top of its sweep over the crossroads with a pad; south again over the Krusty
   // Krab's road, lower, and round to the south small island.
   road('flyover', WEST_ISLAND, [
-    { to: FLYOVER_BENDS[0], radius: 70, open: true, stretches: [...lift(WEST_ISLAND, 8, 52), span()] },
+    { to: FLYOVER_BENDS[0], radius: 65, open: true, stretches: [...lift(WEST_ISLAND, 8, 52), span()] },
     { to: FLYOVER_BENDS[1], radius: 80, open: true, pads: [0.5], stretches: [span(), split(142, SPLIT), span()] },
     {
       to: FLYOVER_BENDS[2],

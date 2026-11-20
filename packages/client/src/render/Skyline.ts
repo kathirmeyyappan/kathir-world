@@ -11,7 +11,6 @@ import { FOG_COLOR, type Engine } from './Engine';
 import type { Loader } from './Loader';
 import { perScene } from './perScene';
 import { over, raisedGround } from './RaisedGround';
-import { Quads } from './Quads';
 import { placed } from './Structures';
 
 const TILE = 20 * CHUNK; // metres across the square of the world one mesh of the skyline covers
@@ -60,7 +59,7 @@ export function buildSkyline(
   for (const part of floor) put(...middleOf(part), () => slab(part));
   for (const length of raised) {
     const { x, z } = over(length);
-    put(x, z, () => bare(raisedGround(within(length), new Quads(), 'open').data()));
+    put(x, z, () => bare(raisedGround(within(length)).data()));
   }
   for (const piece of structures)
     if (told(piece)) put(piece.x, piece.z, () => bare(placed({ ...piece, ...shrunk(piece) })));
@@ -130,13 +129,14 @@ function shrunk(s: Extract<Structure, { kind: 'box' | 'ramp' }>): { w: number; d
 }
 
 // A length of risen road brought INSIDE its own top and sides, and for a deck its underside. Its
-// ends are drawn open: a wall across one would lie in the plane of the real one, and an open end
-// looks no different, every face of the skyline being the one colour from either side.
+// ends have no walls: one would lie in the plane of the real one, and an open end looks no
+// different, every face of the skyline being the one colour from either side.
 function within(r: Raised): Raised {
   const [halfWidth, deep] = [r.halfWidth - INSIDE, r.deep - 1.5 * INSIDE];
+  const open = { halfWidth, deep, caps: [null, null] } satisfies Partial<Raised>;
   return r.kind === 'straight'
-    ? { ...r, ay: r.ay - INSIDE, by: r.by - INSIDE, halfWidth, deep }
-    : { ...r, y: r.y - INSIDE, halfWidth, deep };
+    ? { ...r, ay: r.ay - INSIDE, by: r.by - INSIDE, ...open }
+    : { ...r, y: r.y - INSIDE, ...open };
 }
 
 function middleOf(p: WorldPart): [number, number] {
