@@ -1192,10 +1192,16 @@ export class Game {
     this.gearHud.set(this.dead ? null : self.gear);
     this.condition.set(this.dead ? 0 : self.chilled);
     this.kartGauge.set(driving ? this.prediction.kartPace() : null);
-    // Driving a kart that's down past the world's edge, there's nothing left to do but get out.
+    // Driving a kart that's down past the world's edge, there's nothing left to do but get out. On
+    // foot below the floor's height (only ever past its edge), the Room bleeds hearts once down.
     const lost = !this.dead && !!self.riding && !!this.prediction.kart && stranded(this.prediction.kart);
+    const out = !this.dead && !self.riding && cls === 'walker' && self.pos.y - EYE_HEIGHT < -1e-6;
     this.alert.hold(
-      lost ? `you're off the map!\n${IS_TOUCH ? 'tap OUT' : 'press E'} to exit and seal your fate` : null,
+      lost
+        ? `you're off the map!\n${IS_TOUCH ? 'tap OUT' : 'press E'} to exit and seal your fate`
+        : out
+          ? "you're out of bounds!\nget back on the map"
+          : null,
     );
     this.commandHint.update(this.isBlocked());
     this.minimap.update({

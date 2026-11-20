@@ -411,7 +411,7 @@ test("a dead player's body leaves a big heart that stays where it lay, heals 10,
   assert.equal(pickups().length, 0, 'and it never comes back');
 });
 
-test('a hard landing hurts like a shot with no shooter, a fatal one is announced as a fall, and so is landing on the ground past the edge', () => {
+test('a hard landing hurts like a shot with no shooter, a fatal one is announced as a fall, and the ground past the edge bleeds a heart a half second', () => {
   const room = new Room('falls', { seed: 3, structures: new Structures([]) });
   const a = link();
   const id = room.join('alice', a)!;
@@ -432,7 +432,7 @@ test('a hard landing hurts like a shot with no shooter, a fatal one is announced
   assert.ok(a.inbox.some((m) => m.t === 'fell' && m.victim === id));
 
   // A step down onto the ground past the edge (at a bearing of 340°, clear of the fan and the
-  // bridge) hurts nothing as a fall, and is the end all the same.
+  // bridge) hurts nothing as a fall, then a heart every half second it stays down there.
   const b = link();
   const bobId = room.join('bob', b)!;
   const bob = room.players.find((p) => p.id === bobId)!;
@@ -441,7 +441,9 @@ test('a hard landing hurts like a shot with no shooter, a fatal one is announced
     y: OUTSIDE_HEIGHT + 1 + EYE_HEIGHT,
     z: 60 * Math.sin((340 * Math.PI) / 180),
   };
-  for (let i = 0; i < TICK_RATE; i++) room.step();
+  for (let i = 0; i < TICK_RATE * 2; i++) room.step();
+  assert.ok(!bob.dead && bob.hearts < MAX_HEARTS, `${bob.hearts} hearts`);
+  for (let i = 0; i < TICK_RATE * 5; i++) room.step();
   assert.ok(bob.dead);
   assert.ok(b.inbox.some((m) => m.t === 'out' && m.victim === bobId));
 });

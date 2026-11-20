@@ -2,9 +2,9 @@
 // bends and pie slices, all unioned, authored in outline.ts), whose sides drop to the ground past
 // the edge, OUTSIDE_HEIGHT down, and all of it solid. A body stands on the floor, walks off its
 // edge, falls down the drop's face (a wall to anything below the floor) and lands on the ground
-// beyond, which is the end of it (room.ts). Everything that cares where the floor ends asks this:
-// the sim (server and client alike, through Structures.ground), the renderers, the sky objects,
-// the bots' map and every map.
+// beyond, which bleeds its hearts till it's back up (room.ts). Everything that cares where the
+// floor ends asks this: the sim (server and client alike, through Structures.ground), the
+// renderers, the sky objects, the bots' map and every map.
 //
 // The parts are indexed by CHUNK-metre square, each square listing every part within NEAR of it,
 // so a question about a spot looks only at the few parts near it, however many the world has.
