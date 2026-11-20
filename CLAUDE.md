@@ -296,12 +296,12 @@ wire: server and client both build the world from that file.
   `worldTop: true` on them so their tops map alike. The same goes for anything else the client
   draws: never lay a decal, glow or second mesh exactly on a surface.
 - Client cost: the renderer merges pieces with the same look in the same 48 m square into one mesh,
-  so draw calls stay in the tens however many pieces there are. The world's 13,491 pieces (5,642
+  so draw calls stay in the tens however many pieces there are. The world's 13,521 pieces (5,642
   drawn; the house's rooms and shell are 7,516 hidden pieces, the Krusty Krab 175 and the roads'
-  158: their risen banks, their decks and their boost pads) render as
+  188: their risen banks, their decks and their boost pads) render as
   about 100 meshes (about 15 in view at once; the roads' built ramps are 24 pieces in 17 of them, each
-  of their 54 lengths of risen road is a small mesh of its own and each of their 41 boost pads two, and
-  the floor is 265 chunks), and a raycast tries the pieces a stretch of grid cells at a
+  of their 60 lengths of risen road is a small mesh of its own and each of their 41 boost pads two, and
+  the floor is 275 chunks), and a raycast tries the pieces a stretch of grid cells at a
   time, so one across open floor costs a few µs, one through the Krusty Krab about 10 µs and one
   through the house about 130 µs. The sim's grid has height bands as well as cells, so a walker's
   tick pays only for the pieces at its own height (about 70 µs inside the house, 27 µs inside the
@@ -340,16 +340,17 @@ that passes under it). It throws on a road that can't be laid: stretches that do
 run, a bend too tight, an end left up off the floor.
 
 The world's roads and islands are in `sim/outline.ts` (`ROADS`, `ISLANDS`), every road 20 m across
-(`ROAD_WIDTH`), room to drift a bend on: 23 roads, 7.6 km of them, mostly west of the buildings.
+(`ROAD_WIDTH`), room to drift a bend on: 24 roads, 8.1 km of them, mostly west of the buildings.
 One main circuit (`CIRCUIT`) runs round the west of the world, from Building 2's grounds by the
 north, northwest, west, southwest and south islands to Building 3's, closing across the floor
 between the keeps: a lap of about 2.4 km. Inside it a web (`WEB`): the Krusty Krab's road carried
 on west from the crossroads at its end to the west island, a spoke from the crossroads to each of
 the northwest and southwest islands, and an inner ring from the north island by two small islands
-to the south one. Over those go two roads up on decks, each a long sweep 9 m off the floor
-with a ramp at either end: the skyway, an arc from one of the ring's small islands to the other,
-over the Krusty Krab's road, and the high road, from the west island round over the northwest
-spoke to the ring.
+to the south one. Over those go three roads up on decks, each a long sweep 9 m off the floor
+with a ramp at either end, a triangle between the west island and the ring's two small ones: the
+skyway, an arc from one small island to the other, over the Krusty Krab's road; the high road,
+from the west island round over the northwest spoke to the ring; and the flyover, from the west
+island up at once and round over the southwest spoke to the ring, on its deck nearly all the way.
 Outside it (`REACHES`) a road out to a small island at each of three corners of the world: the
 world's end and two lookouts. Round the east (`EAST`) goes one road, from the north island by the
 east island to the south, with a way out to it from the tower, from SpongeBob's house and from

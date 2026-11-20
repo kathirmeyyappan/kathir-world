@@ -124,7 +124,7 @@ export interface Road {
 export const level = (length?: number): Stretch => ({ length });
 export const climb = (length: number, rise: number): Stretch => ({ length, rise });
 export const gap = (length: number): Stretch => ({ length, gap: true });
-export const span = (length: number): Stretch => ({ length, open: true });
+export const span = (length?: number): Stretch => ({ length, open: true });
 export const padded = (stretch: Stretch): Stretch => ({ ...stretch, pad: true });
 // A gap with a ramp either side of it, `run` long and `rise` high, so it's jumped both ways.
 export const jump = (run: number, rise: number, across: number): Stretch[] => [

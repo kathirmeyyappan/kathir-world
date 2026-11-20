@@ -1,7 +1,7 @@
 // The world's outline: the parts of the floor (ground.ts), in a module of their own so content can
 // place things relative to them without importing the structures, which import the content.
 import { Ground, type Bridge, type Disc, type Sector, type WorldPart } from './ground';
-import { climb, jump, layRoad, level, padded, type Point, type Road, type Stretch } from './roads';
+import { climb, jump, layRoad, level, padded, span, type Point, type Road, type Stretch } from './roads';
 
 export const MAIN_DISC: Disc = { kind: 'disc', x: 0, z: 0, r: 50 }; // the cubes' home
 export const ANNEX: Disc = { kind: 'disc', x: 112, z: 0, r: 30 }; // Tung Tung Tower's grounds
@@ -92,9 +92,10 @@ const SOUTH_BEND: Point = { x: -300, z: -420 };
 const NORTHEAST_BEND: Point = { x: 190, z: 340 };
 const SOUTHEAST_BEND: Point = { x: 190, z: -340 };
 // The corners the roads up on decks sweep round: the skyway's, a little out toward the Krusty
-// Krab, and the high road's, over the northwest spoke.
+// Krab; the high road's, over the northwest spoke; and the flyover's, over the southwest one.
 const SKYWAY_BEND: Point = { x: -205, z: 0 };
 const HIGH_BEND: Point = { x: -440, z: 195 };
+const FLYOVER_BEND: Point = { x: -440, z: -195 };
 // A disc of floor beside a straight of road from a to b, lapping onto it: `along` of the way, `r`
 // across, on the road's left (1) or its right (-1) as it runs. A place to pull off.
 const layBy = (a: Point, b: Point, along: number, side: 1 | -1, r: number): Disc => {
@@ -109,7 +110,7 @@ const LAY_BYS: Disc[] = [
   layBy(WEST_ISLAND, SOUTHWEST_BEND, 0.35, 1, 16),
   layBy(ROAD_PLATEAU, WEST_ISLAND, 0.5, 1, 18),
   layBy(ROAD_PLATEAU, NORTHWEST_ISLAND, 0.8, 1, 16),
-  layBy(ROAD_PLATEAU, SOUTHWEST_ISLAND, 0.25, -1, 16),
+  layBy(ROAD_PLATEAU, SOUTHWEST_ISLAND, 0.42, -1, 16),
   layBy(SOUTHEAST_BEND, SOUTH_ISLAND, 0.2, -1, 18),
   layBy(NORTHEAST_BEND, EAST_ISLAND, 0.25, 1, 18),
 ];
@@ -133,9 +134,11 @@ export const ISLANDS: Disc[] = [
 // closing across the floor between the keeps. Inside it a web: the Krusty Krab's road on west from
 // the crossroads to the west island, a spoke from the crossroads to each of the northwest and
 // southwest islands, and an inner ring from the north island by two small islands to the south
-// one. Over those go two roads on decks, each a long sweep up off the floor: the skyway, an arc
-// from one of the ring's small islands to the other, over the Krusty Krab's road, and the high
-// road, from the west island round over the northwest spoke to the ring. Outside it, a road out
+// one. Over those go three roads on decks, each a long sweep up off the floor, a triangle between
+// the west island and the ring's two small ones: the skyway, an arc from one small island to the
+// other, over the Krusty Krab's road; the high road, from the west island round over the
+// northwest spoke to the ring; and the flyover, from the west island up at once and round over
+// the southwest spoke to the ring, on its deck nearly all the way. Outside it, a road out
 // to a small island at each of three corners of the world. Round the east goes one road, from the
 // north island by the east island to the south, with a way out to it from the tower, from
 // SpongeBob's house and from Building 4.
@@ -199,7 +202,11 @@ const WEB: Road[] = [
   road('northwest spoke', ROAD_PLATEAU, [
     { to: NORTHWEST_ISLAND, stretches: [level(95), padded(level(10)), level(120), ...hill(40, 5, 40, 30), level()] },
   ]),
-  road('southwest spoke', ROAD_PLATEAU, [{ to: SOUTHWEST_ISLAND, stretches: [...dash(), ...kicker(), level()] }]),
+  // Its kicker well short of where the flyover's deck crosses over it, so nothing flown off it
+  // comes up under the deck.
+  road('southwest spoke', ROAD_PLATEAU, [
+    { to: SOUTHWEST_ISLAND, stretches: [level(60), ...kicker(), level(40), padded(level(10)), level()] },
+  ]),
   road('inner north', NORTH_ISLAND, [{ to: INNER_NORTH, stretches: [level(), ...hump(3), level()] }]),
   road('inner northwest', INNER_NORTH, [{ to: ROAD_PLATEAU, stretches: [level(), ...hill(40, 6, 40), level()] }]),
   road('inner southwest', ROAD_PLATEAU, [{ to: INNER_SOUTH, stretches: [level(), ...hop(), level()] }]),
@@ -211,6 +218,10 @@ const WEB: Road[] = [
   road('high road', WEST_ISLAND, [
     { to: HIGH_BEND, radius: 240, open: true, stretches: [...dash(), ...up()] },
     { to: INNER_NORTH, stretches: [...down(), level()] },
+  ]),
+  road('flyover', WEST_ISLAND, [
+    { to: FLYOVER_BEND, radius: 240, open: true, stretches: [level(45), ...up(), span()] },
+    { to: INNER_SOUTH, stretches: [...down(), level()] },
   ]),
 ];
 const REACHES: Road[] = [
