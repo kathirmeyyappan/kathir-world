@@ -156,12 +156,21 @@ test('a boost pad drives a kart rolling over it up to its boosted speed with no 
   assert.equal(speed(parked), 0);
 });
 
-test('a kart driven into a wall stops at it and says how hard it hit', () => {
+test('a kart driven into a wall stops at it, says how hard it hit, and reels back off it before its gas takes hold', () => {
   const structures = world(wall({ x: -10, z: 30 }, { x: 10, z: 30 }, 3));
+  const gas = { gas: 1, steer: 0, drift: false };
   const k = createKart('standard', 1, { x: 0, y: 0, z: 0 }, 0);
-  const hit = drive(k, { gas: 1, steer: 0, drift: false }, 4, structures);
+  let hit = 0;
+  while (hit === 0) hit = drive(k, gas, TICK_DT, structures);
   assert.ok(hit > 15, `head on at about its speed: ${hit}`);
-  assert.ok(k.pos.z < 30 - KARTS.standard.body.length / 2 + 0.1, `short of the wall: ${k.pos.z}`);
+  const at = k.pos.z;
+  assert.ok(at < 30 - KARTS.standard.body.length / 2 + 0.1, `short of the wall: ${at}`);
+  // The gas still held: it rolls back as it bounced for a moment, then drives up to the wall again,
+  // each bump smaller than the last, and comes to rest against it.
+  drive(k, gas, 0.2, structures);
+  assert.ok(k.pos.z < at - 0.5 && k.vel.z < 0, `back off the wall: ${at - k.pos.z} m, ${k.vel.z} m/s`);
+  drive(k, gas, 4, structures);
+  assert.ok(k.pos.z > at - 0.3 && k.reel === 0, `and up against it again: ${k.pos.z}`);
 });
 
 test('a kart flat out climbs a ramp rather than running into it, flies off its lip, and comes down on the ramp past the gap', () => {
