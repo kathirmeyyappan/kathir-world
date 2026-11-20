@@ -207,6 +207,10 @@ const CIRCUIT: Road[] = [
   ]),
 ];
 const WEB: Road[] = [
+  // Over the floor the home has there already (KRUSTY_KRAB_ROAD), laid for its pad: in the half
+  // nearer the Krusty Krab, but far enough from it that a kart boosted its way is back at its own
+  // speed before the building.
+  road('krusty krab', KRUSTY_KRAB_GROUNDS, [{ to: ROAD_PLATEAU, stretches: [level(85), padded(level(10)), level()] }]),
   road('west', ROAD_PLATEAU, [
     { to: WEST_ISLAND, stretches: [level(60), ...kicker(), ...dash(), ...crest(45, 7, 45, 30), level(60)] },
   ]),
@@ -229,15 +233,21 @@ const WEB: Road[] = [
   road('inner southwest', ROAD_PLATEAU, [{ to: INNER_SOUTH, stretches: [level(), ...hop(), level()] }]),
   road('inner south', INNER_SOUTH, [{ to: SOUTH_ISLAND, stretches: [level(), ...kicker(), level()] }]),
   road('skyway', INNER_NORTH, [
-    { to: SKYWAY_BEND, radius: 400, open: true, stretches: [level(), ...up()] },
+    { to: SKYWAY_BEND, radius: 400, open: true, pads: [0.25, 0.75], stretches: [level(), ...up()] },
     { to: INNER_SOUTH, stretches: [...down(), level()] },
   ]),
   road('high road', WEST_ISLAND, [
-    { to: HIGH_BEND, radius: 240, open: true, stretches: [...dash(), ...up()] },
+    { to: HIGH_BEND, radius: 240, open: true, pads: [0.3, 0.8], stretches: [...dash(), ...up()] },
     { to: INNER_NORTH, stretches: [...down(), level()] },
   ]),
   road('flyover', WEST_ISLAND, [
-    { to: FLYOVER_BEND, radius: 240, open: true, stretches: [level(45), ...up(), span(20), padded(span(10)), span()] },
+    {
+      to: FLYOVER_BEND,
+      radius: 240,
+      open: true,
+      pads: [0.3, 0.8],
+      stretches: [level(45), ...up(), span(20), padded(span(10)), span()],
+    },
     { to: INNER_SOUTH, stretches: [...down(), level()] },
   ]),
 ];

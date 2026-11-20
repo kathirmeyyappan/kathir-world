@@ -308,11 +308,11 @@ wire: server and client both build the world from that file.
   `worldTop: true` on them so their tops map alike. The same goes for anything else the client
   draws: never lay a decal, glow or second mesh exactly on a surface.
 - Client cost: the renderer merges pieces with the same look in the same 48 m square into one mesh,
-  so draw calls stay in the tens however many pieces there are. The world's 13,552 pieces (5,642
+  so draw calls stay in the tens however many pieces there are. The world's 13,559 pieces (5,642
   drawn; the house's rooms and shell are 7,516 hidden pieces, the Krusty Krab 175 and the roads'
-  219: their risen banks, their decks and their boost pads) render as
+  226: their risen banks, their decks and their boost pads) render as
   about 100 meshes (about 15 in view at once; the roads' built ramps are 24 pieces in 17 of them, each
-  of their 77 lengths of risen road is a small mesh of its own and each of their 55 boost pads two, and
+  of their 77 lengths of risen road is a small mesh of its own and each of their 62 boost pads two, and
   the floor is 275 chunks), and a raycast tries the pieces a stretch of grid cells at a
   time, so one across open floor costs a few µs, one through the Krusty Krab about 10 µs and one
   through the house about 130 µs. The sim's grid has height bands as well as cells, so a walker's
@@ -354,10 +354,11 @@ that passes under it). It throws on a road that can't be laid: stretches that do
 run, a bend too tight, an end left up off the floor.
 
 The world's roads and islands are in `sim/outline.ts` (`ROADS`, `ISLANDS`), every road 20 m across
-(`ROAD_WIDTH`), room to drift a bend on: 24 roads, 8.1 km of them, mostly west of the buildings.
+(`ROAD_WIDTH`), room to drift a bend on: 25 roads, 8.4 km of them, mostly west of the buildings.
 One main circuit (`CIRCUIT`) runs round the west of the world, from Building 2's grounds by the
 north, northwest, west, southwest and south islands to Building 3's, closing across the floor
-between the keeps: a lap of about 2.4 km. Inside it a web (`WEB`): the Krusty Krab's road carried
+between the keeps: a lap of about 2.4 km. Inside it a web (`WEB`): the Krusty Krab's road itself,
+laid over the floor the home has there for the pad on it, and carried
 on west from the crossroads at its end to the west island, a spoke from the crossroads to each of
 the northwest and southwest islands, and an inner ring from the north island by two small islands
 to the south one. Over those go three roads up on decks, each a long sweep 9 m off the floor
@@ -383,9 +384,10 @@ past the far ramp's foot (so keep 50 m of straight road past a jump; a `kicker` 
 steep with a pad up each side, flown off the same with floor under the whole flight; a `dash` is
 a level straight with a pad across its middle, `early` the start of a straight out of an island
 with a pad 30 m clear of it, and a `crest` a hill with one across its top: a straight's pads lie
-early along it or on its hill, none at an island's way in nor just before a bend and none on one,
-so a kart is boosted down the straight and back at its own speed by the turn, where a drift is
-what earns the next boost), a bend of
+early along it or on its hill, none at an island's way in nor just before a bend, so a kart is
+boosted down the straight and back at its own speed by the turn, where a drift is what earns the
+next boost; a deck's long sweep is the one bend with pads, a run's `pads`, each a straight length
+lying along it where it's that far round), a bend of
 60 m or more, taken flat out, and where one road crosses another between islands, a deck over it,
 the whole sweep it crosses in (`up` and `down`: a ramp to 9 m at either end of the deck, on the
 straights, since a bend doesn't climb). A slope's top a sixth or more steeper than what

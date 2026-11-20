@@ -42,6 +42,7 @@ export interface Run {
   // the two runs just meet there, as they do in the middle of a disc that covers the corner.
   radius?: number;
   open?: boolean; // that bend, up off the floor, is a deck with nothing under it
+  pads?: number[]; // boost pads lying along that bend, each by how far round it it is, 0 to 1
   stretches?: Stretch[]; // the straight, end to end; left out, level the whole way
 }
 
@@ -150,12 +151,23 @@ const DECK = 0.8; // metres through an open stretch's deck
 const HEADROOM = 4; // metres clear under a deck, at the least: a kart, its driver and the eye that follows them
 // A boost pad: its share of the road's width, the metres it stops short of its stretch's ends, and
 // the metres its top lies over the road's, so the two share no plane.
-const PAD = { across: 0.8, inset: 1, lift: 0.04 };
+// One on a bend is a straight length of its own, `round` metres, lying along the bend there.
+const PAD = { across: 0.8, inset: 1, lift: 0.04, round: 10 };
 
 // A road cut into the pieces it's laid as, in order, each with the height the road has there.
 type Leg =
   | { kind: 'straight'; run: number; a: Point; b: Point; from: number; to: number; open: boolean; pad: boolean }
-  | { kind: 'bend'; x: number; z: number; r: number; start: number; turn: number; height: number; open: boolean }
+  | {
+      kind: 'bend';
+      x: number;
+      z: number;
+      r: number;
+      start: number;
+      turn: number;
+      height: number;
+      open: boolean;
+      pads: number[];
+    }
   | { kind: 'gap' };
 
 export function layRoad(spec: RoadSpec): Road {
@@ -163,6 +175,23 @@ export function layRoad(spec: RoadSpec): Road {
   const half = spec.width / 2;
   const road: Road = { floor: [], bank: [], marks: [], raised: [] };
   let floorFrom: Point | null = null; // where the floor being laid began: one part for a run's stretches with no gap between
+  // A level boost pad from `from` to `to` on the road at height `y`: a sliver lying on it there, in
+  // from its sides, hidden, the panel drawn there being the client's.
+  const lie = (from: Point, to: Point, y: number) => {
+    const across = spec.width * PAD.across;
+    const top = y + PAD.lift;
+    road.bank.push({ ...block(from, to, across, PAD.lift), y, hidden: true, surface: 'boost' });
+    road.marks.push({
+      kind: 'pad',
+      ax: from.x,
+      ay: top,
+      az: from.z,
+      bx: to.x,
+      by: top,
+      bz: to.z,
+      halfWidth: across / 2,
+    });
+  };
   legs.forEach((leg, i) => {
     if (leg.kind === 'gap') return;
     const joins = (other: Leg | undefined) => other !== undefined && other.kind !== 'gap';
@@ -177,6 +206,13 @@ export function layRoad(spec: RoadSpec): Road {
         road.bank.push(...bendBank(leg, half - SHOULDER, lap, under).map(risen));
         road.raised.push({ kind: 'bend', x, z, r, from, to, y, under, halfWidth: half - SHOULDER });
         if (leg.open) road.marks.push({ kind: 'sweep', x, z, r, from, to, halfWidth: half });
+      }
+      // Its pads, each lying along the bend where it's that far round, the way the road runs.
+      for (const share of leg.pads) {
+        const [a, way] = [leg.start + leg.turn * share, Math.sign(leg.turn)];
+        const [mx, mz] = [leg.x + leg.r * Math.cos(a), leg.z + leg.r * Math.sin(a)];
+        const [tx, tz] = [(-Math.sin(a) * way * PAD.round) / 2, (Math.cos(a) * way * PAD.round) / 2];
+        lie({ x: mx - tx, z: mz - tz }, { x: mx + tx, z: mz + tz }, leg.height);
       }
       return;
     }
@@ -226,18 +262,17 @@ export function layRoad(spec: RoadSpec): Road {
       });
     }
     if (!leg.pad) return;
-    // The pad: a sliver of the stretch's own shape lying on it, in from its ends and its sides,
-    // hidden, the panel drawn there being the client's.
+    // The pad lies on the stretch, in from its ends: level with it, or up a climb a sliver of the
+    // climb's own shape.
     const length = distance(foot, top);
     const way = unit(foot, top);
     const from = { x: foot.x + way.x * PAD.inset, z: foot.z + way.z * PAD.inset };
     const to = { x: top.x - way.x * PAD.inset, z: top.z - way.z * PAD.inset };
+    if (rise === 0) return lie(from, to, low);
     const across = spec.width * PAD.across;
     const under = low + (rise * PAD.inset) / length; // the road's height where the pad begins
     const climbs = rise * (1 - (2 * PAD.inset) / length); // and what it climbs under the pad
-    const pad =
-      rise > 0 ? ramp(from, to, climbs, across, under + PAD.lift) : { ...block(from, to, across, PAD.lift), y: under };
-    road.bank.push({ ...pad, hidden: true, surface: 'boost' });
+    road.bank.push({ ...ramp(from, to, climbs, across, under + PAD.lift), hidden: true, surface: 'boost' });
     const [ay, by] = [under + PAD.lift, under + PAD.lift + climbs];
     road.marks.push({ kind: 'pad', ax: from.x, ay, az: from.z, bx: to.x, by, bz: to.z, halfWidth: across / 2 });
   });
@@ -290,6 +325,7 @@ function legsOf(spec: RoadSpec): Leg[] {
     const open = run.open ?? false;
     if (open && (!corner || height < DECK + HEADROOM))
       throw bad(`run ${i}'s bend is no deck: there's none, or not ${HEADROOM} m clear under it`);
+    if (run.pads?.length && !corner) throw bad(`run ${i} has pads for a bend it hasn't got`);
     if (!corner) return;
     // Round the corner from where the straight stopped: the bend's middle is a radius off to the
     // side it turns to.
@@ -306,6 +342,7 @@ function legsOf(spec: RoadSpec): Leg[] {
       turn: corner.turn,
       height,
       open,
+      pads: run.pads ?? [],
     });
   });
   if (height !== 0) throw bad(`ends ${height} m up`);
