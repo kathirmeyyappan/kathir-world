@@ -411,7 +411,7 @@ test("a dead player's body leaves a big heart that stays where it lay, heals 10,
   assert.equal(pickups().length, 0, 'and it never comes back');
 });
 
-test('a hard landing hurts like a shot with no shooter, a fatal one is announced as a fall, and so is landing on the ground past the edge', () => {
+test('a hard landing hurts like a shot with no shooter, a fatal one is announced as a fall, and the ground past the edge bleeds a heart a half second', () => {
   const room = new Room('falls', { seed: 3, structures: new Structures([]) });
   const a = link();
   const id = room.join('alice', a)!;
@@ -432,7 +432,7 @@ test('a hard landing hurts like a shot with no shooter, a fatal one is announced
   assert.ok(a.inbox.some((m) => m.t === 'fell' && m.victim === id));
 
   // A step down onto the ground past the edge (at a bearing of 340°, clear of the fan and the
-  // bridge) hurts nothing as a fall, and is the end all the same.
+  // bridge) hurts nothing as a fall, then a heart every half second it stays down there.
   const b = link();
   const bobId = room.join('bob', b)!;
   const bob = room.players.find((p) => p.id === bobId)!;
@@ -441,7 +441,9 @@ test('a hard landing hurts like a shot with no shooter, a fatal one is announced
     y: OUTSIDE_HEIGHT + 1 + EYE_HEIGHT,
     z: 60 * Math.sin((340 * Math.PI) / 180),
   };
-  for (let i = 0; i < TICK_RATE; i++) room.step();
+  for (let i = 0; i < TICK_RATE * 2; i++) room.step();
+  assert.ok(!bob.dead && bob.hearts < MAX_HEARTS, `${bob.hearts} hearts`);
+  for (let i = 0; i < TICK_RATE * 5; i++) room.step();
   assert.ok(bob.dead);
   assert.ok(b.inbox.some((m) => m.t === 'out' && m.victim === bobId));
 });
@@ -1353,6 +1355,28 @@ test("a kart worn out by a wall blows up, hurting its driver and everyone near b
   assert.ok(me.vz < 0 && me.vy > -me.vz, `up, and back off its tail: ${me.vy}, ${me.vz}`);
   assert.equal(me.hearts, MAX_HEARTS - BLAST.damage);
   assert.equal(carol.hearts, MAX_HEARTS - BLAST.damage);
+});
+
+test('a ground pound and a strike that reach a kart wear it, sheltering its driver', () => {
+  const { room, ids } = kartRoom({ x: 0, y: 0, z: 0 }, { x: 0, y: 0, z: 0 }, { x: 0, y: 0, z: 0 });
+  const [driver, pounder, striker] = ids;
+  getIn(room, driver);
+  const k = room.garage.list[0];
+  const [them, mario, tung] = ids.map((id) => room.players.find((p) => p.id === id)!);
+  room.receive(pounder, { t: 'chat', text: '/mario' });
+  room.receive(striker, { t: 'chat', text: '/tung' });
+  // Mario 2.5 m off its side and 2 m up, too low for the pound to grow; Tung a metre off its tail.
+  mario.pos = { x: k.pos.x + 2.5, y: k.pos.y + EYE_HEIGHT + 2, z: k.pos.z };
+  tung.pos = { x: k.pos.x, y: k.pos.y + EYE_HEIGHT, z: k.pos.z - KARTS.standard.body.length / 2 - 1 };
+  tung.yaw = 0;
+  room.receive(pounder, { t: 'input', f: frame(0, ['pound']) });
+  for (let i = 0; i < 2 * TICK_RATE && mario.pound?.stage !== 'land'; i++) tick(room);
+  const pounded = KARTS.standard.wrenches - poundOf('mario')!.damage;
+  assert.equal(k.wrenches, pounded, 'the pound wears it');
+  room.receive(striker, { t: 'input', f: frame(0, ['strike']) });
+  for (let i = 0; i <= Math.round(strikeOf('sahur')!.windup * TICK_RATE); i++) tick(room);
+  assert.equal(k.wrenches, pounded - strikeOf('sahur')!.damage, 'and so does the strike');
+  assert.ok(them.hearts === MAX_HEARTS && them.riding === k.id, 'its driver unhurt and still in it');
 });
 
 test('a shot that reaches a kart first wears it, and one over it hits the driver, whose kart rolls on to a stop', () => {

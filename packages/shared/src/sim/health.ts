@@ -31,6 +31,11 @@ export const FALL_SAFE_DROP = 15;
 export const FALL_DEADLY_DROP = 80;
 export const FALL_DAMAGE_STEP = 0.5;
 
+// Stood on the ground past the world's edge (ground.ts), a walker loses OUT_OF_BOUNDS_DAMAGE for
+// every OUT_OF_BOUNDS_SECONDS there, time to jetpack out.
+export const OUT_OF_BOUNDS_DAMAGE = 1;
+export const OUT_OF_BOUNDS_SECONDS = 0.5;
+
 // The speed, m/s, of landing after falling `metres` from rest in the sim, whose ticks add a tick of
 // gravity before moving: a drop of v(v + g·dt)/2g, so a real 80 m drop lands at least this fast.
 export function dropSpeed(metres: number): number {

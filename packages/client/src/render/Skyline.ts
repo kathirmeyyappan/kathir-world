@@ -116,11 +116,15 @@ function told(s: Structure): s is Extract<Structure, { kind: 'box' | 'ramp' }> {
   return !s.hidden && (s.kind === 'box' || s.kind === 'ramp') && Math.max(s.w, s.d, s.h) >= BIG;
 }
 
-// A piece's size and height brought INSIDE its own faces, where it's thick enough to be.
+// A piece's size and height brought INSIDE its own faces, where it's thick enough to be. A block
+// keeps its middle. A wedge keeps its slope, its top INSIDE under the real one all the way down,
+// so its thin end is sunk into whatever it stands on rather than left standing proud of the slope.
 function shrunk(s: Extract<Structure, { kind: 'box' | 'ramp' }>): { w: number; d: number; h: number; y: number } {
   const less = (size: number) => Math.max(size / 2, size - 2 * INSIDE);
+  const [w, d, y] = [less(s.w), less(s.d), s.y ?? 0];
+  if (s.kind === 'ramp') return { w, d, h: (s.h * d) / s.d, y: y + (s.h * (s.d - d)) / 2 / s.d - INSIDE };
   const h = less(s.h);
-  return { w: less(s.w), d: less(s.d), h, y: (s.y ?? 0) + (s.h - h) / 2 };
+  return { w, d, h, y: y + (s.h - h) / 2 };
 }
 
 // A length of risen road brought INSIDE its own top and sides, and for a deck its underside.
