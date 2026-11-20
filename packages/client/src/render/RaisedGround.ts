@@ -26,8 +26,9 @@ interface Section {
   right: Vec;
 }
 
-// A length's quads, added to those of whatever it's drawn in one mesh with.
-export function raisedGround(raised: Raised, quads = new Quads()): Quads {
+// A length's quads, added to those of whatever it's drawn in one mesh with: its top, its sides and
+// a deck's underside, and across each end a wall, unless its ends are left `open`.
+export function raisedGround(raised: Raised, quads = new Quads(), ends: 'walled' | 'open' = 'walled'): Quads {
   const sections = raised.kind === 'straight' ? straight(raised) : bend(raised);
   const half = raised.halfWidth;
   const under = raised.under;
@@ -44,6 +45,7 @@ export function raisedGround(raised: Raised, quads = new Quads()): Quads {
     if (under > 0)
       quads.add([a.left, a.right, b.right, b.left].map(lowered), [0, -1, 0], { uvs: [UNLIT, UNLIT, UNLIT, UNLIT] });
   }
+  if (ends === 'open') return quads;
   const [first, second] = sections;
   const [last, before] = [sections[sections.length - 1], sections[sections.length - 2]];
   wall(quads, first.left, first.right, flat(minus(first.left, second.left)), under);
