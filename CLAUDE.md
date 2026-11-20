@@ -229,8 +229,8 @@ wire: server and client both build the world from that file.
   (r 30 at x 112) and the bridge between them (16 m wide), the four buildings' grounds (discs the
   annex's size round the main disc at 70°, 125°, 235° and 290°, the keeps' 100 m out and SpongeBob's house's further out, at 124 m, on much wider grounds, r 52, so its dune and the sand round it sits on
   the floor with room round it), the Krusty Krab's grounds between Buildings 2 and 3 (r 32 at 180°,
-  100 m out, so the five sites are 55° apart), a road 10 m wide straight out from behind it, 200 m
-  past its grounds, to a plateau r 20 at its end (`KRUSTY_KRAB_ROAD`, `ROAD_PLATEAU`), the islands
+  100 m out, so the five sites are 55° apart), a road 20 m wide straight out from behind it, 200 m
+  past its grounds, to a plateau r 34 at its end (`KRUSTY_KRAB_ROAD`, `ROAD_PLATEAU`), the islands
   and roads out past them all (`ISLANDS`, `ROADS`, see Roads below), and the fan
   between the buildings, a slice of the main
   disc's middle out to the keeps' from the first building's bearing round to the last's, its two
@@ -279,8 +279,8 @@ wire: server and client both build the world from that file.
 - Terrain: keep edge heights at 0 so it meets the floor (no side walls are drawn), and keep sample
   grids modest (the default is one sample every 2 m); every sample is a vertex.
 - Looks: set `material` to a pixel texture (`brick`, `wood`, `red-tile`, `flagstone`, `sand`,
-  `plaster`, `steel`; each is a painter in `packages/client/src/render/structureMaterials.ts`, and a
-  new one is another painter there). `color` is a flat fallback. Structures are unlit and shaded by face direction, so
+  `plaster`, `steel`, and `boost`, a boost pad's rainbow, which a road lays itself; each is a painter
+  in `packages/client/src/render/structureMaterials.ts`, and a new one is another painter there). `color` is a flat fallback. Structures are unlit and shaded by face direction, so
   they look the same inside and out; don't reach for lights. `hidden` pieces are collided with but
   never drawn: the shape of something the client draws its own way.
 - Coplanar faces: two faces that overlap in the same plane and point the same way z-fight, and the
@@ -295,10 +295,10 @@ wire: server and client both build the world from that file.
   `worldTop: true` on them so their tops map alike. The same goes for anything else the client
   draws: never lay a decal, glow or second mesh exactly on a surface.
 - Client cost: the renderer merges pieces with the same look in the same 48 m square into one mesh,
-  so draw calls stay in the tens however many pieces there are. The world's 13,347 pieces (5,656
+  so draw calls stay in the tens however many pieces there are. The world's 13,351 pieces (5,660
   drawn; the house's rooms and shell are 7,516 hidden pieces and the Krusty Krab 175) render as
-  about 100 meshes (about 15 in view at once; the roads' banks are 38 pieces in 20 of them, and
-  the floor is 104 chunks), and a raycast tries the pieces a stretch of grid cells at a
+  about 100 meshes (about 15 in view at once; the roads' banks and pads are 42 pieces in 23 of them, and
+  the floor is 105 chunks), and a raycast tries the pieces a stretch of grid cells at a
   time, so one across open floor costs a few µs, one through the Krusty Krab about 10 µs and one
   through the house about 130 µs. The sim's grid has height bands as well as cells, so a walker's
   tick pays only for the pieces at its own height (about 70 µs inside the house, 27 µs inside the
@@ -313,25 +313,32 @@ as they do in the middle of a disc). The floor under a road is flat like all the
 height is its bank, structures stood on that floor: a wedge under a stretch that climbs or drops, a
 block under one that runs level up off the floor, each a `SHOULDER` in from the floor's edge so its
 sides rise out of the kerb. A gap is a stretch with neither floor nor bank, to be jumped; `jump(run,
-rise, across)` is one with a ramp either side, so it's jumped both ways. A road is authored as runs,
-each cut into stretches (`level`, `climb`, `gap`; one with no length takes an even share of what the
-others leave), and `layRoad` turns it into its floor (square bridges and bends, for the outline),
-its bank (for `content/roads.ts`) and its slopes (for the maps, which mark each with arrowheads
-pointing up it). It throws on a road that can't be laid: stretches that don't fill their run, a
-bend too tight, an end left up off the floor.
+rise, across)` is one with a ramp either side, so it's jumped both ways. A boost pad is a stretch
+`padded`: a sliver of its own shape lying a hair over it, four fifths of the road across, of the
+`boost` look (lanes of rainbow arrowheads pointing up a climb, or along a level stretch the way the
+road runs, and running that way: the look's `scroll`), whose surface boosts a kart rolling forward
+over it (see Surfaces and frost, and Karts). A road is authored as runs, each cut into stretches (`level`, `climb`, `gap`, any of them
+`padded`; one with no length takes an even share of what the others leave), and `layRoad` turns it
+into its floor (square bridges and bends, for the outline), its bank with its pads (for
+`content/roads.ts`) and its marks (for the maps, which draw each slope as arrowheads pointing up it
+and each pad as a rainbow). It throws on a road that can't be laid: stretches that don't fill their
+run, a bend too tight, an end left up off the floor.
 
 The world's roads and islands are in `sim/outline.ts` (`ROADS`, `ISLANDS`): two arms from the
 plateau at the Krusty Krab road's end, the north one round by the north island to Building 2's
 grounds and the south one by the southwest and south islands to Building 3's, so with that road and
-the floor between the keeps they're one lap of about 2 km. Each island is a disc r 36 with nothing
-on it yet, a site for a building. `HOME_OUTLINE` is the floor without them, where people mostly
+the floor between the keeps they're one lap of about 2 km, every road 20 m across (`ROAD_WIDTH`),
+room to drift a bend on. Each island is a disc r 36 with nothing on it yet, a site for a building. `HOME_OUTLINE` is the floor without them, where people mostly
 are, which the sky's objects float round. A walker can't cross a gap: every island is reached on
 foot from one side.
 
 Size a road to the karts (see Karts): a ramp no steeper than about 0.4 (a kart rolls up what's
 within a kerb's height each quarter of its width), a gap the Standard Kart clears well short of
 its top speed (`JUMP` is cleared from 16 m/s of its 20, and flat out it lands at the far ramp's
-foot), and a bend of 60 m or more, taken flat out. A slope's top a sixth or more steeper than what
+foot) with a pad on the ramp either side of it (`hop`), so a kart that rolls onto one however
+slowly leaves the lip boosted, about 1.4 s in the air, time for a trick, and comes down some 20 m
+past the far ramp's foot (so keep 50 m of straight road past a jump), and a bend of 60 m or more,
+taken flat out. A slope's top a sixth or more steeper than what
 follows is left in the air at a kart's speed (`LIFT` in `kart.ts`), so a `hump` and the steep side
 of a hill are flown off and a gentle ridge isn't. After changing one, drive every road both ways
 with `stepKart` in a scratch script, flat out and boosted, and check nothing is hit and no landing
@@ -388,11 +395,12 @@ the boat horn, for the player who clicked alone. Nothing of it reaches the Room.
 ### Surfaces and frost
 
 A structure's `material` is its look; its `surface` (`sim/surfaces.ts`) is what it's like underfoot:
-`hard`, `sand` or `ice`, named on the piece or implied by its material (`MATERIAL_SURFACES`: sand
-is sand, everything else hard; the bare floor is hard). A `SurfaceSpec` is its `grip` (m/s², how
-fast the feet can change the walk's velocity; `Infinity` is a sure footing, where the walk goes
-exactly where the keys send it, as every surface did before) and its `footfall` (what a step on it
-sounds like: `thud` or `crunch`). On a footing with finite grip the walker keeps its momentum
+`hard`, `sand`, `ice` or `boost`, named on the piece or implied by its material (`MATERIAL_SURFACES`:
+sand is sand, a boost pad's look is `boost`, everything else hard; the bare floor is hard). A
+`SurfaceSpec` is its `grip` (m/s², how fast the feet can change the walk's velocity; `Infinity` is a
+sure footing, where the walk goes exactly where the keys send it, as every surface did before), its
+`footfall` (what a step on it sounds like: `thud` or `crunch`) and whether it `boosts` a kart on it
+(a boost pad, hard to a walker; frosted over it's ice like any top, and boosts nothing). On a footing with finite grip the walker keeps its momentum
 (`PlayerState.vx`, `vz`): the feet push toward the keys at the grip, never past the walk's speed,
 slow it at that rate with none held, and gravity pulls it down any slope harder than they can hold
 (`walker.ts` `slide`, capped at `SLIDE_SPEED`), so an icy 15° slope can't be climbed and the
@@ -636,7 +644,7 @@ code is off, and CI keeps what a deploy built for the next one.
 
 Cubes don't know about structures. Every map (the HUD's minimap, the menu's and the guide's) draws
 through `ui/MapCanvas.ts`, which reads the outline (`WORLD_GROUND`) and `content/landmarks.ts` itself
-(a road's climbs among them, each drawn as arrowheads pointing up it),
+(a road's marks among them: each climb drawn as arrowheads pointing up it, each boost pad as a rainbow),
 drawing only the parts, landmarks and grid lines its view covers (`Ground.partsIn`), so a frame
 costs what's on the map however big the world is, and they all show one world and a map change is a
 change there: footprints grey on the floor (a disc's
@@ -1009,8 +1017,11 @@ mini-turbo, its top speed raised by half over `TURBO.rise`, held as long as the 
 and let down over `TURBO.fall`, the kart slowing with it, so a boost is over when it says. A press in the air, off a ramp or a ledge but not its own hop (or
 every hop would be a boost), is a trick (`KartState.trick`), left or right the way the wheel is
 held, else either by where the kart is (so the driver's client predicts the same way), and landing
-after one is a boost like a mini-turbo's held for `TRICK.hold`; `turbo` is either, by how long it
-holds.
+after one is a boost like a mini-turbo's held for `TRICK.hold`. A boost pad (a footing whose
+surface `boosts`, see Roads) under a kart rolling forward is a boost too: held at full for as long
+as the kart is on it, the pad pushing it on as the gas would whatever its pedal, and for `PAD.hold`
+after it leaves, unless the boost it came with has longer left; one parked on a pad is let be.
+`turbo` is any of them, by how long it holds.
 
 A room's karts are its `Garage` (`garage.ts`), which the Room steps and whose hurts it deals out,
 and every client is sent them (`karts` in `welcome` and `snap`, each a `Kart`: its `KartState`,

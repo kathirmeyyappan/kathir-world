@@ -10,11 +10,15 @@ export const TEXELS = 32; // texels per repeat along each side
 export interface MaterialSpec {
   paint(px: (x: number, y: number, color: string) => void, rng: Rng): void;
   tile: number; // metres covered by one repeat of the texture
-  // Tops tile in world x/z, so neighbours line up and overlapping tops (wall joints, floor rings)
-  // paint the same texels; false maps them in each piece's own frame (a stair's planks run along
-  // each step), so only use it where pieces of the look never overlap at one height.
-  worldTop: boolean;
+  // How tops take the texture. `world`: in world x/z, so neighbours line up and overlapping tops
+  // (wall joints, floor rings) paint the same texels. `turned`: along axes turned with the piece (a
+  // stair's planks run along each step). `own`: turned with the piece and measured from its middle,
+  // so the pattern sits the same on every piece (a boost pad's lanes, whole across it). Use the
+  // last two only where pieces of the look never overlap at one height.
+  top: TopMapping;
+  scroll?: number; // metres a second the pattern runs along each piece, toward its local +z
 }
+export type TopMapping = 'world' | 'turned' | 'own';
 
 const pick = (rng: Rng, colors: string[]) => colors[Math.floor(rng() * colors.length)];
 
@@ -22,7 +26,7 @@ const pick = (rng: Rng, colors: string[]) => colors[Math.floor(rng() * colors.le
 // top edge and a shaded bottom edge on every block, kept gentle so distant walls don't shimmer.
 const brick: MaterialSpec = {
   tile: 6,
-  worldTop: true,
+  top: 'world',
   paint(px, rng) {
     const shades = ['#77767e', '#6e6d76', '#817f86', '#6a6972', '#7d787a', '#726f79', '#86838a'];
     for (let row = 0; row < TEXELS / 4; row++) {
@@ -48,7 +52,7 @@ const brick: MaterialSpec = {
 // Planks 0.375 m wide (4 texels) with dark seams and a little grain: two to a stair tread.
 const wood: MaterialSpec = {
   tile: 3,
-  worldTop: false,
+  top: 'turned',
   paint(px, rng) {
     const shades = ['#7a5233', '#6f4a2d', '#83593a', '#754f31'];
     for (let plank = 0; plank < TEXELS / 4; plank++) {
@@ -67,7 +71,7 @@ const wood: MaterialSpec = {
 // 0.75 m red tiles (8 texels) with dark grout and a highlight in each tile's corner.
 const redTile: MaterialSpec = {
   tile: 3,
-  worldTop: true,
+  top: 'world',
   paint(px, rng) {
     const shades = ['#8a2e2a', '#973530', '#7d2926', '#a03b33', '#8f312c'];
     for (let ty = 0; ty < TEXELS / 8; ty++) {
@@ -90,7 +94,7 @@ const redTile: MaterialSpec = {
 // 2 m paving stones (16 texels) in offset rows.
 const flagstone: MaterialSpec = {
   tile: 4,
-  worldTop: true,
+  top: 'world',
   paint(px, rng) {
     const shades = ['#5f636b', '#686c74', '#595d65', '#6c6f76'];
     for (let row = 0; row < TEXELS / 16; row++) {
@@ -113,7 +117,7 @@ const flagstone: MaterialSpec = {
 // Sand: pale grains flecked with darker ones, with faint ripples running one way, 2 m to a repeat.
 const sand: MaterialSpec = {
   tile: 2,
-  worldTop: true,
+  top: 'world',
   paint(px, rng) {
     const shades = ['#e9d8a6', '#e3d09b', '#efdfb0', '#dfcb94', '#e6d4a0'];
     for (let y = 0; y < TEXELS; y++) {
@@ -129,7 +133,7 @@ const sand: MaterialSpec = {
 // and flecked here and there, kept gentle so a tall curve of it doesn't shimmer.
 const plaster: MaterialSpec = {
   tile: 3,
-  worldTop: true,
+  top: 'world',
   paint(px, rng) {
     const base = '#e4e0d7';
     const tones = ['#eae6dd', '#dedad1', '#e7e3da', '#e0dcd3'];
@@ -156,7 +160,7 @@ const plaster: MaterialSpec = {
 // kept gentle like the plaster.
 const steel: MaterialSpec = {
   tile: 2,
-  worldTop: true,
+  top: 'world',
   paint(px, rng) {
     const base = '#b8c4ef';
     const tones = ['#bcc8f1', '#b4c0ec', '#c0ccf4', '#b6c2ee'];
@@ -173,6 +177,30 @@ const steel: MaterialSpec = {
   },
 };
 
+// A boost pad's colours, in the order they run along it.
+export const BOOST_RAINBOW = ['#ff5468', '#ffa23e', '#ffe85a', '#63dd73', '#3fd6c8', '#55b8ff', '#b784ff', '#ff7fd0'];
+// A boost pad: lanes of arrowheads 8 m across pointing along the piece (up its ramp), each row of
+// them a colour of the rainbow, with a dark line between lanes so the arrows read as arrows from
+// either end, all running the way they point.
+const boost: MaterialSpec = {
+  tile: 8,
+  top: 'own',
+  scroll: 8,
+  paint(px) {
+    const deep = TEXELS / BOOST_RAINBOW.length; // texels from one row of arrowheads to the next
+    const half = TEXELS / 2;
+    for (let y = 0; y < TEXELS; y++) {
+      for (let x = 0; x < TEXELS; x++) {
+        // A lane runs from one edge of the repeat to the other, its arrowheads' points down its
+        // middle and their arms swept back to the lines at its sides.
+        const out = Math.abs(x - half + 0.5);
+        const swept = (y - out * 0.75 + TEXELS) % TEXELS;
+        px(x, y, out > half - 1 ? '#16131f' : BOOST_RAINBOW[Math.floor(swept / deep)]);
+      }
+    }
+  },
+};
+
 export const MATERIALS: Record<StructureMaterial, MaterialSpec> = {
   brick,
   wood,
@@ -181,6 +209,7 @@ export const MATERIALS: Record<StructureMaterial, MaterialSpec> = {
   sand,
   plaster,
   steel,
+  boost,
 };
 
 // One material's texture as canvas pixels, deterministic for a given material.

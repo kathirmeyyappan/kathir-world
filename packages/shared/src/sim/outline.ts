@@ -1,7 +1,7 @@
 // The world's outline: the parts of the floor (ground.ts), in a module of their own so content can
 // place things relative to them without importing the structures, which import the content.
 import { Ground, type Bridge, type Disc, type Sector, type WorldPart } from './ground';
-import { climb, jump, layRoad, level, type Road } from './roads';
+import { climb, jump, layRoad, level, padded, type Road, type Stretch } from './roads';
 
 export const MAIN_DISC: Disc = { kind: 'disc', x: 0, z: 0, r: 50 }; // the cubes' home
 export const ANNEX: Disc = { kind: 'disc', x: 112, z: 0, r: 30 }; // Tung Tung Tower's grounds
@@ -35,10 +35,11 @@ export const BUILDING_GROUNDS: Disc[] = BUILDING_SITES.map(({ bearing, out, r = 
 // the building (36 m by 24 m, content/krustyKrab.ts) with ten metres to spare at its corners.
 export const KRUSTY_KRAB_GROUNDS: Disc = { kind: 'disc', ...turned(KRUSTY_KRAB_BEARING, KEEP_OUT, 0), r: 32 };
 // A road straight out from behind the Krusty Krab, ROAD_WIDTH across and ROAD_LENGTH long past its
-// grounds, to a round plateau at the floor's height at its end.
-const ROAD_WIDTH = 10;
+// grounds, to a round plateau at the floor's height at its end. ROAD_WIDTH is every road's: wide
+// enough to drift a kart round a bend on.
+const ROAD_WIDTH = 20;
 const ROAD_LENGTH = 200;
-const PLATEAU_R = 20;
+const PLATEAU_R = 34;
 const plateauOut = KEEP_OUT + KRUSTY_KRAB_GROUNDS.r + ROAD_LENGTH + PLATEAU_R;
 export const ROAD_PLATEAU: Disc = { kind: 'disc', ...turned(KRUSTY_KRAB_BEARING, plateauOut, 0), r: PLATEAU_R };
 export const KRUSTY_KRAB_ROAD: Bridge = {
@@ -79,13 +80,13 @@ export const ISLANDS: Disc[] = [NORTH_ISLAND, SOUTHWEST_ISLAND, SOUTH_ISLAND];
 
 // The roads out to the islands and round the west of the world, for karts (roads.ts): two arms from
 // the plateau at the Krusty Krab road's end, each back to a keep's grounds, so with that road and
-// the floor between the keeps they're one lap. Every gap has a ramp either side and is jumped
-// either way at a kart's speed; the banks between are hills, the steeper sides of them drops a
-// kart flies off.
+// the floor between the keeps they're one lap. Every gap has a ramp either side with a boost pad
+// on it, which drives a kart on however slow it came, so the gap is cleared either way; the banks
+// between are hills, the steeper sides of them drops a kart flies off.
 // A gap the Standard Kart clears from four fifths of its speed up, off a ramp it leaves a third as
 // fast upward as along.
 const JUMP = { run: 14, rise: 5, across: 8 };
-const hop = () => jump(JUMP.run, JUMP.rise, JUMP.across);
+const hop = (): Stretch[] => jump(JUMP.run, JUMP.rise, JUMP.across).map((s) => (s.gap ? s : padded(s)));
 // A hill short and steep enough to leave the ground over.
 const hump = (rise: number) => [climb(rise * 4, rise), climb(rise * 4, -rise)];
 const [, KEEP_2_GROUNDS, KEEP_3_GROUNDS] = BUILDING_GROUNDS;
