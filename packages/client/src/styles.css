@@ -1873,24 +1873,37 @@ body {
   min-height: 0;
   margin: -12px 0;
 }
+/* The logo beside the headings and the bullets under them, or, narrow, the bullets the card's whole
+   width under both. The logo's margin is the gap, so a card with no logo has none. */
 #info-card .card-body {
-  display: flex;
-  gap: 20px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
   padding: 20px 20px 8px;
 }
 #info-card .logo {
+  grid-row: 1 / span 2;
+  margin-right: 20px;
   width: 96px;
   height: 96px;
-  flex: 0 0 96px;
   border: 3px solid #fff;
   box-shadow: 4px 4px 0 #000;
   background: #fff;
   image-rendering: pixelated;
   display: block;
 }
-#info-card .card-text {
-  flex: 1;
-  min-width: 0;
+#info-card .card-text,
+#info-card .description {
+  grid-column: 2;
+}
+@media (max-width: 660px) {
+  #info-card .logo {
+    grid-row: 1;
+    margin-bottom: 12px;
+  }
+  #info-card .description {
+    grid-column: 1 / -1;
+  }
 }
 #info-card .h1 {
   font: 15px/1.6 var(--pixel);
