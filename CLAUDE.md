@@ -847,7 +847,8 @@ everyone near, never before the last cry has run out nor within `CRY_GAP_MS` of 
 hears it over the hurt sound, which sounds at every hit whatever the look; a spray's hits, fire's
 and ice's, come too fast for a voice and are the hurt sound alone, `Game.sprayed`) and a moment after a kill (`Game.say`);
 its `boost`, what it cries as the kart it drives begins a boost (a drift's, a trick's or a boost
-pad's), heard by everyone near: takes borrowed from its other lines (none unless given), each
+pad's), heard by everyone near and held off like a hit's cry while its last cry sounds (`Game.cry`,
+so two boosts a moment apart are one cry): takes borrowed from its other lines (none unless given), each
 played at the one volume (`BOOST_CRY`) whichever line it's from, since the lines' recordings are level and it's only their volumes that differ (an
 intro's is over twice a jump's), and sent for as the look is first seen driving; and its `death`,
 which its own player alone hears over the death screen (cut to its ten seconds; the reload ends

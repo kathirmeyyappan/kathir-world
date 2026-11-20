@@ -179,7 +179,7 @@ const ECHO_LEVEL = 0.3;
 const GLOAT_DELAY = 0.4; // seconds after a kill that the killer's own line for one starts, clear of the shot
 const OWN_MOVE = 0.6; // the share of its volume the player's own ground pound turns over at, as their own steps do (Footsteps.ts)
 const DEATH_SOUND_DELAY = 0.5; // seconds from dying to the look's death sound: the hurt sound or cry of the last hit, played out
-const CRY_GAP_MS = 600; // a player's cries at being hit come no closer together than this, however short the cry
+const CRY_GAP_MS = 600; // a player's cries, at a hit or a boost, come no closer together than this, however short the cry
 type Line = 'hurt' | 'kill' | 'boost' | 'enter' | 'death'; // the lines of a look's voice that are a list of takes (voices.ts)
 // Metres nearer than the player or building whose theme is playing another has to be to take the
 // theme over, so two at a like distance don't trade it back and forth.
@@ -254,7 +254,7 @@ export class Game {
   private readonly pounds = new Map<string, RemotePlayer['pound']>(); // the stage each player's ground pound was last seen at
   private readonly strikes = new Map<string, number>(); // how far into a strike each player striking was last seen
   private readonly cried = new Set<string>(); // the dragons heard crying on their way out of the ground
-  private readonly criedOut = new Map<string, number>(); // when each player may next cry out at a hit (performance.now)
+  private readonly criedOut = new Map<string, number>(); // when each player may next cry out (performance.now)
   private themeOf: string | null = null; // the player or building whose theme is playing (Contender.holder)
   // When each theme worn round the player began (ms; `running`): it runs on from then for as long as
   // anyone the player could hear it from wears it.
@@ -336,7 +336,7 @@ export class Game {
     this.driving.onSpark = (at, spark) => this.sfx.play(KART_SOUNDS.spark, at, { rate: SPARK_RATE[spark] });
     this.driving.onBoost = (at, driver) => {
       this.sfx.play(KART_SOUNDS.boost, at);
-      if (driver) this.say(driver, 'boost');
+      if (driver) this.cry(driver, 'boost');
     };
     this.driving.onTrick = (at) => this.sfx.play(KART_SOUNDS.trick, at);
     this.wallFrames = new WallFrames(this.engine, WALL_FRAMES, this.interiors);
@@ -849,12 +849,12 @@ export class Game {
       // The hurt sound at every hit, the one that kills like any other, and over it the look's cry
       // where it has one. A spray's hits come too fast for a voice, so they are the hurt sound alone.
       this.sfx.play('hurt');
-      if (!spray) this.cry(m.victim);
+      if (!spray) this.cry(m.victim, 'hurt');
       this.damageFlash.flash();
       this.hearts.set(m.hearts);
     } else {
       this.avatars.get(m.victim)?.flash();
-      if (!spray) this.cry(m.victim);
+      if (!spray) this.cry(m.victim, 'hurt');
     }
     if (m.shooter === this.myId) {
       this.hud.hitMarker();
@@ -902,8 +902,8 @@ export class Game {
 
   // One of a player's lines in their own voice (voices.ts), `delay` seconds from now, from where
   // their head is, or the local player's own, from nowhere. False if their look has no such line.
-  // A death is the dying player's own, played by `die`.
-  private say(id: string, line: Exclude<Line, 'death'>, delay = 0): boolean {
+  // A death is the dying player's own, played by `die`, and a cry (at a hit, at a boost) is `cry`'s.
+  private say(id: string, line: 'enter' | 'kill', delay = 0): boolean {
     // An intro runs until its player takes another look, whose own takes its place if it has one.
     if (line === 'enter') this.sfx.hush(id);
     const said = this.line(id, line);
@@ -913,12 +913,11 @@ export class Game {
       this.sfx.soon(said.sound, said.at, undefined, id);
       return true;
     }
-    // Each line cuts its speaker's last. A boost's cry is a take of another line, at the cry's own volume.
-    const level = line === 'boost' ? levelAt(said.sound, BOOST_CRY) : 1;
-    if (this.sfx.play(said.sound, said.at, { delay, by: id, level })) return true;
+    // Each line cuts its speaker's last.
+    if (this.sfx.play(said.sound, said.at, { delay, by: id })) return true;
     // A kill line not here yet (lazy in SOUNDS, sent for in wantVoice) is played as it arrives.
-    if (line === 'kill') this.sfx.soon(said.sound, said.at, undefined, id);
-    return line === 'kill';
+    this.sfx.soon(said.sound, said.at, undefined, id);
+    return true;
   }
 
   // The take a player would say a line with and where from (null: the local player's own, from
@@ -960,13 +959,16 @@ export class Game {
     if (sent) this.wantVoice(command.avatar, true);
   }
 
-  // A player's cry at a hit. False if their look has none, or their last is still sounding: no
-  // cry starts before the one before it has run out, nor within CRY_GAP_MS of it.
-  private cry(id: string): boolean {
+  // A player's cry: at a hit, or as the kart they drive begins a boost. False if their look has
+  // none for it, or their last cry is still sounding: none starts before the one before it has run
+  // out, nor within CRY_GAP_MS of it, so boosts begun one on another are one cry. A boost's is a
+  // take of another line, at the cry's own volume.
+  private cry(id: string, line: 'hurt' | 'boost'): boolean {
     const now = performance.now();
     if (now < (this.criedOut.get(id) ?? 0)) return false;
-    const said = this.line(id, 'hurt');
-    if (!said || !this.sfx.play(said.sound, said.at, { by: id })) return false;
+    const said = this.line(id, line);
+    const level = said && line === 'boost' ? levelAt(said.sound, BOOST_CRY) : 1;
+    if (!said || !this.sfx.play(said.sound, said.at, { by: id, level })) return false;
     this.criedOut.set(id, now + Math.max(CRY_GAP_MS, this.sfx.seconds(said.sound) * 1000));
     return true;
   }
