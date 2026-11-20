@@ -65,6 +65,7 @@ import { Driving } from './Driving';
 import {
   ITEM_SOUNDS,
   KART_SOUNDS,
+  SPARK_RATE,
   heard,
   kartLoops,
   levelAt,
@@ -329,6 +330,7 @@ export class Game {
     this.driving = new Driving(this.engine);
     this.driving.onKnock = (at) => this.sfx.play(KART_SOUNDS.knock, at);
     this.driving.onBoost = (at) => this.sfx.play(KART_SOUNDS.boost, at);
+    this.driving.onSpark = (at, spark) => this.sfx.play(KART_SOUNDS.spark, at, { rate: SPARK_RATE[spark] });
     this.driving.onTrick = (at, driver) => {
       this.sfx.play(KART_SOUNDS.trick, at);
       if (driver) this.say(driver, 'trick');

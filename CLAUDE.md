@@ -1001,15 +1001,19 @@ quarter of its width at a time, up onto whatever is within a kerb's height of wh
 slope is climbed however fast it's taken and only a face taller than a kerb is a wall; and it
 leaves the ground at a lip, or over a crest it's going `LIFT` faster upward than the ground past
 it would carry it, whichever tick it crosses on; it reports how fast it ran into what it hit and
-how fast it came down when it lands. A drift is Space: a press hops it, and landing with the key held and the
-wheel over at speed it drifts that way, by the wheel from all but straight (held out of its way)
+how fast it came down when it lands. A drift is Space: a press hops it (`HOP`: 0.44 m up and down again in 0.42 s on the flat), and with the key held on the
+ground at speed the wheel going over begins a drift that way, as the hop lands or whenever it goes
+over after, by the wheel from all but straight (held out of its way)
 to tighter than any turn without one (held into it, `DRIFT_TURN`), a spark blue, yellow and
 purple at 1, 2.25 and 3.5 `miniTurboTime`s of it on the ground (`SPARKS`); let go on a spark, it's a
 mini-turbo, its top speed raised by half over `TURBO.rise`, held as long as the spark gives
 and let down over `TURBO.fall`, the kart slowing with it, so a boost is over when it says. A press in the air, off a ramp or a ledge but not its own hop (or
-every hop would be a boost), is a trick (`KartState.trick`), left or right the way the wheel is
-held, else either by where the kart is (so the driver's client predicts the same way), and landing
-after one is a boost like a mini-turbo's held for `TRICK.hold`; `turbo` is either, by how long it
+every hop would be a boost; a hop is up and back down to where it left the ground, so one taken off
+a ledge is in the air as off any once it's falling faster than a hop comes down), is a trick
+(`KartState.trick`), left or right the way the wheel is
+held, else either by where the kart is (so the driver's client predicts the same way); once a
+trick is through (`TRICK.seconds`) another press is another, as many as the flight has room for,
+and landing after any is one boost like a mini-turbo's held for `TRICK.hold`; `turbo` is either, by how long it
 holds.
 
 A room's karts are its `Garage` (`garage.ts`), which the Room steps and whose hurts it deals out,
@@ -1054,8 +1058,12 @@ draws one: its tires rolled by how far it went and the front pair steered, its s
 turned, the body tipped to the ground under its tires, all at its size, eased there; its files are
 sent for ahead (see Client loading), and it's drawn once they're here. Its body is sprung over its
 tires, so a hop reads as one: kicked up off them as it begins, the tires hanging under it in the
-air, driven down onto them as it lands, and leaning into the turn through the hop and, less, the
-drift. What it gives off is `render/vehicles/KartEffects.ts`, each made the first time the kart
+air, driven down onto them as hard as it lands, and leaning into the turn through the hop and,
+less, the drift; it's kicked again as its drift reaches each spark and as a boost begins, its nose
+up while the boost rises, and through a drift it's turned into the turn, its tail out, its driver
+with it. `KartMesh.update` says what it sees its kart begin from one frame to the next (`Began`:
+a hop, a landing, a trick, a boost, a spark, a knock), which its effects and `Driving`'s sounds
+go by, so nothing else keeps a kart's last state to compare. What it gives off is `render/vehicles/KartEffects.ts`, each made the first time the kart
 needs it: at each back tire, smoke through a drift (the grey "+"s of a poof, thickening up to the
 first spark, so something is seen building), and in the colour of the spark the drift has got to
 (blue, yellow, purple), electricity crackling at its base for as long as the spark is held (jagged
@@ -1101,7 +1109,8 @@ of its top speed, and no less than a quarter of how far its pedal is down, `Kart
 gas is heard the moment it's pressed): the idle, all but unheard except from its seat, and the
 running loop, a steady stretch of an engine played faster and slower by the revs (`setLoops`'
 `rate`) and louder with them. A drift on the ground is its skid, an onset and then a loop, kept
-quiet; a boost beginning is its rush (`Driving.onBoost`), a trick its chime, with its driver's cry
+quiet, and each spark the drift reaches a zap, a minor third higher than the last
+(`Driving.onSpark`, `SPARK_RATE`); a boost beginning is its rush (`Driving.onBoost`), a trick its chime, with its driver's cry
 if their look has one (`Driving.onTrick`, `VOICES`' `trick`), a knock that costs wrenches its crash
 (`Driving.onKnock`), and a kart blowing up its bang. The kart the player drives is heard flat and
 any other from where it is, and only those within earshot are played at all, so a room full of
@@ -1131,7 +1140,7 @@ wheel. Its hips go on the seat back as far as keeps its belly behind the wheel (
 hands a clip keeps on the wheel are closed on the kart's own grips (`Rig.grasp`), since MK8's
 wheels stand elsewhere. The driver files come whole in retexture mods (the script's docstring says
 which), the animations as the game has them.
-A trick (`Seat.trick`, timed by `KartMesh` from the press, `TRICK_SECONDS`, on through the landing)
+A trick (`Seat.trick`, timed by `KartMesh` from the press, `TRICK.seconds`, on through the landing)
 twirls the kart's drawn body a whole turn its way under its driver, the seat staying put: a
 jointed body plays its trick that way (`trickL`, `trickR`: MK8's trick that spins a whole turn
 that way, or the other way's mirrored, so it spins with the kart), and every other figure is

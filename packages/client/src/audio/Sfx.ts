@@ -21,6 +21,7 @@ import {
   type ItemId,
   type KartState,
   type Vec3,
+  type Spark,
 } from '@world/shared';
 
 // Safari's Audio Session API (iOS 17 and on), not yet in TypeScript's DOM types.
@@ -180,6 +181,7 @@ export type SoundId =
   | 'kart-drift'
   | 'kart-boost'
   | 'kart-trick'
+  | 'kart-spark'
   | 'kart-crash'
   | 'kart-boom'
   | 'land'
@@ -420,6 +422,7 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   },
   'kart-boost': { file: 'kart-boost.mp3', half: 10, reach: 60, volume: 0.12, fade: 0.6, lazy: true },
   'kart-trick': { file: 'kart-trick.mp3', half: 10, reach: 60, volume: 0.15, lazy: true },
+  'kart-spark': { file: 'kart-spark.mp3', half: 10, reach: 60, volume: 0.12, lazy: true },
   'kart-crash': { file: 'kart-crash.mp3', half: 10, reach: 60, volume: 0.3, lazy: true },
   'kart-boom': { file: 'kart-boom.mp3', half: 16, reach: 150, volume: 0.4, lazy: true },
   land: { file: 'land.mp3', half: 8, reach: 35, volume: 0.1 },
@@ -567,17 +570,22 @@ export const GEAR_SOUNDS: Record<GearId, { thrusting?: SoundId }> = {
   jetpack: { thrusting: 'jet' },
 };
 
-// What's heard of a kart: its engine idling and running, its drift, a boost beginning, a trick, a
-// knock that costs it wrenches (a wall, another kart, a shot), and its blowing up.
+// What's heard of a kart: its engine idling and running, its drift and the zap of each spark the
+// drift reaches, a boost beginning, a trick, a knock that costs it wrenches (a wall, another kart,
+// a shot), and its blowing up.
 export const KART_SOUNDS = {
   idle: 'kart-idle',
   running: 'kart-engine',
   drift: 'kart-drift',
+  spark: 'kart-spark',
   boost: 'kart-boost',
   trick: 'kart-trick',
   knock: 'kart-crash',
   boom: 'kart-boom',
 } satisfies Record<string, SoundId>;
+
+// How fast a spark's zap is played, blue, yellow and purple: each a minor third up on the last.
+export const SPARK_RATE: Record<Spark, number> = { 1: 1, 2: 1.19, 3: 1.41 };
 
 // A kart's engine. Its revs are its speed's share of its top speed (past 1 through a boost), and no
 // less than `pedal` of how far the pedal is down, so the gas is heard the moment it's pressed, before

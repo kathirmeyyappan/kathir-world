@@ -12,6 +12,7 @@ import { KARTS, SPARKS, sparkOf, type KartState, type Spark } from '@world/share
 import type { Engine } from '../Engine';
 import { FlameJet } from '../FlameJet';
 import { plusSprites, softDisc } from '../Poof';
+import type { Began } from './KartMesh';
 import type { KartModel } from './kartModel';
 
 // A particle's colour: as it's born, somewhere between `one` and `two`, and as it dies.
@@ -250,8 +251,6 @@ export class KartEffects {
   private sparks: Sparking[] | null = null; // each back tire's crackle, glow and flying sparks
   private flames: FlameJet[] | null = null; // a jet an exhaust pipe
   private twinkles: { burst: ParticleSystem; trail: ParticleSystem } | null = null; // a trick's
-  private spark: Spark | null = null; // the spark the drift had got to, as last drawn
-  private tricking = false; // it was in a trick, as last drawn
 
   // `ground` is the kart's node on the ground under its middle, tipped and sized with it, the frame
   // its smoke and sparks come out in; `body` what its body hangs from, which its flames go with.
@@ -263,8 +262,9 @@ export class KartEffects {
     private readonly model: KartModel,
   ) {}
 
-  // Its smoke, sparks, flames and twinkles as `kart` is this frame, `dt` seconds on from the last.
-  update(kart: KartState, dt: number): void {
+  // Its smoke, sparks, flames and twinkles as `kart` is this frame, `dt` seconds on from the last,
+  // with what it has `began` since.
+  update(kart: KartState, began: Began, dt: number): void {
     const spec = KARTS[kart.kart];
     const drifted = kart.drift && kart.grounded ? kart.drift.t : null; // seconds into a drift on the ground
     if (drifted !== null) this.smoke ??= this.makeSmoke();
@@ -272,14 +272,12 @@ export class KartEffects {
     for (const system of this.smoke ?? [])
       system.emitRate = drifted === null ? 0 : SMOKE.rate * (SMOKE.first + (1 - SMOKE.first) * built);
     const spark = drifted === null ? null : sparkOf(drifted, spec);
-    const reached = spark !== null && spark !== this.spark;
-    this.spark = spark;
     if (spark) this.sparks ??= this.makeSparks();
     for (const { system, rate, burst, tints } of this.sparks ?? []) {
       if (spark) ({ one: system.color1, two: system.color2, dead: system.colorDead } = tints[spark]);
       system.emitRate = spark ? rate : 0;
       // A count to give off at once stands in for the rate until it's taken back (-1).
-      system.manualEmitCount = reached && burst > 0 ? burst : -1;
+      system.manualEmitCount = began.spark && burst > 0 ? burst : -1;
     }
     if (kart.turbo) this.flames ??= this.makeFlames();
     for (const flame of this.flames ?? []) {
@@ -290,10 +288,9 @@ export class KartEffects {
     if (kart.trick) this.twinkles ??= this.makeTwinkles();
     if (this.twinkles) {
       // A count to give off at once stands in for the rate until it's taken back (-1).
-      this.twinkles.burst.manualEmitCount = kart.trick && !this.tricking ? TWINKLES.burst : -1;
+      this.twinkles.burst.manualEmitCount = began.trick ? TWINKLES.burst : -1;
       this.twinkles.trail.emitRate = kart.trick && kart.trick.t < TWINKLES.seconds ? TWINKLES.trail : 0;
     }
-    this.tricking = kart.trick !== null;
   }
 
   dispose(): void {
