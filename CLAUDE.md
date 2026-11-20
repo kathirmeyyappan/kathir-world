@@ -1251,7 +1251,7 @@ would keep it), holding what the player holds and as the player is (`Me`: froste
 dragon's crystals shot out, sat in the kart they drive), so every skin's own idle motion runs there too; the view turns on
 its own and under a drag, from above or below (the floor fades out as the view comes down to its
 level). The map (`menu/Map.ts`) is the HUD minimap's view, CLOSE, WIDE or WORLD (the first two
-centred on you and turning with you, 32 m and 100 m out to the nearer edge; P steps one wider, and
+centred on you and turning with you, 32 m and 100 m out to the nearer edge, WIDE to start with; P steps one wider, and
 from WORLD back to CLOSE), drawn by the same
 renderer (`ui/MapCanvas.ts`, which draws a `MinimapFrame` onto any canvas at the size it has; the
 HUD's `Minimap` is a panel round one, and keeps the view and the latest frame for the menu's),
