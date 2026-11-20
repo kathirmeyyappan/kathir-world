@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { gunzipSync } from 'node:zlib';
 import { bodiesMapSource, groundMapSource, movesMapSource } from '../src/sim/botMap';
-import { climb, gap, layRoad, level, padded } from '../src/sim/roads';
+import { climb, gap, layRoad, level, padded, span } from '../src/sim/roads';
 import {
   CHILL_SECONDS,
   CHILLED_SPEED_MULTIPLIER,
@@ -177,6 +177,24 @@ test("a road's boost pad lies a hair over its stretch, level or climbing, short 
       [6, 0],
     ],
   );
+});
+
+test("a road's open stretch is a deck with the floor clear under it, and isn't laid without headroom", () => {
+  // North 100 m: up `rise` over 30 m, 20 m of deck, and back down.
+  const over = (rise: number) =>
+    layRoad({
+      name: 'test',
+      from: { x: 0, z: 0 },
+      width: 20,
+      runs: [{ to: { x: 0, z: 100 }, stretches: [level(10), climb(30, rise), span(20), climb(30, -rise), level()] }],
+    });
+  const road = over(8);
+  const structures = new Structures(road.bank, new Ground(road.floor));
+  assert.equal(structures.groundAt(0, 50, 50), 8, "the deck's top");
+  assert.equal(structures.groundAt(0, 50, 6), 0, 'the floor under it');
+  assert.ok(structures.fits(0, 50, 0, 4, 5), 'room for what passes beneath');
+  assert.equal(road.marks.filter((mark) => mark.kind === 'span').length, 1);
+  assert.throws(() => over(3), /deck/);
 });
 
 test('jump only from the ground, and gravity brings you back', () => {
