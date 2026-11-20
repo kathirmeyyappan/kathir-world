@@ -32,7 +32,9 @@ export interface Stretch {
   length?: number; // metres; left out, an even share of what the run's other stretches leave of it
   rise?: number; // metres the road climbs along it, or drops (negative); none, it runs level
   gap?: boolean; // no floor and no bank: the road carries on past it at the height it left at
-  open?: boolean; // level, up off the floor: a deck with nothing under it, where a bank would wall off what passes beneath
+  // Up off the floor: a deck with nothing under it, where a bank would wall off what passes
+  // beneath. One that climbs is flat underneath, so thicker toward its high end.
+  open?: boolean;
   pad?: boolean; // a boost pad lies along it
 }
 
@@ -318,8 +320,8 @@ function legsOf(spec: RoadSpec): Leg[] {
       } else {
         const to = snapped(height + (s.rise ?? 0));
         if (to < 0) throw bad(`run ${i} drops below the floor`);
-        if (s.open && (s.rise || height < DECK + HEADROOM))
-          throw bad(`a deck in run ${i} isn't level with ${HEADROOM} m clear under it`);
+        if (s.open && Math.min(height, to) < DECK + HEADROOM)
+          throw bad(`a deck in run ${i} hasn't ${HEADROOM} m clear under it`);
         const [open, pad] = [s.open ?? false, s.pad ?? false];
         legs.push({ kind: 'straight', run: i, a: point(at), b: point(at + d), from: height, to, open, pad });
         height = to;

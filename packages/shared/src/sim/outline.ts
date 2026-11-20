@@ -91,11 +91,21 @@ const SOUTHWEST_BEND: Point = { x: -660, z: -250 };
 const SOUTH_BEND: Point = { x: -300, z: -420 };
 const NORTHEAST_BEND: Point = { x: 190, z: 340 };
 const SOUTHEAST_BEND: Point = { x: 190, z: -340 };
-// The corners the roads up on decks sweep round: the skyway's, a little out toward the Krusty
-// Krab; the high road's, over the northwest spoke; and the flyover's, over the southwest one.
-const SKYWAY_BEND: Point = { x: -205, z: 0 };
-const HIGH_BEND: Point = { x: -440, z: 195 };
-const FLYOVER_BEND: Point = { x: -440, z: -195 };
+// The corners the roads up on decks turn at, one way and then the other: the skyway's three, the
+// middle one over the Krusty Krab's road (it leaves both its islands on their east, clear of the
+// ring's roads to the crossroads), and the high road's two, the second over the northwest spoke
+// (and into its island clear of the ring's road there). The flyover's are the high road's across
+// the west road from it, the second over the southwest spoke.
+const SKYWAY_BENDS: [Point, Point, Point] = [
+  { x: -215, z: 90 },
+  { x: -260, z: 0 },
+  { x: -215, z: -90 },
+];
+const HIGH_BENDS: [Point, Point] = [
+  { x: -580, z: 150 },
+  { x: -393, z: 154 },
+];
+const FLYOVER_BENDS = HIGH_BENDS.map(({ x, z }) => ({ x, z: -z })) as [Point, Point];
 // A disc of floor beside a straight of road from a to b, lapping onto it: `along` of the way, `r`
 // across, on the road's left (1) or its right (-1) as it runs. A place to pull off.
 const layBy = (a: Point, b: Point, along: number, side: 1 | -1, r: number): Disc => {
@@ -110,7 +120,7 @@ const LAY_BYS: Disc[] = [
   layBy(WEST_ISLAND, SOUTHWEST_BEND, 0.35, 1, 16),
   layBy(ROAD_PLATEAU, WEST_ISLAND, 0.5, 1, 18),
   layBy(ROAD_PLATEAU, NORTHWEST_ISLAND, 0.8, 1, 16),
-  layBy(ROAD_PLATEAU, SOUTHWEST_ISLAND, 0.42, -1, 16),
+  layBy(ROAD_PLATEAU, SOUTHWEST_ISLAND, 0.55, -1, 16),
   layBy(SOUTHEAST_BEND, SOUTH_ISLAND, 0.2, -1, 18),
   layBy(NORTHEAST_BEND, EAST_ISLAND, 0.25, 1, 18),
 ];
@@ -171,8 +181,32 @@ const crest = (up: number, rise: number, down: number, top?: number): Stretch[] 
 // one down to just clear of the other's, each with a few metres of level bank at its top for the
 // deck to land on. All between is deck.
 const DECK = { rise: 9, ramp: 60, landing: 6, clear: 2 };
-const lift = (from: Disc): Stretch[] => [level(from.r + DECK.clear), climb(DECK.ramp, DECK.rise), level(DECK.landing)];
-const land = (to: Disc): Stretch[] => [level(DECK.landing), climb(DECK.ramp, -DECK.rise), level(to.r + DECK.clear)];
+const lift = (from: Disc, rise = DECK.rise, ramp = DECK.ramp): Stretch[] => [
+  level(from.r + DECK.clear),
+  climb(ramp, rise),
+  level(DECK.landing),
+];
+const land = (to: Disc, from = DECK.rise, ramp = DECK.ramp): Stretch[] => [
+  level(DECK.landing),
+  climb(ramp, -from),
+  level(to.r + DECK.clear),
+];
+// A length of deck that climbs, or drops.
+const slope = (length: number, rise: number): Stretch => ({ ...span(length), rise });
+// The high road's runs, and the flyover's: up from the west island, round one way, a pad and a rise
+// and a longer fall along the straight between, round the other way lower down, over a spoke,
+// and down to `to`.
+const overWest = ([a, b]: [Point, Point], to: Disc): Parameters<typeof layRoad>[0]['runs'] => [
+  { to: a, radius: 110, open: true, pads: [0.5], stretches: [...lift(WEST_ISLAND), span()] },
+  {
+    to: b,
+    radius: 250,
+    open: true,
+    pads: [0.5],
+    stretches: [span(10), padded(span(10)), slope(30, 4), span(), slope(35, -5), span(10)],
+  },
+  { to, stretches: [span(), ...land(to, 8)] },
+];
 const [HOUSE_GROUNDS, KEEP_2_GROUNDS, KEEP_3_GROUNDS, KEEP_4_GROUNDS] = BUILDING_GROUNDS;
 const road = (name: string, from: Point, runs: Parameters<typeof layRoad>[0]['runs']): Road =>
   layRoad({ name, from, width: ROAD_WIDTH, runs });
@@ -220,12 +254,10 @@ const WEB: Road[] = [
     { to: NORTHWEST_ISLAND, stretches: [level(95), padded(level(10)), level(120), ...crest(40, 5, 40, 30), level()] },
   ]),
   // Its kicker well short of where the flyover's deck crosses over it, so nothing flown off it
-  // comes up under the deck.
+  // Its kicker well past where the flyover's deck crosses over it, so nothing flown off it either
+  // way comes up under the deck.
   road('southwest spoke', ROAD_PLATEAU, [
-    {
-      to: SOUTHWEST_ISLAND,
-      stretches: [level(60), ...kicker(), level(40), padded(level(10)), level(110), padded(level(10)), level()],
-    },
+    { to: SOUTHWEST_ISLAND, stretches: [level(70), padded(level(10)), level(140), ...kicker(), level()] },
   ]),
   road('inner north', NORTH_ISLAND, [{ to: INNER_NORTH, stretches: [...early(NORTH_ISLAND), ...hump(3), level()] }]),
   road('inner northwest', INNER_NORTH, [
@@ -233,32 +265,17 @@ const WEB: Road[] = [
   ]),
   road('inner southwest', ROAD_PLATEAU, [{ to: INNER_SOUTH, stretches: [level(), ...hop(), level()] }]),
   road('inner south', INNER_SOUTH, [{ to: SOUTH_ISLAND, stretches: [level(), ...kicker(), level()] }]),
+  // Up to 8 m in the room its short ends leave, then three tight bends, east, west and east again,
+  // dipping to the middle one, over the Krusty Krab's road, and climbing away from it; a pad on
+  // each straight between.
   road('skyway', INNER_NORTH, [
-    { to: SKYWAY_BEND, radius: 400, open: true, pads: [0.25, 0.75], stretches: [...lift(INNER_NORTH), span()] },
-    { to: INNER_SOUTH, stretches: [span(), ...land(INNER_SOUTH)] },
+    { to: SKYWAY_BENDS[0], radius: 60, open: true, stretches: [...lift(INNER_NORTH, 8, 52), span()] },
+    { to: SKYWAY_BENDS[1], radius: 60, open: true, stretches: [span(), padded(span(10)), slope(20, -2)] },
+    { to: SKYWAY_BENDS[2], radius: 60, open: true, stretches: [slope(20, 2), padded(span(10)), span()] },
+    { to: INNER_SOUTH, stretches: [span(), ...land(INNER_SOUTH, 8, 52)] },
   ]),
-  // The high road and the flyover are each other's mirror, a pad on the deck's straight and two
-  // round its sweep.
-  road('high road', WEST_ISLAND, [
-    {
-      to: HIGH_BEND,
-      radius: 240,
-      open: true,
-      pads: [0.3, 0.8],
-      stretches: [...lift(WEST_ISLAND), span(20), padded(span(10)), span()],
-    },
-    { to: INNER_NORTH, stretches: [span(), ...land(INNER_NORTH)] },
-  ]),
-  road('flyover', WEST_ISLAND, [
-    {
-      to: FLYOVER_BEND,
-      radius: 240,
-      open: true,
-      pads: [0.3, 0.8],
-      stretches: [...lift(WEST_ISLAND), span(20), padded(span(10)), span()],
-    },
-    { to: INNER_SOUTH, stretches: [span(), ...land(INNER_SOUTH)] },
-  ]),
+  road('high road', WEST_ISLAND, overWest(HIGH_BENDS, INNER_NORTH)),
+  road('flyover', WEST_ISLAND, overWest(FLYOVER_BENDS, INNER_SOUTH)),
 ];
 const REACHES: Road[] = [
   road("world's end", WEST_ISLAND, [{ to: WORLDS_END, stretches: [level(45), ...kicker(), level()] }]),

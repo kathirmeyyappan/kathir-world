@@ -4,12 +4,13 @@
 // the pad does and running that way, and it glows (Engine.glow): a halo of its own colours, which
 // swells and falls. Drawn only: the frame's rim is nothing to the sim, and a tire sinks into it
 // unseen, as into the floor's kerb.
-// Each pad is two small meshes, streamed in by the loader like whatever else stands somewhere, and
-// every pad shares the scene's two materials and its one painted texture.
+// A road's pads are streamed in together by the loader, like whatever else stands somewhere: their
+// frames one mesh, and a panel each, since a panel's halo is as bright as the fog leaves that panel
+// (Engine.glow, by its mesh). Every pad shares the scene's two materials and its one painted texture.
 import { Color3, DynamicTexture, Mesh, StandardMaterial, Texture, type Scene, type VertexData } from '@babylonjs/core';
 import type { Pad } from '@world/shared';
 import type { Engine } from './Engine';
-import type { Loader } from './Loader';
+import { around, type Loader } from './Loader';
 import { perScene } from './perScene';
 import { Quads, flipped, type Vec } from './Quads';
 
@@ -80,23 +81,30 @@ function paintLane(ctx: CanvasRenderingContext2D): void {
   }
 }
 
-export function buildBoostPads(engine: Engine, pads: readonly Pad[], loader: Loader): void {
+export function buildBoostPads(engine: Engine, roads: readonly (readonly Pad[])[], loader: Loader): void {
   const scene = engine.scene;
-  pads.forEach((pad, i) => {
+  roads.forEach((pads, i) => {
     let meshes: Mesh[] = [];
     loader.add({
-      x: (pad.ax + pad.bx) / 2,
-      z: (pad.az + pad.bz) / 2,
-      r: Math.hypot(pad.bx - pad.ax, pad.bz - pad.az) / 2 + pad.halfWidth,
+      ...around(
+        pads.map((pad) => ({
+          x: (pad.ax + pad.bx) / 2,
+          z: (pad.az + pad.bz) / 2,
+          r: Math.hypot(pad.bx - pad.ax, pad.bz - pad.az) / 2 + pad.halfWidth,
+        })),
+      ),
       load: function* () {
         const looks = looksIn(scene);
-        const { panel, frame } = shapes(pad);
-        meshes = [
-          made(scene, `boost-pad-${i}`, panel, looks.panel),
-          made(scene, `boost-pad-${i}-frame`, frame, looks.frame),
-        ];
-        engine.glow(meshes[0]);
-        yield;
+        const frames = new Quads();
+        for (const [k, pad] of pads.entries()) {
+          const laid = lay(pad);
+          const panel = made(scene, `boost-pad-${i}-${k}`, panelOf(laid), looks.panel);
+          engine.glow(panel);
+          meshes.push(panel);
+          frame(frames, laid);
+          yield;
+        }
+        meshes.push(made(scene, `boost-pad-${i}-frames`, frames.data(), looks.frame));
       },
       // The meshes alone: what they're drawn with is the scene's, and kept.
       unload: () => {
@@ -116,11 +124,21 @@ function made(scene: Scene, name: string, data: VertexData, material: StandardMa
   return mesh;
 }
 
-// A pad's panel and its frame, where they stand in the world.
-function shapes(pad: Pad): { panel: VertexData; frame: VertexData } {
+// A pad as it lies in the world: its own axes (across it to the right of the way it points, along
+// it, and square up off it), how long it is and half how wide, and the spot `x` across it from its
+// middle line, `s` along it from its start and `n` up off it.
+interface Laid {
+  across: Vec;
+  along: Vec;
+  up: Vec;
+  length: number;
+  half: number;
+  at: (x: number, s: number, n: number) => Vec;
+}
+
+function lay(pad: Pad): Laid {
   const a: Vec = [pad.ax, pad.ay, pad.az];
   const length = Math.hypot(pad.bx - pad.ax, pad.by - pad.ay, pad.bz - pad.az);
-  // The pad's own axes: across it to the right of the way it points, along it, and square up off it.
   const along: Vec = [(pad.bx - pad.ax) / length, (pad.by - pad.ay) / length, (pad.bz - pad.az) / length];
   const flat = Math.hypot(along[0], along[2]);
   const across: Vec = [along[2] / flat, 0, -along[0] / flat];
@@ -130,9 +148,11 @@ function shapes(pad: Pad): { panel: VertexData; frame: VertexData } {
     a[1] + across[1] * x + along[1] * s + up[1] * n,
     a[2] + across[2] * x + along[2] * s + up[2] * n,
   ];
-  const half = pad.halfWidth;
+  return { across, along, up, length, half: pad.halfWidth, at };
+}
 
-  // The panel: whole lanes across it, however wide it is.
+// A pad's panel: whole lanes across it, however wide it is.
+function panelOf({ at, up, length, half }: Laid): VertexData {
   const lanes = Math.max(1, Math.round((2 * half) / LANE));
   const runs = length / RUN;
   const panel = new Quads();
@@ -144,24 +164,25 @@ function shapes(pad: Pad): { panel: VertexData; frame: VertexData } {
       [0, runs],
     ],
   });
+  return panel.data();
+}
 
-  // The frame: a bar down each side and one across each end, each a block from down in the road
-  // up to proud of the panel: its top and its four sides.
-  const frame = new Quads();
+// A pad's frame, added to `quads`: a bar down each side and one across each end, each a block from
+// down in the road up to proud of the panel: its top and its four sides.
+function frame(quads: Quads, { at, across, along, up, length, half }: Laid): void {
   const bar = ([x0, x1]: [number, number], [s0, s1]: [number, number]) => {
     const [n0, n1] = [-FRAME.down, FRAME.proud];
-    frame.add([at(x0, s0, n1), at(x1, s0, n1), at(x1, s1, n1), at(x0, s1, n1)], up, { colour: STEEL.top });
-    frame.add([at(x1, s0, n0), at(x1, s0, n1), at(x1, s1, n1), at(x1, s1, n0)], across, { colour: STEEL.side });
-    frame.add([at(x0, s0, n0), at(x0, s0, n1), at(x0, s1, n1), at(x0, s1, n0)], flipped(across), {
+    quads.add([at(x0, s0, n1), at(x1, s0, n1), at(x1, s1, n1), at(x0, s1, n1)], up, { colour: STEEL.top });
+    quads.add([at(x1, s0, n0), at(x1, s0, n1), at(x1, s1, n1), at(x1, s1, n0)], across, { colour: STEEL.side });
+    quads.add([at(x0, s0, n0), at(x0, s0, n1), at(x0, s1, n1), at(x0, s1, n0)], flipped(across), {
       colour: STEEL.side,
     });
-    frame.add([at(x0, s1, n0), at(x0, s1, n1), at(x1, s1, n1), at(x1, s1, n0)], along, { colour: STEEL.end });
-    frame.add([at(x0, s0, n0), at(x0, s0, n1), at(x1, s0, n1), at(x1, s0, n0)], flipped(along), { colour: STEEL.end });
+    quads.add([at(x0, s1, n0), at(x0, s1, n1), at(x1, s1, n1), at(x1, s1, n0)], along, { colour: STEEL.end });
+    quads.add([at(x0, s0, n0), at(x0, s0, n1), at(x1, s0, n1), at(x1, s0, n0)], flipped(along), { colour: STEEL.end });
   };
   const out = half + FRAME.across;
   bar([-out, -half], [-FRAME.across, length + FRAME.across]);
   bar([half, out], [-FRAME.across, length + FRAME.across]);
   bar([-half, half], [-FRAME.across, 0]);
   bar([-half, half], [length, length + FRAME.across]);
-  return { panel: panel.data(), frame: frame.data() };
 }
