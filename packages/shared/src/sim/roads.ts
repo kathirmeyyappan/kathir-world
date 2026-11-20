@@ -9,9 +9,10 @@
 // a boost pad lying along it: to the sim a thin hidden piece whose surface boosts a kart
 // (surfaces.ts `boost`), which the client draws as a panel (render/BoostPads.ts).
 //
-// A bank looks one of two ways. Under a padded stretch it's a ramp built on the floor, of stone.
-// Anywhere else it's the floor itself risen: its pieces are hidden, and the client draws the road
-// there with the floor's own look (`Raised`, render/RaisedGround.ts).
+// A bank looks one of two ways. Under a padded stretch that climbs it's a ramp built on the floor,
+// of stone. Anywhere else it's the floor itself risen: its pieces are hidden, and the client draws
+// the road there with the floor's own look (`Raised`, render/RaisedGround.ts), a pad lying on it
+// where a level stretch up off the floor has one.
 //
 // A road is authored as runs (the world's are in outline.ts): each a straight to its point, cut
 // into stretches end to end, and the bend it takes round that point into the next. `layRoad`
@@ -197,8 +198,9 @@ export function layRoad(spec: RoadSpec): Road {
     const rise = Math.abs(leg.to - leg.from);
     // Its low end and its high one; a level stretch's are the way the road runs.
     const [foot, top] = leg.from <= leg.to ? [a, b] : [b, a];
-    // A padded stretch's bank is a ramp built there; any other is the floor risen.
-    const looked = leg.pad ? (piece: Structure) => piece : risen;
+    // A padded climb's bank is a ramp built there; any other is the floor risen.
+    const built = leg.pad && rise > 0;
+    const looked = built ? (piece: Structure) => piece : risen;
     const base = leg.open ? low - DECK : 0; // what its bank stands on: the floor, or for a deck its own underside
     if (low > 0) {
       const whole = block(moved(a, before ? -LAP : 0), moved(b, after ? LAP : 0), width, low);
@@ -209,7 +211,7 @@ export function layRoad(spec: RoadSpec): Road {
       road.bank.push(looked({ ...ramp(foot, top, rise, width, low), material: BANK }));
       road.marks.push({ kind: 'slope', ax: foot.x, az: foot.z, bx: top.x, bz: top.z, halfWidth: half });
     }
-    if (!leg.pad && low + rise > 0) {
+    if (!built && low + rise > 0) {
       const [ay, by] = [leg.from, leg.to];
       road.raised.push({
         kind: 'straight',

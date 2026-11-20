@@ -158,6 +158,11 @@ const hill = (up: number, rise: number, down: number, top?: number): Stretch[] =
   level(top),
   climb(down, -rise),
 ];
+// A hill with a boost pad across the middle of its top.
+const crest = (up: number, rise: number, down: number, top?: number): Stretch[] => {
+  const side = top === undefined ? undefined : (top - 10) / 2;
+  return [climb(up, rise), level(side), padded(level(10)), level(side), climb(down, -rise)];
+};
 // A road that goes over others is up on a deck for the whole sweep it crosses them in: a ramp up
 // to the deck's height before its first bend and one down after its last, each with a few metres
 // of level bank at its top for the deck to land on.
@@ -170,7 +175,7 @@ const road = (name: string, from: Point, runs: Parameters<typeof layRoad>[0]['ru
 
 const CIRCUIT: Road[] = [
   road('circuit north', KEEP_2_GROUNDS, [
-    { to: { x: -150, z: 180 }, radius: 70, stretches: [level(45), climb(45, 6), level()] },
+    { to: { x: -150, z: 180 }, radius: 70, stretches: [level(45), climb(45, 6), level(), padded(level(10))] },
     { to: NORTH_ISLAND, stretches: [level(30), climb(28, -6), ...dash()] },
   ]),
   road('circuit northwest', NORTH_ISLAND, [
@@ -178,8 +183,8 @@ const CIRCUIT: Road[] = [
     { to: NORTHWEST_ISLAND, stretches: [level(), ...hop(), ...dash()] },
   ]),
   road('circuit west, north', NORTHWEST_ISLAND, [
-    { to: NORTHWEST_BEND, radius: 110, stretches: [...dash(), ...hump(4), level()] },
-    { to: WEST_ISLAND, stretches: [level(30), ...hill(60, 8, 40), level(40)] },
+    { to: NORTHWEST_BEND, radius: 110, stretches: [...dash(), ...hump(4), ...dash()] },
+    { to: WEST_ISLAND, stretches: [level(30), ...crest(60, 8, 40), level(40)] },
   ]),
   road('circuit west, south', WEST_ISLAND, [
     { to: SOUTHWEST_BEND, radius: 110, stretches: [level(), ...kicker(), ...dash()] },
@@ -196,56 +201,59 @@ const CIRCUIT: Road[] = [
 ];
 const WEB: Road[] = [
   road('west', ROAD_PLATEAU, [
-    { to: WEST_ISLAND, stretches: [level(60), ...kicker(), ...dash(), ...hill(45, 7, 45, 30), level(60)] },
+    { to: WEST_ISLAND, stretches: [level(60), ...kicker(), ...dash(), ...crest(45, 7, 45, 30), level(60)] },
   ]),
   // Level where the high road's deck crosses over it, its hill beyond.
   road('northwest spoke', ROAD_PLATEAU, [
-    { to: NORTHWEST_ISLAND, stretches: [level(95), padded(level(10)), level(120), ...hill(40, 5, 40, 30), level()] },
+    { to: NORTHWEST_ISLAND, stretches: [level(95), padded(level(10)), level(120), ...crest(40, 5, 40, 30), level()] },
   ]),
   // Its kicker well short of where the flyover's deck crosses over it, so nothing flown off it
   // comes up under the deck.
   road('southwest spoke', ROAD_PLATEAU, [
-    { to: SOUTHWEST_ISLAND, stretches: [level(60), ...kicker(), level(40), padded(level(10)), level()] },
+    {
+      to: SOUTHWEST_ISLAND,
+      stretches: [level(60), ...kicker(), level(40), padded(level(10)), level(110), padded(level(10)), level()],
+    },
   ]),
   road('inner north', NORTH_ISLAND, [{ to: INNER_NORTH, stretches: [...dash(), ...hump(3), level()] }]),
-  road('inner northwest', INNER_NORTH, [{ to: ROAD_PLATEAU, stretches: [...dash(), ...hill(40, 6, 40), level()] }]),
+  road('inner northwest', INNER_NORTH, [{ to: ROAD_PLATEAU, stretches: [...dash(), ...crest(40, 6, 40), level()] }]),
   road('inner southwest', ROAD_PLATEAU, [{ to: INNER_SOUTH, stretches: [level(), ...hop(), level()] }]),
   road('inner south', INNER_SOUTH, [{ to: SOUTH_ISLAND, stretches: [level(), ...kicker(), level()] }]),
   road('skyway', INNER_NORTH, [
-    { to: SKYWAY_BEND, radius: 400, open: true, stretches: [level(), ...up()] },
-    { to: INNER_SOUTH, stretches: [...down(), level()] },
+    { to: SKYWAY_BEND, radius: 400, open: true, stretches: [level(34), padded(level(10)), level(), ...up()] },
+    { to: INNER_SOUTH, stretches: [...down(), level(), padded(level(10)), level(34)] },
   ]),
   road('high road', WEST_ISLAND, [
-    { to: HIGH_BEND, radius: 240, open: true, stretches: [...dash(), ...up()] },
-    { to: INNER_NORTH, stretches: [...down(), level()] },
+    { to: HIGH_BEND, radius: 240, open: true, stretches: [...dash(), padded(level(10)), ...up()] },
+    { to: INNER_NORTH, stretches: [...down(), level(), padded(level(10)), level(34)] },
   ]),
   road('flyover', WEST_ISLAND, [
-    { to: FLYOVER_BEND, radius: 240, open: true, stretches: [level(45), ...up(), span()] },
-    { to: INNER_SOUTH, stretches: [...down(), level()] },
+    { to: FLYOVER_BEND, radius: 240, open: true, stretches: [level(45), ...up(), span(), padded(span(10)), span()] },
+    { to: INNER_SOUTH, stretches: [...down(), level(), padded(level(10)), level(34)] },
   ]),
 ];
 const REACHES: Road[] = [
   road("world's end", WEST_ISLAND, [{ to: WORLDS_END, stretches: [level(45), ...kicker(), level()] }]),
   road('north lookout', NORTHWEST_ISLAND, [
-    { to: NORTH_LOOKOUT, stretches: [level(), ...hill(35, 6, 35, 20), level()] },
+    { to: NORTH_LOOKOUT, stretches: [level(), ...crest(35, 6, 35, 20), level()] },
   ]),
   road('south lookout', SOUTHWEST_ISLAND, [{ to: SOUTH_LOOKOUT, stretches: [level(), ...hop(), level(34)] }]),
 ];
 const EAST: Road[] = [
   road('east, north', NORTH_ISLAND, [
     { to: NORTHEAST_BEND, radius: 150, stretches: [...dash(), ...hump(4), ...dash()] },
-    { to: EAST_ISLAND, stretches: [...dash(), ...hill(60, 8, 60, 40), level(60)] },
+    { to: EAST_ISLAND, stretches: [...dash(), ...crest(60, 8, 60, 40), level(60)] },
   ]),
   road('east, south', EAST_ISLAND, [
     { to: SOUTHEAST_BEND, radius: 150, stretches: [level(), ...kicker(), ...dash()] },
-    { to: SOUTH_ISLAND, stretches: [level(), ...hop(), ...dash()] },
+    { to: SOUTH_ISLAND, stretches: [level(20), padded(level(10)), level(), ...hop(), ...dash()] },
   ]),
   // Their pads at the far end from the building each leaves, so none drives a kart into one.
   road('tower east', ANNEX, [
     { to: EAST_ISLAND, stretches: [level(45), ...hill(40, 5, 40), level(10), padded(level(10)), level(35)] },
   ]),
   road('house north', HOUSE_GROUNDS, [
-    { to: NORTH_ISLAND, stretches: [level(85), ...hill(40, 6, 40), padded(level(10)), level(50)] },
+    { to: NORTH_ISLAND, stretches: [level(85), ...crest(40, 6, 40), padded(level(10)), level(50)] },
   ]),
   road('keep 4 south', KEEP_4_GROUNDS, [
     { to: { x: KEEP_4_GROUNDS.x, z: SOUTH_ISLAND.z }, stretches: [level(60), ...hump(3), ...dash()] },

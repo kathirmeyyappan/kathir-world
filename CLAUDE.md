@@ -308,11 +308,11 @@ wire: server and client both build the world from that file.
   `worldTop: true` on them so their tops map alike. The same goes for anything else the client
   draws: never lay a decal, glow or second mesh exactly on a surface.
 - Client cost: the renderer merges pieces with the same look in the same 48 m square into one mesh,
-  so draw calls stay in the tens however many pieces there are. The world's 13,527 pieces (5,642
+  so draw calls stay in the tens however many pieces there are. The world's 13,561 pieces (5,642
   drawn; the house's rooms and shell are 7,516 hidden pieces, the Krusty Krab 175 and the roads'
-  194: their risen banks, their decks and their boost pads) render as
+  228: their risen banks, their decks and their boost pads) render as
   about 100 meshes (about 15 in view at once; the roads' built ramps are 24 pieces in 17 of them, each
-  of their 60 lengths of risen road is a small mesh of its own and each of their 47 boost pads two, and
+  of their 77 lengths of risen road is a small mesh of its own and each of their 64 boost pads two, and
   the floor is 275 chunks), and a raycast tries the pieces a stretch of grid cells at a
   time, so one across open floor costs a few µs, one through the Krusty Krab about 10 µs and one
   through the house about 130 µs. The sim's grid has height bands as well as cells, so a walker's
@@ -330,8 +330,9 @@ block under one that runs level up off the floor, each a `SHOULDER` in from the 
 sides rise out of the kerb, or where the stretch is `open` (`span`) a deck `DECK` thick with
 nothing under it, for another road to pass beneath (level, with `HEADROOM` clear under it, or the
 road won't lay). A bend up off the floor is level: on a bank, or with its run `open` a deck the
-same, so a road can go over others the whole sweep of a bend. A bank looks one of two ways: under a padded stretch it's a ramp built
-on the floor, of stone, drawn as the structures it is; anywhere else it's the floor itself risen,
+same, so a road can go over others the whole sweep of a bend. A bank looks one of two ways: under a padded stretch that climbs it's a ramp built
+on the floor, of stone, drawn as the structures it is; anywhere else (a level stretch up off the
+floor with a pad lying on it too) it's the floor itself risen,
 its pieces `hidden`, and the client draws the road there in the floor's own look
 (`render/RaisedGround.ts`, from the road's `raised`, `ROAD_RAISED`: the grid carried on up over
 what faces up with a bold green line down each side, and walls of the drop's grey face with a bold
@@ -380,7 +381,9 @@ foot) with a pad on the ramp either side of it (`hop`), so a kart that rolls ont
 slowly leaves the lip boosted, about 1.4 s in the air, time for a trick, and comes down some 20 m
 past the far ramp's foot (so keep 50 m of straight road past a jump; a `kicker` is a hill as
 steep with a pad up each side, flown off the same with floor under the whole flight; a `dash` is
-a level straight with a pad across its middle, as the long ones have), a bend of
+a level straight with a pad across its middle and a `crest` a hill with one across its top: a
+straight has a pad every 100 to 170 m or so, on the flat, on a hill's top, before a deck's ramp,
+and a bend has none, so there's road to drift and road at a kart's own speed between boosts), a bend of
 60 m or more, taken flat out, and where one road crosses another between islands, a deck over it,
 the whole sweep it crosses in (`up` and `down`: a ramp to 9 m at either end of the deck, on the
 straights, since a bend doesn't climb). A slope's top a sixth or more steeper than what
