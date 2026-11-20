@@ -166,13 +166,14 @@ export class KartMesh {
   private droop = 0; // metres its tires hang under it
   private lean = { roll: 0, nose: 0, slip: 0 }; // radians it leans into a hop or a drift, lifts its nose, and is turned into a drift
   // Its kart as last drawn, to see what it has begun since: in its hop, on the ground, m/s it was
-  // falling at, the seconds into its trick, in a boost, the spark its drift had, its wrenches.
+  // falling at, the seconds into its trick, the boosts it had begun, the spark its drift had, its
+  // wrenches.
   private was: {
     hop: boolean;
     grounded: boolean;
     fall: number;
     trick: number | null;
-    boost: boolean;
+    boosts: number;
     spark: Spark | null;
     wrenches: number;
   } | null = null;
@@ -258,7 +259,7 @@ export class KartMesh {
       grounded: kart.grounded,
       fall: -kart.vel.y,
       trick: kart.trick?.t ?? null,
-      boost: kart.turbo !== null,
+      boosts: kart.boosts,
       spark: kart.drift && sparkOf(kart.drift.t, KARTS[kart.kart]),
       wrenches: kart.wrenches,
     };
@@ -268,7 +269,7 @@ export class KartMesh {
       hop: now.hop && !was.hop,
       landing: now.grounded && !was.grounded ? Math.max(was.fall, 0) : 0,
       trick: now.trick !== null && (was.trick === null || now.trick < was.trick),
-      boost: now.boost && !was.boost,
+      boost: now.boosts > was.boosts,
       spark: now.spark !== was.spark ? now.spark : null,
       knock: now.wrenches < was.wrenches,
     };

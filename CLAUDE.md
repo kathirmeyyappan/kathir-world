@@ -1059,7 +1059,9 @@ late, boosting at once. A boost pad (a footing whose
 surface `boosts`, see Roads) under a kart rolling forward is a boost too: held at full for as long
 as the kart is on it, the pad pushing it on as the gas would whatever its pedal, and for `PAD.hold`
 after it leaves, unless the boost it came with has longer left; one parked on a pad is let be.
-`turbo` is any of them, by how long it holds.
+`turbo` is any of them, by how long it holds, and `boosts` counts each as it begins (a pad's as the
+kart rolls onto it, `KartState.pad`), so one begun while another still holds is seen to begin
+like any.
 
 A room's karts are its `Garage` (`garage.ts`), which the Room steps and whose hurts it deals out,
 and every client is sent them (`karts` in `welcome` and `snap`, each a `Kart`: its `KartState`,
@@ -1155,8 +1157,8 @@ gas is heard the moment it's pressed): the idle, all but unheard except from its
 running loop, a steady stretch of an engine played faster and slower by the revs (`setLoops`'
 `rate`) and louder with them. A drift on the ground is its skid, an onset and then a loop, kept
 quiet, and each spark the drift reaches a zap, a minor third higher than the last
-(`Driving.onSpark`, `SPARK_RATE`); a boost beginning is its rush, with its driver's cry if their
-look has one (`Driving.onBoost`, `VOICES`' `boost`), a trick its chime (`Driving.onTrick`), a knock that costs
+(`Driving.onSpark`, `SPARK_RATE`); every boost beginning, one over another still held too, is its
+rush, with its driver's cry if their look has one (`Driving.onBoost`, `VOICES`' `boost`), a trick its chime (`Driving.onTrick`), a knock that costs
 wrenches its crash
 (`Driving.onKnock`), and a kart blowing up its bang. The kart the player drives is heard flat and
 any other from where it is, and only those within earshot are played at all, so a room full of
