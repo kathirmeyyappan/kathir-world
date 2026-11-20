@@ -140,7 +140,9 @@ its own (`SKYLINE_REACH`, 2,400 m, about where a deck is down to a pixel; today'
 4 tiles, 14,400 triangles and 0.5 MB, built in 26 ms across the loader's frames, and however big
 the world grows only the tiles within that reach are kept). Each of its shapes stands 0.3 m inside
 the real thing, which covers it wherever that's loaded, and anything far enough off to be let go is
-all fog, the skyline's own colour, so nothing shows where one takes over from the other. A new
+all fog, the skyline's own colour, so nothing shows where one takes over from the other (the floor
+too: its shader fades it, its kerb and its risen roads to the fog's colour, and only the ground
+past the edge into the sky's, `render/shaders.ts`, so far off the world is one dark shape on that). A new
 landmark of structures is in it with nothing to do. With its roads the world is about 1,250 m by 1,000 m, the buildings toward its east: from them
 everything east of the west island is within reach, and the roads' far west (the west island, the
 world's end, the lookouts) is let go and comes back as it's driven toward, as the buildings are

@@ -71,8 +71,10 @@ void main() {
 }
 `;
 
-// Two-scale grid, anti-aliased with screen-space derivatives, fading with distance into the sky's
-// colour in that direction, so the floor meets the horizon wherever you're standing. It's drawn on
+// Two-scale grid, anti-aliased with screen-space derivatives, fading with distance: the ground past
+// the edge into the sky's colour in that direction, so it meets the horizon wherever you're
+// standing, and the floor itself, with its kerb and its risen roads, to the fog's colour, as all
+// that stands on it does, so far off the world is one dark shape against that. It's drawn on
 // four parts (side): the floor, the ground past the edge OUTSIDE_HEIGHT down, the kerb along
 // the edge between them (Floor.ts), and a road risen off the floor (RaisedGround.ts); past the edge
 // the grid dims and turns grey, and the kerb is
@@ -190,7 +192,8 @@ void main() {
     col += reliefGlow * reliefLight(out_, crest, reliefStrength);
   }
   float fog = 1.0 - exp(-dist * dist * ${GROUND_FOG} * fogScale);
-  col = mix(col, skyColor(normalize(vWorld - cameraPos)), fog);
+  bool past = side > 0.5 && side < 1.5;
+  col = mix(col, past ? skyColor(normalize(vWorld - cameraPos)) : fogColor, fog);
   gl_FragColor = vec4(col, 1.0);
 }
 `;
