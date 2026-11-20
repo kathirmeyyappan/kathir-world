@@ -279,31 +279,26 @@ export class MapCanvas {
         ctx.stroke();
       }
     }
-    ctx.strokeStyle = CLIMB;
-    ctx.lineWidth = px(1.2);
+    // The roads' marks, listed from the highest down (content/landmarks.ts), each going under what's
+    // drawn already: a climb's arrowheads, a pad's rainbow, and a deck, its top with its sides run
+    // on across whatever passes under it.
     ctx.lineJoin = 'miter';
-    for (const l of landmarks)
-      if (l.kind === 'slope') ctx.stroke(climbPath(l, Math.max(CLIMB_SPACING.m, px(CLIMB_SPACING.px))));
-    // Each layer here goes under what's drawn already, so the pads come first: one lying on a deck
-    // shows on it.
     for (const l of landmarks) {
-      if (l.kind !== 'pad') continue;
-      const rainbow = ctx.createLinearGradient(l.ax, l.az, l.bx, l.bz);
-      BOOST_RAINBOW.forEach((colour, i) => rainbow.addColorStop(i / (BOOST_RAINBOW.length - 1), colour));
-      ctx.fillStyle = rainbow;
-      ctx.fill(stripPath(l));
-    }
-    // A deck is drawn over the road that passes under it: its top, and its sides run on across.
-    ctx.fillStyle = DECK;
-    ctx.strokeStyle = OUTLINE;
-    ctx.lineWidth = px(EDGE);
-    for (const l of landmarks) {
-      if (l.kind === 'span') {
+      if (l.kind === 'slope') {
+        ctx.strokeStyle = CLIMB;
+        ctx.lineWidth = px(1.2);
+        ctx.stroke(climbPath(l, Math.max(CLIMB_SPACING.m, px(CLIMB_SPACING.px))));
+      } else if (l.kind === 'pad') {
+        const rainbow = ctx.createLinearGradient(l.ax, l.az, l.bx, l.bz);
+        BOOST_RAINBOW.forEach((colour, i) => rainbow.addColorStop(i / (BOOST_RAINBOW.length - 1), colour));
+        ctx.fillStyle = rainbow;
         ctx.fill(stripPath(l));
-        ctx.stroke(deckPath(l));
-      } else if (l.kind === 'sweep') {
-        ctx.fill(partPath({ ...l, kind: 'bend' }));
-        ctx.stroke(sweepPath(l));
+      } else if (l.kind === 'span' || l.kind === 'sweep') {
+        ctx.fillStyle = DECK;
+        ctx.strokeStyle = OUTLINE;
+        ctx.lineWidth = px(EDGE);
+        ctx.fill(l.kind === 'span' ? stripPath(l) : partPath({ ...l, kind: 'bend' }));
+        ctx.stroke(l.kind === 'span' ? deckPath(l) : sweepPath(l));
       }
     }
     const marks = landmarks.filter(

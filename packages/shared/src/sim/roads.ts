@@ -55,11 +55,14 @@ export interface RoadSpec {
   runs: Run[];
 }
 
-// A length of a road the maps mark, from one end to the other along its middle.
+// A length of a road the maps mark, from one end to the other along its middle, with the height
+// of its top at each.
 interface Strip {
   ax: number;
+  ay: number;
   az: number;
   bx: number;
+  by: number;
   bz: number;
   halfWidth: number;
 }
@@ -68,20 +71,20 @@ export interface Slope extends Strip {
   kind: 'slope';
 }
 // A boost pad, from the end its arrows point from to the one they point at (up a climb, and along
-// a level stretch the way the road runs), with the height of its top at each.
+// a level stretch the way the road runs).
 export interface Pad extends Strip {
   kind: 'pad';
-  ay: number;
-  by: number;
 }
 // A deck something can pass under.
 export interface Span extends Strip {
   kind: 'span';
 }
-// A deck round a bend: a strip round (x, z) from one bearing on to another (radians, from +x toward +z).
+// A deck round a bend: a strip round (x, z) from one bearing on to another (radians, from +x toward
+// +z), its top at height y.
 export interface Sweep {
   kind: 'sweep';
   x: number;
+  y: number;
   z: number;
   r: number;
   from: number;
@@ -217,7 +220,7 @@ export function layRoad(spec: RoadSpec): Road {
         road.bank.push(...bendBank(leg, half - SHOULDER, lap, under).map(risen));
         const deep = leg.open ? DECK : Infinity;
         road.raised.push({ kind: 'bend', x, z, r, from, to, y, deep, halfWidth: half + PROUD });
-        if (leg.open) road.marks.push({ kind: 'sweep', x, z, r, from, to, halfWidth: half });
+        if (leg.open) road.marks.push({ kind: 'sweep', x, y, z, r, from, to, halfWidth: half });
       }
       // Its pads, each lying along the bend where it's that far round, the way the road runs.
       for (const share of leg.pads) {
@@ -273,8 +276,12 @@ export function layRoad(spec: RoadSpec): Road {
         road.bank.push(looked({ ...ramp(lower, higher, rise / lengths, width, bottom), material: BANK }));
       }
     }
-    if (leg.open) road.marks.push({ kind: 'span', ax: a.x, az: a.z, bx: b.x, bz: b.z, halfWidth: half });
-    if (rise > 0) road.marks.push({ kind: 'slope', ax: foot.x, az: foot.z, bx: top.x, bz: top.z, halfWidth: half });
+    if (leg.open)
+      road.marks.push({ kind: 'span', ax: a.x, ay: leg.from, az: a.z, bx: b.x, by: leg.to, bz: b.z, halfWidth: half });
+    if (rise > 0) {
+      const [ax, az, bx, bz] = [foot.x, foot.z, top.x, top.z];
+      road.marks.push({ kind: 'slope', ax, ay: low, az, bx, by: low + rise, bz, halfWidth: half });
+    }
     if (!built && low + rise > 0) {
       const [ay, by] = [leg.from, leg.to];
       road.raised.push({

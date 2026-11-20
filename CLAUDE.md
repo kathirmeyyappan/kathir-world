@@ -352,9 +352,11 @@ thins as it thins whatever glows, so nothing far off has a halo). The
 frame's rim is only drawn, as the floor's kerb is. A road is authored as runs, each cut into stretches (`level`, `climb`, `gap`, `span`, any of them
 `padded`; one with no length takes an even share of what the others leave), and `layRoad` turns it
 into its floor (square bridges and bends, for the outline), its bank with its pads (for
-`content/roads.ts`), what of it is the floor risen (`raised`) and its marks (for the maps, which
-draw each slope as arrowheads pointing up it, each pad as a rainbow and each deck over the road
-that passes under it). It throws on a road that can't be laid: stretches that don't fill their
+`content/roads.ts`), what of it is the floor risen (`raised`) and its marks, each with the height
+of its top (for the maps, which draw each slope as arrowheads pointing up it, each pad as a
+rainbow and each deck over the road that passes under it; `content/landmarks.ts` lists them from
+the highest down and the maps lay them in that order, each under the last, so a deck covers
+whatever lies on the road beneath it and what lies on the deck shows on it). It throws on a road that can't be laid: stretches that don't fill their
 run, a bend too tight, an end left up off the floor.
 
 The world's roads and islands are in `sim/outline.ts` (`ROADS`, `ISLANDS`), every road 20 m across

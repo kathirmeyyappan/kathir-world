@@ -239,9 +239,10 @@ const WEB: Road[] = [
   // nearer the Krusty Krab, but far enough from it that a kart boosted its way is back at its own
   // speed before the building.
   road('krusty krab', KRUSTY_KRAB_GROUNDS, [{ to: ROAD_PLATEAU, stretches: [level(85), padded(level(10)), level()] }]),
-  // Level, with a pad, where the flyover's deck crosses over it; its hill beyond.
+  // Level where the flyover's deck crosses over it, then a pad clear of the deck, at the foot of its
+  // hill.
   road('west', ROAD_PLATEAU, [
-    { to: WEST_ISLAND, stretches: [level(50), padded(level(10)), level(60), ...crest(45, 7, 45, 30), level()] },
+    { to: WEST_ISLAND, stretches: [level(110), padded(level(10)), ...crest(45, 7, 45, 30), level()] },
   ]),
   // Level where the high road's deck crosses over it, its hill beyond.
   road('northwest spoke', ROAD_PLATEAU, [
