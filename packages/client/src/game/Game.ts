@@ -14,6 +14,7 @@ import {
   HOME_GROUND,
   stranded,
   WORLD_GROUND,
+  WORLD_OUTLINE,
   DOOR_REACH,
   lookVector,
   movesHelp,
@@ -95,6 +96,7 @@ import { FrostLayer } from '../render/Frost';
 import { Loader } from '../render/Loader';
 import { Models } from '../render/models/Models';
 import { buildBoostPads } from '../render/BoostPads';
+import { buildSkyline } from '../render/Skyline';
 import { buildStructures } from '../render/Structures';
 import { Pickups } from '../render/Pickups';
 import { blast } from '../render/Blast';
@@ -327,6 +329,7 @@ export class Game {
     this.environment = new Environment(this.engine, WORLD_GROUND, this.loader, ROAD_RAISED);
     buildStructures(this.engine, WORLD_STRUCTURES.list, this.loader);
     buildBoostPads(this.engine, ROAD_PADS, this.loader);
+    buildSkyline(this.engine, WORLD_OUTLINE, ROAD_RAISED, WORLD_STRUCTURES.list, this.loader);
     this.frost = new FrostLayer(this.engine, WORLD_STRUCTURES.list);
     this.interiors = new Interiors(INTERIOR_BUILDINGS, (door) => this.models.ajar(door));
     this.models = new Models(this.engine, this.loader, this.interiors);
