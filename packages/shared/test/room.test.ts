@@ -1367,7 +1367,7 @@ test('a shot that reaches a kart first wears it, and one over it hits the driver
   // on with no drift and no mini-turbo, slowing.
   for (let i = 0; i < ITEMS.gun.cooldownTicks; i++) tick(room);
   k.vel = { x: -15, y: 0, z: 0 }; // away from the shooter, along the line of the shot
-  k.drift = { way: 1, t: 4 * KARTS.standard.miniTurboTime };
+  k.drift = { way: 1, t: 4 * KARTS.standard.miniTurboTime, from: 1 };
   them.hearts = 1;
   const head = them.pos.y - EYE_HEIGHT + AVATARS[them.avatar].hitbox.top * SEATED - 0.1;
   me.pos = { x: them.pos.x + 8, y: EYE_HEIGHT, z: them.pos.z };
