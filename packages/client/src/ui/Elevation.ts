@@ -15,7 +15,8 @@ const RAMP = [
   [223, 232, 106],
   [255, 246, 194],
 ];
-// Metres past the floor's edge still looked at, for what overhangs it; further out nothing stands.
+// Metres past the floor's edge still looked at, for what overhangs it. Further out the only spots
+// looked at are those some piece stands over: a road's deck, which has no floor under it.
 const OVERHANG = 3;
 
 // The colour of a share of the way up the scale, 0 at the floor to 1 at the highest there is.
@@ -34,12 +35,26 @@ export class Elevation {
   readonly top = WORLD_STRUCTURES.top; // metres: the highest there is, the scale's far end
   private readonly ctx = this.canvas.getContext('2d')!;
   private readonly heights: Float32Array; // metres over the floor at each pixel's middle, a row along x at a time
+  private readonly aloft: Uint8Array; // 1 at each pixel some piece that may stand past the floor's edge reaches
   private row = 0; // the next row to work out
 
   constructor() {
-    this.canvas.width = Math.ceil((WORLD_GROUND.bounds.maxX - this.x) / CELL);
-    this.canvas.height = Math.ceil((WORLD_GROUND.bounds.maxZ - this.z) / CELL);
-    this.heights = new Float32Array(this.canvas.width * this.canvas.height);
+    const { width, height } = Object.assign(this.canvas, {
+      width: Math.ceil((WORLD_GROUND.bounds.maxX - this.x) / CELL),
+      height: Math.ceil((WORLD_GROUND.bounds.maxZ - this.z) / CELL),
+    });
+    this.heights = new Float32Array(width * height);
+    this.aloft = new Uint8Array(width * height);
+    // Every pixel within the reach of a piece that might stand past the floor's edge: more than
+    // each covers, which costs only a look that finds nothing there.
+    for (const piece of WORLD_STRUCTURES.list) {
+      const r = Math.hypot(piece.w, piece.d) / 2;
+      if (WORLD_GROUND.edge(piece.x, piece.z) + r <= OVERHANG) continue;
+      const [i0, i1] = [piece.x - r, piece.x + r].map((x) => Math.floor((x - this.x) / CELL));
+      const [k0, k1] = [piece.z - r, piece.z + r].map((z) => Math.floor((z - this.z) / CELL));
+      for (let k = Math.max(0, k0); k <= Math.min(height - 1, k1); k++)
+        for (let i = Math.max(0, i0); i <= Math.min(width - 1, i1); i++) this.aloft[k * width + i] = 1;
+    }
   }
 
   // The scale the picture is coloured by, the floor to the highest there is: an `.elevation-scale`
@@ -64,7 +79,7 @@ export class Elevation {
       const z = this.z + (this.row + 0.5) * CELL;
       for (let i = 0; i < width; i++) {
         const x = this.x + (i + 0.5) * CELL;
-        if (WORLD_GROUND.edge(x, z) > OVERHANG) continue;
+        if (WORLD_GROUND.edge(x, z) > OVERHANG && !this.aloft[this.row * width + i]) continue;
         const h = WORLD_STRUCTURES.groundAt(x, z, Infinity);
         this.heights[this.row * width + i] = Math.max(0, h);
         if (h < LEAST) continue;

@@ -3,7 +3,8 @@
 // road is flat like all the floor (ground.ts), so a road's height is its bank, structures stood on
 // that floor: a wedge under each stretch that climbs or drops, a block under each that runs level
 // up off the floor, or where it's `open` a deck with room under it, for another road to pass
-// beneath; a bend up off the floor is a level bank round it, or a deck the same. A gap is a
+// beneath; a bend up off the floor is a level bank round it, or a deck the same. A deck has no
+// floor of its own: under it is whatever other road's floor it goes over, or nothing. A gap is a
 // stretch with neither floor nor bank, there to be jumped: a climb up
 // to it one side and a drop away from it the other are a ramp each way. A stretch with a `pad` has
 // a boost pad lying along it: to the sim a thin hidden piece whose surface boosts a kart
@@ -32,8 +33,8 @@ export interface Stretch {
   length?: number; // metres; left out, an even share of what the run's other stretches leave of it
   rise?: number; // metres the road climbs along it, or drops (negative); none, it runs level
   gap?: boolean; // no floor and no bank: the road carries on past it at the height it left at
-  // Up off the floor: a deck with nothing under it, where a bank would wall off what passes
-  // beneath, as thick where it climbs as where it runs level.
+  // Up off the floor: a deck with nothing under it, not even floor, where a bank would wall off
+  // what passes beneath, as thick where it climbs as where it runs level.
   open?: boolean;
   pad?: boolean; // a boost pad lies along it
 }
@@ -210,9 +211,14 @@ export function layRoad(spec: RoadSpec): Road {
     if (leg.kind === 'gap') return;
     const joins = (other: Leg | undefined) => other !== undefined && other.kind !== 'gap';
     const [before, after] = [joins(legs[i - 1]), joins(legs[i + 1])];
+    // Floor is laid under every leg but a gap and a deck, which is over whatever's there already:
+    // another road's floor, or nothing.
+    const floored = (other: Leg | undefined) => joins(other) && !other.open;
+    const [floorBefore, floorAfter] = [floored(legs[i - 1]), floored(legs[i + 1])];
     if (leg.kind === 'bend') {
       const lap = LAP / leg.r;
-      road.floor.push(bendPart(leg, before ? FLOOR_LAP / leg.r : 0, after ? FLOOR_LAP / leg.r : 0, half));
+      if (!leg.open)
+        road.floor.push(bendPart(leg, floorBefore ? FLOOR_LAP / leg.r : 0, floorAfter ? FLOOR_LAP / leg.r : 0, half));
       if (leg.height > 0) {
         const { x, z, r, start, turn, height: y } = leg;
         const under = leg.open ? y - DECK : 0; // what its bank stands on: the floor, or for a deck its own underside
@@ -233,13 +239,15 @@ export function layRoad(spec: RoadSpec): Road {
     }
     const along = unit(leg.a, leg.b);
     const moved = (p: Point, by: number): Point => ({ x: p.x + along.x * by, z: p.z + along.z * by });
-    floorFrom ??= moved(leg.a, before ? -FLOOR_LAP : 0);
-    const next = legs[i + 1];
-    if (next?.kind !== 'straight' || next.run !== leg.run) {
-      const end = moved(leg.b, after ? FLOOR_LAP : 0);
-      const [ax, az, bx, bz] = [floorFrom.x, floorFrom.z, end.x, end.z];
-      road.floor.push({ kind: 'bridge', ax, az, bx, bz, halfWidth: half, square: true });
-      floorFrom = null;
+    if (!leg.open) {
+      floorFrom ??= moved(leg.a, floorBefore ? -FLOOR_LAP : 0);
+      const next = legs[i + 1];
+      if (next?.kind !== 'straight' || next.run !== leg.run || next.open) {
+        const end = moved(leg.b, floorAfter ? FLOOR_LAP : 0);
+        const [ax, az, bx, bz] = [floorFrom.x, floorFrom.z, end.x, end.z];
+        road.floor.push({ kind: 'bridge', ax, az, bx, bz, halfWidth: half, square: true });
+        floorFrom = null;
+      }
     }
     // The bank stops short of a gap and of the road's own ends, and laps into a leg it joins.
     const a = moved(leg.a, before ? 0 : SHOULDER);
