@@ -220,12 +220,11 @@ export class Game {
   private readonly loader = new Loader(); // streams the world in round the player
   private readonly models: Models;
   private readonly frost: FrostLayer; // the ice sprayed over the world's surfaces (sim/frost.ts)
-  // What a click uses, under the crosshair within reach: a door (sim/doors.ts) or a kart to get
-  // into (sim/vehicles/garage.ts).
+  // What a click uses, under the crosshair within reach: a door (sim/doors.ts).
   private hoveredUse: string | null = null;
   private introduced = false; // the look the player came in as has said its intro
   private hoveredHorn = false; // the bedroom's foghorn is under the crosshair within reach
-  private use: string | null = null; // a door or kart clicked since the last input frame
+  private use: string | null = null; // a door clicked since the last input frame
   private readonly driving: Driving;
   private readonly camera: UniversalCamera;
   private readonly input: InputManager;
@@ -1301,7 +1300,7 @@ export class Game {
 
     this.loader.update(p.x, p.z);
     this.models.update();
-    this.updateHover(karts);
+    this.updateHover();
     // Red crosshair when a shot from here would land: same maths the server will run.
     const me = this.prediction.state;
     const hit =
@@ -1527,22 +1526,14 @@ export class Game {
     return t !== Infinity && WORLD_STRUCTURES.raycast(o, d, t) >= t - HORN_SLACK;
   }
 
-  private updateHover(karts: Kart[]): void {
-    // A door or a kart in reach of the look is used by a click; say so while the crosshair is on one.
+  private updateHover(): void {
+    // A door in reach of the look is used by a click; say so while the crosshair is on one.
     const me = this.prediction?.state;
     const look = lookVector(this.aim.yaw, this.aim.pitch);
-    const free = !!me && !this.dead && !me.riding;
     const door = me && !this.dead ? WORLD_STRUCTURES.doorAt(me.pos, look, DOOR_REACH) : null;
-    const kart = free && !door ? this.driving.under(eyeOf(me), look, karts, WORLD_STRUCTURES) : null;
     const tap = IS_TOUCH ? 'tap' : 'click';
-    this.hitNotice.prompt(
-      door
-        ? `${tap} to ${WORLD_STRUCTURES.isOpen(door) ? 'shut' : 'open'} the door`
-        : kart && kart.driver === null
-          ? `${tap} to drive`
-          : null,
-    );
-    this.hoveredUse = door ?? (kart && kart.driver === null ? kart.id : null);
+    this.hitNotice.prompt(door ? `${tap} to ${WORLD_STRUCTURES.isOpen(door) ? 'shut' : 'open'} the door` : null);
+    this.hoveredUse = door;
     const horn = !!me && !this.dead && !door && this.hornAt(me.pos, lookVector(this.aim.yaw, this.aim.pitch));
     if (horn && !this.hoveredHorn) this.sfx.want('boat-horn');
     this.hoveredHorn = horn;

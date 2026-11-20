@@ -1065,8 +1065,10 @@ A room's karts are its `Garage` (`garage.ts`), which the Room steps and whose hu
 and every client is sent them (`karts` in `welcome` and `snap`, each a `Kart`: its `KartState`,
 its paint, its wrenches and its driver). One is dropped `DROP_AHEAD` in front of whoever asks,
 short of a wall down to right over them, from `DROP_HEIGHT` up; there are never more karts than
-players, and one left empty `IDLE_SECONDS` is taken away. A click on one within `KART_REACH` gets
-a walker in (the same `use` a door's click is): what they hold and wear is put away till they get
+players, and one left empty `IDLE_SECONDS` is taken away. A person on foot gets
+into an empty one by walking or jumping into it (`Garage.runInto`: any touch that doesn't hurt
+them; bots are left out, and someone who has just got out isn't taken back in until they've stood
+clear of it): what they hold and wear is put away till they get
 out with E (the `exit` action), whatever move they were in stops, and they ride in its seat
 (`PlayerState.riding`), their frames driving it (`my` the gas, `mx` the wheel, the `drift`
 action held) and only what stands out of the seat hit by shots (`SEATED`); kit and bodies that
@@ -1125,8 +1127,7 @@ the rest of driving on the client: every kart drawn, the driven one where its dr
 has it (`Prediction` rides it as the Room does, rewinding and replaying it with them), run on
 between its ticks by a part of a step on the keys of their last frame (`Prediction.kartBetween`),
 so it, its driver's eye and their look move on every frame drawn rather than thirty times a
-second; the kart
-under the crosshair, which a click gets in (the same prompt and `use` as a door's); the look
+second; the look
 turned with the kart and settled back behind it once the mouse is let be; and the drift on Space
 and E to get out (`KART_ACTIONS`). A driver is watched as their kart is (`KART_VIEW`,
 `game/View.ts`: a boom from its seat at its size, low and far enough back that all of it shows,

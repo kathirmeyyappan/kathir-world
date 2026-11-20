@@ -1284,7 +1284,7 @@ body {
 #hit-notice.note {
   color: rgba(255, 255, 255, 0.8);
 }
-/* What a click does to what the crosshair is on (a door or a kart in reach): under the hit notice,
+/* What a click does to what the crosshair is on (a door in reach): under the hit notice,
    bigger, in a box as the hint bar's is (#item-hint) so it reads as a prompt against anything
    behind it, its words blinking between white and grey the way an old screen's prompt does. */
 #door-prompt {

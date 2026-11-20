@@ -39,7 +39,7 @@ export const CONTROLS: { title: string; keys: [string, string][] }[] = [
       ['Shift', 'hold to run'],
       ['Space', 'jump'],
       ['X', 'special move (character dependent)'],
-      ['Mouse', 'look; click to shoot, open a door, get in a kart or read a cube'],
+      ['Mouse', 'look; click to shoot, open a door or read a cube'],
       ...SHARED,
     ],
   },
@@ -112,7 +112,10 @@ export const GEAR_TEXT: Record<GearId, Entry> = {
 };
 
 export const KART_TEXT: Record<KartId, Entry> = {
-  standard: plain(KARTS.standard.name, 'The Standard Kart from Mario Kart 8, painted for whoever drops it.'),
+  standard: plain(
+    KARTS.standard.name,
+    'The Standard Kart from Mario Kart 8, painted for whoever drops it. Walk or jump into an empty one to get in.',
+  ),
 };
 
 export const PICKUP_TEXT: Record<PickupKind, Entry> = {

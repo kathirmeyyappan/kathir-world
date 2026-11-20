@@ -1,20 +1,9 @@
 // Driving a kart, as the player sees it (sim/vehicles/): every kart drawn, the one they drive from
 // its prediction and the rest from the snapshots, with its seat for its driver's body to sit in,
-// and what each has begun said, for what's heard of it;
-// the kart under the crosshair, which a click gets them into; the look carried round with the kart
+// and what each has begun said, for what's heard of it; the look carried round with the kart
 // they drive and, once the mouse has been let be a moment, settled back behind it; and the keys
 // that drive it besides the movement keys: the drift held on Space, and E to get out.
-import {
-  KART_ACTIONS,
-  KART_REACH,
-  kartAt,
-  type ItemAction,
-  type Kart,
-  type KartState,
-  type Spark,
-  type Structures,
-  type Vec3,
-} from '@world/shared';
+import { KART_ACTIONS, type ItemAction, type Kart, type KartState, type Spark, type Vec3 } from '@world/shared';
 import type { InputManager } from '../input/InputManager';
 import type { Engine } from '../render/Engine';
 import { KartMesh } from '../render/vehicles/KartMesh';
@@ -60,12 +49,6 @@ export class Driving {
   // The seat of the kart `id` as it was last drawn, for its driver's body to sit in.
   seatOf(id: string): Seat | null {
     return this.drawn.get(id)?.seat ?? null;
-  }
-
-  // The kart a click from `eye` along unit `dir` gets into: the nearest of `karts` within
-  // KART_REACH, with no wall nearer.
-  under(eye: Vec3, dir: Vec3, karts: Kart[], structures: Structures): Kart | null {
-    return kartAt(eye, dir, Math.min(KART_REACH, structures.raycast(eye, dir, KART_REACH)), karts)?.kart ?? null;
   }
 
   // Turns `look` with the kart they drive (null: they aren't), and once it's been let be for
