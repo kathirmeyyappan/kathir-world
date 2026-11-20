@@ -1,6 +1,7 @@
 // The lengths of road drawn as the floor itself risen (sim/roads.ts `Raised`; their bank's pieces
-// are hidden): the road's top, a wall down each side of it to the floor and one across each end
-// that stands clear, all in the floor's look (shaders.ts, the risen side). What faces up is the
+// are hidden): the road's top, a wall down each side of it and across each end to what it stands
+// on (the floor, or for a deck its own underside, drawn too), all in the floor's look (shaders.ts,
+// the risen side). What faces up is the
 // floor's grid carried on up, with the bold line of a kerb along each side, and the walls are the
 // drop's face, a bold line along their top, so the road's border reads all the way over a hill.
 import type { VertexData } from '@babylonjs/core';
@@ -16,6 +17,7 @@ export const RISEN_SIDE = 3;
 const across = (side: -1 | 1, half: number): [number, number] => [side, half];
 const DEEP = 64; // metres: more than twice as far down as any wall goes
 const down = (depth: number): [number, number] => [1 - (2 * depth) / DEEP, DEEP];
+const UNLIT = down(DEEP / 2); // nowhere near such an edge
 const SLICE = 3; // metres of a bend's outer side to one flat length of it
 
 // The road's top edge across it at one spot: its left and its right, as the road runs.
@@ -28,6 +30,8 @@ export function raisedGround(raised: Raised): VertexData {
   const quads = new Quads();
   const sections = raised.kind === 'straight' ? straight(raised) : bend(raised);
   const half = raised.halfWidth;
+  const under = raised.kind === 'straight' ? raised.under : 0;
+  const lowered = ([x, , z]: Vec): Vec => [x, under, z];
   for (let k = 0; k + 1 < sections.length; k++) {
     const [a, b] = [sections[k], sections[k + 1]];
     const up = unit(cross(minus(b.left, a.left), minus(a.right, a.left)));
@@ -35,21 +39,25 @@ export function raisedGround(raised: Raised): VertexData {
       uvs: [across(-1, half), across(1, half), across(1, half), across(-1, half)],
     });
     const out = unit(minus(a.left, a.right));
-    wall(quads, a.left, b.left, out);
-    wall(quads, a.right, b.right, flipped(out));
+    wall(quads, a.left, b.left, out, under);
+    wall(quads, a.right, b.right, flipped(out), under);
+    if (under > 0)
+      quads.add([a.left, a.right, b.right, b.left].map(lowered), [0, -1, 0], { uvs: [UNLIT, UNLIT, UNLIT, UNLIT] });
   }
   const [first, second] = sections;
   const [last, before] = [sections[sections.length - 1], sections[sections.length - 2]];
-  wall(quads, first.left, first.right, flat(minus(first.left, second.left)));
-  wall(quads, last.left, last.right, flat(minus(last.left, before.left)));
+  wall(quads, first.left, first.right, flat(minus(first.left, second.left)), under);
+  wall(quads, last.left, last.right, flat(minus(last.left, before.left)), under);
   return quads.data();
 }
 
-// A wall from the top edge p to q straight down to the floor, facing `out`; none where the edge
-// is on the floor.
-function wall(quads: Quads, p: Vec, q: Vec, out: Vec): void {
-  if (p[1] <= 0 && q[1] <= 0) return;
-  quads.add([p, q, [q[0], 0, q[2]], [p[0], 0, p[2]]], out, { uvs: [down(0), down(0), down(q[1]), down(p[1])] });
+// A wall from the top edge p to q straight down to `under`, facing `out`; none where the edge is
+// down there already.
+function wall(quads: Quads, p: Vec, q: Vec, out: Vec, under: number): void {
+  if (p[1] <= under && q[1] <= under) return;
+  quads.add([p, q, [q[0], under, q[2]], [p[0], under, p[2]]], out, {
+    uvs: [down(0), down(0), down(q[1] - under), down(p[1] - under)],
+  });
 }
 
 // The level way a vector points.

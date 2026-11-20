@@ -24,6 +24,7 @@ import {
   type Bounds,
   type RoadMark,
   type Slope,
+  type Span,
   type WorldPart,
 } from '@world/shared';
 import { BOOST_RAINBOW } from '../render/BoostPads';
@@ -64,6 +65,7 @@ const OUTLINE = `rgba(${ACCENT}, 0.9)`;
 const LANDMARK = 'rgba(150, 150, 158, 0.78)';
 const RING = 'rgb(70, 70, 78)'; // a landmark's inner circles
 const CLIMB = `rgba(${ACCENT}, 0.85)`; // the arrowheads up a road's slope
+const DECK = 'rgb(46, 84, 72)'; // a deck's top, lighter than the floor it crosses over
 // A slope's arrowheads: CSS pixels from one to the next at the least (and metres, zoomed in), and
 // how much of the road's width each spans.
 const CLIMB_SPACING = { px: 7, m: 5 };
@@ -281,16 +283,29 @@ export class MapCanvas {
     ctx.lineJoin = 'miter';
     for (const l of landmarks)
       if (l.kind === 'slope') ctx.stroke(climbPath(l, Math.max(CLIMB_SPACING.m, px(CLIMB_SPACING.px))));
+    // A deck is drawn over the road that passes under it: its top, and its sides run on across.
+    ctx.fillStyle = DECK;
+    ctx.strokeStyle = OUTLINE;
+    ctx.lineWidth = px(EDGE);
+    for (const l of landmarks) {
+      if (l.kind !== 'span') continue;
+      ctx.fill(stripPath(l));
+      ctx.stroke(deckPath(l));
+    }
     for (const l of landmarks) {
       if (l.kind !== 'pad') continue;
       const rainbow = ctx.createLinearGradient(l.ax, l.az, l.bx, l.bz);
       BOOST_RAINBOW.forEach((colour, i) => rainbow.addColorStop(i / (BOOST_RAINBOW.length - 1), colour));
       ctx.fillStyle = rainbow;
-      ctx.fill(padPath(l));
+      ctx.fill(stripPath(l));
     }
     const marks = landmarks.filter(
       (l): l is Footprint =>
-        l.kind !== 'pineapple' && l.kind !== 'krusty-krab' && l.kind !== 'slope' && l.kind !== 'pad',
+        l.kind !== 'pineapple' &&
+        l.kind !== 'krusty-krab' &&
+        l.kind !== 'slope' &&
+        l.kind !== 'pad' &&
+        l.kind !== 'span',
     );
     const wooden = (l: Footprint) => l.kind === 'bridge' && !!l.wood;
     place(this.landmarkLayer);
@@ -437,16 +452,34 @@ function layer(): CanvasRenderingContext2D {
 // A landmark filled in grey: any but those drawn as themselves.
 type Footprint = Exclude<Landmark, PineappleMark | KrustyKrabMark | RoadMark>;
 
-// A boost pad's rectangle, from its one end to its other.
-function padPath(s: Pad): Path2D {
+// The corners of a strip of road from its one end to its other, its left side then its right.
+function stripCorners(s: Pad | Span): [number, number][] {
   const length = Math.hypot(s.bx - s.ax, s.bz - s.az);
   const [px, pz] = [(-(s.bz - s.az) / length) * s.halfWidth, ((s.bx - s.ax) / length) * s.halfWidth];
+  return [
+    [s.ax + px, s.az + pz],
+    [s.bx + px, s.bz + pz],
+    [s.bx - px, s.bz - pz],
+    [s.ax - px, s.az - pz],
+  ];
+}
+
+// A strip of road, filled.
+function stripPath(s: Pad | Span): Path2D {
   const path = new Path2D();
-  path.moveTo(s.ax + px, s.az + pz);
-  path.lineTo(s.bx + px, s.bz + pz);
-  path.lineTo(s.bx - px, s.bz - pz);
-  path.lineTo(s.ax - px, s.az - pz);
+  stripCorners(s).forEach(([x, z], i) => (i ? path.lineTo(x, z) : path.moveTo(x, z)));
   path.closePath();
+  return path;
+}
+
+// A deck's two sides, which cross whatever road passes under it.
+function deckPath(s: Span): Path2D {
+  const [a, b, c, d] = stripCorners(s);
+  const path = new Path2D();
+  path.moveTo(...a);
+  path.lineTo(...b);
+  path.moveTo(...d);
+  path.lineTo(...c);
   return path;
 }
 
