@@ -1,17 +1,29 @@
 // Driving a kart, as the player sees it (sim/vehicles/): every kart drawn, the one they drive from
 // its prediction and the rest from the snapshots, with its seat for its driver's body to sit in,
 // and what each has begun said, for what's heard of it; the look carried round with the kart
-// they drive and, once the mouse has been let be a moment, settled back behind it; and the keys
-// that drive it besides the movement keys: the drift held on Space, and E to get out.
-import { KART_ACTIONS, type ItemAction, type Kart, type KartState, type Spark, type Vec3 } from '@world/shared';
+// they drive and, once the mouse has been let be a moment, settled back behind it; how far into a
+// boost that kart is, for the view it's seen through, with the streaks that fly past it; and the
+// keys that drive it besides the movement keys: the drift held on Space, and E to get out.
+import {
+  KART_ACTIONS,
+  TURBO,
+  turboShare,
+  type ItemAction,
+  type Kart,
+  type KartState,
+  type Spark,
+  type Vec3,
+} from '@world/shared';
 import type { InputManager } from '../input/InputManager';
 import type { Engine } from '../render/Engine';
 import { KartMesh } from '../render/vehicles/KartMesh';
 import type { Seat } from '../render/vehicles/Seat';
+import { SpeedLines } from '../render/vehicles/SpeedLines';
 
 const SETTLE_AFTER = 0.8; // seconds of the look let be before it settles back behind the kart
 const SETTLE_RATE = 3; // per second: how fast it settles
 const SETTLED_PITCH = 0.12; // radians down the settled look is, over the kart's nose
+const RUSH_RATE = 9; // per second: how fast the view takes up a boost and lets it go
 
 export class Driving {
   onKnock: ((at: Vec3) => void) | null = null; // a kart there lost wrenches to a knock: for what's heard of it
@@ -22,6 +34,8 @@ export class Driving {
   private kartYaw: number | null = null; // the yaw of the kart they drive, as last followed
   private left: { yaw: number; pitch: number } | null = null; // the look as it was last left
   private still = 0; // seconds the look has been let be
+  private rushed = 0; // how far into a boost the kart they drive is seen to be, 0 to 1, eased
+  private streaks: SpeedLines | null = null; // what flies past their view through a boost, made at their first
 
   constructor(private readonly engine: Engine) {}
 
@@ -51,9 +65,21 @@ export class Driving {
     return this.drawn.get(id)?.seat ?? null;
   }
 
-  // Turns `look` with the kart they drive (null: they aren't), and once it's been let be for
-  // SETTLE_AFTER, eases it back behind the kart, looking a little down over its nose.
+  // How far into a boost the kart they drive is, 0 to 1, eased: what the view opens out by
+  // (View.ts RUSH) and its streaks are drawn by.
+  get rush(): number {
+    return this.rushed;
+  }
+
+  // Follows the kart they drive this frame (null: they aren't): takes up its boost as their `rush`,
+  // turns `look` with it, and once the look has been let be for SETTLE_AFTER, eases it back behind
+  // the kart, looking a little down over its nose.
   follow(look: { yaw: number; pitch: number }, kart: KartState | null, dt: number): void {
+    const boost = kart ? (turboShare(kart.turbo) - 1) / (TURBO.boost - 1) : 0;
+    this.rushed += (boost - this.rushed) * (1 - Math.exp(-RUSH_RATE * dt));
+    if (boost === 0 && this.rushed < 0.005) this.rushed = 0;
+    if (this.rushed > 0) this.streaks ??= new SpeedLines(this.engine.scene);
+    this.streaks?.update(this.rushed, dt);
     if (!kart) {
       this.kartYaw = this.left = null;
       return;

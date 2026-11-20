@@ -1135,7 +1135,11 @@ second; the look
 turned with the kart and settled back behind it once the mouse is let be; and the drift on Space
 and E to get out (`KART_ACTIONS`). A driver is watched as their kart is (`KART_VIEW`,
 `game/View.ts`: a boom from its seat at its size, low and far enough back that all of it shows,
-and one field of view, so a kart sits in one place on screen whoever drives it), their legend is the
+and one field of view, so a kart sits in one place on screen whoever drives it; through a boost
+the view opens out and the camera closes in, `RUSH`, by how far into one the kart is,
+`Driving.rush`, so the kart stands a little bigger while the road streams out past it, and streaks
+fly outward past the edges of the view, `render/vehicles/SpeedLines.ts`: one mesh on the camera,
+made at the first boost and drawn only through one), their legend is the
 kart's keys and the hint bar says how to get out, and on touch the pad steers alone and the
 jump button gives way to the pedals, GAS (red, a bar over the other two), BRAKE and DRIFT (grey),
 holding W, S and Space, with OUT up under CHAT and no SELECT (a tap on the view opens a cube).
