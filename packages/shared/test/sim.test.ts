@@ -202,18 +202,24 @@ test("a road's open stretch or bend is a deck with the floor clear under it, and
       from: { x: 0, z: 0 },
       width: 20,
       runs: [
-        { to: { x: 0, z: 100 }, radius: 60, open: true, stretches: [level(10), climb(30, rise)] },
+        { to: { x: 0, z: 100 }, radius: 60, open: true, pads: [0.5], stretches: [level(10), climb(30, rise)] },
         { to: { x: 100, z: 100 }, stretches: [climb(30, -rise), level()] },
       ],
     });
   const swept = round(8);
   const under = new Structures(swept.bank, new Ground(swept.floor));
-  // Halfway round it, 60 m from the bend's middle at (60, 40).
-  const [x, z] = [60 - 60 * Math.SQRT1_2, 40 + 60 * Math.SQRT1_2];
+  // A quarter of the way round it, 60 m from the bend's middle at (60, 40), and halfway round,
+  // where its pad lies.
+  const at = (share: number): [number, number] => {
+    const a = Math.PI - (Math.PI / 2) * share;
+    return [60 + 60 * Math.cos(a), 40 + 60 * Math.sin(a)];
+  };
+  const [x, z] = at(0.25);
   assert.equal(under.groundAt(x, z, 50), 8, "the bend's deck's top");
   assert.equal(under.groundAt(x, z, 6), 0, 'the floor under it');
   assert.ok(under.fits(x, z, 0, 4, 5), 'room for what passes beneath');
   assert.equal(swept.marks.filter((mark) => mark.kind === 'sweep').length, 1);
+  assert.equal(under.footing(...at(0.5), 9).surface, 'boost', 'a pad lying along the bend, halfway round it');
   assert.throws(() => round(3), /deck/);
 });
 

@@ -4,8 +4,8 @@
 // the risen side). What faces up is the
 // floor's grid carried on up, with the bold line of a kerb along each side, and the walls are the
 // drop's face, a bold line along their top, so the road's border reads all the way over a hill.
-import type { VertexData } from '@babylonjs/core';
 import type { Raised } from '@world/shared';
+import type { Circle } from './Loader';
 import { Quads, cross, flipped, minus, unit, type Vec } from './Quads';
 
 // What the ground's shader draws these meshes as (its `sideOf`).
@@ -26,8 +26,8 @@ interface Section {
   right: Vec;
 }
 
-export function raisedGround(raised: Raised): VertexData {
-  const quads = new Quads();
+// A length's quads, added to those of whatever it's drawn in one mesh with.
+export function raisedGround(raised: Raised, quads = new Quads()): Quads {
   const sections = raised.kind === 'straight' ? straight(raised) : bend(raised);
   const half = raised.halfWidth;
   const under = raised.under;
@@ -48,7 +48,23 @@ export function raisedGround(raised: Raised): VertexData {
   const [last, before] = [sections[sections.length - 1], sections[sections.length - 2]];
   wall(quads, first.left, first.right, flat(minus(first.left, second.left)), under);
   wall(quads, last.left, last.right, flat(minus(last.left, before.left)), under);
-  return quads.data();
+  return quads;
+}
+
+// The circle a length stands over: round the middle of its run, out to its ends and its sides.
+export function over(raised: Raised): Circle {
+  if (raised.kind === 'straight')
+    return {
+      x: (raised.ax + raised.bx) / 2,
+      z: (raised.az + raised.bz) / 2,
+      r: Math.hypot(raised.bx - raised.ax, raised.bz - raised.az) / 2 + raised.halfWidth,
+    };
+  const [middle, turn] = [(raised.from + raised.to) / 2, Math.min(Math.abs(raised.to - raised.from), 2 * Math.PI)];
+  return {
+    x: raised.x + raised.r * Math.cos(middle),
+    z: raised.z + raised.r * Math.sin(middle),
+    r: 2 * raised.r * Math.sin(turn / 4) + raised.halfWidth,
+  };
 }
 
 // A wall from the top edge p to q straight down to `under`, facing `out`; none where the edge is

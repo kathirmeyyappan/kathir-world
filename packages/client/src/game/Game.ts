@@ -330,7 +330,7 @@ export class Game {
     this.environment = new Environment(this.engine, WORLD_GROUND, this.loader, ROAD_RAISED);
     buildStructures(this.engine, WORLD_STRUCTURES.list, this.loader);
     buildBoostPads(this.engine, ROAD_PADS, this.loader);
-    buildSkyline(this.engine, WORLD_OUTLINE, ROAD_RAISED, WORLD_STRUCTURES.list, this.loader);
+    buildSkyline(this.engine, WORLD_OUTLINE, ROAD_RAISED.flat(), WORLD_STRUCTURES.list, this.loader);
     this.frost = new FrostLayer(this.engine, WORLD_STRUCTURES.list);
     this.interiors = new Interiors(INTERIOR_BUILDINGS, (door) => this.models.ajar(door));
     this.models = new Models(this.engine, this.loader, this.interiors);

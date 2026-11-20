@@ -10,7 +10,7 @@ import { CHUNK, OUTSIDE_HEIGHT, type Raised, type Structure, type WorldPart } fr
 import { FOG_COLOR, type Engine } from './Engine';
 import type { Loader } from './Loader';
 import { perScene } from './perScene';
-import { raisedGround } from './RaisedGround';
+import { over, raisedGround } from './RaisedGround';
 import { placed } from './Structures';
 
 const TILE = 20 * CHUNK; // metres across the square of the world one mesh of the skyline covers
@@ -56,7 +56,10 @@ export function buildSkyline(
     tiles.set(key, tile);
   };
   for (const part of floor) put(...middleOf(part), () => slab(part));
-  for (const length of raised) put(...middleOfRaised(length), () => bare(raisedGround(within(length))));
+  for (const length of raised) {
+    const { x, z } = over(length);
+    put(x, z, () => bare(raisedGround(within(length)).data()));
+  }
   for (const piece of structures)
     if (told(piece)) put(piece.x, piece.z, () => bare(placed({ ...piece, ...shrunk(piece) })));
 
@@ -137,12 +140,6 @@ function middleOf(p: WorldPart): [number, number] {
   if (p.kind === 'disc') return [p.x, p.z];
   const [r, mid] = [p.kind === 'bend' ? p.r : p.r / 2, (p.from + p.to) / 2];
   return [p.x + r * Math.cos(mid), p.z + r * Math.sin(mid)];
-}
-
-function middleOfRaised(r: Raised): [number, number] {
-  if (r.kind === 'straight') return [(r.ax + r.bx) / 2, (r.az + r.bz) / 2];
-  const mid = (r.from + r.to) / 2;
-  return [r.x + r.r * Math.cos(mid), r.z + r.r * Math.sin(mid)];
 }
 
 // A part of the floor as its slab, INSIDE the real one: its top, and its sides down to the ground

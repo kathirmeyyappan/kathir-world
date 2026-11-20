@@ -310,12 +310,12 @@ wire: server and client both build the world from that file.
   `worldTop: true` on them so their tops map alike. The same goes for anything else the client
   draws: never lay a decal, glow or second mesh exactly on a surface.
 - Client cost: the renderer merges pieces with the same look in the same 48 m square into one mesh,
-  so draw calls stay in the tens however many pieces there are. The world's 13,521 pieces (5,642
+  so draw calls stay in the tens however many pieces there are. The world's 13,591 pieces (5,642
   drawn; the house's rooms and shell are 7,516 hidden pieces, the Krusty Krab 175 and the roads'
-  188: their risen banks, their decks and their boost pads) render as
-  about 100 meshes (about 15 in view at once; the roads' built ramps are 24 pieces in 17 of them, each
-  of their 60 lengths of risen road is a small mesh of its own and each of their 41 boost pads two, and
-  the floor is 275 chunks), and a raycast tries the pieces a stretch of grid cells at a
+  258: their risen banks, their decks and their boost pads) render as
+  about 100 meshes (about 15 in view at once; the roads' built ramps are 24 pieces in 16 of them, a
+  road's lengths of risen road are one mesh, 102 lengths in 16, and its boost pads a mesh of their
+  frames and a panel each, 61 pads in 86, and the floor is 278 chunks), and a raycast tries the pieces a stretch of grid cells at a
   time, so one across open floor costs a few µs, one through the Krusty Krab about 10 µs and one
   through the house about 130 µs. The sim's grid has height bands as well as cells, so a walker's
   tick pays only for the pieces at its own height (about 70 µs inside the house, 27 µs inside the
@@ -330,12 +330,13 @@ as they do in the middle of a disc). The floor under a road is flat like all the
 height is its bank, structures stood on that floor: a wedge under a stretch that climbs or drops, a
 block under one that runs level up off the floor, each a `SHOULDER` in from the floor's edge so its
 sides rise out of the kerb, or where the stretch is `open` (`span`) a deck `DECK` thick with
-nothing under it, for another road to pass beneath (level, with `HEADROOM` clear under it, or the
-road won't lay). A bend up off the floor is level: on a bank, or with its run `open` a deck the
-same, so a road can go over others the whole sweep of a bend. A bank looks one of two ways: under a padded stretch it's a ramp built
-on the floor, of stone, drawn as the structures it is; anywhere else it's the floor itself risen,
+nothing under it, for another road to pass beneath (with `HEADROOM` clear under it, or the
+road won't lay; one that climbs is flat underneath, so thicker toward its high end). A bend up off the floor is level: on a bank, or with its run `open` a deck the
+same, so a road can go over others the whole sweep of a bend. A bank looks one of two ways: under a padded stretch that climbs it's a ramp built
+on the floor, of stone, drawn as the structures it is; anywhere else (a level stretch up off the
+floor with a pad lying on it too) it's the floor itself risen,
 its pieces `hidden`, and the client draws the road there in the floor's own look
-(`render/RaisedGround.ts`, from the road's `raised`, `ROAD_RAISED`: the grid carried on up over
+(`render/RaisedGround.ts`, from the road's `raised`, `ROAD_RAISED`, a road's lengths one mesh: the grid carried on up over
 what faces up with a bold green line down each side, and walls of the drop's grey face with a bold
 line along their top, so a road's border reads all the way over a hill; a bend is drawn round,
 whatever blocks its bank is to the sim, and a deck with its underside). A gap is a stretch with neither floor nor bank, to be jumped; `jump(run,
@@ -343,7 +344,8 @@ rise, across)` is one with a ramp either side, so it's jumped both ways. A boost
 `padded`: to the sim a sliver of its own shape lying a hair over it, four fifths of the road
 across, hidden, whose surface (`boost`) boosts a kart rolling forward over it (see Surfaces and
 frost, and Karts); the client draws it (`render/BoostPads.ts`, from the road's `Pad` marks, `ROAD_PADS`) as a panel let into a frame that stands proud of the
-road: lanes of rainbow arrowheads pointing up a climb, or along a level stretch the way the road
+road (a road's frames one mesh, and a panel each, since a halo is thinned by how far off its own
+mesh is): lanes of rainbow arrowheads pointing up a climb, or along a level stretch the way the road
 runs, running that way, with a halo of their colours that swells and falls (`Engine.glow`, which the fog
 thins as it thins whatever glows, so nothing far off has a halo). The
 frame's rim is only drawn, as the floor's kerb is. A road is authored as runs, each cut into stretches (`level`, `climb`, `gap`, `span`, any of them
@@ -355,17 +357,21 @@ that passes under it). It throws on a road that can't be laid: stretches that do
 run, a bend too tight, an end left up off the floor.
 
 The world's roads and islands are in `sim/outline.ts` (`ROADS`, `ISLANDS`), every road 20 m across
-(`ROAD_WIDTH`), room to drift a bend on: 24 roads, 8.1 km of them, mostly west of the buildings.
+(`ROAD_WIDTH`), room to drift a bend on: 25 roads, 8.5 km of them, mostly west of the buildings.
 One main circuit (`CIRCUIT`) runs round the west of the world, from Building 2's grounds by the
 north, northwest, west, southwest and south islands to Building 3's, closing across the floor
-between the keeps: a lap of about 2.4 km. Inside it a web (`WEB`): the Krusty Krab's road carried
+between the keeps: a lap of about 2.4 km. Inside it a web (`WEB`): the Krusty Krab's road itself,
+laid over the floor the home has there for the pad on it, and carried
 on west from the crossroads at its end to the west island, a spoke from the crossroads to each of
 the northwest and southwest islands, and an inner ring from the north island by two small islands
-to the south one. Over those go three roads up on decks, each a long sweep 9 m off the floor
-with a ramp at either end, a triangle between the west island and the ring's two small ones: the
-skyway, an arc from one small island to the other, over the Krusty Krab's road; the high road,
-from the west island round over the northwest spoke to the ring; and the flyover, from the west
-island up at once and round over the southwest spoke to the ring, on its deck nearly all the way.
+to the south one. Over those go three roads up on decks, a triangle between the west island and
+the ring's two small ones, each off the floor from one island's rim to the other's: a ramp up as
+it leaves, a ramp down as it arrives, and deck all between, winding one way and then the other
+and rising and falling as it goes (a `slope` is a length of deck that climbs). The skyway
+zigzags from one small island to the other through three bends, 8 m up and dipping to 6 over the
+Krusty Krab's road; the high road goes from the west island in an S over the northwest spoke to
+the ring, 9 m up, over a rise to 13 and down to 8; and the flyover is its mirror, over the
+southwest spoke.
 Outside it (`REACHES`) a road out to a small island at each of three corners of the world: the
 world's end and two lookouts. Round the east (`EAST`) goes one road, from the north island by the
 east island to the south, with a way out to it from the tower, from SpongeBob's house and from
@@ -382,10 +388,16 @@ foot) with a pad on the ramp either side of it (`hop`), so a kart that rolls ont
 slowly leaves the lip boosted, about 1.4 s in the air, time for a trick, and comes down some 20 m
 past the far ramp's foot (so keep 50 m of straight road past a jump; a `kicker` is a hill as
 steep with a pad up each side, flown off the same with floor under the whole flight; a `dash` is
-a level straight with a pad across its middle, as the long ones have), a bend of
+a level straight with a pad across its middle, `early` the start of a straight out of an island
+with a pad 30 m clear of it, and a `crest` a hill with one across its top: a straight's pads lie
+early along it or on its hill, none at an island's way in nor just before a bend, so a kart is
+boosted down the straight and back at its own speed by the turn, where a drift is what earns the
+next boost; a deck's long sweep is the one bend with pads, a run's `pads`, each a straight length
+lying along it where it's that far round), a bend of
 60 m or more, taken flat out, and where one road crosses another between islands, a deck over it,
-the whole sweep it crosses in (`up` and `down`: a ramp to 9 m at either end of the deck, on the
-straights, since a bend doesn't climb). A slope's top a sixth or more steeper than what
+the whole sweep it crosses in (`lift` and `land`: a ramp up from just clear of the island at either end,
+on the straights, since a bend doesn't climb; a deck's own ups and downs are on its straights too,
+each under a sixth, so a kart stays on them). A slope's top a sixth or more steeper than what
 follows is left in the air at a kart's speed (`LIFT` in `kart.ts`), so a `hump` and the steep side
 of a hill are flown off and a gentle ridge isn't. After changing one, drive every road both ways
 with `stepKart` in a scratch script, flat out and boosted, and check nothing is hit and no landing

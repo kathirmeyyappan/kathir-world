@@ -35,6 +35,27 @@ export interface Loadable {
   unload?: () => void;
 }
 
+// A circle on the floor: where a thing stands, and how far round that.
+export interface Circle {
+  x: number;
+  z: number;
+  r: number;
+}
+
+// The circle round several, for one thing made of whatever stands in each.
+export function around(circles: readonly Circle[]): Circle {
+  const middle = (low: number[], high: number[]) => (Math.min(...low) + Math.max(...high)) / 2;
+  const x = middle(
+    circles.map((c) => c.x - c.r),
+    circles.map((c) => c.x + c.r),
+  );
+  const z = middle(
+    circles.map((c) => c.z - c.r),
+    circles.map((c) => c.z + c.r),
+  );
+  return { x, z, r: Math.max(...circles.map((c) => Math.hypot(c.x - x, c.z - z) + c.r)) };
+}
+
 // Waits for a promise inside a job and hands back what it came to: `const x = yield* wait(p)`. A
 // promise that fails throws in the job, where it was waited on.
 export function* wait<T>(promise: Promise<T>): Generator<Promise<unknown>, T, unknown> {

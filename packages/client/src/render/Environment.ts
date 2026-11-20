@@ -18,8 +18,9 @@ import { CHUNK, OUTSIDE_HEIGHT, type Ground, type Raised } from '@world/shared';
 import { BASE_FOG_DENSITY, Engine, FOG_COLOR } from './Engine';
 import { GROUND_FRAGMENT, GROUND_VERTEX, SKY_FRAGMENT, SKY_VERTEX, WALL_FRAGMENT, WALL_VERTEX } from './shaders';
 import { floorChunk } from './Floor';
-import type { Loader } from './Loader';
-import { RISEN_SIDE, raisedGround } from './RaisedGround';
+import { around, type Loader } from './Loader';
+import { Quads } from './Quads';
+import { RISEN_SIDE, over, raisedGround } from './RaisedGround';
 
 const WALL_REVEAL_DISTANCE = 16;
 const SKY_WALL_TOP = 500; // metres: the sky's edge reaches as high as a dragon is likely to fly
@@ -54,7 +55,7 @@ export class Environment {
     private readonly engine: Engine,
     private readonly ground: Ground,
     loader: Loader,
-    raised: readonly Raised[] = [],
+    raised: readonly (readonly Raised[])[] = [],
   ) {
     ENVIRONMENTS.set(engine.scene, this);
     this.bounds = ground.bounds;
@@ -115,28 +116,27 @@ export class Environment {
       }
   }
 
-  // The lengths of road that are the floor risen, each a mesh in the floor's look, built when the
-  // loader gets to it.
-  private createRaised(loader: Loader, raised: readonly Raised[]): void {
-    if (raised.length === 0) return;
+  // The lengths of road that are the floor risen, each road's one mesh in the floor's look, built
+  // when the loader gets to it.
+  private createRaised(loader: Loader, roads: readonly (readonly Raised[])[]): void {
+    if (roads.length === 0) return;
     const scene = this.engine.scene;
     const material = this.groundMaterial('risen', RISEN_SIDE);
-    raised.forEach((length, i) => {
+    roads.forEach((lengths, i) => {
       let mesh: Mesh | null = null;
-      const straight = length.kind === 'straight';
       loader.add({
-        x: straight ? (length.ax + length.bx) / 2 : length.x,
-        z: straight ? (length.az + length.bz) / 2 : length.z,
-        r: straight
-          ? Math.hypot(length.bx - length.ax, length.bz - length.az) / 2 + length.halfWidth
-          : length.r + length.halfWidth,
+        ...around(lengths.map(over)),
         load: function* () {
+          const quads = new Quads();
+          for (const length of lengths) {
+            raisedGround(length, quads);
+            yield;
+          }
           mesh = new Mesh(`risen-${i}`, scene);
-          raisedGround(length).applyToMesh(mesh);
+          quads.data().applyToMesh(mesh);
           mesh.isPickable = false;
           mesh.material = material;
           mesh.freezeWorldMatrix();
-          yield;
         },
         unload: () => {
           mesh?.dispose();
