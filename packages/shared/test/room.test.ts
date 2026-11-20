@@ -1357,6 +1357,28 @@ test("a kart worn out by a wall blows up, hurting its driver and everyone near b
   assert.equal(carol.hearts, MAX_HEARTS - BLAST.damage);
 });
 
+test('a ground pound and a strike that reach a kart wear it, sheltering its driver', () => {
+  const { room, ids } = kartRoom({ x: 0, y: 0, z: 0 }, { x: 0, y: 0, z: 0 }, { x: 0, y: 0, z: 0 });
+  const [driver, pounder, striker] = ids;
+  getIn(room, driver);
+  const k = room.garage.list[0];
+  const [them, mario, tung] = ids.map((id) => room.players.find((p) => p.id === id)!);
+  room.receive(pounder, { t: 'chat', text: '/mario' });
+  room.receive(striker, { t: 'chat', text: '/tung' });
+  // Mario 2.5 m off its side and 2 m up, too low for the pound to grow; Tung a metre off its tail.
+  mario.pos = { x: k.pos.x + 2.5, y: k.pos.y + EYE_HEIGHT + 2, z: k.pos.z };
+  tung.pos = { x: k.pos.x, y: k.pos.y + EYE_HEIGHT, z: k.pos.z - KARTS.standard.body.length / 2 - 1 };
+  tung.yaw = 0;
+  room.receive(pounder, { t: 'input', f: frame(0, ['pound']) });
+  for (let i = 0; i < 2 * TICK_RATE && mario.pound?.stage !== 'land'; i++) tick(room);
+  const pounded = KARTS.standard.wrenches - poundOf('mario')!.damage;
+  assert.equal(k.wrenches, pounded, 'the pound wears it');
+  room.receive(striker, { t: 'input', f: frame(0, ['strike']) });
+  for (let i = 0; i <= Math.round(strikeOf('sahur')!.windup * TICK_RATE); i++) tick(room);
+  assert.equal(k.wrenches, pounded - strikeOf('sahur')!.damage, 'and so does the strike');
+  assert.ok(them.hearts === MAX_HEARTS && them.riding === k.id, 'its driver unhurt and still in it');
+});
+
 test('a shot that reaches a kart first wears it, and one over it hits the driver, whose kart rolls on to a stop', () => {
   const { room, ids } = kartRoom({ x: 0, y: 0, z: 0 }, { x: 0, y: 0, z: 0 });
   const [driver, shooter] = ids;

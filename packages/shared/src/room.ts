@@ -32,7 +32,7 @@ import {
 import { parseCommand, type BotCallArgs, type Command } from './commands';
 import { AVATARS, eyeOf, poundOf, poundPower, strikeOf, type AvatarId } from './sim/avatars';
 import { classOf, heartsOf } from './sim/classes';
-import { findStrikeHits, resolveFire } from './sim/combat';
+import { findStrikeHits, resolveFire, strikeCone } from './sim/combat';
 import { frostDisc, sprayFrost } from './sim/frost';
 import { PositionHistory, rewindTick } from './sim/rewind';
 import {
@@ -496,7 +496,8 @@ export class Room {
 
   // A ground pound landing this tick (avatars.ts `Pound`) hurts everyone else on foot within its
   // reach across the floor, about level with it and in its sight, so not through a wall or a floor,
-  // and throws them back from it, harder and further the higher it began (`poundPower`).
+  // and throws them back from it, harder and further the higher it began (`poundPower`). A kart
+  // within it takes the blow as wrenches, sheltering its driver.
   private pound(seat: Seat): void {
     const me = seat.state;
     const pound = poundOf(me.avatar);
@@ -504,7 +505,7 @@ export class Room {
     const { damage: hurt, reach } = poundPower(pound, me.pound.from - me.pos.y);
     for (const other of this.seats.values()) {
       const p = other.state;
-      if (p === me || p.dead || classOf(p.avatar).id !== 'walker') continue;
+      if (p === me || p.dead || p.riding || classOf(p.avatar).id !== 'walker') continue;
       if (Math.hypot(p.pos.x - me.pos.x, p.pos.z - me.pos.z) > reach) continue;
       if (Math.abs(p.pos.y - me.pos.y) > POUND_HEIGHT || !this.structures.clear(me.pos, p.pos)) continue;
       const dx = p.pos.x - me.pos.x;
@@ -515,11 +516,15 @@ export class Room {
       throwWalker(p, { x: out.x * speed, y: lift, z: out.z * speed }, grip);
       this.damage(p, hurt, { shooter: seat, headshot: false, move: 'pound' });
     }
+    const feet = me.pos.y - EYE_HEIGHT;
+    for (const k of this.garage.within(me.pos, { x: 0, y: 0, z: 1 }, reach, Math.PI))
+      if (Math.abs(k.pos.y - feet) <= POUND_HEIGHT) this.garage.shoot(k.id, hurt, me.id);
   }
 
   // A strike's blow (avatars.ts `Strike`), on the step its windup runs out in (`was` being how far
   // into it the step began): everyone it lands on is hurt, and a walker thrown back from the
-  // striker. It breaks a dragon's crystal as a bullet does.
+  // striker. It breaks a dragon's crystal as a bullet does, and a kart it lands on takes it as
+  // wrenches, sheltering its driver.
   private strike(seat: Seat, was: number | null): void {
     const me = seat.state;
     const strike = strikeOf(me.avatar);
@@ -528,6 +533,7 @@ export class Room {
     if (was >= due || me.strike < due) return;
     for (const hit of findStrikeHits(me, this.players, strike, this.structures)) {
       const victim = hit.target;
+      if (victim.riding) continue;
       const cls = classOf(victim.avatar);
       const hearts = cls.hurt?.(victim, hit.part, strike.damage, { shatters: true }) ?? strike.damage;
       if (hearts === 0) continue;
@@ -541,6 +547,8 @@ export class Room {
       }
       this.damage(victim, hearts, { shooter: seat, headshot: false, move: 'strike' });
     }
+    const { o, dir } = strikeCone(me);
+    for (const k of this.garage.within(o, dir, strike.reach, strike.arc)) this.garage.shoot(k.id, strike.damage, me.id);
   }
 
   // One step of a seat's player, on `frame` or with none, and what comes of it.
