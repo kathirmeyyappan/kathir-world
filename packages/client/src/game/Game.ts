@@ -77,7 +77,7 @@ import {
   voiceOf,
   type SoundId,
 } from '../audio/Sfx';
-import { swingOf, take, TRICK_CRY, twirlOf, VOICES } from '../audio/voices';
+import { BOOST_CRY, swingOf, take, twirlOf, VOICES } from '../audio/voices';
 import { InputManager } from '../input/InputManager';
 import { MobileActions, type MobileActionState } from '../input/MobileActions';
 import { MobileControls } from '../input/MobileControls';
@@ -180,7 +180,7 @@ const GLOAT_DELAY = 0.4; // seconds after a kill that the killer's own line for 
 const OWN_MOVE = 0.6; // the share of its volume the player's own ground pound turns over at, as their own steps do (Footsteps.ts)
 const DEATH_SOUND_DELAY = 0.5; // seconds from dying to the look's death sound: the hurt sound or cry of the last hit, played out
 const CRY_GAP_MS = 600; // a player's cries at being hit come no closer together than this, however short the cry
-type Line = 'hurt' | 'kill' | 'trick' | 'enter' | 'death'; // the lines of a look's voice that are a list of takes (voices.ts)
+type Line = 'hurt' | 'kill' | 'boost' | 'enter' | 'death'; // the lines of a look's voice that are a list of takes (voices.ts)
 // Metres nearer than the player or building whose theme is playing another has to be to take the
 // theme over, so two at a like distance don't trade it back and forth.
 const THEME_HYSTERESIS = 15;
@@ -298,7 +298,7 @@ export class Game {
   private kick = 0; // camera recoil, radians of upward pitch that decays back
   private stepEase = 0; // metres the camera trails the predicted eye height after leaving the ground or landing
   private hearsKarts = false; // a kart's sounds have been sent for
-  private readonly drivers = new Set<AvatarId>(); // the looks seen driving a kart, whose trick cries have been sent for
+  private readonly drivers = new Set<AvatarId>(); // the looks seen driving a kart, whose boost cries have been sent for
   private riding: number | null = null; // metres the camera's ground is over the sim's feet while it rides the ground
   private walkDir = { x: 0, z: 1 }; // the way the body last moved across the floor, for the ride
   private lastPos: { x: number; z: number } | null = null;
@@ -333,12 +333,12 @@ export class Game {
     this.models = new Models(this.engine, this.loader, this.interiors);
     this.driving = new Driving(this.engine);
     this.driving.onKnock = (at) => this.sfx.play(KART_SOUNDS.knock, at);
-    this.driving.onBoost = (at) => this.sfx.play(KART_SOUNDS.boost, at);
     this.driving.onSpark = (at, spark) => this.sfx.play(KART_SOUNDS.spark, at, { rate: SPARK_RATE[spark] });
-    this.driving.onTrick = (at, driver) => {
-      this.sfx.play(KART_SOUNDS.trick, at);
-      if (driver) this.say(driver, 'trick');
+    this.driving.onBoost = (at, driver) => {
+      this.sfx.play(KART_SOUNDS.boost, at);
+      if (driver) this.say(driver, 'boost');
     };
+    this.driving.onTrick = (at) => this.sfx.play(KART_SOUNDS.trick, at);
     this.wallFrames = new WallFrames(this.engine, WALL_FRAMES, this.interiors);
     this.camera = new UniversalCamera('camera', new Vector3(0, 1.7, 0), this.engine.scene);
     this.camera.minZ = NEAR;
@@ -913,8 +913,8 @@ export class Game {
       this.sfx.soon(said.sound, said.at, undefined, id);
       return true;
     }
-    // Each line cuts its speaker's last. A trick's cry is a take of another line, at the cry's own volume.
-    const level = line === 'trick' ? levelAt(said.sound, TRICK_CRY) : 1;
+    // Each line cuts its speaker's last. A boost's cry is a take of another line, at the cry's own volume.
+    const level = line === 'boost' ? levelAt(said.sound, BOOST_CRY) : 1;
     if (this.sfx.play(said.sound, said.at, { delay, by: id, level })) return true;
     // A kill line not here yet (lazy in SOUNDS, sent for in wantVoice) is played as it arrives.
     if (line === 'kill') this.sfx.soon(said.sound, said.at, undefined, id);
@@ -1264,7 +1264,7 @@ export class Game {
     );
     this.driving.draw(karts, dt);
     // What's heard of a kart is sent for as the first is seen, to be here by its first knock, and a
-    // look's cry at a trick as it's first seen driving one.
+    // look's cry at a boost as it's first seen driving one.
     if (karts.length > 0 && !this.hearsKarts) {
       this.hearsKarts = true;
       for (const id of Object.values(KART_SOUNDS)) this.sfx.want(id);
@@ -1273,7 +1273,7 @@ export class Game {
       const driver = k.driver === this.myId ? self.avatar : k.driver && this.avatars.get(k.driver)?.kind;
       if (!driver || this.drivers.has(driver)) continue;
       this.drivers.add(driver);
-      for (const id of VOICES[driver].trick ?? []) this.sfx.want(id);
+      for (const id of VOICES[driver].boost ?? []) this.sfx.want(id);
     }
     const readers = new Map<string, number>();
     const seen = new Set<string>();

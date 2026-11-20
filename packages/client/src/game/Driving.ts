@@ -26,8 +26,8 @@ const SETTLED_PITCH = 0.12; // radians down the settled look is, over the kart's
 
 export class Driving {
   onKnock: ((at: Vec3) => void) | null = null; // a kart there lost wrenches to a knock: for what's heard of it
-  onBoost: ((at: Vec3) => void) | null = null; // a kart there began a boost: for what's heard of it
-  onTrick: ((at: Vec3, driver: string | null) => void) | null = null; // a kart there began a trick, with `driver` in it
+  onBoost: ((at: Vec3, driver: string | null) => void) | null = null; // a kart there began a boost, with `driver` in it
+  onTrick: ((at: Vec3) => void) | null = null; // a kart there began a trick: for what's heard of it
   onSpark: ((at: Vec3, spark: Spark) => void) | null = null; // a kart's drift there reached `spark`
   private readonly drawn = new Map<string, KartMesh>(); // each kart drawn
   private kartYaw: number | null = null; // the yaw of the kart they drive, as last followed
@@ -46,8 +46,8 @@ export class Driving {
       if (!mesh) this.drawn.set(k.id, (mesh = new KartMesh(this.engine, k.id, k.kart, k.paint)));
       const began = mesh.update(k, dt);
       if (began.knock) this.onKnock?.(k.pos);
-      if (began.boost) this.onBoost?.(k.pos);
-      if (began.trick) this.onTrick?.(k.pos, k.driver);
+      if (began.boost) this.onBoost?.(k.pos, k.driver);
+      if (began.trick) this.onTrick?.(k.pos);
       if (began.spark) this.onSpark?.(k.pos, began.spark);
     }
     for (const [id, mesh] of this.drawn)

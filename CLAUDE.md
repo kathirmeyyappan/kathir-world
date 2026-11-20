@@ -831,7 +831,7 @@ its hands coming down, each a shuffle, quieter and lower than a step), what a fo
 sounds, or a loop) and the sounds' pitch; the swing of its limbs is the renderer's. Ask for each
 when adding one. What it says in its own voice is its row in `VOICES` (`audio/voices.ts`), which
 every look has: ask for its lines when adding one, and then, as a question of its own, which of
-them it cries at a kart's trick (`trick`, below; none unless told). Its `enter` is its intro, the line every character is expected to have (empty
+them it cries at a kart's boost (`boost`, below; none unless told). Its `enter` is its intro, the line every character is expected to have (empty
 until its recording is added): said as a player switches to the look, to them and everyone near,
 until they switch again (`Sfx.hush`; the home screen's stops at the next pick too),
 on the home screen as the look is picked (`Sfx.ts` `audition`), and to the player alone as they
@@ -845,9 +845,9 @@ second, the third, the last one given serving the rest), and the takes it picks 
 everyone near, never before the last cry has run out nor within `CRY_GAP_MS` of it; its own player
 hears it over the hurt sound, which sounds at every hit whatever the look; a spray's hits, fire's
 and ice's, come too fast for a voice and are the hurt sound alone, `Game.sprayed`) and a moment after a kill (`Game.say`);
-its `trick`, what it cries as the kart it drives tricks, heard by everyone near: takes borrowed
-from its other lines (none unless given), each played at the one volume (`TRICK_CRY`) whichever
-line it's from, since the lines' recordings are level and it's only their volumes that differ (an
+its `boost`, what it cries as the kart it drives begins a boost (a drift's, a trick's or a boost
+pad's), heard by everyone near: takes borrowed from its other lines (none unless given), each
+played at the one volume (`BOOST_CRY`) whichever line it's from, since the lines' recordings are level and it's only their volumes that differ (an
 intro's is over twice a jump's), and sent for as the look is first seen driving; and its `death`,
 which its own player alone hears over the death screen (cut to its ten seconds; the reload ends
 it), `DEATH_SOUND_DELAY` after dying so the hit that killed them sounds first, as any hit does,
@@ -1152,8 +1152,9 @@ gas is heard the moment it's pressed): the idle, all but unheard except from its
 running loop, a steady stretch of an engine played faster and slower by the revs (`setLoops`'
 `rate`) and louder with them. A drift on the ground is its skid, an onset and then a loop, kept
 quiet, and each spark the drift reaches a zap, a minor third higher than the last
-(`Driving.onSpark`, `SPARK_RATE`); a boost beginning is its rush (`Driving.onBoost`), a trick its chime, with its driver's cry
-if their look has one (`Driving.onTrick`, `VOICES`' `trick`), a knock that costs wrenches its crash
+(`Driving.onSpark`, `SPARK_RATE`); a boost beginning is its rush, with its driver's cry if their
+look has one (`Driving.onBoost`, `VOICES`' `boost`), a trick its chime (`Driving.onTrick`), a knock that costs
+wrenches its crash
 (`Driving.onKnock`), and a kart blowing up its bang. The kart the player drives is heard flat and
 any other from where it is, and only those within earshot are played at all, so a room full of
 karts costs the few that are near. A loop here is cut on exact samples and encoded as a theme's is

@@ -13,8 +13,8 @@ A set is the sounds a player hears as one kind of thing and so compares: one cha
 beside another's, one footstep beside the next. Within a set every sound should play within
 TOLERANCE of the set's middle; the script exits 1 if one doesn't. Level a new clip's file to its
 set's loudness and give it the set's `volume`: a `volume` of its own to make up for a quiet file is
-what this catches. A line a look also cries at a kart's trick (audio/voices.ts `trick`) is in a
-second set there, at the one volume every such cry plays at (`TRICK_CRY`) whichever line it's
+what this catches. A line a look also cries at a kart's boost (audio/voices.ts `boost`) is in a
+second set there, at the one volume every such cry plays at (`BOOST_CRY`) whichever line it's
 borrowed from. Sounds that are meant to differ from their neighbours (a soft landing and a hard
 one, the two guns, the light and heavy plop of a tentacle), and a dragon's roars, cries and theme,
 which are each recorded and set to carry across the world, are in no set and only listed.
@@ -101,9 +101,9 @@ def main() -> int:
     table = source[source.index("const SOUNDS") :]
     table = table[: table.index("\n};")]
     voices = (CLIENT / "src/audio/voices.ts").read_text()
-    cry = re.search(r"TRICK_CRY = ([\d.]+)", voices)
+    cry = re.search(r"BOOST_CRY = ([\d.]+)", voices)
     assert cry
-    tricks = set(re.findall(r"'([\w-]+)'", " ".join(re.findall(r"trick: \[(.*?)\]", voices, re.S))))
+    boosts = set(re.findall(r"'([\w-]+)'", " ".join(re.findall(r"boost: \[(.*?)\]", voices, re.S))))
     sets: dict[str | None, list[tuple[str, float, float, float]]] = defaultdict(list)
     for sound, spec in re.findall(r"^  '?([\w-]+)'?: \{(.*?)\}", table, re.S | re.M):
         file = re.search(r"file: '([^']+)'", spec)
@@ -113,8 +113,8 @@ def main() -> int:
         sets[set_of(sound)].append(
             (sound, level, float(volume.group(1)), level + 20 * math.log10(float(volume.group(1))))
         )
-        if sound in tricks:
-            sets["voice: trick"].append(
+        if sound in boosts:
+            sets["voice: boost"].append(
                 (sound, level, float(cry.group(1)), level + 20 * math.log10(float(cry.group(1))))
             )
     off = 0
