@@ -137,7 +137,7 @@ test("a road's floor runs straight and round its bend, stops square at a gap, an
   }
 });
 
-test("a road's boost pad lies a hair over its stretch, level or climbing, short of its ends and its sides", () => {
+test("a road's boost pad lies a hair over its stretch, level or climbing, short of its ends and its sides, and only a padded stretch's bank is built there, the rest the floor risen", () => {
   // North 100 m: level 20 m, up 6 m over 30 m, each with a pad, level and back down.
   const road = layRoad({
     name: 'test',
@@ -164,6 +164,19 @@ test("a road's boost pad lies a hair over its stretch, level or climbing, short 
   ])
     assert.equal(structures.footing(x, z, 50).surface, 'hard', `off the pads at ${x}, ${z}`);
   assert.equal(road.marks.filter((mark) => mark.kind === 'pad').length, 2);
+  // The padded climb's ramp is drawn as it stands; the level top and the way down are hidden, and
+  // listed for the client to draw as the floor.
+  assert.deepEqual(
+    road.bank.filter((piece) => !piece.hidden).map((piece) => piece.kind),
+    ['ramp'],
+  );
+  assert.deepEqual(
+    road.raised.map((length) => length.kind === 'straight' && [length.ay, length.by]),
+    [
+      [6, 6],
+      [6, 0],
+    ],
+  );
 });
 
 test('jump only from the ground, and gravity brings you back', () => {

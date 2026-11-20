@@ -295,11 +295,11 @@ wire: server and client both build the world from that file.
   `worldTop: true` on them so their tops map alike. The same goes for anything else the client
   draws: never lay a decal, glow or second mesh exactly on a surface.
 - Client cost: the renderer merges pieces with the same look in the same 48 m square into one mesh,
-  so draw calls stay in the tens however many pieces there are. The world's 13,351 pieces (5,656
+  so draw calls stay in the tens however many pieces there are. The world's 13,351 pieces (5,624
   drawn; the house's rooms and shell are 7,516 hidden pieces, the Krusty Krab 175 and the roads'
-  boost pads 4) render as
-  about 100 meshes (about 15 in view at once; the roads' banks are 38 pieces in 20 of them, each
-  boost pad is two small meshes of its own, and
+  36: their risen banks and their boost pads) render as
+  about 85 meshes (about 15 in view at once; the roads' built ramps are 6 pieces in 3 of them, each
+  of their 22 lengths of risen road is a small mesh of its own and each boost pad two, and
   the floor is 105 chunks), and a raycast tries the pieces a stretch of grid cells at a
   time, so one across open floor costs a few µs, one through the Krusty Krab about 10 µs and one
   through the house about 130 µs. The sim's grid has height bands as well as cells, so a walker's
@@ -314,7 +314,13 @@ to the next, and round a bend at each one between (left without a radius, the tw
 as they do in the middle of a disc). The floor under a road is flat like all the floor, so its
 height is its bank, structures stood on that floor: a wedge under a stretch that climbs or drops, a
 block under one that runs level up off the floor, each a `SHOULDER` in from the floor's edge so its
-sides rise out of the kerb. A gap is a stretch with neither floor nor bank, to be jumped; `jump(run,
+sides rise out of the kerb. A bank looks one of two ways: under a padded stretch it's a ramp built
+on the floor, of stone, drawn as the structures it is; anywhere else it's the floor itself risen,
+its pieces `hidden`, and the client draws the road there in the floor's own look
+(`render/RaisedGround.ts`, from the road's `raised`, `ROAD_RAISED`: the grid carried on up over
+what faces up with a bold green line down each side, and walls of the drop's grey face with a bold
+line along their top, so a road's border reads all the way over a hill; a bend is drawn round,
+whatever blocks its bank is to the sim). A gap is a stretch with neither floor nor bank, to be jumped; `jump(run,
 rise, across)` is one with a ramp either side, so it's jumped both ways. A boost pad is a stretch
 `padded`: to the sim a sliver of its own shape lying a hair over it, four fifths of the road
 across, hidden, whose surface (`boost`) boosts a kart rolling forward over it (see Surfaces and
@@ -324,8 +330,8 @@ runs, running that way, with a halo of their colours that swells and falls (`Eng
 frame's rim is only drawn, as the floor's kerb is. A road is authored as runs, each cut into stretches (`level`, `climb`, `gap`, any of them
 `padded`; one with no length takes an even share of what the others leave), and `layRoad` turns it
 into its floor (square bridges and bends, for the outline), its bank with its pads (for
-`content/roads.ts`) and its marks (for the maps, which draw each slope as arrowheads pointing up it
-and each pad as a rainbow). It throws on a road that can't be laid: stretches that don't fill their
+`content/roads.ts`), what of it is the floor risen (`raised`) and its marks (for the maps, which
+draw each slope as arrowheads pointing up it and each pad as a rainbow). It throws on a road that can't be laid: stretches that don't fill their
 run, a bend too tight, an end left up off the floor.
 
 The world's roads and islands are in `sim/outline.ts` (`ROADS`, `ISLANDS`): two arms from the
