@@ -47,8 +47,8 @@ export interface Stretch {
 // How a road splits in two along a stretch of deck: its strands swing `out` metres to either side
 // over `fork` metres of the way, run on side by side, and swing back over as far to come together
 // at the stretch's end. Once clear of each other the left one climbs `rise` and the right one
-// drops `fall`, each over `climb` metres, and they come back to the road's height before they
-// meet again; with `pad`, each has a boost pad halfway.
+// drops `fall`, each eased over `climb` metres (`grade`), and they come back to the road's height
+// before they meet again; with `pad`, each has a boost pad halfway.
 export interface Split {
   out: number;
   fork: number;
@@ -171,6 +171,25 @@ export const gap = (length: number): Stretch => ({ length, gap: true });
 export const span = (length?: number): Stretch => ({ length, open: true });
 export const padded = (stretch: Stretch): Stretch => ({ ...stretch, pad: true });
 export const split = (length: number, shape: Split): Stretch => ({ length, open: true, split: shape });
+const GRADE = 4; // metres of road to one flat length of a graded climb
+const DECK = 1.4; // metres through an open stretch's deck
+const HEADROOM = 4; // metres clear under a deck, at the least: a kart, its driver and the eye that follows them
+// A climb of `rise` over `length` (a drop, negative) that eases in and out: level at both its ends
+// and steepest in its middle, half again as steep there as a straight climb would be, laid as a run
+// of short lengths along that S. `deck` says which of them are lengths of deck: none, `all`, or for
+// a climb between the floor and `rise` up it, those `clear` of the floor by a deck with headroom
+// under it, so the road is a bank only as far up as nothing could pass beneath.
+export const grade = (length: number, rise: number, deck: 'none' | 'clear' | 'all' = 'none'): Stretch[] => {
+  if (rise === 0) return [deck === 'all' ? span(length) : level(length)];
+  const lengths = Math.max(2, Math.round(length / GRADE));
+  const eased = (u: number) => u * u * (3 - 2 * u);
+  const foot = Math.max(0, -rise);
+  return Array.from({ length: lengths }, (_, k) => {
+    const [from, to] = [foot + rise * eased(k / lengths), foot + rise * eased((k + 1) / lengths)];
+    const open = deck === 'all' || (deck === 'clear' && Math.min(from, to) >= DECK + HEADROOM);
+    return { length: length / lengths, rise: to - from, ...(open && { open }) };
+  });
+};
 // A gap with a ramp either side of it, `run` long and `rise` high, so it's jumped both ways.
 export const jump = (run: number, rise: number, across: number): Stretch[] => [
   climb(run, rise),
@@ -194,14 +213,13 @@ const LAP = 0.05;
 // further than the kerb the client draws in from an edge (Floor.ts), which would leave a slit.
 const FLOOR_LAP = 1;
 const SLICE = 6; // metres of a bend, along its middle, under one block of its bank
-const DECK = 1.4; // metres through an open stretch's deck
 // Metres a deck's bank may be thicker than the deck where it climbs: its pieces are wedges, flat
 // underneath, so a climb is a run of them short enough to keep within this of an even thickness.
 const STEP = 0.5;
+const ROUNDING = 1e-9; // metres the summed rises of a road may be out by
 // A split's strands: metres along the middle of the bend each takes out of the fork and into the
 // meeting, and the metres past where their inner sides part that they still count as one surface.
 const STRAND = { radius: 60, spare: 2 };
-const HEADROOM = 4; // metres clear under a deck, at the least: a kart, its driver and the eye that follows them
 // A boost pad: its share of the road's width, the metres it stops short of its stretch's ends, and
 // the metres its top lies over the road's, so the two share no plane.
 // One on a bend is a straight length of its own, `round` metres, lying along the bend there.
@@ -400,7 +418,33 @@ export function layRoad(spec: RoadSpec): Road {
     const [ay, by] = [under + PAD.lift, under + PAD.lift + climbs];
     road.marks.push({ kind: 'pad', ax: from.x, ay, az: from.z, bx: to.x, by, bz: to.z, halfWidth: across / 2 });
   });
+  road.marks = joined(road.marks);
   return road;
+}
+
+// The marks with every slope that carries straight on into the next, the same way up, made one
+// with it: a climb laid as many short lengths (`grade`) is one slope to the maps, foot to top.
+function joined(marks: RoadMark[]): RoadMark[] {
+  const out: RoadMark[] = [];
+  let last = -1; // the slope last kept
+  const meet = (ax: number, ay: number, az: number, bx: number, by: number, bz: number) =>
+    Math.hypot(ax - bx, ay - by, az - bz) < 1e-6;
+  for (const mark of marks) {
+    const before = out[last];
+    if (mark.kind === 'slope' && before?.kind === 'slope') {
+      if (meet(before.bx, before.by, before.bz, mark.ax, mark.ay, mark.az)) {
+        out[last] = { ...before, bx: mark.bx, by: mark.by, bz: mark.bz };
+        continue;
+      }
+      if (meet(mark.bx, mark.by, mark.bz, before.ax, before.ay, before.az)) {
+        out[last] = { ...before, ax: mark.ax, ay: mark.ay, az: mark.az };
+        continue;
+      }
+    }
+    if (mark.kind === 'slope') last = out.length;
+    out.push(mark);
+  }
+  return out;
 }
 
 // The road's runs as legs: each run's straight between the bends at its ends, cut into its
@@ -487,7 +531,7 @@ function legsOf(spec: RoadSpec): Leg[] {
     });
   });
   const end = spec.joins?.to ?? 0;
-  if (height !== end) throw bad(`ends ${height} m up, not ${end}`);
+  if (Math.abs(height - end) > ROUNDING) throw bad(`ends ${height} m up, not ${end}`);
   return legs;
 }
 
@@ -527,7 +571,7 @@ function strandsOf(spec: RoadSpec, leg: Extract<Leg, { kind: 'split' }>): RoadSp
           to: corner(length - fork),
           radius: STRAND.radius,
           open: true,
-          stretches: [{ ...span(climb), rise: change }, ...middle, { ...span(climb), rise: -change }],
+          stretches: [...grade(climb, change, 'all'), ...middle, ...grade(climb, -change, 'all')],
         },
         { to: leg.b, stretches: [span(), ...[...one].reverse()] },
       ],
@@ -548,7 +592,7 @@ function risen(piece: Structure): Structure {
 
 // A height with the rounding of summed rises taken off, so a road that comes back down is on the floor.
 function snapped(height: number): number {
-  return Math.abs(height) < 1e-9 ? 0 : height;
+  return Math.abs(height) < ROUNDING ? 0 : height;
 }
 
 // A bend's floor, run `back` radians before its start and `on` radians past its end.
