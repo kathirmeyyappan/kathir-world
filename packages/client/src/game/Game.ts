@@ -13,6 +13,8 @@ import {
   INTERIOR_BUILDINGS,
   HOME_GROUND,
   stranded,
+  atFullHealth,
+  touchesPickup,
   shutAt,
   onOutsideGround,
   WORLD_GROUND,
@@ -1198,12 +1200,19 @@ export class Game {
     // (sim/vehicles/rescue.ts). On foot there, the Room bleeds hearts.
     const lost = !this.dead && !!self.riding && !!this.prediction.kart && stranded(this.prediction.kart);
     const out = !this.dead && !self.riding && cls === 'walker' && onOutsideGround(self.pos.y - EYE_HEIGHT);
+    // A pickup touched at full health is left where it is (sim/pickups.ts).
+    const full =
+      !this.dead &&
+      atFullHealth(self) &&
+      sampled.pickups.some((pickup) => touchesPickup(pickup.kind, pickup, self.pos, EYE_HEIGHT));
     this.alert.hold(
       lost
         ? "you're off the map!\nhold on, Lakitu's coming"
         : out
           ? "you're out of bounds!\nget back on the map"
-          : null,
+          : full
+            ? "you're already at full health"
+            : null,
     );
     this.commandHint.update(this.isBlocked());
     this.minimap.update({

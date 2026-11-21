@@ -699,7 +699,8 @@ the canvas can't become the frame's texture from afar.
   dead player's body leaves `CORPSE_DROP` (a big heart, twice the size, back to full health) on
   whatever it was lying on when its seat is dropped.
 - A new kind is a row in `PICKUPS` (float height, reach, and `heals`, the hearts it gives back, a
-  full life at `Infinity`; one at full health leaves it where it is) plus a shape in `render/Pickups.ts`; the
+  full life at `Infinity`; one at full health leaves it where it is, and the red box, `ui/Alert.ts`,
+  tells them so for as long as they touch it) plus a shape in `render/Pickups.ts`; the
   `Record<PickupKind, …>` there makes the compiler ask. The Room, the wire and the Python mirror
   already carry every kind.
 - Pickups pass through structures like cubes, so keep a region clear of stairs and walls at the
