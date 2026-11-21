@@ -21,7 +21,7 @@ import { perScene } from '../perScene';
 import { LAKITU } from './lakituModel';
 
 const GLOW = 0.3; // how much he lights himself, as a kart does (vehicles/KartMesh.ts)
-const LINE = new Color3(0.9, 0.9, 0.85); // pale, to show against a night sky
+const LINE = new Color3(0.7, 0.7, 0.66); // pale, to show against a night sky, and under what blooms
 const [TIP_X, TIP_Y, TIP_Z] = LAKITU.fishing.tip;
 
 interface Parts {
