@@ -1178,12 +1178,15 @@ wheel held its way through it, a trick edges the kart across that way, `TRICK.ed
 which shifts where a jump comes down by about the kart's own width and is all the steering a
 flight has; once a
 trick is through (`TRICK.seconds`) another press is another, as many as the flight has room for,
-and landing after any is one boost like a mini-turbo's held for `TRICK.hold`. The press needn't be
-timed: one up to `TRICK.early` before the kart is in the air is the trick as it leaves the ground
+and landing after any is one boost like a mini-turbo's held for `TRICK.hold`. Only a flight is
+tricked in: `TRICK.clear` (0.5 m) or more over the ground under the kart, which is more than its
+own hop lifts it, so the top of a climb or a bump in the road is none. The press needn't be
+timed: one up to `TRICK.early` before the kart is that far up is the trick as it gets there
 (`KartState.press`), one anywhere up a ramp that's carrying it up as fast as a hop would makes no
-hop and keeps to the lip, and one up to `TRICK.late` after landing from a flight with no trick in
-it (`KartState.down`; a flight, so down at `TRICK.fall` or more, not off a kerb) is that trick
-late, boosting at once. A boost pad (a footing whose
+hop and keeps to the lip (but one a drift begins with is spent on the drift), and one up to
+`TRICK.late` after landing from a flight with no trick in it (`KartState.down`; a flight, so down
+as fast as a fall from `TRICK.clear`, not off a kerb or a bump) is that trick late, boosting at
+once. A boost pad (a footing whose
 surface `boosts`, see Roads) under a kart rolling forward is a boost too: held at full for as long
 as the kart is on it, the pad pushing it on as the gas would whatever its pedal, and for `PAD.hold`
 after it leaves, unless the boost it came with has longer left; one parked on a pad is let be.
