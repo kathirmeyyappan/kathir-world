@@ -1,7 +1,7 @@
 // Touch controls: a square pad on the left that acts as a joystick, and a jump button on the
 // right; a dragon, which only flies forward, has a throttle in the pad's place, slid up for the
 // speed and left where it's put, and no jump; and a kart's driver steers with the pad and has its
-// pedals in the jump button's place: GAS, a bar over BRAKE and DRIFT. All plain DOM styled like the
+// pedals in the jump button's place: DRIFT, a bar over BRAKE and GAS. All plain DOM styled like the
 // rest of the HUD. Only mounted on touch devices.
 import type { PlayerClass } from '@world/shared';
 import type { InputManager } from './InputManager';
