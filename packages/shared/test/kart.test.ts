@@ -73,7 +73,7 @@ test('a kart drifts, sparks blue, yellow and purple by its mini-turbo time, and 
   assert.ok(speed(k) < spec.speed + 0.5, `back at its own speed once it's let down: ${speed(k)}`);
 });
 
-test('a press in the air tricks a kart the way its wheel is held, again once that trick is through, and boosts it once as it lands, a moment early or late too, but not in its own hop', () => {
+test('a press in the air tricks a kart the way its wheel is held, edging it across that way, again once that trick is through, and boosts it once as it lands, a moment early or late too, but not in its own hop', () => {
   // The platform, and a jump along +z: up 5 m over 14 m, 8 m of nothing, and back down.
   const structures = world(
     platform,
@@ -97,6 +97,10 @@ test('a press in the air tricks a kart the way its wheel is held, again once tha
   assert.equal(k.trick, null);
   assert.equal(k.turbo?.hold, TRICK.hold);
   drive(k, gas, TURBO.rise + TRICK.hold + TURBO.fall + 0.2, structures);
+  // The wheel held a trick's way through it edges the kart across that way, by TRICK.edge at its end.
+  const edged = createKart('standard', 1, { x: 0, y: 16, z: 0 }, 0);
+  drive(edged, { gas: 1, steer: 1, drift: true }, TRICK.seconds, structures);
+  assert.ok(Math.abs(edged.vel.x - TRICK.edge) < 0.2, `edged to its right: ${edged.vel.x}`);
   // A press hops it, and another in the hop is no trick.
   press(0);
   drive(k, gas, TICK_DT, structures);
