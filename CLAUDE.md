@@ -261,9 +261,10 @@ wire: server and client both build the world from that file.
   off the edge, falls down the drop, and for every half second (`OUT_OF_BOUNDS_SECONDS`) it stands
   on the grey ground past it (`onOutsideGround`) loses a heart, time to jetpack out, or dies there
   (an `out`, `room.ts` `outOfBounds`), with nothing dropped where it lies; the red box
-  (`ui/Alert.ts`) tells a walker stood there they're out of bounds. The one barrier is a circle round the
-  world's reach (`Ground.keepWithin`, the red wall shown as you come near it), the same for a
-  walker and a dragon. Keep structures inside the outline.
+  (`ui/Alert.ts`) tells a walker stood there they're out of bounds. Nothing bounds the world
+  past that: a dragon or a jetpack can go as far out as it likes, over ground past the edge that
+  follows the camera (`render/Environment.ts`), and a kart is fished back by Lakitu. Keep
+  structures inside the outline.
   The slab is drawn a `CHUNK` at a time (`render/Floor.ts`, one mesh each, streamed in by the
   loader): its floor, and along its edge a bold kerb (`KERB_WIDTH` across inside it, `KERB_HEIGHT`
   up, its top lit) whose outer face drops to the ground past the edge, with a toe as bold along its
@@ -1487,8 +1488,7 @@ on it stands (`ui/Elevation.ts`, a picture a pixel a metre of `Structures.ground
 rows each time `MapCanvas` draws it until it's all there, coloured by the root of the height so a
 road's bank reads beside the tower), with its scale (`Elevation.legend`, which each page styles) and
 the height under the pointer. Any map shows it by handing `MapCanvas.draw` or `drawWorld` the
-picture; the menu's map does too. Its photos are in `public/assets/guide/places/`, taken in the game offline with the
-boundary wall hidden, each with a `-thumb` for its gallery. The Gallery tab is the game as it's
+picture; the menu's map does too. Its photos are in `public/assets/guide/places/`, taken in the game offline, each with a `-thumb` for its gallery. The Gallery tab is the game as it's
 played, three photos to a row (`GALLERY` in `guide/content.ts`, `public/assets/guide/gallery/`, taken the
 same way with the HUD hidden, 1600 × 900 with a 480 × 270 `-thumb`), and the README's Photo Gallery
 shows the same files: a new one goes in both.
