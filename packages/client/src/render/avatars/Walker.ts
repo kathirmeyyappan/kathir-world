@@ -144,6 +144,7 @@ export class WalkerAvatar implements Avatar {
   private held: RemotePlayer['climb'] = null; // the ladder face last seen held
   private swing = 0; // radians the body has still to turn round the ladder after a swap
   protected facing = 0; // the way the body faces, radians in the world: the root's yaw
+  private startFacing: number | null = null; // the way it faces when first drawn: else the look's
   protected turn = 0; // radians the body came round by this frame, on foot
   protected velX = 0; // m/s across the floor, in the world, as it last moved
   protected velZ = 0;
@@ -183,6 +184,14 @@ export class WalkerAvatar implements Avatar {
     this.shadow.parent = this.root;
     this.shadow.position.y = 0.02;
     this.joints = jointsOf(this.root, this.figure);
+  }
+
+  heading(): number | null {
+    return this.last ? this.facing : null;
+  }
+
+  face(yaw: number): void {
+    this.startFacing = yaw;
   }
 
   update(p: RemotePlayer, step: number, seat: Seat | null): void {
@@ -489,7 +498,7 @@ export class WalkerAvatar implements Avatar {
     const last = this.last;
     if (!last) {
       this.last = { x: p.x, y: feetY, z: p.z, at: now };
-      this.facing = p.yaw;
+      this.facing = this.startFacing ?? p.yaw;
       return;
     }
     const dx = p.x - last.x;

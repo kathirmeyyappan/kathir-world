@@ -139,13 +139,12 @@ export function createAvatar(
   was: Avatar | null = null,
 ): Avatar {
   const make = readyMaker(engine, p.avatar);
-  if (make) {
-    was?.dispose();
-    return make(engine, p.id, p.avatar, p.color);
-  }
-  const keep = was && AVATARS[was.kind].class === 'walker' ? was : null;
+  const heading = was?.heading?.() ?? null;
+  const keep = !make && was && AVATARS[was.kind].class === 'walker' ? was : null;
   if (was !== keep) was?.dispose();
-  return new Pending(engine, p, keep);
+  const body = make ? make(engine, p.id, p.avatar, p.color) : new Pending(engine, p, keep);
+  if (heading !== null) body.face?.(heading);
+  return body;
 }
 
 // A look on foot on its way: the body it had standing in for it, or none, until it arrives and
@@ -158,6 +157,7 @@ class Pending implements Avatar {
   private arrived = false;
   private gone = false;
   private weapons = 1;
+  private facing: number | null = null; // the way the arrival is to face, if the stand-in can't say
 
   constructor(engine: Engine, p: { id: string; color: string; avatar: AvatarId }, standIn: Avatar | null) {
     this.id = p.id;
@@ -167,6 +167,8 @@ class Pending implements Avatar {
       .then((make) => {
         if (this.gone) return;
         const body = make(engine, p.id, p.avatar, p.color);
+        const heading = this.heading();
+        if (heading !== null) body.face?.(heading);
         body.scaleWeapons(this.weapons);
         body.hide(); // until the next update places it
         this.body?.dispose();
@@ -183,6 +185,13 @@ class Pending implements Avatar {
 
   update(p: RemotePlayer, step: number, seat: Seat | null): void {
     this.body?.update(p, step, seat);
+  }
+  heading(): number | null {
+    return this.body?.heading?.() ?? this.facing;
+  }
+  face(yaw: number): void {
+    this.facing = yaw;
+    this.body?.face?.(yaw);
   }
   flash(): void {
     this.body?.flash();
