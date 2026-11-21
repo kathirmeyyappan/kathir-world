@@ -2274,19 +2274,19 @@ body {
   height: 84px;
   padding: 0;
 }
-/* A kart's driver's buttons, in JUMP's corner in its place: GAS, a bar over two squares, BRAKE and
-   DRIFT, each bigger than a walker's, being held without a look at them. --pedal is a square's
-   side, no wider than leaves the pad clear on a narrow phone, and --gas the bar's height. */
+/* A kart's driver's buttons, in JUMP's corner in its place: DRIFT, a bar over two squares, BRAKE
+   and GAS, each bigger than a walker's, being held without a look at them. --pedal is a square's
+   side, no wider than leaves the pad clear on a narrow phone, and --bar the bar's height. */
 #pedals {
   --pedal: min(96px, calc((100vw - 190px) / 2));
-  --gas: 80px;
+  --bar: 80px;
   position: fixed;
   right: 22px;
   bottom: 26px;
   z-index: 100;
   grid-template:
-    'gas gas' var(--gas)
-    'brake drift' var(--pedal)
+    'drift drift' var(--bar)
+    'brake gas' var(--pedal)
     / var(--pedal) var(--pedal);
   gap: 12px;
 }
@@ -2520,7 +2520,7 @@ body {
   /* The bar no taller than leaves OUT clear above it on the shortest screen. */
   #pedals {
     --pedal: 100px;
-    --gas: min(72px, calc(100dvh - 228px));
+    --bar: min(72px, calc(100dvh - 228px));
     right: 16px;
     bottom: 16px;
     gap: 8px;
