@@ -4,6 +4,7 @@ import {
   CHILL_SECONDS,
   CUBE_IDS,
   EYE_HEIGHT,
+  TELEPORT_USAGE,
   OUTSIDE_HEIGHT,
   HEADSHOT_MULTIPLIER,
   INPUT_WAIT_TICKS,
@@ -269,6 +270,22 @@ test('/speedy and /s boost the sender and tell everyone in grey', () => {
   room.receive(ida, { t: 'chat', text: '/fly' });
   assert.deepEqual(a.inbox.at(-1), { t: 'refused', text: 'unknown command /fly' });
   assert.notDeepEqual(b.inbox.at(-1), { t: 'refused', text: 'unknown command /fly' }, 'only the sender is told');
+});
+
+test('/teleport stands the feet where asked, carries a dragon whole, and answers a bad one with its usage', () => {
+  const room = new Room('teleport', { seed: 1 });
+  const a = link();
+  const ida = room.join('alice', a)!;
+  const alice = room.players.find((p) => p.id === ida)!;
+  room.receive(ida, { t: 'chat', text: '/teleport 4000 30 -200' });
+  assert.deepEqual(alice.pos, { x: 4000, y: 30 + EYE_HEIGHT, z: -200 });
+  room.receive(ida, { t: 'chat', text: '/teleport 1 2' });
+  assert.deepEqual(a.inbox.at(-1), { t: 'refused', text: TELEPORT_USAGE });
+
+  room.receive(ida, { t: 'chat', text: '/light-dragon' });
+  const tail = alice.dragon!.spine.slice(-3);
+  room.receive(ida, { t: 'chat', text: '/teleport 4100 30 -200' });
+  assert.deepEqual(alice.dragon!.spine.slice(-3), [tail[0] + 100, tail[1], tail[2]], 'the tail comes along');
 });
 
 test('/gun then shoot: the server resolves the hit, kills the target, and the dead stop moving', () => {

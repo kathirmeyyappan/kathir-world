@@ -55,6 +55,8 @@ export interface ClassSpec {
   // Make and clear the class's own state on `p` as a player switches in and out of it.
   enter(p: PlayerState): void;
   exit(p: PlayerState): void;
+  // Puts `p`'s body with its eyes at `eye`, at rest, whatever move it was in (a teleport).
+  moveTo(p: PlayerState, eye: Vec3): void;
   // Moves `p` for one tick of `dt` seconds on `input` (null when no frame arrived), its look and
   // item already applied. Returns how fast it was falling if it landed, m/s downward, else 0.
   step(p: PlayerState, input: InputFrame | null, dt: number, structures: Structures): number;

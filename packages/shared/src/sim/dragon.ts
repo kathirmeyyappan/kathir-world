@@ -148,6 +148,19 @@ export const DRAGON: ClassSpec = {
   exit(p) {
     p.dragon = null;
   },
+  // The whole body carried with the head, as it lay, stopped.
+  moveTo(p, eye) {
+    const [dx, dy, dz] = [eye.x - p.pos.x, eye.y - p.pos.y, eye.z - p.pos.z];
+    p.pos = { ...eye };
+    if (!p.dragon) return;
+    const spine = p.dragon.spine;
+    for (let i = 0; i < spine.length; i += 3) {
+      spine[i] = round(spine[i] + dx);
+      spine[i + 1] = round(spine[i + 1] + dy);
+      spine[i + 2] = round(spine[i + 2] + dz);
+    }
+    p.dragon.speed = 0;
+  },
   step: stepDragon,
   aim: (p: Shooter) => p.dragon?.head ?? lookDirection(p.yaw, p.pitch),
   hitShape,
