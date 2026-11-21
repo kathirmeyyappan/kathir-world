@@ -7,6 +7,7 @@
 import { Matrix, Vector3, type Camera, type Scene } from '@babylonjs/core';
 import { AVATARS, EYE_HEIGHT, SEATED, WORLD_STRUCTURES } from '@world/shared';
 import type { RemotePlayer } from '../net/Interpolation';
+import { nameColour } from '../render/liveries';
 
 export const ABOVE_BODY = 0.3; // metres from the top of the body to the middle of the name
 const TAG_EM = 0.23; // metres: the font size in the world, about 20 px at 6 m
@@ -58,7 +59,8 @@ export class NameTags {
       seen.add(p.id);
       const tag = this.tags.get(p.id) ?? this.create(p);
       if (p.name !== tag.name) tag.el.textContent = tag.name = p.name;
-      if (p.color !== tag.color) tag.el.style.color = tag.color = p.color;
+      const colour = nameColour(p);
+      if (colour !== tag.color) tag.el.style.color = tag.color = colour;
       // Sat in a kart, its feet are on the seat and only SEATED of its body stands over them.
       const top = AVATARS[p.avatar].hitbox.top * (p.riding ? SEATED : 1);
       const at = new Vector3(p.x, p.y - EYE_HEIGHT + top + ABOVE_BODY, p.z);

@@ -322,7 +322,7 @@ export class Room {
         if (!text) return;
         const command = parseCommand(text);
         if (command) this.runCommand(seat, command);
-        else this.broadcast({ t: 'chat', id, name: seat.state.name, color: seat.state.color, text });
+        else this.broadcast({ t: 'chat', id, name: seat.state.name, text });
         return;
       }
       case 'rename':

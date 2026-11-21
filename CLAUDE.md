@@ -1029,7 +1029,10 @@ edge) in `public/assets/textures/emblems/`, about 5 KB, fetched by whatever firs
 wears its dropper's as they appeared when they dropped it (see Karts; `Appearance`, the look and
 the colour, which is what the Room keeps and sends of it), and the heart a dead body leaves is
 its player's (`render/Pickups.ts`: the heart in the primary, the emblem on a disc a hair off each
-face, sent for as the body is seen dead and left off until it's here). The Mario family's are Mario Kart 8's,
+face, sent for as the body is seen dead and left off until it's here). Its primary is also the
+colour a player goes by wherever they're named or marked: the roster's dot, the name over their
+head, their pin at the screen's edge, their mark on the maps and their name in the chat all read
+`nameColour`, which lightens one too dark to read on the dark those are drawn over. The Mario family's are Mario Kart 8's,
 the colours and the emblems `scripts/kart-model.py` takes from the Standard Kart's rip. The rest
 are made here, their emblems drawn by `scripts/emblems.py` (a row each in its `EMBLEMS`: a picture
 set on the disc, or a mark drawn there). Every look has one (`liveryOf`): a look's row in

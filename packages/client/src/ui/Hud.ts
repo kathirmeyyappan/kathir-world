@@ -9,6 +9,7 @@ import { IS_TOUCH } from '../input/touch';
 import { roomLink } from '../net/lobby';
 import { commandGroups, completionsOf, type Row } from './commands';
 import type { LegendCell } from './legend';
+import { nameColour } from '../render/liveries';
 
 const CHAT_LINES = 8;
 const CHAT_FADE_MS = 12_000;
@@ -275,16 +276,17 @@ export class Hud {
       const e = this.players.get(p.id);
       if (!e) continue;
       const life = heartsOf(p.avatar);
+      const colour = nameColour(p);
       if (
         e.name !== p.name ||
-        e.color !== p.color ||
+        e.color !== colour ||
         e.hearts !== p.hearts ||
         e.life !== life ||
         e.kills !== p.kills ||
         e.dead !== p.dead
       ) {
         e.name = p.name;
-        e.color = p.color;
+        e.color = colour;
         e.hearts = p.hearts;
         e.life = life;
         e.kills = p.kills;
@@ -406,11 +408,12 @@ export class Hud {
     this.crosshair.classList.toggle('hot', hot);
   }
 
-  chat(name: string, color: string, text: string): void {
+  // A line `id` said, their name in the colour the roster has them in.
+  chat(id: string, name: string, text: string): void {
     const li = document.createElement('li');
     const who = document.createElement('span');
     who.className = 'who';
-    who.style.color = color;
+    who.style.color = this.players.get(id)?.color ?? '';
     who.textContent = `${name}: `;
     li.append(who, document.createTextNode(text));
     this.pushLine(li);
@@ -526,14 +529,14 @@ interface RosterPlayer {
   color: string;
   bot?: boolean;
   hearts?: number;
-  avatar?: AvatarId;
+  avatar: AvatarId;
   kills?: number;
   dead?: boolean;
 }
 
 interface RosterEntry {
   name: string;
-  color: string;
+  color: string; // the one they go by (liveries.ts `nameColour`)
   bot: boolean;
   hearts: number;
   life: number; // a full life for their class
@@ -544,10 +547,10 @@ interface RosterEntry {
 function entry(p: RosterPlayer): RosterEntry {
   return {
     name: p.name,
-    color: p.color,
+    color: nameColour(p),
     bot: !!p.bot,
     hearts: p.hearts ?? MAX_HEARTS,
-    life: p.avatar ? heartsOf(p.avatar) : MAX_HEARTS,
+    life: heartsOf(p.avatar),
     kills: p.kills ?? 0,
     dead: !!p.dead,
   };
