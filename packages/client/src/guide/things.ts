@@ -21,14 +21,13 @@ import {
 import type { Thing } from '../render/BodyView';
 import { CubeMesh } from '../render/CubeMesh';
 import { buildGear } from '../render/Gear';
-import { buildHeart } from '../render/Pickups';
+import { buildHeart, PICKUP_SCALE } from '../render/Pickups';
 import { buildTank, buildWeapon, weaponPalette } from '../render/Weapons';
 import { KartMesh, parkedKart } from '../render/vehicles/KartMesh';
 
 const HOVER = 1.2; // metres up an item floats over the floor, about where it's held
 const ITEM_BOB = 0.03; // of an item's size, how far it floats up and down
 const ITEM_BOB_HZ = PICKUP_BOB_HZ / 2; // how often it does, slower than a pickup in the world
-const BIG = 2; // a big heart is the heart at twice the size (render/Pickups.ts)
 // A cube's float and turn: the middle of the ranges the sim draws each cube's from.
 const CUBE_FLOAT_HZ = 1.5;
 const CUBE_TURN = 0.35;
@@ -84,7 +83,6 @@ export function gearThing(id: GearId): Thing {
 }
 
 export function pickupThing(kind: PickupKind): Thing {
-  const scale = kind === 'big-heart' ? BIG : 1;
   const height = PICKUPS[kind].height;
   return {
     key: `pickup-${kind}`,
@@ -92,7 +90,7 @@ export function pickupThing(kind: PickupKind): Thing {
       const heart = buildHeart(engine);
       heart.setEnabled(true); // the shape the world draws copies of, drawn itself here
       heart.parent = parent;
-      heart.scaling.setAll(scale);
+      heart.scaling.setAll(PICKUP_SCALE[kind]);
       return (t) => float(heart, height, t);
     },
   };

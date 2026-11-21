@@ -1,6 +1,6 @@
 // Floating pickups (sim/pickups.ts), drawn where the server says. A heart is the HUD's pixel heart,
 // two voxels deep, shaded by face like the structures, and a big heart (what a dead player leaves)
-// the same heart at twice the size. A heart is red, unless a body left it (`from`): then it's in
+// the same heart drawn bigger (PICKUP_SCALE), with room for a badge on it. A heart is red, unless a body left it (`from`): then it's in
 // the primary of that player's livery (liveries.ts), with its emblem on both faces. Every heart of a colour is an instance of one mesh and every badge of an emblem of another, so
 // any number of them cost a draw call a colour and one an emblem. An emblem's picture is fetched as
 // its look's body is seen dead, ahead of the heart it leaves; a heart whose emblem isn't here yet
@@ -27,11 +27,12 @@ const HIGHLIGHT = 2 / 3; // how far toward white a heart's highlight pixel is fr
 const GLOW = 0.8; // of its colours a heart shines at, unlit: a touch under bloom
 // Face shading by direction (Babylon's box faces: front, back, right, left, top, bottom).
 const FACE_SHADE = [1, 1, 0.72, 0.72, 0.86, 0.55];
-const SCALE: Record<PickupKind, number> = { heart: 1, 'big-heart': 2 };
+// How many times the heart's size each kind is drawn.
+export const PICKUP_SCALE: Record<PickupKind, number> = { heart: 1, 'big-heart': 2.5 };
 // A badge on each face of a heart, in the heart's own metres: its radius, how far under the
-// heart's middle its own is (the widest disc the pixel heart holds below its lobes, half over its
-// notch), and how far off the face it stands.
-const BADGE = { radius: 2.7 * VOXEL, drop: 0.2 * VOXEL, off: 0.08 * VOXEL };
+// heart's middle its own is (under the notch between its lobes, with heart to spare either side),
+// and how far off the face it stands.
+const BADGE = { radius: 2.1 * VOXEL, drop: 0.2 * VOXEL, off: 0.08 * VOXEL };
 
 export class Pickups {
   private readonly hearts = new Map<string, Mesh>(); // the heart in each colour, by its hex
@@ -60,7 +61,7 @@ export class Pickups {
 
   private draw(p: PickupSnapshot): InstancedMesh {
     const heart = instance(this.heart(p.from ? liveryOf(p.from).primary : RED), `pickup-${p.id}`);
-    heart.scaling.setAll(SCALE[p.kind]);
+    heart.scaling.setAll(PICKUP_SCALE[p.kind]);
     if (p.from) instance(this.badge(p.from), `pickup-${p.id}-badge`).parent = heart;
     return heart;
   }

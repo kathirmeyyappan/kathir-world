@@ -696,7 +696,7 @@ the canvas can't become the frame's texture from afar.
 - Pickups (`sim/pickups.ts`) float in the pickup areas listed in `content/pickups.ts`: a region, a
   kind, how many, and how often one comes back. What's where is that list alone, plus drops:
   `dropPickup` leaves one at a spot, in no area, where it stays until taken and never comes back. A
-  dead player's body leaves `CORPSE_DROP` (a big heart, twice the size, back to full health) on
+  dead player's body leaves `CORPSE_DROP` (a big heart, two and a half times the size, back to full health) on
   whatever it was lying on when its seat is dropped, each kept as theirs (`from`, how they
   appeared), which the client draws in their livery (see Liveries).
 - A new kind is a row in `PICKUPS` (float height, reach, and `heals`, the hearts it gives back, a

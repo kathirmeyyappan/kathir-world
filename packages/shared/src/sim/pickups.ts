@@ -24,7 +24,7 @@ export interface PickupSpec {
 
 export const PICKUPS: Record<PickupKind, PickupSpec> = {
   heart: { kind: 'heart', height: 1.4, reach: 1, heals: 3 }, // just under eye level, half a cube's height
-  'big-heart': { kind: 'big-heart', height: 1.4, reach: 1.5, heals: Infinity }, // drawn twice the size; back to full
+  'big-heart': { kind: 'big-heart', height: 1.4, reach: 1.5, heals: Infinity }, // drawn bigger; back to full
 };
 
 export interface PickupArea {
