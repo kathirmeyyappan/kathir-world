@@ -111,27 +111,31 @@ export function takePickups(field: PickupField, p: PlayerState, eyeHeight: numbe
   if (p.dead) return;
   const taken = new Set<PickupState>();
   for (const pickup of field.items)
-    if (touches(pickup, p.pos, eyeHeight) && heal(p, PICKUPS[pickup.kind].heals)) taken.add(pickup);
+    if (touchesPickup(pickup.kind, pickup.pos, p.pos, eyeHeight) && heal(p, PICKUPS[pickup.kind].heals))
+      taken.add(pickup);
   if (taken.size > 0) field.items = field.items.filter((pickup) => !taken.has(pickup));
 }
 
-// Within reach across the floor of a player whose eyes are at `eye`, and between their feet and a
-// little over their head.
-function touches(pickup: PickupState, eye: Vec3, eyeHeight: number): boolean {
+// Whether a pickup of `kind` floating at `at` is touched by a player whose eyes are at `eye`:
+// within its reach across the floor, and between their feet and a little over their head.
+export function touchesPickup(kind: PickupKind, at: Vec3, eye: Vec3, eyeHeight: number): boolean {
   return (
-    Math.hypot(pickup.pos.x - eye.x, pickup.pos.z - eye.z) <= PICKUPS[pickup.kind].reach &&
-    pickup.pos.y >= eye.y - eyeHeight - 0.3 &&
-    pickup.pos.y <= eye.y + 0.6
+    Math.hypot(at.x - eye.x, at.z - eye.z) <= PICKUPS[kind].reach &&
+    at.y >= eye.y - eyeHeight - 0.3 &&
+    at.y <= eye.y + 0.6
   );
 }
 
-// Gives back `hearts`, up to a full life; no use to someone already at full health.
+// At full health a pickup that heals is no use: touched, it stays where it is.
+export function atFullHealth(p: PlayerState): boolean {
+  return p.hearts >= heartsOf(p.avatar);
+}
+
 // Gives `p` back `hearts`, up to a full life; false when they're already at full, and the pickup
 // stays.
 function heal(p: PlayerState, hearts: number): boolean {
-  const full = heartsOf(p.avatar);
-  if (p.hearts >= full) return false;
-  p.hearts = Math.min(full, p.hearts + hearts);
+  if (atFullHealth(p)) return false;
+  p.hearts = Math.min(heartsOf(p.avatar), p.hearts + hearts);
   return true;
 }
 
