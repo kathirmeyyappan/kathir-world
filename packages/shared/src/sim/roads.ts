@@ -171,6 +171,20 @@ export const gap = (length: number): Stretch => ({ length, gap: true });
 export const span = (length?: number): Stretch => ({ length, open: true });
 export const padded = (stretch: Stretch): Stretch => ({ ...stretch, pad: true });
 export const split = (length: number, shape: Split): Stretch => ({ length, open: true, split: shape });
+const GRADE = 4; // metres of road to one flat length of a graded climb
+// A climb of `rise` over `length` (a drop, negative) that eases in and out: level at both its ends
+// and steepest in its middle, half again as steep there as a straight climb would be, laid as a run
+// of short lengths along that S. `deck`, each is a length of deck.
+export const grade = (length: number, rise: number, deck = false): Stretch[] => {
+  if (rise === 0) return [deck ? span(length) : level(length)];
+  const lengths = Math.max(2, Math.round(length / GRADE));
+  const eased = (u: number) => u * u * (3 - 2 * u);
+  return Array.from({ length: lengths }, (_, k) => ({
+    length: length / lengths,
+    rise: rise * (eased((k + 1) / lengths) - eased(k / lengths)),
+    ...(deck && { open: true }),
+  }));
+};
 // A gap with a ramp either side of it, `run` long and `rise` high, so it's jumped both ways.
 export const jump = (run: number, rise: number, across: number): Stretch[] => [
   climb(run, rise),
@@ -400,7 +414,33 @@ export function layRoad(spec: RoadSpec): Road {
     const [ay, by] = [under + PAD.lift, under + PAD.lift + climbs];
     road.marks.push({ kind: 'pad', ax: from.x, ay, az: from.z, bx: to.x, by, bz: to.z, halfWidth: across / 2 });
   });
+  road.marks = joined(road.marks);
   return road;
+}
+
+// The marks with every slope that carries straight on into the next, the same way up, made one
+// with it: a climb laid as many short lengths (`grade`) is one slope to the maps, foot to top.
+function joined(marks: RoadMark[]): RoadMark[] {
+  const out: RoadMark[] = [];
+  let last = -1; // the slope last kept
+  const meet = (ax: number, ay: number, az: number, bx: number, by: number, bz: number) =>
+    Math.hypot(ax - bx, ay - by, az - bz) < 1e-6;
+  for (const mark of marks) {
+    const before = out[last];
+    if (mark.kind === 'slope' && before?.kind === 'slope') {
+      if (meet(before.bx, before.by, before.bz, mark.ax, mark.ay, mark.az)) {
+        out[last] = { ...before, bx: mark.bx, by: mark.by, bz: mark.bz };
+        continue;
+      }
+      if (meet(mark.bx, mark.by, mark.bz, before.ax, before.ay, before.az)) {
+        out[last] = { ...before, ax: mark.ax, ay: mark.ay, az: mark.az };
+        continue;
+      }
+    }
+    if (mark.kind === 'slope') last = out.length;
+    out.push(mark);
+  }
+  return out;
 }
 
 // The road's runs as legs: each run's straight between the bends at its ends, cut into its
