@@ -13,7 +13,7 @@ import {
   INTERIOR_BUILDINGS,
   HOME_GROUND,
   stranded,
-  foldAt,
+  shutAt,
   onOutsideGround,
   WORLD_GROUND,
   WORLD_OUTLINE,
@@ -113,7 +113,7 @@ import { Bubble } from '../ui/Bubble';
 import { CommandHint } from '../ui/CommandHint';
 import { CommandsMenu } from '../ui/CommandsMenu';
 import { Alert } from '../ui/Alert';
-import { Fold } from '../ui/Fold';
+import { Iris } from '../ui/Iris';
 import { Condition } from '../ui/Condition';
 import { KartGauge } from '../ui/KartGauge';
 import { EdgeFlash } from '../ui/EdgeFlash';
@@ -285,7 +285,7 @@ export class Game {
   private readonly condition = new Condition();
   private readonly kartGauge = new KartGauge();
   private readonly alert = new Alert();
-  private readonly fold = new Fold();
+  private readonly iris = new Iris();
   private readonly commandHint = new CommandHint();
   private readonly areaTitle = new AreaTitle();
   private readonly commandsMenu = new CommandsMenu();
@@ -1277,8 +1277,12 @@ export class Game {
     );
     this.driving.draw(karts, dt);
     this.rescuers.update(karts, this.camera.position, dt);
-    // The seconds into the tick to come run the fold on between a rescue's ticks, as they do the kart.
-    this.fold.set(driven?.rescue && !this.dead ? foldAt(driven.rescue.t + this.accumulator) : 0);
+    // In Lakitu's hands the view closes to a circle on its driver's head and opens from it again.
+    // The seconds into the tick to come run it on between a rescue's ticks, as they do the kart.
+    const seat = self.riding ? this.driving.seatOf(self.riding) : null;
+    const shut = driven?.rescue && !this.dead ? shutAt(driven.rescue.t + this.accumulator) : 0;
+    const head = shut > 0 && seat ? new Vector3(seat.at.x, seat.at.y + this.seatedEyes(), seat.at.z) : null;
+    this.iris.set(shut, head, this.engine.scene, this.camera);
     // What's heard of a kart is sent for as the first is seen, to be here by its first knock, and a
     // look's cry at a boost as it's first seen driving one.
     if (karts.length > 0 && !this.hearsKarts) {

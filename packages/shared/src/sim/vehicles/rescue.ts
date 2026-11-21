@@ -1,6 +1,6 @@
 // A kart down on the ground past the world's edge is fished back by Lakitu (the client draws him,
 // render/lakitu/): once its driver has sat there RESCUE.wait he comes, hoists it RESCUE.height,
-// carries it, while its driver's view is folded shut, to the middle of the track where it left the
+// carries it, while its driver's view is closed, to the middle of the track where it left the
 // world, and lowers it there. To the sim that's a kart held wherever the seconds into its rescue
 // put it (`carried`, which stepKart hands a kart in one to, so the Room and its driver's own
 // prediction agree) and nothing else: its wrenches and its driver's hearts are as they were. Where
@@ -12,17 +12,17 @@ import { ROAD_WIDTH } from '../outline';
 import type { Vec3 } from '../types';
 import type { KartState, KartStep } from './kart';
 
-// A rescue's parts, in seconds, one after the next: the driver stranded before he comes; him coming
-// down over the kart; the kart hoisted `height` metres; the driver's view folding shut; shut, as
-// the kart is carried across; unfolding; and the kart lowered onto the track.
-export const RESCUE = { wait: 2, come: 0.7, lift: 1, fold: 0.3, dark: 0.2, unfold: 0.3, lower: 1.4, height: 2 };
+// A rescue's parts, in seconds: the driver stranded before he comes; then, one after the next, him
+// coming down over the kart, the kart hoisted `height` metres, the driver's view closing to a
+// circle on them, the view shut as the kart is carried across, and the kart lowered onto the
+// track; with the view opening again from the moment the lowering begins.
+export const RESCUE = { wait: 2, come: 0.7, lift: 1, close: 0.5, dark: 0.2, lower: 1.4, open: 0.5, height: 2 };
 
 // The seconds into a rescue each part after the first begins at, and it ends.
 const LIFT_AT = RESCUE.come;
-const FOLD_AT = LIFT_AT + RESCUE.lift;
-const DARK_AT = FOLD_AT + RESCUE.fold;
-const UNFOLD_AT = DARK_AT + RESCUE.dark;
-const LOWER_AT = UNFOLD_AT + RESCUE.unfold;
+const CLOSE_AT = LIFT_AT + RESCUE.lift;
+const DARK_AT = CLOSE_AT + RESCUE.close;
+const LOWER_AT = DARK_AT + RESCUE.dark;
 const OVER_AT = LOWER_AT + RESCUE.lower;
 
 // A kart's rescue: the seconds into it, where it was picked up, and where it's set down and the
@@ -42,9 +42,9 @@ export function stranded(k: KartState): boolean {
   return k.grounded && onOutsideGround(k.pos.y);
 }
 
-// How far shut the view of a driver `t` seconds into a rescue is folded: 0 open to 1 shut.
-export function foldAt(t: number): number {
-  return Math.min(unit((t - FOLD_AT) / RESCUE.fold), 1 - unit((t - UNFOLD_AT) / RESCUE.unfold));
+// How far shut the view of a driver `t` seconds into a rescue is: 0 open to 1 shut.
+export function shutAt(t: number): number {
+  return Math.min(unit((t - CLOSE_AT) / RESCUE.close), 1 - unit((t - LOWER_AT) / RESCUE.open));
 }
 
 // One tick of kart `k` in a rescue: held still where the seconds into it put it, over where it was

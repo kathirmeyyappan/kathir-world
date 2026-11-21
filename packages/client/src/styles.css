@@ -1177,38 +1177,18 @@ body {
   }
 }
 
-/* The view folded shut (ui/Fold.ts): two black flaps hinged along its top and its bottom edges,
-   each swung from edge on, back into the view (--shut 0), down flat over its half of it (1), so
-   they meet across the middle. Over the view and under everything drawn on it. */
-#fold {
+/* The view closed down to a circle (ui/Iris.ts): black but for a round hole, --r from its middle
+   at (--x, --y). Over the view and under everything drawn on it. */
+#iris {
   position: fixed;
   inset: 0;
   z-index: 40;
   display: none;
-  overflow: hidden;
   pointer-events: none;
-  perspective: 140vh;
+  background: radial-gradient(circle at var(--x) var(--y), transparent var(--r), #000 calc(var(--r) + 1px));
 }
-#fold.on {
+#iris.on {
   display: block;
-}
-#fold::before,
-#fold::after {
-  content: '';
-  position: absolute;
-  inset-inline: 0;
-  height: 50.5%;
-  background: #000;
-}
-#fold::before {
-  top: 0;
-  transform-origin: top;
-  transform: rotateX(calc((1 - var(--shut)) * -90deg));
-}
-#fold::after {
-  bottom: 0;
-  transform-origin: bottom;
-  transform: rotateX(calc((1 - var(--shut)) * 90deg));
 }
 
 /* A glow round the edge of the view (ui/EdgeFlash.ts): on at once, then fading. */
