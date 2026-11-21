@@ -1024,7 +1024,7 @@ change was made for.
 
 A look's livery (`render/liveries.ts`, `LIVERIES`) is what anything made out in its wearer's name
 is drawn in: a primary colour, the one the look is known by, a secondary that goes with it, and an
-emblem, a picture of a badge (the look's mark on a disc, white on the ones made here, filling the picture edge to
+emblem, a picture of a badge (the look's mark on a disc, filling the picture edge to
 edge) in `public/assets/textures/emblems/`, about 5 KB, fetched by whatever first draws it. A kart
 wears its dropper's as they appeared when they dropped it (see Karts; `Appearance`, the look and
 the colour, which is what the Room keeps and sends of it), and the heart a dead body leaves is
@@ -1034,12 +1034,16 @@ colour a player goes by wherever they're named or marked: the roster's dot, the 
 head, their pin at the screen's edge, their mark on the maps and their name in the chat all read
 `nameColour`, which lightens one too dark to read on the dark those are drawn over. The Mario family's are Mario Kart 8's,
 the colours and the emblems `scripts/kart-model.py` takes from the Standard Kart's rip. The rest
-are made here, their emblems drawn by `scripts/emblems.py` (a row each in its `EMBLEMS`: a
-picture set on the disc). Every look has one (`liveryOf`): a look's row in `LIVERIES` says only
-what of it is its own, and what it leaves unsaid, or all of it for a look with no row (the
-standard body among them), is its wearer's colour over black round the site's logo, which is
-Elizabeth. So Elizabeth's row is her colours alone, her white over the orange of her feet. A new
-one is a row in `LIVERIES` and, with a mark of its own, its emblem's picture; nothing that wears a livery has to know the look.
+are made here, their emblems drawn by `scripts/emblems.py` (a row each in its `EMBLEMS`: the
+disc's colour and its mark, a picture or one drawn there). Every look has one (`liveryOf`): a
+look's row in `LIVERIES` says only what of it is its own, and what it leaves unsaid, or all of it
+for a look with no row (the standard body among them), is its wearer's colour over black and the
+default emblem, the game's initials on a white disc, the K over the W on a diagonal. Their
+picture has them in a key red (`INK`) that the client paints over with the livery's primary as
+it's drawn (`emblemPixels`, with a dark line round the letters so a pale primary still shows), so one picture serves every colour, and whatever keeps an emblem
+as drawn keeps it by `emblemKey`. Elizabeth's row is her white over the orange of her feet, and
+the site's logo, which is her, on a dark disc. A new one is a row in `LIVERIES` and, with a mark
+of its own, its emblem's picture; nothing that wears a livery has to know the look.
 
 ## Player classes
 

@@ -1,24 +1,18 @@
 // Floating pickups (sim/pickups.ts), drawn where the server says. A heart is the HUD's pixel heart,
 // two voxels deep, shaded by face like the structures, and a big heart (what a dead player leaves)
-// the same heart drawn bigger (PICKUP_SCALE), with room for a badge on it. A heart is red, unless a body left it (`from`): then it's in
-// the primary of that player's livery (liveries.ts), with its emblem on both faces. Every heart of a colour is an instance of one mesh and every badge of an emblem of another, so
-// any number of them cost a draw call a colour and one an emblem. An emblem's picture is fetched as
-// its look's body is seen dead, ahead of the heart it leaves; a heart whose emblem isn't here yet
-// is drawn without it.
-import {
-  Color3,
-  Color4,
-  Mesh,
-  MeshBuilder,
-  StandardMaterial,
-  Texture,
-  type AbstractMesh,
-  type InstancedMesh,
-} from '@babylonjs/core';
+// the same heart drawn bigger (PICKUP_SCALE), with room for a badge on it. A heart is red, unless
+// a body left it (`from`): then it's in the primary of that player's livery (liveries.ts), with
+// its emblem on both faces. Every heart of a colour is an instance of one mesh and every badge of
+// an emblem of another, so any number of them cost a draw call a colour and one an emblem. An
+// emblem is sent for as its look's body is seen dead, ahead of the heart it leaves; a heart whose
+// emblem isn't here yet is drawn without it, and gets it as it comes.
+import { Color3, Color4, Mesh, MeshBuilder, StandardMaterial, type InstancedMesh } from '@babylonjs/core';
 import type { Appearance, PickupKind, PickupSnapshot } from '@world/shared';
 import { HEART } from '../ui/pixelIcons';
 import type { Engine } from './Engine';
-import { emblemUrl, liveryOf } from './liveries';
+import { begin, type Fetch } from './fetchOnce';
+import { emblemKey, emblemPixels, liveryOf, type Livery } from './liveries';
+import { pixelTexture } from './pictures';
 
 const VOXEL = 0.075; // metres per pixel of the heart: 9 pixels make it about 0.7 m across
 const DEPTH = 2; // voxels deep
@@ -34,36 +28,47 @@ export const PICKUP_SCALE: Record<PickupKind, number> = { heart: 1, 'big-heart':
 // and how far off the face it stands.
 const BADGE = { radius: 2.1 * VOXEL, drop: 0.2 * VOXEL, off: 0.08 * VOXEL };
 
+// A pickup as it's drawn: its heart, and the livery whose badge it's still to get, if any.
+interface Drawn {
+  heart: InstancedMesh;
+  wants: Livery | null;
+}
+
 export class Pickups {
   private readonly hearts = new Map<string, Mesh>(); // the heart in each colour, by its hex
-  private readonly badges = new Map<string, Mesh>(); // each emblem's badges, by its name
-  private readonly drawn = new Map<string, AbstractMesh>();
+  private readonly badges = new Map<string, Fetch<Mesh>>(); // each emblem's badges as drawn, by its key
+  private readonly drawn = new Map<string, Drawn>();
 
   constructor(private readonly engine: Engine) {}
 
   // Draws `pickups` where they float, and sends for what the hearts the `dead` leave are drawn with.
   update(pickups: PickupSnapshot[], dead: Appearance[]): void {
-    for (const who of dead) this.badge(who);
+    for (const who of dead) this.badge(liveryOf(who));
     const seen = new Set<string>();
     for (const p of pickups) {
       seen.add(p.id);
       let d = this.drawn.get(p.id);
       if (!d) this.drawn.set(p.id, (d = this.draw(p)));
-      d.position.set(p.x, p.y, p.z);
-      d.rotation.y = p.ry;
+      const badge = d.wants && this.badge(d.wants);
+      if (badge) {
+        instance(badge, `pickup-${p.id}-badge`).parent = d.heart;
+        d.wants = null;
+      }
+      d.heart.position.set(p.x, p.y, p.z);
+      d.heart.rotation.y = p.ry;
     }
     for (const [id, d] of this.drawn) {
       if (seen.has(id)) continue;
-      d.dispose();
+      d.heart.dispose();
       this.drawn.delete(id);
     }
   }
 
-  private draw(p: PickupSnapshot): InstancedMesh {
-    const heart = instance(this.heart(p.from ? liveryOf(p.from).primary : RED), `pickup-${p.id}`);
+  private draw(p: PickupSnapshot): Drawn {
+    const livery = p.from ? liveryOf(p.from) : null;
+    const heart = instance(this.heart(livery?.primary ?? RED), `pickup-${p.id}`);
     heart.scaling.setAll(PICKUP_SCALE[p.kind]);
-    if (p.from) instance(this.badge(p.from), `pickup-${p.id}-badge`).parent = heart;
-    return heart;
+    return { heart, wants: livery };
   }
 
   private heart(colour: string): Mesh {
@@ -72,12 +77,9 @@ export class Pickups {
     return heart;
   }
 
-  // The badges of the livery of someone who appears as `who`.
-  private badge(who: Appearance): Mesh {
-    const { emblem } = liveryOf(who);
-    let badge = this.badges.get(emblem);
-    if (!badge) this.badges.set(emblem, (badge = buildBadge(this.engine, emblem)));
-    return badge;
+  // A livery's badges, sent for where they haven't been: null until they're here.
+  private badge(livery: Livery): Mesh | null {
+    return begin(this.badges, emblemKey(livery), () => buildBadge(this.engine, livery)).value ?? null;
   }
 }
 
@@ -120,10 +122,13 @@ export function buildHeart(engine: Engine, colour = RED): Mesh {
   return heart;
 }
 
-// An emblem's badges for a heart: its picture on a disc a hair off each of the heart's faces, each
+// A livery's badges for a heart: its emblem on a disc a hair off each of the heart's faces, each
 // facing out. Unlit like the heart, and not drawn itself: its instances are, each under a heart's.
-function buildBadge(engine: Engine, emblem: string): Mesh {
+async function buildBadge(engine: Engine, livery: Livery): Promise<Mesh> {
   const scene = engine.scene;
+  const key = emblemKey(livery);
+  const picture = pixelTexture(scene, await emblemPixels(livery));
+  picture.hasAlpha = true;
   const faces = [0, Math.PI].map((turn) => {
     const disc = MeshBuilder.CreateDisc('badge-face', { radius: BADGE.radius, tessellation: 24 }, scene);
     disc.rotation.y = turn;
@@ -131,10 +136,8 @@ function buildBadge(engine: Engine, emblem: string): Mesh {
     return disc;
   });
   const badge = Mesh.MergeMeshes(faces, true)!;
-  badge.name = `pickup-badge-${emblem}`;
-  const picture = new Texture(emblemUrl(emblem), scene, false, false, Texture.NEAREST_NEAREST_MIPLINEAR);
-  picture.hasAlpha = true;
-  const mat = new StandardMaterial(`pickup-badge-${emblem}`, scene);
+  badge.name = `pickup-badge-${key}`;
+  const mat = new StandardMaterial(`pickup-badge-${key}`, scene);
   mat.disableLighting = true;
   mat.diffuseTexture = picture;
   mat.emissiveColor = new Color3(GLOW, GLOW, GLOW); // times the picture's colours

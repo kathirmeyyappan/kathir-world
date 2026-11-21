@@ -14,7 +14,6 @@ import {
   Color3,
   Mesh,
   Quaternion,
-  RawTexture,
   StandardMaterial,
   Texture,
   TransformNode,
@@ -40,8 +39,9 @@ import { smooth } from '../avatars/motion';
 import type { Engine } from '../Engine';
 import { begin, type Fetch } from '../fetchOnce';
 import { fetchMesh, meshData } from '../models/meshFile';
-import { emblemUrl, liveryOf, type Livery } from '../liveries';
+import { emblemPixels, liveryOf, type Livery } from '../liveries';
 import { perScene } from '../perScene';
+import { pixelsOf, pixelTexture } from '../pictures';
 import { KartEffects } from './KartEffects';
 import { KART_MODELS, type KartModel } from './kartModel';
 import { Seat } from './Seat';
@@ -412,9 +412,9 @@ async function fetchParts(scene: Scene, kart: KartId, model: KartModel): Promise
 async function makePaint(scene: Scene, key: string, model: KartModel, livery: Livery): Promise<Paint> {
   const folder = `/assets/models/${model.folder}`;
   const [body, where, badge] = await Promise.all([
-    picture(`${folder}/body.png`).then(pixels),
-    picture(`${folder}/paint.png`).then(pixels),
-    picture(emblemUrl(livery.emblem)),
+    pixelsOf(`${folder}/body.png`),
+    pixelsOf(`${folder}/paint.png`),
+    emblemPixels(livery),
   ]);
   // The paint's picture is red where the primary goes and green where the secondary does.
   const [primary, secondary] = [livery.primary, livery.secondary].map((c) => Color3.FromHexString(c).asArray());
@@ -425,21 +425,21 @@ async function makePaint(scene: Scene, key: string, model: KartModel, livery: Li
       out[i + c] = body.data[i + c] * (1 - first - second + first * primary[c] + second * secondary[c]);
     out[i + 3] = 255;
   }
-  const emblem = material(scene, `kart-paint-${key}-emblem`, rawTexture(scene, decal(model, badge)));
+  const emblem = material(scene, `kart-paint-${key}-emblem`, pixelTexture(scene, decal(model, badge)));
   emblem.diffuseTexture!.hasAlpha = true;
   emblem.useAlphaFromDiffuseTexture = true;
   emblem.transparencyMode = StandardMaterial.MATERIAL_ALPHATEST;
-  const painted = rawTexture(scene, { data: out, width: body.width, height: body.height });
+  const painted = pixelTexture(scene, { data: out, width: body.width, height: body.height });
   return { body: material(scene, `kart-paint-${key}`, painted), emblem };
 }
 
 // An emblem's picture on the clear canvas a model's emblem patch is drawn from (KartModel.emblem),
 // the canvas as many pixels as leave the picture its own.
-function decal(model: KartModel, badge: ImageBitmap): ImageData {
+function decal(model: KartModel, badge: ImageData): ImageData {
   const { at, size } = model.emblem;
   const canvas = new OffscreenCanvas(Math.round(badge.width / size[0]), Math.round(badge.height / size[1]));
   const context = canvas.getContext('2d')!;
-  context.drawImage(badge, Math.round(at[0] * canvas.width), Math.round(at[1] * canvas.height));
+  context.putImageData(badge, Math.round(at[0] * canvas.width), Math.round(at[1] * canvas.height));
   return context.getImageData(0, 0, canvas.width, canvas.height);
 }
 
@@ -454,27 +454,4 @@ function material(scene: Scene, name: string, texture: Texture): StandardMateria
 
 function imageTexture(scene: Scene, url: string): Texture {
   return new Texture(url, scene, false, false, Texture.NEAREST_NEAREST_MIPLINEAR);
-}
-
-interface Pixels {
-  data: Uint8Array | Uint8ClampedArray;
-  width: number;
-  height: number;
-}
-
-function rawTexture(scene: Scene, { data, width, height }: Pixels): Texture {
-  const bytes = new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
-  return RawTexture.CreateRGBATexture(bytes, width, height, scene, true, false, Texture.NEAREST_NEAREST_MIPLINEAR);
-}
-
-async function picture(url: string): Promise<ImageBitmap> {
-  return createImageBitmap(await (await fetch(url)).blob());
-}
-
-// A picture's pixels, read through a canvas.
-function pixels(image: ImageBitmap): ImageData {
-  const canvas = new OffscreenCanvas(image.width, image.height);
-  const context = canvas.getContext('2d')!;
-  context.drawImage(image, 0, 0);
-  return context.getImageData(0, 0, image.width, image.height);
 }
