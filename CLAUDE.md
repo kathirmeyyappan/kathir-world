@@ -1023,12 +1023,17 @@ change was made for.
 
 A look's livery (`render/liveries.ts`, `LIVERIES`) is what anything made out in its wearer's name
 is drawn in: a primary colour, the one the look is known by, a secondary that goes with it, and an
-emblem, a picture of a badge (the look's mark on an off-white disc, filling the picture edge to
+emblem, a picture of a badge (the look's mark on a disc, white on the ones made here, filling the picture edge to
 edge) in `public/assets/textures/emblems/`, about 5 KB, fetched by whatever first draws it. A kart
-wears its dropper's (see Karts). The Mario family's are Mario Kart 8's, the colours and the
-emblems `scripts/kart-model.py` takes from the Standard Kart's rip. A look with none is left to
-whatever reads it to stand in for (`liveryOf` gives null). A new one is a row in `LIVERIES` and
-its emblem's picture; nothing that wears a livery has to know the look.
+wears its dropper's as they appeared when they dropped it (see Karts; `Appearance`, the look and
+the colour, which is what the Room keeps and sends of it). The Mario family's are Mario Kart 8's,
+the colours and the emblems `scripts/kart-model.py` takes from the Standard Kart's rip. The rest
+are made here, their emblems drawn by `scripts/emblems.py` (a row each in its `EMBLEMS`: a
+picture set on the disc). Every look has one (`liveryOf`): a look's row in `LIVERIES` says only
+what of it is its own, and what it leaves unsaid, or all of it for a look with no row (the
+standard body among them), is its wearer's colour over black round the site's logo, which is
+Elizabeth. So Elizabeth's row is her colours alone, her white over the orange of her feet. A new
+one is a row in `LIVERIES` and, with a mark of its own, its emblem's picture; nothing that wears a livery has to know the look.
 
 ## Player classes
 
@@ -1242,8 +1247,8 @@ on the edge of its wells, all four on the ground), the steering wheel's middle,
 the axis it turns round and the grips a driver's hands take on it (a wheel's rim or a handlebar's
 ends alike), the seat, where a driver's feet rest (against the pedals, or as far forward under the
 nose as a foot fits), where its exhaust pipes end and the way they point, and where an emblem's
-picture goes on the patch on its nose. A kart wears the livery of whoever dropped it (see Liveries
-below; Mario's where their look has none): the body is one picture with its two painted colours
+picture goes on the patch on its nose. A kart wears the livery of whoever dropped it (see
+Liveries): the body is one picture with its two painted colours
 left white and a second saying where the primary and the secondary go, painted on the client in
 whichever colours, and the emblem's picture is set on the patch's canvas there.
 The script prints the box the sim drives it as, for its row in `KARTS`. `render/vehicles/KartMesh.ts`

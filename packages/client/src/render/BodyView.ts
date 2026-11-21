@@ -41,7 +41,7 @@ import type { Seat } from './vehicles/Seat';
 
 // The body as it's shown: who, in what look and colour, holding and wearing what, and as it is
 // (frosted over by an ice hit, a dragon's crystals shot out, spraying what it holds, a pack's
-// thrust on); and the kart it sits in at the wheel, in that look's paint, where it does.
+// thrust on); and the kart it sits in at the wheel, in its own livery, where it does.
 export interface Shown {
   name: string;
   avatar: AvatarId;
@@ -261,19 +261,19 @@ export class BodyView {
   }
 
   // The kart `shown` sits in, parked in the middle of the stage, drawn `dt` seconds on, with its
-  // seat: made afresh when it or the look whose paint it wears changes, the stage set to suit the
+  // seat: made afresh when it or the look or colour whose livery it wears changes, the stage set to suit the
   // two together, or the body alone once it's out. None for a body that can't sit (a dragon).
   private parked(engine: Engine, shown: Shown, dt: number): Seat | null {
     const kart = AVATARS[shown.avatar].class === 'walker' ? shown.kart : null;
-    const key = kart ? `${kart}:${shown.avatar}` : null;
+    const key = kart ? `${kart}:${shown.avatar}:${shown.color}` : null;
     if ((this.kart?.key ?? null) !== key) {
       this.kart?.mesh.dispose();
       this.kart =
         kart && key
           ? {
               key,
-              mesh: new KartMesh(engine, 'preview', kart, shown.avatar),
-              state: parkedKart('preview', kart, shown.avatar),
+              mesh: new KartMesh(engine, 'preview', kart, shown),
+              state: parkedKart('preview', kart, shown),
             }
           : null;
       this.setStage(engine, kart ? seatedStage(kart, shown.avatar) : stageOf(shown.avatar));

@@ -5,7 +5,7 @@
 // the ground, other karts and shots, blown up when worn out, and taken away when left empty long
 // enough. The Room keeps one, steps it, and does what it hands back: the hurts to players, with
 // who's credited with each, and where karts blew up.
-import { AVATARS, type AvatarId } from '../avatars';
+import { AVATARS, type Appearance } from '../avatars';
 import { classOf } from '../classes';
 import type { Structures } from '../collision';
 import { EYE_HEIGHT, STEP_UP, TICK_RATE } from '../constants';
@@ -30,11 +30,11 @@ import {
 import { KARTS, sizeFor, type KartId } from './karts';
 import { watch, watchFrom, type Watch } from './rescue';
 
-// A kart in the room, as every client is sent it: its body, the look of whoever dropped it (which
-// its paint follows), its wrenches left, and who's driving it.
+// A kart in the room, as every client is sent it: its body, how whoever dropped it appeared then
+// (whose livery it's painted in), its wrenches left, and who's driving it.
 export interface Kart extends KartState {
   id: string;
-  paint: AvatarId;
+  paint: Appearance;
   wrenches: number;
   driver: string | null;
 }
@@ -117,7 +117,7 @@ export class Garage {
       ...made,
       pos: { x, y, z },
       id: `kart-${this.next++}`,
-      paint: p.avatar,
+      paint: { avatar: p.avatar, color: p.color },
       wrenches: KARTS[kart].wrenches,
       driver: null,
     };
