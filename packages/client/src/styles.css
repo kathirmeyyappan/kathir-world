@@ -793,28 +793,12 @@ body {
   gap: 6px;
   color: rgba(255, 255, 255, 0.6);
 }
-#roster-pager {
+#roster-page {
   margin-left: auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-#roster-pager[hidden] {
-  display: none;
-}
-#roster-pager button {
-  pointer-events: auto;
-  cursor: pointer;
-  width: 18px;
-  height: 18px;
-  padding: 0;
-  font: 14px/16px var(--mono);
   color: var(--accent-soft);
-  background: none;
-  border: 1px solid rgba(100, 181, 246, 0.4);
 }
-#roster-pager button:hover {
-  color: var(--accent);
+#roster-page[hidden] {
+  display: none;
 }
 
 #chat {

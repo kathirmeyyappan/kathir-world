@@ -24,10 +24,12 @@ const HINT_GAP = 8; // CSS pixels between the move hint and what it stacks again
 // The layout where the item hint is at the top of the screen, under the touch buttons (styles.css).
 const COARSE = window.matchMedia('(pointer: coarse)');
 // The roster reaches no further down the view than this share of its height, the rest of the room
-// paged through under it, your own row standing first on every page.
+// paged through under it, your own row standing first on every page. The pages turn on their own,
+// since the mouse is the view's while playing and can't click through them.
 const ROSTER_SHARE = 0.5;
 const ROSTER_ROW = 20; // CSS pixels, #player-list li's line-height
 const ROSTER_MIN_ROWS = 3; // you and two others, however short the view
+const ROSTER_PAGE_MS = 5_000;
 
 // A hint's words, with each key or touch button it names in square brackets drawn as one.
 function keyed(text: string): (string | HTMLElement)[] {
@@ -46,8 +48,7 @@ export class Hud {
   private readonly panelToggle = document.getElementById('panel-toggle') as HTMLButtonElement;
   private readonly playerList = document.getElementById('player-list')!;
   private readonly ping = document.getElementById('ping')!;
-  private readonly pager = document.getElementById('roster-pager')!;
-  private readonly pagerPage = this.pager.querySelector('.page')!;
+  private readonly rosterPageEl = document.getElementById('roster-page')!;
   private rosterPage = 0;
   private rosterPages = 1;
   private readonly chatLog = document.getElementById('chat-log')!;
@@ -104,12 +105,11 @@ export class Hud {
       navigator.clipboard?.writeText(roomLink(roomId)).then(() => this.tip(this.roomCode, 'copied'));
     });
 
-    const turn = (by: number) => {
-      this.rosterPage = (this.rosterPage + by + this.rosterPages) % this.rosterPages;
+    window.setInterval(() => {
+      if (this.rosterPages === 1 || this.panel.classList.contains('collapsed')) return;
+      this.rosterPage = (this.rosterPage + 1) % this.rosterPages;
       this.renderPlayers();
-    };
-    this.pager.querySelector('.prev')!.addEventListener('click', () => turn(-1));
-    this.pager.querySelector('.next')!.addEventListener('click', () => turn(1));
+    }, ROSTER_PAGE_MS);
     window.addEventListener('resize', () => this.renderPlayers());
 
     this.setPanelCollapsed(window.matchMedia('(pointer: coarse)').matches);
@@ -494,8 +494,8 @@ export class Hud {
     const rows = others.slice(start, start + perPage).map(([, p]) => rosterRow(p, false));
     if (me) rows.unshift(rosterRow(me, true));
     this.playerList.replaceChildren(...rows);
-    this.pager.hidden = this.rosterPages === 1;
-    this.pagerPage.textContent = `${this.rosterPage + 1}/${this.rosterPages}`;
+    this.rosterPageEl.hidden = this.rosterPages === 1;
+    this.rosterPageEl.textContent = `${this.rosterPage + 1}/${this.rosterPages}`;
   }
 }
 
