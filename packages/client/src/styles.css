@@ -55,6 +55,28 @@ body {
   display: none !important;
 }
 
+/* The bare view (ui/bareView.ts): all that's laid over the world is put away but what the player
+   opens themselves, and the chat for as long as it's being typed in. Out of sight only, so whatever
+   measures itself against the HUD still can. */
+#app.bare
+  > :not(
+    #renderCanvas,
+    #crisp-panels,
+    #menu,
+    #commands,
+    #info-overlay,
+    #death,
+    #disconnected,
+    #start,
+    #loading,
+    #home
+  ) {
+  visibility: hidden;
+}
+#app.bare #chat:has(#chat-input:not(.hidden)) {
+  visibility: visible;
+}
+
 /* Anything that scrolls (the menu's and the commands' bodies, the cube card's body under its bar)
    stands in a .scroller beside the rail of ui/scrollRail.ts, which takes the place of the browser's
    own bar: a column of its own at the right, set first, with the rest drawn in the room that's left

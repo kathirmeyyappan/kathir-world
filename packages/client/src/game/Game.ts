@@ -126,6 +126,7 @@ import { Overlay } from '../ui/Overlay';
 import { NameTags } from '../ui/NameTags';
 import { Pins } from '../ui/Pins';
 import { Menu, toggleFullscreen } from '../ui/menu/Menu';
+import { toggleBareView } from '../ui/bareView';
 import { rideGround } from './ride';
 import { KART_VIEW, VIEWS, View, boomOf, kartBoom, kartFov, screenBoom, screenFov, type Boom } from './View';
 
@@ -433,6 +434,7 @@ export class Game {
       else if (e.code === 'KeyM') this.menu.show();
       else if (e.code === 'KeyO') toggleFullscreen();
       else if (e.code === 'KeyZ') this.view.toggle();
+      else if (e.code === 'KeyL') toggleBareView();
       else if (this.held && actionForKey(this.held.id, e.code) === 'scope') this.setScoped(!this.scoped);
     });
     window.addEventListener(
