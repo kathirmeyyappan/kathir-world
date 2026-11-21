@@ -49,12 +49,6 @@ export const WALKER: ClassSpec = {
   fits: () => true,
   enter() {},
   exit: endMoves,
-  moveTo(p, eye) {
-    endMoves(p);
-    p.pos = { ...eye };
-    p.vx = p.vy = p.vz = 0;
-    p.thrown = null;
-  },
   step: stepWalker,
   aim: (p) => lookDirection(p.yaw, p.pitch),
   // Sat in a kart, from the seat up.
@@ -67,6 +61,14 @@ export const WALKER: ClassSpec = {
     { x: p.pos.x, y: structures.groundAt(p.pos.x, p.pos.z, p.pos.y - EYE_HEIGHT + 0.01), z: p.pos.z },
   ],
 };
+
+// Puts a walker with its eyes at `eye`, at rest, whatever move it was in (a teleport).
+export function placeWalker(p: PlayerState, eye: Vec3): void {
+  endMoves(p);
+  p.pos = { ...eye };
+  p.vx = p.vy = p.vz = 0;
+  p.thrown = null;
+}
 
 // Out of whatever move the body was in: off a ladder, out of a jump's chain, a pound, a crouch, a
 // float and a strike.

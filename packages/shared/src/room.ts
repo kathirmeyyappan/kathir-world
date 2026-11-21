@@ -52,7 +52,7 @@ import { onOutsideGround } from './sim/ground';
 import { randomPointInDisc, randomPointInRegion } from './sim/regions';
 import { createPickups, dropPickup, stepPickups, takePickups, type PickupArea, type PickupField } from './sim/pickups';
 import { becomeAvatar, createPlayer, stepPlayer } from './sim/player';
-import { throwWalker } from './sim/walker';
+import { placeWalker, throwWalker } from './sim/walker';
 import { createRng, type Rng } from './sim/rng';
 import type { CubeState, InputFrame, PlayerState, Vec3 } from './sim/types';
 import { Structures } from './sim/collision';
@@ -678,8 +678,9 @@ export class Room {
         return;
       }
       case 'teleport':
+        if (classOf(me.avatar).id !== 'walker') return this.refuse(seat, `not as ${aClass(me.avatar)}`);
         if (!command.feet) return this.refuse(seat, TELEPORT_USAGE);
-        classOf(me.avatar).moveTo(me, { ...command.feet, y: command.feet.y + EYE_HEIGHT });
+        placeWalker(me, { ...command.feet, y: command.feet.y + EYE_HEIGHT });
         return;
       case 'unknown':
         this.refuse(seat, `unknown command /${command.raw}`);

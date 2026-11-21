@@ -272,7 +272,7 @@ test('/speedy and /s boost the sender and tell everyone in grey', () => {
   assert.notDeepEqual(b.inbox.at(-1), { t: 'refused', text: 'unknown command /fly' }, 'only the sender is told');
 });
 
-test('/teleport stands the feet where asked, carries a dragon whole, and answers a bad one with its usage', () => {
+test('/teleport stands the feet where asked, answers a bad one with its usage, and refuses a dragon', () => {
   const room = new Room('teleport', { seed: 1 });
   const a = link();
   const ida = room.join('alice', a)!;
@@ -283,9 +283,10 @@ test('/teleport stands the feet where asked, carries a dragon whole, and answers
   assert.deepEqual(a.inbox.at(-1), { t: 'refused', text: TELEPORT_USAGE });
 
   room.receive(ida, { t: 'chat', text: '/light-dragon' });
-  const tail = alice.dragon!.spine.slice(-3);
+  const at = { ...alice.pos };
   room.receive(ida, { t: 'chat', text: '/teleport 4100 30 -200' });
-  assert.deepEqual(alice.dragon!.spine.slice(-3), [tail[0] + 100, tail[1], tail[2]], 'the tail comes along');
+  assert.equal(a.inbox.at(-1)?.t, 'refused');
+  assert.deepEqual(alice.pos, at);
 });
 
 test('/gun then shoot: the server resolves the hit, kills the target, and the dead stop moving', () => {
