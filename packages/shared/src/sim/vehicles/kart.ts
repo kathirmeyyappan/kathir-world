@@ -158,8 +158,10 @@ const DRIFT_HOLD = 0.3; // of the wheel: held over with the drift key down on th
 // let be, and held into it (tighter than any turn without one).
 const DRIFT_TURN = { wide: 0.2, neutral: 0.6, tight: 1.25 };
 // Seconds of a drift on the ground it takes to come round to that turn from the one it began
-// with, eased, so a hop's slight turn doesn't snap into the drift's as it lands.
-const DRIFT_EASE = 0.45;
+// with, eased, so a hop's slight turn doesn't snap into the drift's as it lands: `turn` with the
+// wheel let be or held out of the drift's way, and up to `tight` with it held full into it, so the
+// tightest turn there is comes on the most gently.
+const DRIFT_EASE = { turn: 0.45, tight: 0.7 };
 const AIR_STEER = 0.3; // of its turn, in the air
 const BOUNCE = 0.3; // of the speed it ran into a wall at, back off it
 // Run into at `from` m/s or more, square to what it hit, a kart reels for `seconds`: its tires do
@@ -352,16 +354,18 @@ export function forwardSpeed(k: KartState): number {
 
 // The share of its full turn it's turning at, a circle `handling` across at any speed, so slower
 // is no tighter, and backing up turns it the other way, as a car does: the wheel's, or in a drift
-// the drift's, come round to from the turn it began with over DRIFT_EASE; less in the air.
+// the drift's, come round to from the turn it began with (DRIFT_EASE); less in the air.
 function lockOf(k: KartState): number {
-  const lock = k.drift ? eased(k.drift, k.drift.way * driftTurn(k.drift.way * k.wheel)) : k.wheel;
+  const lock = k.drift ? eased(k.drift, k.drift.way * k.wheel) : k.wheel;
   return lock * (k.grounded ? 1 : AIR_STEER);
 }
 
-// A drift's turn on its way from the one it began with to `settled`.
-function eased({ t, from }: NonNullable<KartState['drift']>, settled: number): number {
-  const through = Math.min(1, t / DRIFT_EASE);
-  return from + (settled - from) * through * through * (3 - 2 * through);
+// A drift's turn with the wheel held `into` it (-1 full out of its way to 1 full into it), on its
+// way from the turn it began with to the one that gives (driftTurn).
+function eased({ way, t, from }: NonNullable<KartState['drift']>, into: number): number {
+  const over = DRIFT_EASE.turn + (DRIFT_EASE.tight - DRIFT_EASE.turn) * Math.max(0, into);
+  const through = Math.min(1, t / over);
+  return from + (way * driftTurn(into) - from) * through * through * (3 - 2 * through);
 }
 
 // A drift's share of the full turn with the wheel held `into` it: -1 full out of its way, 0 let
