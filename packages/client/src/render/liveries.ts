@@ -18,11 +18,9 @@ const BLACK = '#1d1d1f';
 const SITE_EMBLEM = 'elizabeth';
 
 // What of each look's livery is its own. The Mario family's are Mario Kart 8's: the colours
-// scripts/kart-model.py prints from the Standard Kart's rip, and that game's emblems. The rest of
-// the emblems are drawn by scripts/emblems.py. The standard body's mark is its own bust, and
-// Elizabeth's colours her white and the orange of her feet.
+// scripts/kart-model.py prints from the Standard Kart's rip, and that game's emblems. Elizabeth's
+// colours are her white and the orange of her feet, and the site's logo (scripts/emblems.py) is her.
 const LIVERIES: Partial<Record<AvatarId, Partial<Livery>>> = {
-  standard: { emblem: 'standard' },
   mario: { primary: '#aa0f10', secondary: '#183ab9', emblem: 'mario' },
   luigi: { primary: '#156d05', secondary: '#10287e', emblem: 'luigi' },
   wario: { primary: '#ffb800', secondary: '#761f7b', emblem: 'wario' },

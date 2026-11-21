@@ -696,7 +696,7 @@ the canvas can't become the frame's texture from afar.
 - Pickups (`sim/pickups.ts`) float in the pickup areas listed in `content/pickups.ts`: a region, a
   kind, how many, and how often one comes back. What's where is that list alone, plus drops:
   `dropPickup` leaves one at a spot, in no area, where it stays until taken and never comes back. A
-  dead player's body leaves `CORPSE_DROP` (a big heart, twice the size, back to full health) on
+  dead player's body leaves `CORPSE_DROP` (a big heart, two and a half times the size, back to full health) on
   whatever it was lying on when its seat is dropped, each kept as theirs (`from`, how they
   appeared), which the client draws in their livery (see Liveries).
 - A new kind is a row in `PICKUPS` (float height, reach, and `heals`, the hearts it gives back, a
@@ -1034,13 +1034,12 @@ colour a player goes by wherever they're named or marked: the roster's dot, the 
 head, their pin at the screen's edge, their mark on the maps and their name in the chat all read
 `nameColour`, which lightens one too dark to read on the dark those are drawn over. The Mario family's are Mario Kart 8's,
 the colours and the emblems `scripts/kart-model.py` takes from the Standard Kart's rip. The rest
-are made here, their emblems drawn by `scripts/emblems.py` (a row each in its `EMBLEMS`: a picture
-set on the disc, or a mark drawn there). Every look has one (`liveryOf`): a look's row in
-`LIVERIES` says only what of it is its own, and what it leaves unsaid, or all of it for a look
-with no row, is its wearer's colour over black round the site's logo, which is Elizabeth. So the
-standard body's row is its emblem alone, its own bust, and Elizabeth's her colours alone, her
-white over the orange of her feet. A new one is a row in `LIVERIES` and, with a mark of its own,
-its emblem's picture; nothing that wears a livery has to know the look.
+are made here, their emblems drawn by `scripts/emblems.py` (a row each in its `EMBLEMS`: a
+picture set on the disc). Every look has one (`liveryOf`): a look's row in `LIVERIES` says only
+what of it is its own, and what it leaves unsaid, or all of it for a look with no row (the
+standard body among them), is its wearer's colour over black round the site's logo, which is
+Elizabeth. So Elizabeth's row is her colours alone, her white over the orange of her feet. A new
+one is a row in `LIVERIES` and, with a mark of its own, its emblem's picture; nothing that wears a livery has to know the look.
 
 ## Player classes
 
