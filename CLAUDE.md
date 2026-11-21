@@ -1099,7 +1099,9 @@ flying off a ramp's lip, and walls in the way, which it meets as two circles, at
 tail, so a corner hit turns it; it bounces off one at a share of the speed it ran in at (`BOUNCE`),
 and from a real hit it reels a moment (`REEL`, `KartState.reel`), its tires doing nothing, so it
 rolls back as it bounced before the gas, held, takes hold again. Each circle, and its middle, rolls along the ground under it a
-quarter of its width at a time, up onto whatever is within a kerb's height of where it was, so a
+quarter of its width at a time, up onto whatever is within a kerb's height of where it was (0.4 m
+at its model's size and as much more for one built bigger, `kerbOf`, so every size climbs the same
+slopes and pads), so a
 slope is climbed however fast it's taken and only a face taller than a kerb is a wall; and it
 leaves the ground at a lip, or over a crest it's going `LIFT` faster upward than the ground past
 it would carry it, whichever tick it crosses on; it reports how fast it ran into what it hit and

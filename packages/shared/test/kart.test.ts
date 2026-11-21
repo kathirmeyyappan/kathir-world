@@ -173,7 +173,7 @@ test('a kart driven into a wall stops at it, says how hard it hit, and reels bac
   assert.ok(k.pos.z > at - 0.3 && k.reel === 0, `and up against it again: ${k.pos.z}`);
 });
 
-test('a kart flat out climbs a ramp rather than running into it, flies off its lip, and comes down on the ramp past the gap', () => {
+test('a kart flat out climbs a ramp rather than running into it, at any size it is built at, flies off its lip, and comes down on the ramp past the gap', () => {
   // Up 5 m over 14 m, 8 m of nothing, and back down, along +z.
   const structures = world(ramp({ x: 0, z: 40 }, { x: 0, z: 54 }, 5, 9), ramp({ x: 0, z: 76 }, { x: 0, z: 62 }, 5, 9));
   const k = createKart('standard', 1, { x: 0, y: 0, z: 0 }, 0);
@@ -189,4 +189,18 @@ test('a kart flat out climbs a ramp rather than running into it, flies off its l
   assert.equal(impact, 0, 'nothing in its way');
   assert.ok(overGap > 5, `over the gap above the lips: ${overGap}`);
   assert.ok(landed > 62, `down past the gap: ${landed}`);
+  // One built for a bigger driver is wider, and climbs a ramp's boost pad (as roads.ts lays one: a
+  // metre in from the foot of a climb of 5 m over 13 m, a hair proud of it) as the model does,
+  // wherever its steps fall on the way in.
+  const padded = world(ramp({ x: 0, z: 40 }, { x: 0, z: 53 }, 5, 9), {
+    ...ramp({ x: 0, z: 41 }, { x: 0, z: 52 }, (5 * 11) / 13, 7.2, 5 / 13 + 0.04),
+    hidden: true,
+    surface: 'boost',
+  });
+  for (let from = 30; from < 30.6; from += 0.02) {
+    const big = createKart('standard', 1.2, { x: 0, y: 0, z: from }, 0);
+    big.grounded = true;
+    big.vel.z = KARTS.standard.speed;
+    assert.equal(drive(big, { gas: 1, steer: 0, drift: false }, 0.7, padded), 0, `built bigger, from ${from}`);
+  }
 });
