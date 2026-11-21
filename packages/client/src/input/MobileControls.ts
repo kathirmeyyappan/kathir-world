@@ -1,9 +1,9 @@
 // Touch controls: a square pad on the left that acts as a joystick, and a jump button on the
 // right; a dragon, which only flies forward, has a throttle in the pad's place, slid up for the
 // speed and left where it's put, and no jump; and a kart's driver steers with the pad and has its
-// pedals in the jump button's place: GAS, a bar over BRAKE and DRIFT. All plain DOM styled like the
+// pedals in the jump button's place: DRIFT, a bar over BRAKE and GAS. All plain DOM styled like the
 // rest of the HUD. Only mounted on touch devices.
-import type { PlayerClass } from '@world/shared';
+import { WORLD_STRUCTURES, canTrick, type KartState, type PlayerClass } from '@world/shared';
 import type { InputManager } from './InputManager';
 import { IS_TOUCH } from './touch';
 
@@ -20,6 +20,7 @@ export class MobileControls {
   private readonly throttle = document.getElementById('throttle');
   private readonly throttleThumb = document.getElementById('throttle-thumb');
   private readonly pedals = document.getElementById('pedals');
+  private readonly drift = document.getElementById('drift-button');
   private flies = false; // a dragon: the throttle is out, in the pad's place
   private driving = false; // in a kart: the pedals are out, in the jump button's place, and the pad only steers
   private touchId: number | null = null;
@@ -123,10 +124,14 @@ export class MobileControls {
     this.show();
   }
 
-  // Driving a kart or not: the pad steering alone, and the pedals out in JUMP's place.
-  setDriving(driving: boolean): void {
-    if (!IS_TOUCH || driving === this.driving) return;
-    this.driving = driving;
+  // The kart the player drives, or null on foot: the pad steering alone and the pedals out in
+  // JUMP's place, DRIFT reading TRICK while a press of it would be one.
+  setKart(kart: KartState | null): void {
+    if (!IS_TOUCH) return;
+    const label = kart && canTrick(kart, WORLD_STRUCTURES) ? 'TRICK' : 'DRIFT';
+    if (this.drift && this.drift.textContent !== label) this.drift.textContent = label;
+    if (!!kart === this.driving) return;
+    this.driving = !!kart;
     this.release();
     this.show();
   }

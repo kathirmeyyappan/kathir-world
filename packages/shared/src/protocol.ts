@@ -1,5 +1,6 @@
 // Wire format between client and room host. JSON for now; small enough that it doesn't matter yet.
 import type { FrostCell } from './sim/frost';
+import type { Appearance } from './sim/avatars';
 import { isItemAction, type ItemAction, type ItemId } from './sim/items';
 import type { PickupKind } from './sim/pickups';
 import type { InputFrame, PlayerState, Vec3 } from './sim/types';
@@ -14,10 +15,12 @@ export interface CubeSnapshot {
   ry: number;
 }
 
-// A pickup where it floats this tick (sim/pickups.ts); `ry` is its spin.
+// A pickup where it floats this tick (sim/pickups.ts); `ry` is its spin, and `from` whose body
+// left it, on one a body did.
 export interface PickupSnapshot {
   id: string;
   kind: PickupKind;
+  from?: Appearance;
   x: number;
   y: number;
   z: number;
@@ -56,7 +59,7 @@ export type ServerMessage =
     }
   | { t: 'join'; p: PlayerState }
   | { t: 'leave'; id: string; name: string }
-  | { t: 'chat'; id: string; name: string; color: string; text: string }
+  | { t: 'chat'; id: string; name: string; text: string }
   | { t: 'system'; text: string } // greyed-out line: command results, notices
   | { t: 'refused'; text: string } // what this player asked for can't be done, and why
   | { t: 'shot'; id: string } // someone fired a tap weapon; clients play the effect

@@ -13,6 +13,8 @@ import {
   INTERIOR_BUILDINGS,
   HOME_GROUND,
   stranded,
+  atFullHealth,
+  touchesPickup,
   shutAt,
   onOutsideGround,
   WORLD_GROUND,
@@ -751,7 +753,7 @@ export class Game {
         return;
       }
       case 'chat':
-        this.hud.chat(m.name, m.color, m.text);
+        this.hud.chat(m.id, m.name, m.text);
         return;
       case 'system':
         this.hud.system(m.text);
@@ -966,11 +968,10 @@ export class Game {
 
   // What a command pointed at or `sent` is about to need, sent for ahead of the server's answer: a
   // look's body, and its voice too once it's sent, so the switch finds them here; a kart's files, in
-  // the paint the player would drop it in, so it's drawn from the moment it drops.
+  // the livery the player would drop it in, so it's drawn from the moment it drops.
   private wantCommand(text: string, sent: boolean): void {
     const command = parseCommand(text);
-    if (command?.name === 'kart' && this.prediction)
-      wantKart(this.engine.scene, command.kart, this.prediction.state.avatar);
+    if (command?.name === 'kart' && this.prediction) wantKart(this.engine.scene, command.kart, this.prediction.state);
     if (command?.name !== 'avatar') return;
     void wantLook(this.engine, command.avatar).catch(() => {});
     if (sent) this.wantVoice(command.avatar, true);
@@ -1094,7 +1095,7 @@ export class Game {
       this.classId = cls;
     }
     this.hud.setKeys(legendOf(self));
-    this.mobile.setDriving(!!self.riding);
+    this.mobile.setKart(driven);
     if (self.avatar !== this.look) {
       if (this.look) this.say(this.myId, 'enter');
       this.look = self.avatar;
@@ -1198,12 +1199,19 @@ export class Game {
     // (sim/vehicles/rescue.ts). On foot there, the Room bleeds hearts.
     const lost = !this.dead && !!self.riding && !!this.prediction.kart && stranded(this.prediction.kart);
     const out = !this.dead && !self.riding && cls === 'walker' && onOutsideGround(self.pos.y - EYE_HEIGHT);
+    // A pickup touched at full health is left where it is (sim/pickups.ts).
+    const full =
+      !this.dead &&
+      atFullHealth(self) &&
+      sampled.pickups.some((pickup) => touchesPickup(pickup.kind, pickup, self.pos, EYE_HEIGHT));
     this.alert.hold(
       lost
         ? "you're off the map!\nhold on, Lakitu's coming"
         : out
           ? "you're out of bounds!\nget back on the map"
-          : null,
+          : full
+            ? "you're already at full health"
+            : null,
     );
     this.commandHint.update(this.isBlocked());
     this.minimap.update({
@@ -1372,7 +1380,10 @@ export class Game {
       ...stepLoops,
       ...(music ? [music] : []),
     ]);
-    this.pickups.update(sampled.pickups);
+    this.pickups.update(
+      sampled.pickups,
+      sampled.players.filter((rp) => rp.dead),
+    );
     for (const cs of sampled.cubes) {
       const cube = this.cubes.get(cs.id);
       if (!cube) continue;

@@ -181,19 +181,26 @@ interface Sparking {
   tints: Record<Spark, Tint>;
 }
 // A trick's twinkles, four-pointed stars that swell and are gone, gold through white to a pale blue.
-// A burst at once as the trick begins, from all round the kart, `out` metres from its middle and
-// leaving at `speed` m/s, kept in its frame so they turn with its twirl; and a `trail` a second for
-// the trick's first `seconds`, left where they're born, so they hang along its flight. Each grows to
-// between `sizes` metres across and lasts `life` seconds.
+// A burst at once as the trick begins, from all round the kart, in the outer `shell` of `out` metres
+// from its middle and leaving at `speed` m/s, kept in its frame so they turn with its twirl; and a
+// `trail` a second for the trick's first `seconds`, left where they're born, so they hang along its
+// flight. Each grows to between `sizes` metres across and lasts `life` seconds. Few and small
+// enough, and far enough out, that the driver's own trick is seen through them. The trail is left
+// where the eye that follows the kart comes through a moment later, so it's left no more than
+// `low` metres over the kart's underside, under that eye, and lasts `brief` seconds, mostly gone
+// by then.
 const TWINKLES = {
-  burst: 40,
-  trail: 45,
+  burst: 16,
+  trail: 18,
   seconds: 0.7,
-  most: 64,
+  most: 32,
   out: 1.3,
+  shell: 0.3,
+  low: 0.75,
   speed: [0.5, 2.4],
-  sizes: [0.3, 0.8],
+  sizes: [0.25, 0.6],
   life: [0.3, 0.7],
+  brief: [0.2, 0.45],
   gold: new Color4(1, 0.9, 0.45, 1),
   blue: new Color4(0.7, 0.9, 1, 1),
 };
@@ -415,11 +422,18 @@ export class KartEffects {
     };
     const burst = system('burst');
     burst.isLocal = true;
-    burst.createSphereEmitter(TWINKLES.out, 0.5);
+    burst.createSphereEmitter(TWINKLES.out, TWINKLES.shell);
     [burst.minEmitPower, burst.maxEmitPower] = TWINKLES.speed;
     const trail = system('trail');
-    trail.createSphereEmitter(TWINKLES.out, 1);
+    const { out, low } = TWINKLES;
+    trail.createBoxEmitter(
+      new Vector3(-1, -1, -1),
+      new Vector3(1, 1, 1),
+      new Vector3(-out, -middle.position.y, -out),
+      new Vector3(out, low - middle.position.y, out),
+    );
     trail.minEmitPower = trail.maxEmitPower = 0.2;
+    [trail.minLifeTime, trail.maxLifeTime] = TWINKLES.brief;
     return { burst, trail };
   }
 

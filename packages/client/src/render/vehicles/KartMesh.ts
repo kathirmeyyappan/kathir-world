@@ -1,20 +1,20 @@
-// A kart as it's drawn (a Kart from the room, sim/vehicles/garage.ts): its model's body in its paint,
-// its emblem, its four tires turning as it rolls (the front two steering), its steering wheel
+// A kart as it's drawn (a Kart from the room, sim/vehicles/garage.ts): its model's body in the livery
+// of whoever dropped it (render/liveries.ts), its four tires turning as it rolls (the front two steering), its steering wheel
 // turning, the body tipped to the ground under its tires, and all of it at the size it's built at
 // for its driver, eased there; its body sprung over its tires, kicked up off them as a hop begins,
 // as its drift reaches a spark and as a boost begins, and driven down onto them as hard as it
 // lands; leaning into a hop's turn and a drift's, and turned into the drift's turn, its tail out,
 // its nose up through a hop and as a boost rises; twirling a whole turn under its driver through a
-// trick (theirs to sit through as they will); flashing grey at a knock; what it gives off
+// trick that has a way, and still through one that has none (theirs to sit through as they will
+// either way); flashing grey at a knock; what it gives off
 // (KartEffects.ts); and its seat as it's drawn, for its driver to sit in. It says what it sees its
 // kart begin from one frame to the next (`Began`), for whatever else shows or sounds that. Its
-// model's parts and its paint are sent for as one is likely to be dropped (`wantKart`), or else as
+// model's parts and its livery are sent for as one is likely to be dropped (`wantKart`), or else as
 // it's first drawn, and until both are here nothing of it is.
 import {
   Color3,
   Mesh,
   Quaternion,
-  RawTexture,
   StandardMaterial,
   Texture,
   TransformNode,
@@ -31,7 +31,7 @@ import {
   noseOf,
   sizeFor,
   sparkOf,
-  type AvatarId,
+  type Appearance,
   type Kart,
   type KartId,
   type Spark,
@@ -40,9 +40,11 @@ import { smooth } from '../avatars/motion';
 import type { Engine } from '../Engine';
 import { begin, type Fetch } from '../fetchOnce';
 import { fetchMesh, meshData } from '../models/meshFile';
+import { emblemPixels, liveryOf, type Livery } from '../liveries';
 import { perScene } from '../perScene';
+import { pixelsOf, pixelTexture } from '../pictures';
 import { KartEffects } from './KartEffects';
-import { KART_MODELS, paintOf, type KartModel, type KartPaint } from './kartModel';
+import { KART_MODELS, type KartModel } from './kartModel';
 import { Seat } from './Seat';
 
 const GLOW = 0.3; // how much a kart lights itself, as the landmarks' models do (models/Models.ts)
@@ -86,7 +88,7 @@ export interface Began {
 }
 
 // A model's meshes in a scene, hidden, every drawn kart a clone of them sharing their geometry, and
-// what its tires are drawn in, whatever its paint.
+// what its tires are drawn in, whatever its livery.
 interface Parts {
   body: Mesh;
   steer: Mesh;
@@ -95,13 +97,14 @@ interface Parts {
   rubber: StandardMaterial;
 }
 
-// A paint's materials: the body's picture painted its two colours where its paint goes, and its emblem.
+// A livery's materials on a model: the body's picture painted its two colours where its paint goes,
+// and its emblem on the model's patch for one.
 interface Paint {
   body: StandardMaterial;
   emblem: StandardMaterial;
 }
 
-// Each fetched once for a scene and kept for every kart of that model, or in that paint.
+// Each fetched once for a scene and kept for every kart of that model, or of that model in that livery.
 const partsIn = perScene(() => new Map<KartId, Fetch<Parts>>());
 const paintsIn = perScene(() => new Map<string, Fetch<Paint>>());
 // What every piece of a kart is drawn in for the moment of a knock.
@@ -113,30 +116,31 @@ const knockedIn = perScene((scene) => {
   return grey;
 });
 
-// What a kart of model `kart` dropped by someone wearing `look` is drawn with, sent for where it
-// hasn't been: null until all of it is here.
-function filesOf(scene: Scene, kart: KartId, look: AvatarId): { parts: Parts; paint: Paint } | null {
+// What a kart of model `kart` dropped by someone who appeared as `who` is drawn with, sent for
+// where it hasn't been: null until all of it is here.
+function filesOf(scene: Scene, kart: KartId, who: Appearance): { parts: Parts; paint: Paint } | null {
   const model = KART_MODELS[kart];
-  const wears = paintOf(model, look);
+  const livery = liveryOf(who);
+  const key = [kart, livery.primary, livery.secondary, livery.emblem].join(':');
   const parts = begin(partsIn(scene), kart, () => fetchParts(scene, kart, model)).value;
-  const paint = begin(paintsIn(scene), `${model.folder}:${wears.emblem}`, () => makePaint(scene, model, wears)).value;
+  const paint = begin(paintsIn(scene), key, () => makePaint(scene, key, model, livery)).value;
   return parts && paint ? { parts, paint } : null;
 }
 
 // Sends for what a kart is drawn with. Call as soon as one is likely to be dropped, so it's drawn
 // from the moment it's there.
-export function wantKart(scene: Scene, kart: KartId, look: AvatarId): void {
-  filesOf(scene, kart, look);
+export function wantKart(scene: Scene, kart: KartId, who: Appearance): void {
+  filesOf(scene, kart, who);
 }
 
-// A kart of model `kart` standing still on the ground at the origin, facing +z, in the paint of
-// whoever wears `look` and built to seat them: what a view of one outside the world draws.
-export function parkedKart(id: string, kart: KartId, look: AvatarId): Kart {
+// A kart of model `kart` standing still on the ground at the origin, facing +z, in the livery of
+// whoever appears as `who` and built to seat them: what a view of one outside the world draws.
+export function parkedKart(id: string, kart: KartId, who: Appearance): Kart {
   return {
-    ...createKart(kart, sizeFor(look), { x: 0, y: 0, z: 0 }, 0),
+    ...createKart(kart, sizeFor(who.avatar), { x: 0, y: 0, z: 0 }, 0),
     grounded: true,
     id,
-    paint: look,
+    paint: { avatar: who.avatar, color: who.color },
     wrenches: KARTS[kart].wrenches,
     driver: null,
   };
@@ -159,7 +163,7 @@ export class KartMesh {
   private built = false; // its meshes are under it: until its files are here, nothing is
   private rolled = 0; // radians its tires have turned
   private size = 0; // how many times its model's size it's drawn, on its way to the kart's own; none yet
-  private trick: { way: 1 | -1; t: number } | null = null; // the trick being drawn: its way, and seconds since its press
+  private trick: { way: 1 | -1 | 0; t: number } | null = null; // the trick being drawn: its way, and seconds since its press
   private pitch = 0;
   private roll = 0;
   private sprung = { y: 0, v: 0 }; // metres its body rides over its rest on its tires, and m/s that's changing
@@ -183,7 +187,7 @@ export class KartMesh {
     engine: Engine,
     readonly id: string,
     private readonly kart: KartId,
-    private readonly paint: AvatarId,
+    private readonly paint: Appearance,
   ) {
     const scene = engine.scene;
     this.scene = scene;
@@ -283,7 +287,7 @@ export class KartMesh {
   }
 
   // Lets it go: its own nodes alone, its parts' materials and its paint being the scene's, kept for
-  // every kart of its model and paint.
+  // every kart of its model and livery.
   dispose(): void {
     this.effects.dispose();
     this.root.dispose();
@@ -406,32 +410,38 @@ async function fetchParts(scene: Scene, kart: KartId, model: KartModel): Promise
   return { body, steer, emblem, tire, rubber };
 }
 
-async function makePaint(scene: Scene, model: KartModel, paint: KartPaint): Promise<Paint> {
+async function makePaint(scene: Scene, key: string, model: KartModel, livery: Livery): Promise<Paint> {
   const folder = `/assets/models/${model.folder}`;
-  const [body, where] = await Promise.all([pixels(`${folder}/body.png`), pixels(`${folder}/paint.png`)]);
-  const [one, two] = paint.colours.map((c) => Color3.FromHexString(c).asArray());
+  const [body, where, badge] = await Promise.all([
+    pixelsOf(`${folder}/body.png`),
+    pixelsOf(`${folder}/paint.png`),
+    emblemPixels(livery),
+  ]);
+  // The paint's picture is red where the primary goes and green where the secondary does.
+  const [primary, secondary] = [livery.primary, livery.secondary].map((c) => Color3.FromHexString(c).asArray());
   const out = new Uint8Array(body.data.length);
   for (let i = 0; i < out.length; i += 4) {
     const [first, second] = [where.data[i] / 255, where.data[i + 1] / 255];
-    for (let c = 0; c < 3; c++) out[i + c] = body.data[i + c] * (1 - first - second + first * one[c] + second * two[c]);
+    for (let c = 0; c < 3; c++)
+      out[i + c] = body.data[i + c] * (1 - first - second + first * primary[c] + second * secondary[c]);
     out[i + 3] = 255;
   }
-  const texture = RawTexture.CreateRGBATexture(
-    out,
-    body.width,
-    body.height,
-    scene,
-    true,
-    false,
-    Texture.NEAREST_NEAREST_MIPLINEAR,
-  );
-  const key = `${model.folder}:${paint.emblem}`;
-  const emblem = imageTexture(scene, `${folder}/emblem-${paint.emblem}.png`);
-  emblem.hasAlpha = true;
-  const emblemMaterial = material(scene, `kart-paint-${key}-emblem`, emblem);
-  emblemMaterial.useAlphaFromDiffuseTexture = true;
-  emblemMaterial.transparencyMode = StandardMaterial.MATERIAL_ALPHATEST;
-  return { body: material(scene, `kart-paint-${key}`, texture), emblem: emblemMaterial };
+  const emblem = material(scene, `kart-paint-${key}-emblem`, pixelTexture(scene, decal(model, badge)));
+  emblem.diffuseTexture!.hasAlpha = true;
+  emblem.useAlphaFromDiffuseTexture = true;
+  emblem.transparencyMode = StandardMaterial.MATERIAL_ALPHATEST;
+  const painted = pixelTexture(scene, { data: out, width: body.width, height: body.height });
+  return { body: material(scene, `kart-paint-${key}`, painted), emblem };
+}
+
+// An emblem's picture on the clear canvas a model's emblem patch is drawn from (KartModel.emblem),
+// the canvas as many pixels as leave the picture its own.
+function decal(model: KartModel, badge: ImageData): ImageData {
+  const { at, size } = model.emblem;
+  const canvas = new OffscreenCanvas(Math.round(badge.width / size[0]), Math.round(badge.height / size[1]));
+  const context = canvas.getContext('2d')!;
+  context.putImageData(badge, Math.round(at[0] * canvas.width), Math.round(at[1] * canvas.height));
+  return context.getImageData(0, 0, canvas.width, canvas.height);
 }
 
 function material(scene: Scene, name: string, texture: Texture): StandardMaterial {
@@ -445,13 +455,4 @@ function material(scene: Scene, name: string, texture: Texture): StandardMateria
 
 function imageTexture(scene: Scene, url: string): Texture {
   return new Texture(url, scene, false, false, Texture.NEAREST_NEAREST_MIPLINEAR);
-}
-
-// A picture's pixels, read through a canvas.
-async function pixels(url: string): Promise<ImageData> {
-  const image = await createImageBitmap(await (await fetch(url)).blob());
-  const canvas = new OffscreenCanvas(image.width, image.height);
-  const context = canvas.getContext('2d')!;
-  context.drawImage(image, 0, 0);
-  return context.getImageData(0, 0, image.width, image.height);
 }

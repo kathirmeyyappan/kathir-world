@@ -34,6 +34,13 @@ export type AvatarId =
   | 'light-dragon'
   | 'colgera';
 
+// How a player appears: the look they wear and their colour, which the standard body is drawn in.
+// What's made out in their name (a kart they drop) keeps it as it was then.
+export interface Appearance {
+  avatar: AvatarId;
+  color: string;
+}
+
 // What shots at a walker test against (sim/combat.ts): a vertical capsule from the feet up to `top`
 // metres, `radius` round its axis, whose top `head` metres count as the head. Sized to the drawn
 // body, with the radius a little wider than it so a shot that grazes the silhouette still lands.

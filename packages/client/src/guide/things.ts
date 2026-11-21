@@ -11,6 +11,7 @@ import {
   PICKUP_BOB,
   PICKUP_BOB_HZ,
   PICKUP_SPIN,
+  type Appearance,
   type CubeContent,
   type GearId,
   type ItemId,
@@ -20,14 +21,13 @@ import {
 import type { Thing } from '../render/BodyView';
 import { CubeMesh } from '../render/CubeMesh';
 import { buildGear } from '../render/Gear';
-import { buildHeart } from '../render/Pickups';
+import { buildHeart, PICKUP_SCALE } from '../render/Pickups';
 import { buildTank, buildWeapon, weaponPalette } from '../render/Weapons';
 import { KartMesh, parkedKart } from '../render/vehicles/KartMesh';
 
 const HOVER = 1.2; // metres up an item floats over the floor, about where it's held
 const ITEM_BOB = 0.03; // of an item's size, how far it floats up and down
 const ITEM_BOB_HZ = PICKUP_BOB_HZ / 2; // how often it does, slower than a pickup in the world
-const BIG = 2; // a big heart is the heart at twice the size (render/Pickups.ts)
 // A cube's float and turn: the middle of the ranges the sim draws each cube's from.
 const CUBE_FLOAT_HZ = 1.5;
 const CUBE_TURN = 0.35;
@@ -83,7 +83,6 @@ export function gearThing(id: GearId): Thing {
 }
 
 export function pickupThing(kind: PickupKind): Thing {
-  const scale = kind === 'big-heart' ? BIG : 1;
   const height = PICKUPS[kind].height;
   return {
     key: `pickup-${kind}`,
@@ -91,7 +90,7 @@ export function pickupThing(kind: PickupKind): Thing {
       const heart = buildHeart(engine);
       heart.setEnabled(true); // the shape the world draws copies of, drawn itself here
       heart.parent = parent;
-      heart.scaling.setAll(scale);
+      heart.scaling.setAll(PICKUP_SCALE[kind]);
       return (t) => float(heart, height, t);
     },
   };
@@ -117,8 +116,10 @@ export function cubeThing(content: CubeContent): Thing {
   };
 }
 
-// A kart in Mario's paint, the one a kart wears for anyone outside his family, standing on the
-// floor where it drops.
+// Who the guide's karts stand as dropped by: Mario. His colour shows nowhere.
+const DROPPER: Appearance = { avatar: 'mario', color: '#ffffff' };
+
+// A kart in Mario's livery, standing on the floor where it drops.
 export function kartThing(id: KartId): Thing {
   const { width, length, height } = KARTS[id].body;
   return {
@@ -126,10 +127,10 @@ export function kartThing(id: KartId): Thing {
     shared: true,
     bounds: { min: new Vector3(-width / 2, 0, -length / 2), max: new Vector3(width / 2, height, length / 2) },
     build(engine, parent) {
-      const mesh = new KartMesh(engine, `guide-${id}`, id, 'mario');
+      const mesh = new KartMesh(engine, `guide-${id}`, id, DROPPER);
       mesh.root.parent = parent;
       parent.onDisposeObservable.add(() => mesh.dispose());
-      const kart = parkedKart(`guide-${id}`, id, 'mario');
+      const kart = parkedKart(`guide-${id}`, id, DROPPER);
       let last = 0;
       return (t) => {
         mesh.update(kart, t - last);

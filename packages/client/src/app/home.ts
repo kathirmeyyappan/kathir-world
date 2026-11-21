@@ -25,6 +25,7 @@ import {
   type Joiner,
 } from '../net/lobby';
 import type { BodyView, Shown } from '../render/BodyView';
+import { nameColour } from '../render/liveries';
 import { BOOK, GITHUB, pixelSvg } from '../ui/pixelIcons';
 import { Picker } from './Picker';
 import { COLOR, skinChoices } from './skins';
@@ -294,7 +295,7 @@ class Stage {
     this.tag.style.display = at ? 'block' : 'none';
     if (!at) return;
     if (this.tag.textContent !== shown.name) this.tag.textContent = shown.name;
-    this.tag.style.color = shown.color;
+    this.tag.style.color = nameColour(shown);
     this.tag.style.fontSize = `${Math.max(TAG_PX, at.px)}px`;
     this.tag.style.transform = `translate(${at.x}px, ${at.y}px) translate(-50%, -50%)`;
   }

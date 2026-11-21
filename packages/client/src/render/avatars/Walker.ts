@@ -321,7 +321,7 @@ export class WalkerAvatar implements Avatar {
   // wheel, the body leaning back or forward as far as brings them there and into the turn; the head
   // faces ahead whatever the look, which with nothing in hand to aim is the camera's alone, free
   // to come round and see the driver's face. A trick throws it up out of the seat, standing with
-  // its hands up, as the kart twirls under it, and back down.
+  // its hands up, as the kart twirls under it or, in a trick with no way, stays as it is, and back down.
   protected sit(seat: Seat, dt: number): Pose {
     const f = this.figure;
     const { hips, shoulders, front } = this.joints;
