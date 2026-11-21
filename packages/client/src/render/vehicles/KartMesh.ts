@@ -40,7 +40,7 @@ import { smooth } from '../avatars/motion';
 import type { Engine } from '../Engine';
 import { begin, type Fetch } from '../fetchOnce';
 import { fetchMesh, meshData } from '../models/meshFile';
-import { emblemUrl, LIVERIES, liveryOf, type Livery } from '../liveries';
+import { emblemUrl, liveryOf, MARIO_LIVERY, type Livery } from '../liveries';
 import { perScene } from '../perScene';
 import { KartEffects } from './KartEffects';
 import { KART_MODELS, type KartModel } from './kartModel';
@@ -119,7 +119,7 @@ const knockedIn = perScene((scene) => {
 // hasn't been: null until all of it is here.
 function filesOf(scene: Scene, kart: KartId, look: AvatarId): { parts: Parts; paint: Paint } | null {
   const model = KART_MODELS[kart];
-  const livery = liveryOf(look) ?? LIVERIES.mario;
+  const livery = liveryOf(look) ?? MARIO_LIVERY;
   const key = [kart, livery.primary, livery.secondary, livery.emblem].join(':');
   const parts = begin(partsIn(scene), kart, () => fetchParts(scene, kart, model)).value;
   const paint = begin(paintsIn(scene), key, () => makePaint(scene, key, model, livery)).value;

@@ -11,10 +11,12 @@ export interface Livery {
   emblem: string;
 }
 
+export const MARIO_LIVERY: Livery = { primary: '#aa0f10', secondary: '#183ab9', emblem: 'mario' };
+
 // The Mario family's are Mario Kart 8's: the colours scripts/kart-model.py prints from the
 // Standard Kart's rip, and that game's emblems.
-export const LIVERIES: Partial<Record<AvatarId, Livery>> & { mario: Livery } = {
-  mario: { primary: '#aa0f10', secondary: '#183ab9', emblem: 'mario' },
+const LIVERIES: Partial<Record<AvatarId, Livery>> = {
+  mario: MARIO_LIVERY,
   luigi: { primary: '#156d05', secondary: '#10287e', emblem: 'luigi' },
   wario: { primary: '#ffb800', secondary: '#761f7b', emblem: 'wario' },
   waluigi: { primary: '#130057', secondary: '#6b0f94', emblem: 'waluigi' },
