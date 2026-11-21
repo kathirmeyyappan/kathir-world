@@ -126,17 +126,16 @@ export const ISLANDS: Disc[] = [
 // one. Over those go three roads on decks, a triangle between the west island and the ring's two
 // small ones, each up off the floor from one island's rim to the other's, with no floor of its own
 // under its deck, and each split in two along its long straight: the skyway, from one small island
-// to the other, over the Krusty Krab's road; the high road, from the west island round over the
-// northwest spoke to the ring; and the flyover, from the west island in an S over the west road,
-// the crossroads and the Krusty Krab's road to the ring. Outside it, a road out
-// to a small island at each of three corners of the world. Round the east goes one road, from the
-// north island by the east island to the south, with a way out to it from the tower, from
+// to the other, over the Krusty Krab's road; the high road, from the west island east over the
+// northwest spoke, north to a hairpin and down to the ring; and the flyover, from the west island
+// in an S over the west road, the crossroads and the Krusty Krab's road to the ring. Outside it, a
+// road out to a small island at each of three corners of the world. Round the east goes one road,
+// from the north island by the east island to the south, with a way out to it from the tower, from
 // SpongeBob's house and from Building 4.
 //
 // Every gap has a boost pad on the ramp either side, which drives a kart on however slow it came,
 // so it's cleared either way; a kicker is a hill as steep with a pad up each side, flown off with
-// floor under the whole flight; a hump is a hill a kart leaves the ground over at speed. After
-// each there's level road enough to come down on boosted.
+// floor under the whole flight. After each there's level road enough to come down on boosted.
 const JUMP = { run: 14, rise: 5, across: 8 };
 const hop = (): Stretch[] => jump(JUMP.run, JUMP.rise, JUMP.across).map((s) => (s.gap ? s : padded(s)));
 const kicker = (): Stretch[] => [padded(climb(13, 5)), padded(climb(13, -5))];
