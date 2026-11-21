@@ -6,6 +6,7 @@ import math
 import pytest
 from common import Vec3
 from common.map.ground import load_ground
+from common.map.roads import load_roads
 from common.map.solids import OUTSIDE_HEIGHT, load_solids
 
 TOWER = (112.0, 0.0)  # the Tung Tung Tower's centre (ANNEX in packages/shared/src/sim/outline.ts)
@@ -60,3 +61,17 @@ def test_the_ground_stops_where_the_roads_begin_and_the_solids_carry_on() -> Non
     assert solids.ground_at(-255, 0, 0.5) == 0
     assert solids.ground_at(-232, 0, 13) == pytest.approx(12.73, abs=0.01)
     assert solids.ground_at(-255, 12, 0.5) == OUTSIDE_HEIGHT
+
+
+def test_the_roads_reach_every_end_and_only_a_kart_crosses_a_gap() -> None:
+    roads = load_roads()
+    crab = roads.nearest(Vec3(-132, 0, 0))  # where the Krusty Krab's road leaves its grounds
+    end = roads.nearest(Vec3(-860, 0, 0))  # the world's end
+    lookout = roads.nearest(Vec3(-560, 0, -470))  # the south lookout, past a gap
+    way = roads.path(crab, end)
+    assert way is not None, "on foot"
+    spots = [roads.nodes[i] for i in way]
+    hops = [math.hypot(b.x - a.x, b.z - a.z) for a, b in itertools.pairwise(spots)]
+    assert max(hops) <= 20.5, "a node every 20 m at the most"
+    assert roads.path(crab, lookout) is None, "no way on foot"
+    assert roads.path(crab, lookout, gaps=True) is not None, "but one in a kart"

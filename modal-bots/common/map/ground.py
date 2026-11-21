@@ -9,7 +9,6 @@ at the roads out of that floor: a spot beyond has no node.
 
 from __future__ import annotations
 
-import heapq
 import math
 import random
 from collections.abc import Iterator, Mapping
@@ -18,7 +17,7 @@ from functools import cache
 from typing import Any
 
 from ..protocol import Vec3
-from . import read
+from . import read, shortest
 from .bodies import Bodies, load_bodies
 from .solids import CELL, Piece, cells_over, piece_of
 
@@ -235,31 +234,17 @@ class Ground:
         can't get there, and only where that avatar's jump does (``jumps_of``), and goes through a
         doorway only with ``doors``, for a bot whose ``Route`` opens them."""
         jumps = self.jumps_of(avatar)
-        target = self.nodes[goal]
-        frontier = [(0.0, start)]
-        cost = {start: 0.0}
-        came_from: dict[int, int] = {}
-        while frontier:
-            _, i = heapq.heappop(frontier)
-            if i == goal:
-                route = [i]
-                while route[-1] != start:
-                    route.append(came_from[route[-1]])
-                return route[::-1]
-            here = self.nodes[i]
+
+        def steps(i: int) -> Iterator[tuple[int, float]]:
             for j in (*self.edges[i], *jumps[i]):
-                if not doors and self.doorway(i, j) is not None:
-                    continue
-                there = self.nodes[j]
-                step = cost[i] + math.dist((here.x, here.y, here.z), (there.x, there.y, there.z))
-                if j in jumps[i]:
-                    step += JUMP_COST
-                if step < cost.get(j, math.inf):
-                    cost[j] = step
-                    came_from[j] = i
-                    estimate = math.dist((there.x, there.y, there.z), (target.x, target.y, target.z))
-                    heapq.heappush(frontier, (step + estimate, j))
-        return None
+                if doors or self.doorway(i, j) is None:
+                    yield j, _apart(self.nodes[i], self.nodes[j]) + (JUMP_COST if j in jumps[i] else 0)
+
+        return shortest(start, goal, steps, lambda i: _apart(self.nodes[i], self.nodes[goal]))
+
+
+def _apart(a: Vec3, b: Vec3) -> float:
+    return math.dist((a.x, a.y, a.z), (b.x, b.y, b.z))
 
 
 @cache

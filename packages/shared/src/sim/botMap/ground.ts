@@ -73,8 +73,9 @@ const BUILDINGS = [{ footprint: TUNG_TUNG_TOWER_FOOTPRINT, levels: TUNG_TUNG_TOW
 const INSIDES: Region[] = BUILDINGS.flatMap((b) => b.levels.slice(0, -1));
 const INDOORS_MARGIN = 0.5; // metres under a roof, or over a ground floor, that are still inside
 
-// Where the map walks: the floor the buildings stand on. The roads beyond are driven.
-const WALKED = new Ground(BUILDINGS_OUTLINE);
+// Where the map walks: the floor the buildings stand on. The roads beyond are driven, and a way
+// along them is the roads' map (roads.ts).
+export const WALKED = new Ground(BUILDINGS_OUTLINE);
 // Metres round the walked floor within which what stands, and what floor there is, can come into a
 // walk across it or a lookout's view out from it: as far as a lookout looks, the furthest anything
 // here does.

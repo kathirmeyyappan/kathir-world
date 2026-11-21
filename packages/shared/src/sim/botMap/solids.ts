@@ -47,10 +47,16 @@ export function shapeOf({ material: _m, color: _c, ...shape }: Structure): Struc
   };
 }
 
-// The world without its doors: sight passes a doorway whichever way its door is swung.
+// The whole world as the sim collides with it, without its doors: sight passes a doorway whichever
+// way its door is swung. Made the first time it's asked for.
+let world: Structures | null = null;
+export function solidWorld(): Structures {
+  return (world ??= new Structures(STRUCTURES.filter((s) => !s.door)));
+}
+
 export function buildSolidsMap(): SolidsMap {
-  const standing = STRUCTURES.filter((s) => !s.door);
-  const sim = new Structures(standing);
+  const sim = solidWorld();
+  const standing = sim.list;
   const rng = createRng(1);
   const cm = (v: number) => Math.round(v * 100) / 100;
   // A spot round one of the structures, and a height from its foot to a little over its top.

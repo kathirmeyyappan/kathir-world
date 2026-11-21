@@ -15,6 +15,7 @@ import {
   type GroundMap,
   type MovesMap,
 } from '../src/sim/botMap/ground';
+import { buildRoadsMap } from '../src/sim/botMap/roads';
 import { buildSolidsMap } from '../src/sim/botMap/solids';
 import { botMapCode } from './botMapCode';
 import { THREADS, manyHands, rest } from './botMapHands';
@@ -68,5 +69,6 @@ if (process.argv.includes('--keys')) {
     write('moves', moves, `${Object.keys(moves.jumps).length} ways of moving, on ${THREADS} threads`, began);
   }
   await rest();
+  instant('roads', buildRoadsMap, (m) => `${m.nodes.length} nodes, ${m.edges.length} stretches, ${m.gaps.length} gaps`);
   instant('bodies', buildBodiesMap, (m) => `${Object.keys(m.hitboxes).length} avatars`);
 }

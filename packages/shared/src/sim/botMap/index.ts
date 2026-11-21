@@ -5,6 +5,8 @@
 //   there's ground to stand on, anywhere in the world;
 // - the ground and the moves (ground.ts): a graph of where a body walks over the floor the
 //   buildings stand on, and each way of moving's jumps across it, for finding a way on foot;
+// - the roads (roads.ts): the roads' middles as a sparse graph, for a way along them past that
+//   floor, on foot or in a kart;
 // - the bodies (bodies.ts): every avatar's hitbox, eyes, walk and way of moving.
 // `npm run bot-map` (scripts/writeBotMap.ts) builds them. Each carries a fingerprint of what it was
 // built from (its `source`), so a change rebuilds only the maps it touches, and a test fails while
@@ -13,6 +15,7 @@
 // builds either afresh when its source or its code is off (deploy.sh).
 import { buildBodiesMap } from './bodies';
 import { groundMapSource, movesMapSource } from './ground';
+import { buildRoadsMap } from './roads';
 import { buildSolidsMap } from './solids';
 
 // Every map by its file's name, with the source a file of it built here and now would carry.
@@ -20,5 +23,6 @@ export const MAP_SOURCES: Record<string, () => number> = {
   solids: () => buildSolidsMap().source,
   ground: groundMapSource,
   moves: movesMapSource,
+  roads: () => buildRoadsMap().source,
   bodies: () => buildBodiesMap().source,
 };
