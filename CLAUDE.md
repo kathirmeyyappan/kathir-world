@@ -908,8 +908,8 @@ others. Adding one is its file (mono mp3, levelled to the others' loudness), a `
 for a jump in the swoosh's place (`jump`, by where the jump is in a chain of them: the first, the
 second, the third, the last one given serving the rest), and the takes it picks from on a long jump, at a hit (heard by
 everyone near, never before the last cry has run out nor within `CRY_GAP_MS` of it; its own player
-hears it over the hurt sound, which sounds at every hit whatever the look; a spray's hits, fire's
-and ice's, come too fast for a voice and are the hurt sound alone, `Game.sprayed`) and a moment after a kill (`Game.say`);
+hears it over the hurt sound, which sounds at every hit whatever the look, so a spray's run of
+hits, fire's and ice's, is a hurt sound at each and a cry at a time) and a moment after a kill (`Game.say`);
 its `boost`, what it cries as the kart it drives begins a boost (a drift's, a trick's or a boost
 pad's), heard by everyone near and held off like a hit's cry while its last cry sounds (`Game.cry`,
 so two boosts a moment apart are one cry): takes borrowed from its other lines (none unless given), each
