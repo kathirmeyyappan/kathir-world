@@ -1371,7 +1371,10 @@ export class Game {
       ...stepLoops,
       ...(music ? [music] : []),
     ]);
-    this.pickups.update(sampled.pickups);
+    this.pickups.update(
+      sampled.pickups,
+      sampled.players.filter((rp) => rp.dead),
+    );
     for (const cs of sampled.cubes) {
       const cube = this.cubes.get(cs.id);
       if (!cube) continue;

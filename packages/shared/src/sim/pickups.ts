@@ -1,11 +1,13 @@
 // Pickups: things floating in the world that a player takes by walking into them. Each pickup
 // area keeps up to `count` of one kind drifting about its region, all there from the start, and
 // brings one back every `respawnSeconds` while it's short. A drop (dropPickup) is one left at a
-// spot, belonging to no area: it bobs and spins where it was left and never comes back once taken.
+// spot, belonging to no area: it bobs and spins where it was left and never comes back once taken;
+// one a dead player's body left keeps how they appeared (`from`), for the client to draw it theirs.
 // Simulated on the server only, like the cubes; clients draw the broadcast positions.
 //
 // A new kind is a row in PICKUPS (how high it floats, how close you must be, how much it heals)
 // and a shape in the client's render/Pickups.ts; where it appears is content/pickups.ts.
+import type { Appearance } from './avatars';
 import { heartsOf } from './classes';
 import { nextPointInRegion, randomPointInRegion, type Region } from './regions';
 import type { Rng } from './rng';
@@ -36,6 +38,7 @@ export interface PickupState {
   id: string;
   kind: PickupKind;
   area: PickupArea | null; // the area it belongs to and drifts inside; null for a drop
+  from: Appearance | null; // whose body left it, as they appeared; null for one nobody left
   floor: number; // height of the floor it floats over
   pos: Vec3;
   ry: number; // spin about the vertical, radians
@@ -132,22 +135,37 @@ function heal(p: PlayerState, hearts: number): boolean {
   return true;
 }
 
-// A pickup of `kind` left floating over `feet` (where a player died, say) until someone takes it.
-export function dropPickup(field: PickupField, kind: PickupKind, feet: Vec3, rng: Rng): void {
-  add(field, kind, null, feet, rng);
+// A pickup of `kind` left floating over `feet` until someone takes it: by the body of someone who
+// appeared as `from`, where a player died.
+export function dropPickup(
+  field: PickupField,
+  kind: PickupKind,
+  feet: Vec3,
+  rng: Rng,
+  from: Appearance | null = null,
+): void {
+  add(field, kind, null, feet, rng, from);
 }
 
 function spawn(field: PickupField, area: PickupArea, rng: Rng): void {
   const at = randomPointInRegion(area.region, MARGIN, rng);
-  add(field, area.kind, area, { x: at.x, y: area.region.y, z: at.z }, rng);
+  add(field, area.kind, area, { x: at.x, y: area.region.y, z: at.z }, rng, null);
 }
 
 // A new pickup over the floor point `at`, drifting about `area`'s region, or with none, staying put.
-function add(field: PickupField, kind: PickupKind, area: PickupArea | null, at: Vec3, rng: Rng): void {
+function add(
+  field: PickupField,
+  kind: PickupKind,
+  area: PickupArea | null,
+  at: Vec3,
+  rng: Rng,
+  from: Appearance | null,
+): void {
   field.items.push({
     id: `${kind}-${field.nextId++}`,
     kind,
     area,
+    from,
     floor: at.y,
     pos: { x: at.x, y: at.y + PICKUPS[kind].height, z: at.z },
     ry: rng() * Math.PI * 2,
