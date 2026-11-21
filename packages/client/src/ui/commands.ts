@@ -69,7 +69,10 @@ export function commandGroups(): Group[] {
     },
     {
       title: 'other',
-      rows: [command('speedy', 'run faster for a bit')],
+      rows: [
+        command('speedy', 'run faster for a bit'),
+        { label: '/teleport', note: 'jump straight to a spot', args: 'x y z', tap: '/teleport ', needsArgs: true },
+      ],
     },
   ];
 }
