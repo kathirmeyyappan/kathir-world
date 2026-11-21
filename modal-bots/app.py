@@ -11,7 +11,7 @@ from typing import Any
 
 import modal
 from bots import COMBAT_BOTS, get_combat_bot, get_dumb_bot
-from common import Vec3, load_world_map
+from common import Vec3
 from common.deployment import (
     BOT_TIMEOUT_SECONDS,
     MAX_BOT_CONTAINERS,
@@ -65,13 +65,12 @@ async def run_combat_bot(
     spawn: dict[str, float] | None = None,
     avatar: str | None = None,
 ) -> dict[str, Any]:
-    """As ``run_dumb_bot``, for a combat bot: it gets the world map, and goes after players whose
-    names contain any of ``targets`` (any case), or every person when there are none."""
+    """As ``run_dumb_bot``, for a combat bot: it goes after players whose names contain any of
+    ``targets`` (any case), or every person when there are none."""
     return await get_combat_bot(bot)(
         room=room,
         name=name or f"{bot}-bot",
         seconds=seconds,
-        world=load_world_map(),
         targets=tuple(targets or ()),
         lobby_url=os.environ["WORLD_LOBBY_URL"],
         spawn=_vec(spawn),
