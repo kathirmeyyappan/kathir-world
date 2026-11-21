@@ -1,5 +1,5 @@
 // A kart as it's drawn (a Kart from the room, sim/vehicles/garage.ts): its model's body in the livery
-// of whoever dropped it (render/liveries.ts; Mario's for a look with none), its four tires turning as it rolls (the front two steering), its steering wheel
+// of whoever dropped it (render/liveries.ts), its four tires turning as it rolls (the front two steering), its steering wheel
 // turning, the body tipped to the ground under its tires, and all of it at the size it's built at
 // for its driver, eased there; its body sprung over its tires, kicked up off them as a hop begins,
 // as its drift reaches a spark and as a boost begins, and driven down onto them as hard as it
@@ -40,7 +40,7 @@ import { smooth } from '../avatars/motion';
 import type { Engine } from '../Engine';
 import { begin, type Fetch } from '../fetchOnce';
 import { fetchMesh, meshData } from '../models/meshFile';
-import { emblemUrl, liveryOf, MARIO_LIVERY, type Livery } from '../liveries';
+import { emblemUrl, liveryOf, type Livery } from '../liveries';
 import { perScene } from '../perScene';
 import { KartEffects } from './KartEffects';
 import { KART_MODELS, type KartModel } from './kartModel';
@@ -119,7 +119,7 @@ const knockedIn = perScene((scene) => {
 // where it hasn't been: null until all of it is here.
 function filesOf(scene: Scene, kart: KartId, who: Appearance): { parts: Parts; paint: Paint } | null {
   const model = KART_MODELS[kart];
-  const livery = liveryOf(who) ?? MARIO_LIVERY;
+  const livery = liveryOf(who);
   const key = [kart, livery.primary, livery.secondary, livery.emblem].join(':');
   const parts = begin(partsIn(scene), kart, () => fetchParts(scene, kart, model)).value;
   const paint = begin(paintsIn(scene), key, () => makePaint(scene, key, model, livery)).value;

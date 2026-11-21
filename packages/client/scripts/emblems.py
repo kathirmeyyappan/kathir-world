@@ -56,7 +56,8 @@ def standard_mark() -> Image.Image:
 
 EMBLEMS: dict[str, Mark] = {
     "standard": standard_mark,
-    "elizabeth": picture(CLIENT / "public" / "assets" / "elizabeth.ico", 0.74),  # the site's logo
+    # The site's logo: the emblem of every look with none of its own.
+    "elizabeth": picture(CLIENT / "public" / "assets" / "elizabeth.ico", 0.74),
 }
 
 

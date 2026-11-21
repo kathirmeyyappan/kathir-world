@@ -11,28 +11,29 @@ export interface Livery {
   emblem: string;
 }
 
-export const MARIO_LIVERY: Livery = { primary: '#aa0f10', secondary: '#183ab9', emblem: 'mario' };
+// What a look's row leaves unsaid, and all of it for a look with no row: its wearer's colour over
+// black, round the site's logo (Elizabeth).
 const BLACK = '#1d1d1f';
+const SITE_EMBLEM = 'elizabeth';
 
-// A look's row: its livery, or for a look drawn in its wearer's colour, the livery in that colour.
-// The Mario family's are Mario Kart 8's: the colours scripts/kart-model.py prints from the
-// Standard Kart's rip, and that game's emblems. The rest are drawn by scripts/emblems.py:
-// Elizabeth's her white and the orange of her feet round the site's logo, which is her.
-const LIVERIES: Partial<Record<AvatarId, Livery | ((color: string) => Livery)>> = {
-  standard: (color) => ({ primary: color, secondary: BLACK, emblem: 'standard' }),
-  mario: MARIO_LIVERY,
+// What of each look's livery is its own. The Mario family's are Mario Kart 8's: the colours
+// scripts/kart-model.py prints from the Standard Kart's rip, and that game's emblems. The rest of
+// the emblems are drawn by scripts/emblems.py. The standard body's mark is its own bust, and
+// Elizabeth's colours her white and the orange of her feet.
+const LIVERIES: Partial<Record<AvatarId, Partial<Livery>>> = {
+  standard: { emblem: 'standard' },
+  mario: { primary: '#aa0f10', secondary: '#183ab9', emblem: 'mario' },
   luigi: { primary: '#156d05', secondary: '#10287e', emblem: 'luigi' },
   wario: { primary: '#ffb800', secondary: '#761f7b', emblem: 'wario' },
   waluigi: { primary: '#130057', secondary: '#6b0f94', emblem: 'waluigi' },
   peach: { primary: '#e15660', secondary: '#c0a20b', emblem: 'peach' },
   daisy: { primary: '#eba800', secondary: '#cb6a00', emblem: 'daisy' },
-  elizabeth: { primary: '#fefef2', secondary: '#fbce70', emblem: 'elizabeth' },
+  elizabeth: { primary: '#fefef2', secondary: '#fbce70' },
 };
 
-// The livery of someone who appears as `who`: null for a look that has none.
-export function liveryOf(who: Appearance): Livery | null {
-  const row = LIVERIES[who.avatar];
-  return typeof row === 'function' ? row(who.color) : (row ?? null);
+// The livery of someone who appears as `who`.
+export function liveryOf(who: Appearance): Livery {
+  return { primary: who.color, secondary: BLACK, emblem: SITE_EMBLEM, ...LIVERIES[who.avatar] };
 }
 
 export function emblemUrl(emblem: string): string {

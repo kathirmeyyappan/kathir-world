@@ -118,8 +118,7 @@ export function cubeThing(content: CubeContent): Thing {
   };
 }
 
-// Who the guide's karts stand as dropped by: Mario, whose livery a kart also wears for a look with
-// none. His colour shows nowhere.
+// Who the guide's karts stand as dropped by: Mario. His colour shows nowhere.
 const DROPPER: Appearance = { avatar: 'mario', color: '#ffffff' };
 
 // A kart in Mario's livery, standing on the floor where it drops.
