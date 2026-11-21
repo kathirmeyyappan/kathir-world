@@ -29,7 +29,7 @@ import {
   TICK_DT,
   TICK_RATE,
 } from './sim/constants';
-import { parseCommand, type BotCallArgs, type Command } from './commands';
+import { TELEPORT_USAGE, parseCommand, type BotCallArgs, type Command } from './commands';
 import { AVATARS, eyeOf, poundOf, poundPower, strikeOf, type AvatarId } from './sim/avatars';
 import { classOf, heartsOf } from './sim/classes';
 import { findStrikeHits, resolveFire, strikeCone } from './sim/combat';
@@ -630,10 +630,12 @@ export class Room {
 
   private runCommand(seat: Seat, command: Command): void {
     const me = seat.state;
-    // A driver holds the wheel: no kit, and no body that can't sit in a kart, till they get out.
+    // A driver holds the wheel: no kit, no body that can't sit in a kart and no leaving their seat
+    // for somewhere else, till they get out.
     const kit =
       command.name === 'speedy' || command.name === 'equip' || command.name === 'wear' || command.name === 'kart';
-    const unseated = command.name === 'avatar' && AVATARS[command.avatar].class !== 'walker';
+    const unseated =
+      (command.name === 'avatar' && AVATARS[command.avatar].class !== 'walker') || command.name === 'teleport';
     if (me.riding && (kit || command.name === 'unequip' || unseated))
       return this.refuse(seat, "you're driving: get out first (E)");
     switch (command.name) {
@@ -675,6 +677,10 @@ export class Room {
         this.broadcast({ t: 'system', text: `${me.name} dropped a ${KARTS[command.kart].name}` });
         return;
       }
+      case 'teleport':
+        if (!command.feet) return this.refuse(seat, TELEPORT_USAGE);
+        classOf(me.avatar).moveTo(me, { ...command.feet, y: command.feet.y + EYE_HEIGHT });
+        return;
       case 'unknown':
         this.refuse(seat, `unknown command /${command.raw}`);
         return;
