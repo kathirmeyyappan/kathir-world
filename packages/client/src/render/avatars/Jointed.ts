@@ -190,9 +190,10 @@ export interface Style {
 // How a body drives a kart: Mario Kart 8 Deluxe's own animations of it (<name>KartClips.ts, made by
 // scripts/kart-clips.py), at the wheel, backing up, drifting each way, on a boost and in the hop into
 // a drift, each steered (its frames from the wheel full over to the right to full over to the left);
-// hit, played through; waiting, stopped, looped; and a trick each way, played through the trick.
+// hit, played through; waiting, stopped, looped; and a trick each way and one neither way, played
+// through the trick.
 export type KartMove =
-  'drive' | 'back' | 'driftL' | 'driftR' | 'dash' | 'hop' | 'damage' | 'wait' | 'trickL' | 'trickR';
+  'drive' | 'back' | 'driftL' | 'driftR' | 'dash' | 'hop' | 'damage' | 'wait' | 'trickL' | 'trickR' | 'trick';
 export type KartClips = Record<KartMove, RawClip>;
 
 export interface JointedSpec {
@@ -277,6 +278,7 @@ const HOLDS: Record<KartMove, readonly [number, number]> = {
   wait: [1, 1],
   trickL: [0, 0],
   trickR: [0, 0],
+  trick: [0, 0],
 };
 // The clips steered by the wheel that each take over from the drive while the kart does what they're of.
 const STEERED = ['back', 'driftL', 'driftR', 'dash', 'hop'] as const;
@@ -392,6 +394,7 @@ export class JointedAvatar extends WalkerAvatar {
       wait: clip(k.wait),
       trickL: clip(k.trickL),
       trickR: clip(k.trickR),
+      trick: clip(k.trick),
     };
     sample(this.third, this.clips.idle, 0, true);
     this.ahead = this.third.slice(HEAD_AT, HEAD_AT + 4);
@@ -630,7 +633,7 @@ export class JointedAvatar extends WalkerAvatar {
     }
     if (seat.trick) {
       const { way, through } = seat.trick;
-      const move = way < 0 ? 'trickL' : 'trickR';
+      const move = way < 0 ? 'trickL' : way > 0 ? 'trickR' : 'trick';
       sample(other, kart[move], through, false);
       over(move, smooth(Math.min(through, 1 - through) / TRICK_EASE));
     }

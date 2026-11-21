@@ -1172,7 +1172,7 @@ and let down over `TURBO.fall`, the kart slowing with it, so a boost is over whe
 every hop would be a boost; a hop is up and back down to where it left the ground, so one taken off
 a ledge is in the air as off any once it's falling faster than a hop comes down), is a trick
 (`KartState.trick`), left or right the way the wheel is
-held, else either by where the kart is (so the driver's client predicts the same way); with the
+held, else neither way: a trick straight up, which turns nothing; with the
 wheel held its way through it, a trick edges the kart across that way, `TRICK.edge` m/s by its end,
 which shifts where a jump comes down by about the kart's own width and is all the steering a
 flight has; once a
@@ -1353,11 +1353,12 @@ hands a clip keeps on the wheel are closed on the kart's own grips (`Rig.grasp`)
 wheels stand elsewhere. The driver files come whole in retexture mods (the script's docstring says
 which), the animations as the game has them.
 A trick (`Seat.trick`, timed by `KartMesh` from the press, `TRICK.seconds`, on through the landing)
-twirls the kart's drawn body a whole turn its way under its driver, the seat staying put: a
-jointed body plays its trick that way (`trickL`, `trickR`: MK8's trick that spins a whole turn
-that way, or the other way's mirrored, so it spins with the kart), and every other figure is
-thrown up out of the seat standing with its hands up and back down (`Seat.leap`,
-`WalkerAvatar.thrown`).
+twirls the kart's drawn body a whole turn its way under its driver, the seat staying put, and one
+neither way leaves the kart as it is: a jointed body plays its trick that way (`trickL`, `trickR`:
+MK8's trick that spins a whole turn that way, or the other way's mirrored, so it spins with the
+kart; and `trick`, for neither way, the one of MK8's others that lifts its hips least, a little
+jump in place), and every other figure is thrown up out of the seat standing with its hands up and
+back down whichever the trick (`Seat.leap`, `WalkerAvatar.thrown`).
 Plankton, too small to reach the pedals, stands on top of the steering wheel and runs on it
 (`Plankton.ts`). The sim knows a driver only by their seat (`kart.ts` `seat`, `SEATED`), so a body
 sat in a kart and its hit shape agree only roughly.

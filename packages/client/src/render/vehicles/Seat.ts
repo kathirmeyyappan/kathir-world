@@ -15,7 +15,7 @@ export class Seat {
   hop = false; // in the hop into a drift
   drift: -1 | 0 | 1 = 0; // drifting, to the left or the right
   boost = false; // on a boost
-  trick: { way: 1 | -1; through: number } | null = null; // in a trick: its way (1 right) and how far through, 0 to 1
+  trick: { way: 1 | -1 | 0; through: number } | null = null; // in a trick: its way (1 right, 0 neither) and how far through, 0 to 1
   readonly grips: readonly [Vector3, Vector3] = [new Vector3(), new Vector3()]; // left and right, turned with the wheel
   readonly feet = new Vector3(); // where the right foot rests; the left's is across the middle from it
   readonly hub = new Vector3(); // the steering wheel's middle

@@ -12,10 +12,10 @@
 // TURBO.rise, held as long as the spark gives, and let down over TURBO.fall.
 //
 // A trick: a press of the drift key in the air (off a ramp or a ledge; not its own hop's) tricks
-// it left or right, the way the wheel is held or, with it held neither way, either, and landing
-// after one is a boost like a mini-turbo's held for TRICK.hold. With the wheel held its way
-// through it, a trick edges the kart across that way (TRICK.edge): the one way to shift where a
-// flight comes down.
+// it left or right, the way the wheel is held, or with it held neither way, neither: a trick
+// straight up, which turns nothing. Landing after one is a boost like a mini-turbo's held for
+// TRICK.hold. With the wheel held its way through it, a trick edges the kart across that way
+// (TRICK.edge): the one way to shift where a flight comes down.
 import type { Footing, Structures } from '../collision';
 import { EYE_HEIGHT, GRAVITY } from '../constants';
 import type { ActionSpec, ItemAction } from '../items';
@@ -67,9 +67,9 @@ export interface KartState {
   // Its drift: its way (1 right), the seconds of it on the ground, and the share of its full turn
   // it was turning at as the drift began, which it eases from.
   drift: { way: 1 | -1; t: number; from: number } | null;
-  // In the air: the way of its trick, or of its last where it has done several (1 right), and the
-  // seconds since that one began.
-  trick: { way: 1 | -1; t: number } | null;
+  // In the air: the way of its trick, or of its last where it has done several (1 right, 0
+  // neither), and the seconds since that one began.
+  trick: { way: 1 | -1 | 0; t: number } | null;
   // A boost: the seconds it holds at full, the seconds into it, and the spark of the drift it came
   // of (none for a trick's).
   turbo: { hold: number; t: number; spark: Spark | null } | null;
@@ -274,7 +274,7 @@ export function stepKart(k: KartState, c: KartControls, dt: number, structures: 
   else if (k.press !== null && !climbing && (k.press += dt) > TRICK.early) k.press = null;
   if (pressed && k.grounded && k.down !== null) {
     // Just down from a flight with no trick in it: the press is that trick, late.
-    k.trick = { way: trickWay(k, steer), t: 0 };
+    k.trick = { way: wayOf(steer) ?? 0, t: 0 };
     boost(k, TRICK.hold);
     k.press = k.down = null;
   } else if (pressed && k.grounded && !k.drift && !climbing) {
@@ -286,7 +286,7 @@ export function stepKart(k: KartState, c: KartControls, dt: number, structures: 
   // A press is a trick as soon as the kart is in the air (but for its own hop) with no trick
   // still running: at once up there, and off the lip for one that came a moment early.
   if (k.press !== null && !k.grounded && !hopping(k) && !(k.trick && k.trick.t < TRICK.seconds)) {
-    k.trick = { way: trickWay(k, steer), t: 0 };
+    k.trick = { way: wayOf(steer) ?? 0, t: 0 };
     k.press = null;
   }
   if (k.trick) k.trick.t += dt;
@@ -353,12 +353,6 @@ function wayOf(steer: number): 1 | -1 | null {
 export function sparkOf(t: number, spec: KartSpec): Spark | null {
   const sparks = SPARKS.filter((spark) => t >= spark.after * spec.miniTurboTime).length;
   return sparks === 0 ? null : (sparks as Spark);
-}
-
-// The way a trick goes: the wheel's, held over, else either, by where the kart is: as good as a
-// coin's toss to the driver, and the same on the server and on their client predicting it.
-function trickWay(k: KartState, steer: number): 1 | -1 {
-  return wayOf(steer) ?? (Math.floor(Math.abs(k.pos.x + k.pos.z) * 100) % 2 ? 1 : -1);
 }
 
 // How many times its speed a kart's top speed is through a boost: 1 out of one.
