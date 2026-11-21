@@ -776,6 +776,14 @@ ground and the moves also carry `code`, a hash of the sim files their builder ru
 needs no rebuild from you: `deploy.sh` runs `npm run bot-map` too, building either when its source
 or code is off, and CI keeps what a deploy built for the next one.
 
+Start `npm run bot-map` in a shell of its own, in the background, as soon as what it's built from
+is final, and carry on with whatever doesn't wait on it (the other checks, the docs, the PR's
+description) rather than sitting on it. It's one command for every map, and a shell a map wouldn't
+be faster: the three built at once are written in about a second between them, and the ground and
+then the moves each take every core, the moves over the ground just built, so a second build beside
+it only slows both. Finish the files `code` hashes before it starts: an edit to one while it runs,
+even to a comment, leaves the committed `code` behind.
+
 Cubes don't know about structures. Every map (the HUD's minimap, the menu's and the guide's) draws
 through `ui/MapCanvas.ts`, which reads the outline (`WORLD_GROUND`) and `content/landmarks.ts` itself
 (a road's marks among them: each climb drawn as arrowheads pointing up it, each boost pad as a rainbow),
