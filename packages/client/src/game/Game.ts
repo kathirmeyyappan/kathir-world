@@ -858,18 +858,17 @@ export class Game {
     headshot: boolean;
     hearts: number;
   }): void {
-    const spray = this.sprayed(m.shooter);
     if (m.victim === this.myId) {
       for (const s of this.pendingShots) if (s.shooter === m.shooter) s.hitMe = true;
       // The hurt sound at every hit, the one that kills like any other, and over it the look's cry
-      // where it has one. A spray's hits come too fast for a voice, so they are the hurt sound alone.
+      // where it has one, held off while its last cry sounds so a spray's run of hits is a cry at a time.
       this.sfx.play('hurt');
-      if (!spray) this.cry(m.victim, 'hurt');
+      this.cry(m.victim, 'hurt');
       this.damageFlash.flash();
       this.hearts.set(m.hearts);
     } else {
       this.avatars.get(m.victim)?.flash();
-      if (!spray) this.cry(m.victim, 'hurt');
+      this.cry(m.victim, 'hurt');
     }
     if (m.shooter === this.myId) {
       this.hud.hitMarker();
@@ -986,17 +985,6 @@ export class Game {
     if (!said || !this.sfx.play(said.sound, said.at, { by: id, level })) return false;
     this.criedOut.set(id, now + Math.max(CRY_GAP_MS, this.sfx.seconds(said.sound) * 1000));
     return true;
-  }
-
-  // Whether a hit by `shooter` is a spray's: what they hold fires for as long as it's held (fire,
-  // ice, a dragon's breath), landing many hits a second.
-  private sprayed(shooter: string | null): boolean {
-    if (!shooter) return false;
-    const item =
-      shooter === this.myId
-        ? this.held?.id
-        : this.interp.sample(performance.now(), this.myId).players.find((p) => p.id === shooter)?.item;
-    return !!item && ITEMS[item].actions.shoot?.mode === 'hold';
   }
 
   // This tick's tap shots, each played where its shooter stands. One that passed close to the
