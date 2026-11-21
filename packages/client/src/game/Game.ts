@@ -150,6 +150,9 @@ const HORN = new Structures([PINEAPPLE_HORN]);
 const HORN_REACH = 8; // metres along the look from the eye to the clock
 const HORN_SLACK = 0.3; // metres short of it the rooms' boxes cut from the clock may stop the look
 const HORN_AT: Vec3 = { x: PINEAPPLE_HORN.x, y: PINEAPPLE_HORN.y + PINEAPPLE_HORN.h / 2, z: PINEAPPLE_HORN.z };
+// Metres from the clock's middle past which no look within reach can land on it: the reach and the
+// furthest corner of its box.
+const HORN_NEAR = HORN_REACH + Math.hypot(PINEAPPLE_HORN.w, PINEAPPLE_HORN.h, PINEAPPLE_HORN.d) / 2;
 const EYE_EASE = 0.25; // seconds the camera takes to settle at a new avatar's eye height and view
 const CEILING_GAP = 0.15; // metres the camera keeps under a lintel or ceiling the body passes beneath
 // A smaller body sees wider and a bigger one narrower, by its stature to this power: Mike's view
@@ -1545,6 +1548,7 @@ export class Game {
   // the clock on the world's ground like any Structures, so a look landing on that ground first is
   // no look at the clock.
   private hornAt(o: Vec3, d: Vec3): boolean {
+    if (Math.hypot(o.x - HORN_AT.x, o.y - HORN_AT.y, o.z - HORN_AT.z) > HORN_NEAR) return false;
     const hit = HORN.touch(o, d, HORN_REACH);
     return hit?.piece === 0 && WORLD_STRUCTURES.raycast(o, d, hit.t) >= hit.t - HORN_SLACK;
   }
