@@ -2,32 +2,30 @@
 import type { BotId } from '@world/shared';
 import { Diagram, along, degTo, fmt, polar, type Pt } from './diagram';
 
-// Strafes round the nearest player facing them; blocked, it finds a way round to the ring further on.
+// Strafes round the nearest player facing them; blocked by a wall or a drop, it turns back the other way.
 function circle(d: Diagram): void {
   const c: Pt = [210, 182];
   const r = 118;
   const me = polar(c, r, -140);
   const stuck = polar(c, r, -4);
-  const rejoin = polar(c, r, 52);
-  const out = polar(c, r + 62, 20);
+  const [back, from, to] = [r - 20, -12, -70];
+  const [bx1, by1] = polar(c, back, from);
+  const [bx2, by2] = polar(c, back, to);
   d.ring(c, r);
   d.wall(polar(c, r, 18), 86, 18);
   d.line(me, along(me, c, 0.86), 'look');
   d.arc(c, r + 16, -128, -64, 'move', { arrow: true });
   d.arc(c, r + 16, -150, -128, 'move', { faint: true });
+  d.arc(c, r + 16, -64, -10, 'move', { faint: true });
   d.subject(me, degTo(me, c));
-  d.path(
-    `M ${fmt(stuck[0] + 12)} ${fmt(stuck[1])} C ${fmt(out[0] - 10)} ${fmt(out[1] - 60)}, ${fmt(out[0] + 14)} ${fmt(out[1] - 10)}, ${fmt(out[0])} ${fmt(out[1])} S ${fmt(rejoin[0] + 50)} ${fmt(rejoin[1] + 8)}, ${fmt(rejoin[0] + 12)} ${fmt(rejoin[1] + 4)}`,
-    'detour',
-    { arrow: true },
-  );
+  d.path(`M ${fmt(bx1)} ${fmt(by1)} A ${back} ${back} 0 0 0 ${fmt(bx2)} ${fmt(by2)}`, 'move', { arrow: true });
   d.subject(stuck, degTo(stuck, c), true);
   d.person(c);
   d.label([c[0], c[1] + 36], ['nearest player'], { anchor: 'middle' });
   d.label([c[0], c[1] + 56], ['(the middle, alone)'], { note: true, anchor: 'middle' });
   d.label([c[0] - 6, 26], ['strafes round, facing them'], { anchor: 'middle' });
-  d.label([430, 150], ['something in the way?']);
-  d.label([430, 172], ['finds a way round it', 'by the map, back to', 'the ring further on'], { note: true });
+  d.label([430, 150], ['a wall or a drop ahead?']);
+  d.label([430, 172], ['turns back with a hop', 'and goes round the', 'other way'], { note: true });
 }
 
 // Stands where it is and turns to face the nearest person, whoever else is closer.

@@ -28,7 +28,7 @@ export const BOTS: Record<BotId, BotSpec> = {
     id: 'circle',
     playerName: 'circle-bot',
     worker: 'dumb',
-    blurb: 'circles the nearest player, tightening round anything in the way',
+    blurb: 'circles the nearest player, turning back at walls and drops',
   },
   stalker: {
     id: 'stalker',
