@@ -5,7 +5,8 @@
 // as its drift reaches a spark and as a boost begins, and driven down onto them as hard as it
 // lands; leaning into a hop's turn and a drift's, and turned into the drift's turn, its tail out,
 // its nose up through a hop and as a boost rises; twirling a whole turn under its driver through a
-// trick (theirs to sit through as they will); flashing grey at a knock; what it gives off
+// trick that has a way, and still through one that has none (theirs to sit through as they will
+// either way); flashing grey at a knock; what it gives off
 // (KartEffects.ts); and its seat as it's drawn, for its driver to sit in. It says what it sees its
 // kart begin from one frame to the next (`Began`), for whatever else shows or sounds that. Its
 // model's parts and its livery are sent for as one is likely to be dropped (`wantKart`), or else as
@@ -162,7 +163,7 @@ export class KartMesh {
   private built = false; // its meshes are under it: until its files are here, nothing is
   private rolled = 0; // radians its tires have turned
   private size = 0; // how many times its model's size it's drawn, on its way to the kart's own; none yet
-  private trick: { way: 1 | -1; t: number } | null = null; // the trick being drawn: its way, and seconds since its press
+  private trick: { way: 1 | -1 | 0; t: number } | null = null; // the trick being drawn: its way, and seconds since its press
   private pitch = 0;
   private roll = 0;
   private sprung = { y: 0, v: 0 }; // metres its body rides over its rest on its tires, and m/s that's changing

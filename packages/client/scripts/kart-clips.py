@@ -15,9 +15,10 @@ than stood on the ground, with its hips measured from where they sit driving str
 steered: their frames run from the wheel full over to the right, through straight ahead halfway,
 to full over to the left, and are kept every STEER_EVERY of them; the rest play through.
 
-And a trick each way, `trickL` and `trickR`: of MK8's three (KartJumpA, B and C, which it picks
-from at random, none of them a way), the one whose hips spin a whole turn that way, or the one
-that spins the other way, mirrored.
+And its tricks, of MK8's three (KartJumpA, B and C, which it picks from at random, none of them a
+way): one each way, `trickL` and `trickR`, the one whose hips spin a whole turn that way, or the
+one that spins the other way, mirrored; and `trick`, for a trick taken neither way, the one of
+the rest that lifts its hips least: a little jump in place.
 """
 
 from __future__ import annotations
@@ -114,18 +115,27 @@ def spin(skeleton: list[bfres.Bone], anim: bfres.Animation) -> float:
     return total
 
 
+def rise(skeleton: list[bfres.Bone], anim: bfres.Animation) -> float:
+    """How far the hips come up through `anim` from where it starts them."""
+    heights = [bfres.pose(skeleton, anim, k)["Hip"][1, 3] for k in range(anim.frames + 1)]
+    return max(heights) - heights[0]
+
+
 def tricks(
     skeleton: list[bfres.Bone], animations: dict[str, bfres.Animation]
 ) -> dict[str, tuple[bfres.Animation, bool]]:
     """Each way's trick, `trickL` and `trickR`: the animation that spins that way, and whether it's
-    the other way's mirrored."""
+    the other way's mirrored. And `trick`, the lowest of those that spin no whole turn."""
     spins = {name: spin(skeleton, animations[name]) for name in TRICKS}
     left = next((n for n, s in spins.items() if s > WHOLE_TURN), None)
     right = next((n for n, s in spins.items() if s < -WHOLE_TURN), None)
+    still = [n for n, s in spins.items() if abs(s) < WHOLE_TURN]
     assert left or right, f"no trick spins a whole turn: {spins}"
+    assert still, f"every trick spins a whole turn: {spins}"
     return {
         "trickL": (animations[left], False) if left else (animations[right or ""], True),
         "trickR": (animations[right], False) if right else (animations[left or ""], True),
+        "trick": (animations[min(still, key=lambda n: rise(skeleton, animations[n]))], False),
     }
 
 

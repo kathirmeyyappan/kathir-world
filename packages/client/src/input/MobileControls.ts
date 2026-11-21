@@ -3,7 +3,7 @@
 // speed and left where it's put, and no jump; and a kart's driver steers with the pad and has its
 // pedals in the jump button's place: DRIFT, a bar over BRAKE and GAS. All plain DOM styled like the
 // rest of the HUD. Only mounted on touch devices.
-import { canTrick, type KartState, type PlayerClass } from '@world/shared';
+import { WORLD_STRUCTURES, canTrick, type KartState, type PlayerClass } from '@world/shared';
 import type { InputManager } from './InputManager';
 import { IS_TOUCH } from './touch';
 
@@ -128,7 +128,7 @@ export class MobileControls {
   // JUMP's place, DRIFT reading TRICK while a press of it would be one.
   setKart(kart: KartState | null): void {
     if (!IS_TOUCH) return;
-    const label = kart && canTrick(kart) ? 'TRICK' : 'DRIFT';
+    const label = kart && canTrick(kart, WORLD_STRUCTURES) ? 'TRICK' : 'DRIFT';
     if (this.drift && this.drift.textContent !== label) this.drift.textContent = label;
     if (!!kart === this.driving) return;
     this.driving = !!kart;

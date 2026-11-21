@@ -1201,17 +1201,20 @@ and let down over `TURBO.fall`, the kart slowing with it, so a boost is over whe
 every hop would be a boost; a hop is up and back down to where it left the ground, so one taken off
 a ledge is in the air as off any once it's falling faster than a hop comes down), is a trick
 (`KartState.trick`), left or right the way the wheel is
-held, else either by where the kart is (so the driver's client predicts the same way); with the
+held, else neither way: a trick straight up, which turns nothing; with the
 wheel held its way through it, a trick edges the kart across that way, `TRICK.edge` m/s by its end,
 which shifts where a jump comes down by about the kart's own width and is all the steering a
 flight has; once a
 trick is through (`TRICK.seconds`) another press is another, as many as the flight has room for,
-and landing after any is one boost like a mini-turbo's held for `TRICK.hold`. The press needn't be
-timed: one up to `TRICK.early` before the kart is in the air is the trick as it leaves the ground
+and landing after any is one boost like a mini-turbo's held for `TRICK.hold`. Only a flight is
+tricked in: `TRICK.clear` (0.5 m) or more over the ground under the kart, which is more than its
+own hop lifts it, so the top of a climb or a bump in the road is none. The press needn't be
+timed: one up to `TRICK.early` before the kart is that far up is the trick as it gets there
 (`KartState.press`), one anywhere up a ramp that's carrying it up as fast as a hop would makes no
-hop and keeps to the lip, and one up to `TRICK.late` after landing from a flight with no trick in
-it (`KartState.down`; a flight, so down at `TRICK.fall` or more, not off a kerb) is that trick
-late, boosting at once. A boost pad (a footing whose
+hop and keeps to the lip (but one a drift begins with is spent on the drift), and one up to
+`TRICK.late` after landing from a flight with no trick in it (`KartState.down`; a flight, so down
+as fast as a fall from `TRICK.clear`, not off a kerb or a bump) is that trick late, boosting at
+once. A boost pad (a footing whose
 surface `boosts`, see Roads) under a kart rolling forward is a boost too: held at full for as long
 as the kart is on it, the pad pushing it on as the gas would whatever its pedal, and for `PAD.hold`
 after it leaves, unless the boost it came with has longer left; one parked on a pad is let be.
@@ -1384,11 +1387,12 @@ hands a clip keeps on the wheel are closed on the kart's own grips (`Rig.grasp`)
 wheels stand elsewhere. The driver files come whole in retexture mods (the script's docstring says
 which), the animations as the game has them.
 A trick (`Seat.trick`, timed by `KartMesh` from the press, `TRICK.seconds`, on through the landing)
-twirls the kart's drawn body a whole turn its way under its driver, the seat staying put: a
-jointed body plays its trick that way (`trickL`, `trickR`: MK8's trick that spins a whole turn
-that way, or the other way's mirrored, so it spins with the kart), and every other figure is
-thrown up out of the seat standing with its hands up and back down (`Seat.leap`,
-`WalkerAvatar.thrown`).
+twirls the kart's drawn body a whole turn its way under its driver, the seat staying put, and one
+neither way leaves the kart as it is: a jointed body plays its trick that way (`trickL`, `trickR`:
+MK8's trick that spins a whole turn that way, or the other way's mirrored, so it spins with the
+kart; and `trick`, for neither way, the one of MK8's others that lifts its hips least, a little
+jump in place), and every other figure is thrown up out of the seat standing with its hands up and
+back down whichever the trick (`Seat.leap`, `WalkerAvatar.thrown`).
 Plankton, too small to reach the pedals, stands on top of the steering wheel and runs on it
 (`Plankton.ts`). The sim knows a driver only by their seat (`kart.ts` `seat`, `SEATED`), so a body
 sat in a kart and its hit shape agree only roughly.

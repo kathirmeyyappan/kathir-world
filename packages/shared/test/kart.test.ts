@@ -91,7 +91,7 @@ test('a drift goes the way the wheel was held as the kart hopped, whatever way i
   assert.deepEqual([k.grounded, k.drift?.way], [true, 1], 'a right drift, the wheel held left');
 });
 
-test('a press in the air tricks a kart the way its wheel is held, edging it across that way, again once that trick is through, and boosts it once as it lands, a moment early or late too, but not in its own hop', () => {
+test('a press in the air tricks a kart the way its wheel is held, or neither way with it straight, edging it across that way, again once that trick is through, and boosts it once as it lands, a moment early or late too, but not in its own hop', () => {
   // The platform, and a jump along +z: up 5 m over 14 m, 8 m of nothing, and back down.
   const structures = world(
     platform,
@@ -133,7 +133,7 @@ test('a press in the air tricks a kart the way its wheel is held, edging it acro
   assert.ok(early.grounded && !early.hop, 'no hop up the ramp');
   while (early.grounded) drive(early, gas, TICK_DT, structures);
   drive(early, gas, TICK_DT, structures);
-  assert.ok(early.trick, 'a trick off the lip');
+  assert.equal(early.trick?.way, 0, 'a trick off the lip, neither way with the wheel straight');
   // And one a moment after landing from a flight with no trick in it is that trick, late.
   const late = createKart('standard', 1, { x: 0, y: 0, z: 0 }, 0);
   while (late.pos.z < 58 || !late.grounded) drive(late, gas, TICK_DT, structures);
@@ -150,6 +150,30 @@ test('a press in the air tricks a kart the way its wheel is held, edging it acro
   assert.ok(!off.grounded && off.pos.y < platform.h, `past the edge and falling: ${off.pos.y}`);
   drive(off, { gas: 1, steer: 0, drift: true }, TICK_DT, structures);
   assert.ok(off.trick, 'a trick, past its hop');
+});
+
+test('a trick needs a flight: a press over a low step, as it lands from one, or that a drift began with is none', () => {
+  // A step lower than a trick needs under it, along +z to its edge at z 50, and the jump's ramp.
+  const step: Structure & { h: number } = { kind: 'box', x: -100, z: 20, w: 20, d: 60, h: TRICK.clear - 0.1 };
+  const structures = world(step, ramp({ x: 0, z: 40 }, { x: 0, z: 54 }, 5, 9));
+  const gas = { gas: 1, steer: 0, drift: false };
+  const low = createKart('standard', 1, { x: -100, y: step.h, z: 0 }, 0);
+  while (low.pos.z < 50 || low.grounded) drive(low, gas, TICK_DT, structures);
+  drive(low, { gas: 1, steer: 0, drift: true }, TICK_DT, structures);
+  assert.deepEqual([low.grounded, low.trick], [false, null], 'in the air off the step: no trick');
+  while (!low.grounded) drive(low, gas, TICK_DT, structures);
+  drive(low, { gas: 1, steer: 0, drift: true }, TICK_DT, structures);
+  assert.ok(!low.trick && low.hop, 'down from it, a press is a hop, no late trick');
+  // Up the ramp, where a press makes no hop, one with the wheel over begins a drift, and that
+  // drift is carried off the lip with no trick.
+  const drifted = createKart('standard', 1, { x: 0, y: 0, z: 0 }, 0);
+  while (drifted.pos.z < 46) drive(drifted, gas, TICK_DT, structures);
+  const hard = { gas: 1, steer: 1, drift: true };
+  drive(drifted, hard, TICK_DT, structures);
+  assert.ok(drifted.grounded && drifted.drift, 'drifting up the ramp');
+  while (drifted.grounded) drive(drifted, hard, TICK_DT, structures);
+  drive(drifted, hard, 0.2, structures);
+  assert.deepEqual([drifted.grounded, drifted.trick], [false, null], 'off the lip with no trick');
 });
 
 test('a boost pad drives a kart rolling over it up to its boosted speed with no gas, is a boost begun each time it rolls on, holds the boost on past it, and leaves one parked on it alone', () => {
