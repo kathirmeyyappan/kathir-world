@@ -146,7 +146,9 @@ const REVERSE = 0.35; // of its speed: flat out backing up
 const BRAKING = 2.5; // times its acceleration: braking while still rolling forward
 const COAST = 1.5; // times its acceleration: slowing with no key held, so it stops soon after the gas is let go
 const WHEEL_RATE = 8; // per second: how fast the wheel follows the keys, full over in an eighth of a second
-const STEP = 0.4; // metres: a kerb or a ramp's lip it rolls up onto rather than running into
+// Metres: a kerb or a ramp's lip a kart at its model's size rolls up onto rather than running into.
+// One built bigger rolls up as much more (`kerbOf`): its circles reach as much further up a slope.
+const STEP = 0.4;
 const ROLL = 0.25; // of its width: the most it moves between looks at the ground under it
 // m/s: over a crest, how much faster upward it's going than the ground it comes onto would carry
 // it, past which it leaves the ground: at its speed, a slope's top a sixth steeper than what follows.
@@ -211,6 +213,13 @@ export function ride(
   const step = stepKart(k, controlsOf(frame), dt, structures);
   seat(p, k);
   return step;
+}
+
+// The kerb kart `k` rolls up onto, at the size it's built at: everything about how it meets the
+// ground is to its size, so one built bigger climbs what the model does, a pad's edge up a ramp
+// included, where its wider circles would else find a wall.
+function kerbOf(k: KartState): number {
+  return STEP * k.size;
 }
 
 // The box kart `k` drives as, at the size it's built at.
@@ -377,7 +386,7 @@ function drive(k: KartState, spec: KartSpec, gas: number, dt: number, structures
   const r = rightOf(k.yaw);
   let along = k.vel.x * f.x + k.vel.z * f.z;
   let across = k.vel.x * r.x + k.vel.z * r.z;
-  const footing = structures.footing(k.pos.x, k.pos.z, k.pos.y + STEP);
+  const footing = structures.footing(k.pos.x, k.pos.z, k.pos.y + kerbOf(k));
   const surface = SURFACES[footing.surface];
   // On a boost pad, rolling forward: the pad's push for its gas, and its boost, held at full. Rolling
   // onto it is a boost begun, whatever boost it comes with.
@@ -421,7 +430,8 @@ function move(k: KartState, dt: number, structures: Structures): { impact: numbe
   const dx = k.vel.x * dt;
   const dz = k.vel.z * dt;
   // The highest ground at a spot within a kerb's height of the ground it came from, or of its underside.
-  const rolled = (x: number, z: number, from: number) => structures.footing(x, z, Math.max(from, k.pos.y) + STEP);
+  const kerb = kerbOf(k);
+  const rolled = (x: number, z: number, from: number) => structures.footing(x, z, Math.max(from, k.pos.y) + kerb);
   const end = (side: 1 | -1) => {
     const [x, z] = [k.pos.x + side * f.x * half, k.pos.z + side * f.z * half];
     return { x, y: k.pos.y, z, ground: rolled(x, z, k.pos.y).y };
@@ -434,7 +444,7 @@ function move(k: KartState, dt: number, structures: Structures): { impact: numbe
     for (const e of [nose, tail]) {
       e.ground = rolled(e.x + dx / steps, e.z + dz / steps, e.ground).y;
       const under = Math.max(k.pos.y, e.ground);
-      structures.move(e, dx / steps, dz / steps, { head: under + height, reach: under + STEP, radius: width / 2 });
+      structures.move(e, dx / steps, dz / steps, { head: under + height, reach: under + kerb, radius: width / 2 });
     }
     footing = rolled((nose.x + tail.x) / 2, (nose.z + tail.z) / 2, footing.y);
   }
@@ -459,7 +469,8 @@ function settle(k: KartState, dt: number, footing: Footing): number {
   const ground = footing.y;
   const along = footing.slope.x * k.vel.x + footing.slope.z * k.vel.z; // m/s up, kept to this ground
   if (k.grounded) {
-    const follows = Math.max(STEP / 4, -k.vel.y * dt + STEP / 8);
+    const kerb = kerbOf(k);
+    const follows = Math.max(kerb / 4, -k.vel.y * dt + kerb / 8);
     if (ground >= k.pos.y - follows && k.vel.y - along <= LIFT) {
       k.pos.y = ground;
       return 0;
