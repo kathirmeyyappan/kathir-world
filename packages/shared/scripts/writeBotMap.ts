@@ -9,11 +9,14 @@ import {
   buildBodiesMap,
   buildGroundMap,
   buildMovesMap,
+  buildOutlineMap,
   groundMapSource,
   movesMapSource,
+  outlineMapSource,
   type BodiesMap,
   type GroundMap,
   type MovesMap,
+  type OutlineMap,
 } from '../src/sim/botMap';
 import { botMapCode } from './botMapCode';
 
@@ -57,5 +60,10 @@ if (process.argv.includes('--keys')) {
   else {
     const bodies = buildBodiesMap();
     write('bodies', bodies, `${Object.keys(bodies.hitboxes).length} avatars`);
+  }
+  if (read<OutlineMap>('outline')?.source === outlineMapSource()) console.log('the outline is up to date');
+  else {
+    const outline = buildOutlineMap();
+    write('outline', outline, `${outline.parts.length} parts`);
   }
 }

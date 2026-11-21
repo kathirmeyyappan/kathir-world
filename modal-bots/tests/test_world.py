@@ -4,6 +4,7 @@ import itertools
 import math
 
 from common import Vec3
+from common.outline import load_outline
 from common.world import load_world_map
 
 TOWER = (112.0, 0.0)  # the Tung Tung Tower's centre (ANNEX in packages/shared/src/sim/outline.ts)
@@ -14,6 +15,13 @@ def test_line_of_sight_matches_the_sim() -> None:
     assert len(world.sight_checks) > 0
     for ax, ay, az, bx, by, bz, clear in world.sight_checks:
         assert world.clear(Vec3(ax, ay, az), Vec3(bx, by, bz)) == bool(clear), (ax, ay, az, bx, by, bz)
+
+
+def test_the_outline_matches_the_sim() -> None:
+    outline = load_outline()
+    assert len(outline.checks) > 0
+    for x, z, inside in outline.checks:
+        assert outline.inside(x, z) == inside, (x, z)
 
 
 def test_a_walk_from_the_main_disc_climbs_to_every_balcony() -> None:

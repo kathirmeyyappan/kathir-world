@@ -9,7 +9,7 @@
 // avatar's hitbox, for aiming, and the buildings' insides (their floors, and every spot within
 // their walls), where a sniper starts out and lies in wait.
 //
-// It's built in three stages, each its own file in modal-bots/common/map/ with a fingerprint of
+// It's built in four stages, each its own file in modal-bots/common/map/ with a fingerprint of
 // what it was built from (its `source`), so a change rebuilds only the stages it touches:
 // - the ground (`GroundMap`): the structures, the nodes and walks between them, the standard
 //   body's jumps, the lookouts and the insides, from the world and the standard body;
@@ -17,11 +17,13 @@
 //   jumps between the ground's nodes, each worked out once, so a look that moves as one already
 //   there costs nothing, and one that moves its own way costs only its own jumps;
 // - the bodies (`BodiesMap`): every avatar's hitbox, eyes, walk and which way it moves, from
-//   their rows alone, built at once.
+//   their rows alone, built at once;
+// - the outline (`OutlineMap`): the parts of the floor, a few KB, built at once, for a bot that
+//   only needs to know where the floor ends (the circle bot) and not the ground's megabytes.
 // A test fails when a stage's fingerprint no longer matches. The ground and the moves carry a hash
 // of the sim code that built them as well (scripts/botMapCode.ts), which no test holds them to: a
 // deploy builds either afresh when its source or its code is off (deploy.sh). world.py joins the
-// three back into one map.
+// first three back into one map; outline.py reads the outline alone.
 import {
   EYE_HEIGHT,
   GRAVITY,
@@ -44,7 +46,7 @@ import { ladderRun, surfaceOf, type Structure } from './structures';
 import type { Vec3 } from './types';
 import { STRUCTURES } from '../content/structures';
 import { Structures } from './collision';
-import type { Disc } from './ground';
+import { partBounds, type Disc, type WorldPart } from './ground';
 import { WORLD_GROUND, WORLD_OUTLINE } from './outline';
 
 // The world without its doors (doors.ts): the graph walks as if every one stood open, and a bot that
@@ -60,6 +62,8 @@ const MAX_RISE = 1.5; // metres between neighbouring nodes worth trying an edge 
 // beside it (a diagonal step, 1.4 m, off at most) is clear of everything too.
 const CLEARANCE = 2;
 const SIGHT_CHECKS = 64;
+const INSIDE_CHECKS = 64;
+const INSIDE_SPREAD = 10; // metres past a part's bounds that a spot checked against it may be
 // A lookout stands this high or more, on floor (walks to at least LOOKOUT_FLOOR of its eight
 // neighbours, so not along a rail or parapet top), and at eye level sees this far out along this many of a ring of level sight
 // lines: the balconies and decks, not the floors inside the tower's wall.
@@ -126,6 +130,14 @@ export interface BodiesMap {
   moves: Record<string, Move>; // how each avatar moves, the moves' key to its jumps
 }
 
+export interface OutlineMap {
+  source: number;
+  parts: WorldPart[]; // the floor's parts (sim/ground.ts), as WORLD_OUTLINE lists them
+  // Spots the sim answered for (x, z, 1 when on the floor): the Python side's outline is checked
+  // against these.
+  insideChecks: number[][];
+}
+
 // A way of moving on foot: a walk in m/s and a jump's velocity, as `${walk} ${jump}`. Every class
 // but the walker moves as the standard body does here.
 type Move = string;
@@ -181,6 +193,35 @@ export function movesMapSource(): number {
 // What the bodies depend on: nothing but what they are.
 export function bodiesMapSource(): number {
   return hashSeed(JSON.stringify(bodies()));
+}
+
+// What the outline depends on: the floor's parts alone.
+export function outlineMapSource(): number {
+  return hashSeed(JSON.stringify(WORLD_OUTLINE));
+}
+
+export function buildOutlineMap(): OutlineMap {
+  return { source: outlineMapSource(), parts: WORLD_OUTLINE, insideChecks: insideChecks() };
+}
+
+// Spots round the parts, each near one picked at random so every kind is tried, half of them on
+// the floor; none within a centimetre of its edge, where the two sides' rounding could disagree.
+function insideChecks(): number[][] {
+  const rng = createRng(1);
+  const parts = WORLD_GROUND.parts;
+  const checks: number[][] = [];
+  const counts = [0, 0];
+  while (checks.length < INSIDE_CHECKS) {
+    const b = partBounds(parts[Math.floor(rng() * parts.length)]);
+    const x = b.minX - INSIDE_SPREAD + rng() * (b.maxX - b.minX + 2 * INSIDE_SPREAD);
+    const z = b.minZ - INSIDE_SPREAD + rng() * (b.maxZ - b.minZ + 2 * INSIDE_SPREAD);
+    if (Math.abs(WORLD_GROUND.edge(x, z)) < 0.01) continue;
+    const inside = WORLD_GROUND.inside(x, z) ? 1 : 0;
+    if (counts[inside] >= INSIDE_CHECKS / 2) continue;
+    counts[inside]++;
+    checks.push([x, z, inside]);
+  }
+  return checks;
 }
 
 function doors(): Door[] {

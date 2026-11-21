@@ -323,7 +323,7 @@ function chunkKey(cx: number, cz: number): number {
   return (cx + 32768) * 65536 + (cz + 32768);
 }
 
-function partBounds(part: WorldPart): Bounds {
+export function partBounds(part: WorldPart): Bounds {
   if (part.kind === 'disc')
     return { minX: part.x - part.r, maxX: part.x + part.r, minZ: part.z - part.r, maxZ: part.z + part.r };
   if (part.kind === 'bridge' && !part.square)

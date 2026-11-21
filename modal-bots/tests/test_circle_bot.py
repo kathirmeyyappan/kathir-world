@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import dataclasses
-import math
 
 from bots.circle_bot import BLOCKED_TICKS, ORBIT_RADIUS, SETTLE_TICKS, Circler, Stall
 from common import Controls, Vec3
+from common.bodies import load_bodies
 from common.controls import TICK_RATE
-from common.world import load_world_map
+from common.outline import Outline
 
 from tests.test_controls import FakeConnection
 
@@ -31,18 +31,23 @@ def test_stall_fires_once_per_settle_when_the_bot_stops_making_headway() -> None
     assert stalls[1] - stalls[0] >= SETTLE_TICKS
 
 
-def test_detour_heads_round_the_ring_by_the_map() -> None:
-    world = load_world_map()
-    circler = Circler(world)
-    center = Vec3(0, 1.7, 0)
-    me = dataclasses.replace(FakeConnection().welcome.players[0], pos=Vec3(ORBIT_RADIUS, 1.7, 0))
-    goals = circler.ring_goals(me, center)
-    assert goals
-    first = world.nodes[goals[0]]
-    assert abs(math.hypot(first.x, first.z) - ORBIT_RADIUS) < 1
-    # A step on in the circling direction from +x (bearing falls): round toward +z.
-    assert first.z > ORBIT_RADIUS / 2
-    # Every candidate sits on the ring, and the way there exists from where the bot stands.
-    assert all(abs(math.hypot(world.nodes[g].x, world.nodes[g].z) - ORBIT_RADIUS) < 1 for g in goals)
-    start = world.node_at(Vec3(ORBIT_RADIUS, 0, 0))
-    assert start is not None and world.path(start, goals[0]) is not None
+def test_turns_back_where_the_floor_ends_ahead_and_stands_where_it_ends_both_ways() -> None:
+    # A disc of floor 20 m across with the bot on its rim, circling a centre off its side.
+    outline = Outline({"parts": [{"kind": "disc", "x": 0, "z": 0, "r": 10}], "insideChecks": []})
+    circler = Circler(outline, load_bodies())
+    controls = Controls(FakeConnection())  # type: ignore[arg-type]
+    me = dataclasses.replace(FakeConnection().welcome.players[0], pos=Vec3(3, 1.7, 9.4))
+    # Facing a centre out past the rim (+z), the first way round strafes it toward +x, off the
+    # floor; the other way keeps it on.
+    center = Vec3(3, 1.7, 9.4 + ORBIT_RADIUS)
+    way = circler.way
+    assert circler.step(0, me, center, controls)
+    assert circler.way == -way
+    assert controls.right == -way
+    # Facing along a strip of floor narrower than the look ahead, neither way across has floor.
+    strip = Outline(
+        {"parts": [{"kind": "bridge", "ax": -5, "az": 0, "bx": 5, "bz": 0, "halfWidth": 1}], "insideChecks": []}
+    )
+    stuck = Circler(strip, load_bodies())
+    assert not stuck.step(0, dataclasses.replace(me, pos=Vec3(0, 1.7, 0)), Vec3(ORBIT_RADIUS, 1.7, 0), controls)
+    assert controls.right == 0 and controls.forward == 0

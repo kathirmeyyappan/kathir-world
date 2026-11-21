@@ -7,9 +7,10 @@ from __future__ import annotations
 import math
 from collections.abc import Mapping
 
+from .bodies import EYE_HEIGHT
 from .controls import TICK_RATE, Controls
 from .protocol import Vec3
-from .world import EYE_HEIGHT, Piece, WorldMap
+from .world import Piece, WorldMap
 
 ARRIVE = 0.6  # metres across the floor from a node that count as there
 JUMP_FROM = 0.3  # metres from a jump's take-off a bot lines up within first (the map jumped from it)

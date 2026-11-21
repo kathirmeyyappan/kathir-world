@@ -6,9 +6,10 @@ from types import SimpleNamespace
 
 from bots.sniper_bot import Sniper, quarry
 from common import Controls, Welcome, WorldState
+from common.bodies import EYE_HEIGHT
 from common.navigation import Route
 from common.protocol import Player, decode
-from common.world import EYE_HEIGHT, load_world_map
+from common.world import load_world_map
 
 from tests.helpers import player, welcome
 
