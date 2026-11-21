@@ -117,8 +117,8 @@ const BESIDE = 6; // metres either way along a track its edge is found again, fo
 // Where a kart that left the world at `w.safe`, its nose pointing `w.yaw`, is set down, and the
 // way its nose points there: in the middle of the track it left, turned along it the way it was
 // pointing; where what it left is no track (wider than a road: an island, a road left over its
-// end, a lay-by lapping onto one), half a road in from the edge it left over, as it pointed; and
-// with no edge within a road's width, or as near on every side, where it was.
+// end), half a road in from the edge it left over, as it pointed; and with no edge within a
+// road's width, or as near on every side, where it was.
 function backOnTrack(w: Watch, structures: Structures): { to: Vec3; yaw: number } {
   // The way out over the nearest edge: the middle of the ways that reach an edge within a metre
   // of the soonest, since right at an edge every way out over it reaches it as soon.

@@ -43,17 +43,18 @@ def test_a_way_takes_only_the_jumps_its_avatar_makes() -> None:
 
 def test_the_road_is_open_floor_walked_in_one_line() -> None:
     world = load_world_map()
-    # Behind the Krusty Krab, between where the skyway and the flyover cross over its road: one
-    # rectangle of open floor.
-    near, far = Vec3(-215, 0, 0), Vec3(-245, 0, 0)
+    # Behind the Krusty Krab, from where the flyover crosses over its road to the plateau at its
+    # end: one rectangle of open floor.
+    near, far = Vec3(-255, 0, 0), Vec3(-320, 0, 0)
     road = world.node_at(near)
     assert road in world.areas
     assert world.node_at(far) == road
     assert world.straight(near, far)
-    # On under the flyover's deck to the plateau at the road's end, by the spots the map has there.
-    plateau = world.node_at(Vec3(-330, 0, 0))
-    assert plateau is not None and world.path(road, plateau) is not None
-    # And up onto the flyover's deck where it has no floor under it, past its ramp from the west
-    # island: a deck's top is walked like the floor.
-    deck = world.node_at(Vec3(-585, 8, -67))
-    assert deck is not None and world.path(plateau, deck) is not None
+    # Back under the flyover's deck and the skyway's two to the Krusty Krab's grounds, by the spots
+    # the map has there.
+    grounds = world.node_at(Vec3(-135, 0, 0))
+    assert grounds is not None and world.path(road, grounds) is not None
+    # And up onto the flyover's deck where it passes over the road: a deck's top is walked like
+    # the floor.
+    deck = world.node_at(Vec3(-232, 12.7, 0))
+    assert deck is not None and world.path(grounds, deck) is not None
