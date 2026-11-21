@@ -1093,7 +1093,7 @@ export class Game {
       this.classId = cls;
     }
     this.hud.setKeys(legendOf(self));
-    this.mobile.setDriving(!!self.riding);
+    this.mobile.setKart(driven);
     if (self.avatar !== this.look) {
       if (this.look) this.say(this.myId, 'enter');
       this.look = self.avatar;
