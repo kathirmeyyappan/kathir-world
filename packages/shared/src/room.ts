@@ -356,7 +356,7 @@ export class Room {
     const me = seat.state;
     const pressed = (action: ItemAction) => frame.actions.includes(action) && !seat.held.includes(action);
     if (me.riding) {
-      if (pressed('exit')) this.garage.getOut(me);
+      if (pressed('exit') && !this.garage.rescuing(me)) this.garage.getOut(me);
       seat.held = frame.actions;
       return;
     }

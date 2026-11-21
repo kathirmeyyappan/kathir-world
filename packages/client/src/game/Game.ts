@@ -13,6 +13,7 @@ import {
   INTERIOR_BUILDINGS,
   HOME_GROUND,
   stranded,
+  foldAt,
   onOutsideGround,
   WORLD_GROUND,
   WORLD_OUTLINE,
@@ -66,6 +67,7 @@ import {
 } from '@world/shared';
 import { Footsteps } from '../audio/Footsteps';
 import { Driving } from './Driving';
+import { Rescuers } from '../render/lakitu/Rescuers';
 import {
   ITEM_SOUNDS,
   KART_SOUNDS,
@@ -111,6 +113,7 @@ import { Bubble } from '../ui/Bubble';
 import { CommandHint } from '../ui/CommandHint';
 import { CommandsMenu } from '../ui/CommandsMenu';
 import { Alert } from '../ui/Alert';
+import { Fold } from '../ui/Fold';
 import { Condition } from '../ui/Condition';
 import { KartGauge } from '../ui/KartGauge';
 import { EdgeFlash } from '../ui/EdgeFlash';
@@ -229,6 +232,7 @@ export class Game {
   private hoveredHorn = false; // the bedroom's foghorn is under the crosshair within reach
   private use: string | null = null; // a door clicked since the last input frame
   private readonly driving: Driving;
+  private readonly rescuers: Rescuers;
   private readonly camera: UniversalCamera;
   private readonly input: InputManager;
   private readonly mobile: MobileControls;
@@ -280,6 +284,7 @@ export class Game {
   private readonly condition = new Condition();
   private readonly kartGauge = new KartGauge();
   private readonly alert = new Alert();
+  private readonly fold = new Fold();
   private readonly commandHint = new CommandHint();
   private readonly areaTitle = new AreaTitle();
   private readonly commandsMenu = new CommandsMenu();
@@ -335,6 +340,7 @@ export class Game {
     this.interiors = new Interiors(INTERIOR_BUILDINGS, (door) => this.models.ajar(door));
     this.models = new Models(this.engine, this.loader, this.interiors);
     this.driving = new Driving(this.engine);
+    this.rescuers = new Rescuers(this.engine.scene);
     this.driving.onKnock = (at) => this.sfx.play(KART_SOUNDS.knock, at);
     this.driving.onSpark = (at, spark) => this.sfx.play(KART_SOUNDS.spark, at, { rate: SPARK_RATE[spark] });
     this.driving.onBoost = (at, driver) => {
@@ -1171,13 +1177,15 @@ export class Game {
     this.viewmodel.swing(this.view.atEyes && !this.dead ? self.strike : null, strikeOf(self.avatar), dt);
     this.viewmodel.update(dt);
     const showHint = held && !this.dead;
-    // A driver on a mouse device, their hands empty, is told how to get out, and how their kart is
-    // going; on touch the OUT button says the one, and there's no room for the other.
+    // A driver on a mouse device, their hands empty, is told how to get out (unless Lakitu has
+    // their kart: there's no getting out of his hands), and how their kart is going; on touch the
+    // OUT button says the one, and there's no room for the other.
     const driving = !!self.riding && !this.dead && !IS_TOUCH;
+    const free = driving && !this.prediction.kart?.rescue;
     this.hud.setItemHint(
-      driving ? EXIT_HINT : showHint ? itemHint(held.id, !IS_TOUCH, this.scoped, classOf(self.avatar)) : '',
+      free ? EXIT_HINT : showHint ? itemHint(held.id, !IS_TOUCH, this.scoped, classOf(self.avatar)) : '',
       held && !ITEMS[held.id].own ? itemStats(held.id) : '',
-      driving ? 'kart' : showHint ? held.id : '',
+      free ? 'kart' : showHint ? held.id : '',
       held ? ITEMS[held.id].element : null,
     );
     // A look's own moves get their hint as the look is taken, once the start press (main.ts
@@ -1193,13 +1201,13 @@ export class Game {
     this.gearHud.set(this.dead ? null : self.gear);
     this.condition.set(this.dead ? 0 : self.chilled);
     this.kartGauge.set(driving ? this.prediction.kartPace() : null);
-    // Driving a kart that's down past the world's edge, there's nothing left to do but get out. On
-    // foot there, the Room bleeds hearts.
+    // Driving a kart that's down past the world's edge, there's nothing to do but wait for Lakitu
+    // (sim/vehicles/rescue.ts). On foot there, the Room bleeds hearts.
     const lost = !this.dead && !!self.riding && !!this.prediction.kart && stranded(this.prediction.kart);
     const out = !this.dead && !self.riding && cls === 'walker' && onOutsideGround(self.pos.y - EYE_HEIGHT);
     this.alert.hold(
       lost
-        ? `you're off the map!\n${IS_TOUCH ? 'tap OUT' : 'press E'} to exit and seal your fate`
+        ? "you're off the map!\nhold on, Lakitu's coming"
         : out
           ? "you're out of bounds!\nget back on the map"
           : null,
@@ -1278,6 +1286,9 @@ export class Game {
         : k,
     );
     this.driving.draw(karts, dt);
+    this.rescuers.update(karts, this.camera.position, dt);
+    // The seconds into the tick to come run the fold on between a rescue's ticks, as they do the kart.
+    this.fold.set(driven?.rescue && !this.dead ? foldAt(driven.rescue.t + this.accumulator) : 0);
     // What's heard of a kart is sent for as the first is seen, to be here by its first knock, and a
     // look's cry at a boost as it's first seen driving one.
     if (karts.length > 0 && !this.hearsKarts) {
