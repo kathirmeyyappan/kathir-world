@@ -1166,7 +1166,9 @@ the units it's felt in: `speed` (S, m/s flat out on the gas), `acceleration` (se
 standing to S), `handling` (metres across the circle it turns at S with the wheel full over),
 `weight` (who shoves whom in a bump), `miniTurboTime` (seconds of drifting to a blue spark,
 smaller better) and `wrenches` (its health), with the box it drives as. Traction isn't a stat:
-it's one constant for every kart, and only an icy footing's grip is less. A kart is built to seat
+it's one constant for every kart, and only an icy footing's grip is less, along the kart as across
+it: on ice it slides wide of a turn, and its gas, its brake, a boost and its roll to a stop all
+come on no faster than the ice grips. A kart is built to seat
 its driver (`sizeFor`, `KartState.size`, set as it's dropped and every tick it's driven): at its
 model's size for one no bigger than `SEATS` (as tall as Luigi, as wide as the standard body), and
 for a bigger one grown as many times as they're bigger, by up to `GROWTH` (a fifth), too little to
