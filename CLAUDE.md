@@ -1031,13 +1031,12 @@ the colour, which is what the Room keeps and sends of it), and the heart a dead 
 its player's (`render/Pickups.ts`: the heart in the primary, the emblem on a disc a hair off each
 face, sent for as the body is seen dead and left off until it's here). The Mario family's are Mario Kart 8's,
 the colours and the emblems `scripts/kart-model.py` takes from the Standard Kart's rip. The rest
-are made here, their emblems drawn by `scripts/emblems.py` (a row each in its `EMBLEMS`: a picture
-set on the disc, or a mark drawn there). Every look has one (`liveryOf`): a look's row in
-`LIVERIES` says only what of it is its own, and what it leaves unsaid, or all of it for a look
-with no row, is its wearer's colour over black round the site's logo, which is Elizabeth. So the
-standard body's row is its emblem alone, its own bust, and Elizabeth's her colours alone, her
-white over the orange of her feet. A new one is a row in `LIVERIES` and, with a mark of its own,
-its emblem's picture; nothing that wears a livery has to know the look.
+are made here, their emblems drawn by `scripts/emblems.py` (a row each in its `EMBLEMS`: a
+picture set on the disc). Every look has one (`liveryOf`): a look's row in `LIVERIES` says only
+what of it is its own, and what it leaves unsaid, or all of it for a look with no row (the
+standard body among them), is its wearer's colour over black round the site's logo, which is
+Elizabeth. So Elizabeth's row is her colours alone, her white over the orange of her feet. A new
+one is a row in `LIVERIES` and, with a mark of its own, its emblem's picture; nothing that wears a livery has to know the look.
 
 ## Player classes
 
