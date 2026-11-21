@@ -278,8 +278,9 @@ wire: server and client both build the world from that file.
   the sim's floor is flat to the edge, and a foot sinks its 8 cm into it unseen. A dragon can fly
   down into the drop, where the floor's rim is a wall it climbs before coming back in
   (`dragon.ts`), and a walker it turns back into there, or anywhere out over the void, falls where
-  it is. The camera follows it down. A bot's map stands its nodes a metre inside the edge, and the
-  circle bot, which strafes rather than following the map, looks for floor ahead before it steps.
+  it is. The camera follows it down. The bots' ground map stands its nodes a metre inside the edge, and
+  the circle bot, which strafes rather than following that map, asks the solids for ground ahead
+  before it steps.
 - Size things to the player: eyes at 1.7 m, head at 2.0 m, radius 0.35 m, steps up to 0.5 m climb on
   their own, and a running jump at the standard jump power lands on tops up to about 1.9 m (make
   anything meant to stop a jump 2.1 m or taller; Sulley's 1.2 rises 1.92 m, and may get over it). Doorways at least 1.2 m wide and 2.2 m tall; ramps no steeper than about 30°;
@@ -374,8 +375,9 @@ the maps: each a length of deck with `'all'`, or with `'clear'`, for a climb bet
 deck, those with `HEADROOM` under them, so the road is a bank only as far up as nothing could pass
 beneath), and `layRoad` turns it
 into its floor (square bridges and bends, for the outline), its bank with its pads (for
-`content/roads.ts`), what of it is the floor risen (`raised`) and its marks, each with the height
-of its top (for the maps, which draw each slope as arrowheads pointing up it, each pad as a
+`content/roads.ts`), what of it is the floor risen (`raised`), its `middle` (the line it runs
+along with its height, each strand of a split apart, for the bots' roads map) and its marks, each
+with the height of its top (for the maps, which draw each slope as arrowheads pointing up it, each pad as a
 rainbow and each deck over the road that passes under it; `content/landmarks.ts` lists them from
 the highest down and the maps lay them in that order, each under the last, so a deck covers
 whatever lies on the road beneath it and what lies on the deck shows on it). It throws on a road that can't be laid: stretches that don't fill their
@@ -665,7 +667,7 @@ few centimetres off the brick, and throws if it doesn't fit between floor and ce
 over a doorway, or crosses the stair (whose steps must pass well under it or over it);
 a test hangs every listed frame, so a bad one fails CI. Only the client draws them
 (`render/WallFrames.ts`, picture on a wood border); nothing collides with them and they're not
-structures, so the bot map doesn't change. The browser draws each frame's picture at full
+structures, so the bots' maps don't change. The browser draws each frame's picture at full
 resolution (and without the scene's tone mapping) in a layer under the 3D view, one slice per wall
 panel, seen through a hole the frame's mesh cuts in the depth buffer (`render/CrispPanels.ts`), so
 it stays sharp while walls and players still cover it. A frame is drawn, and its widget fed, only
@@ -736,25 +738,43 @@ means prediction and the server disagree). A new kind is different: add a case i
 the client's `build` (the compiler asks for both), a check in `validateStructure` for any new fields,
 and one test of its surface in `packages/shared/test/sim.test.ts`.
 
-Bots read the world from the map in `modal-bots/common/map/`, which `npm run bot-map` builds with
-the real sim (`sim/botMap.ts`) in three stages, a file each, each with a fingerprint of what it was
-built from, so only the stages a change touches are built again: the ground (the structures, the
-walkable graph, a spot every metre round whatever stands and the open floor between as a few
-rectangles, so a lawn or a road costs a few nodes however big it is, the standard body's jumps, the lookouts and the insides; minutes, after a structure
-or landmark added or changed, the world's outline, or the player's body or movement constants), the
-moves (the jumps of each way a look on foot moves, each distinct walk and jump power simulated over
-the whole graph once; a look that moves as one already there adds nothing, and one that moves its
-own way only its own jumps) and the bodies (every avatar's hitbox, eyes, walk and way of moving; at
-once). Nearly all of the time is each spot's walks and jumps, worked out apart from every other
-spot's, so the ground's and the moves' are cut into shares (`Share` in `botMap.ts`, which stays
+Bots read the world from maps in `modal-bots/common/map/`, each kind a file of its own that
+`npm run bot-map` builds with the real sim (`sim/botMap/`, a builder each) beside the Python module
+that reads it, and a bot loads only the ones it needs. Each carries a fingerprint of what it was
+built from, so a change rebuilds only the maps it touches:
+
+- **The solids** (`solids.ts`, `solids.py`): the floor's parts and every structure, the whole
+  world's, for line of sight and for where there's ground to stand on. Built at once. Python works
+  both out from the shapes, and the map carries the sim's own answers to a few of each, which a
+  test holds it to.
+- **The ground** (`ground.ts`, `ground.py`): the walkable graph, a spot every metre round whatever
+  stands and the open floor between as a few rectangles, with the standard body's jumps, the
+  lookouts and the insides. It covers the floor the buildings stand on alone (`BUILDINGS_OUTLINE`):
+  nothing more than 30 m past that floor is in the sim it's walked in or in its fingerprint, so a
+  road laid or moved out beyond rebuilds nothing, and a building on an island to come is a part
+  added to that list. Under a minute on four cores, after a structure near that floor is added or
+  changed, the floor there, or the player's body or movement constants.
+- **The moves** (`ground.ts`, read with the ground): the jumps of each way a look on foot moves,
+  each distinct walk and jump power simulated over the whole graph once; a look that moves as one
+  already there adds nothing, and one that moves its own way only its own jumps. A few minutes.
+- **The roads** (`roads.ts`, `roads.py`): the roads' middles as a sparse graph, a node every 20 m
+  or so (10 round a bend) with the road's height there, from the road layer's own `middle`, each
+  stretch with no road under it marked a gap; roads that meet share a node, and one that starts
+  on the buildings' floor starts at its rim. Built at once, and it throws where the sim's ground
+  isn't the road's top under a node. No bot follows it yet.
+- **The bodies** (`bodies.ts`, `bodies.py`): every avatar's hitbox, eyes, walk and way of moving.
+  Built at once.
+
+Nearly all of the time is each spot's walks and jumps, worked out apart from every other spot's,
+so the ground's and the moves' are cut into shares (`Share` in `botMap/ground.ts`, which stays
 plain sim code) and done on every core at once (`scripts/botMapHands.ts`, a worker thread a core,
-each taking the next share as it finishes its last): about 20 minutes of one core as the world
-stands, so 6 or so on four, and what it writes is what one thread would. `common/world.py` joins them into one `WorldMap`. Run it and commit what it writes with the
-change whenever any of those inputs move; a test in `sim.test.ts` fails until you do. The ground
-and the moves also carry `code`, a hash of the sim files their builder runs
+each taking the next share as it finishes its last): about three and a half minutes on four cores
+as the world stands, and what it writes is what one thread would. Run it and commit what it writes
+with the change whenever any of those inputs move; a test in `sim.test.ts` fails until you do. The
+ground and the moves also carry `code`, a hash of the sim files their builder runs
 (`scripts/botMapCode.ts`), which no test holds them to, so a change to how a body walks or collides
-needs no rebuild from you: `deploy.sh` runs `npm run bot-map` too, building a stage whose source or
-code is off, and CI keeps what a deploy built for the next one.
+needs no rebuild from you: `deploy.sh` runs `npm run bot-map` too, building either when its source
+or code is off, and CI keeps what a deploy built for the next one.
 
 Cubes don't know about structures. Every map (the HUD's minimap, the menu's and the guide's) draws
 through `ui/MapCanvas.ts`, which reads the outline (`WORLD_GROUND`) and `content/landmarks.ts` itself
@@ -840,7 +860,7 @@ dome the size the model file gives (`glass`). Mrs. Puff and Larry the Lobster (`
 `Larry.ts`) are on that game's own rig, a head, two arms and two legs on a trunk (and Larry's
 tail); her eyelids, which the rig binds shut, are left out of the mesh (`bare`), and her eyeballs,
 cream in its texture, painted white (`whitened`); the shine drawn on his claws is painted over
-(`plain`). Rebuild the bot map after
+(`plain`). Rebuild the bots' maps after
 adding one, and keep it as cheap as the ones there (triangles, one mesh, a small atlas), with the
 numbers in the PR.
 
@@ -1017,7 +1037,7 @@ its radius), how fast it cruises and how tight it turns, its `weak` points and h
 (`rising`), all as the model has them, and its `size`, how many times that the dragon is:
 `dragonShape` hands out the links, radii, underside, turn and weak points at that size, the client
 draws the model that many times over, and the row's hitbox and the camera's boom (`DRAGON_BOOMS`)
-go with it, so a dragon grows or shrinks by that one number (and the bot map, which carries the
+go with it, so a dragon grows or shrinks by that one number (and the bots' bodies map, which carries the
 hitboxes). A weak point (`WeakPoint`: the link it's under, how far `below` the link's middle, its
 radius) is a sphere hung under a link, there only while the link lies flat enough to have an
 underside (`weakPointAt`), and a shot reaches it only from below (`combat.ts` keeps it out of a
@@ -1519,9 +1539,9 @@ interpolation, or visual picking.
 A bot runs on one of the bots app's two Modal workers, and its signature is what that worker gives
 it. A dumb bot (circle, stalker, observer) runs on `run_dumb_bot` and satisfies `DumbBotInvocation`
 in `modal-bots/bots/__init__.py`; a combat bot (the sniper) runs on `run_combat_bot` and satisfies
-`CombatBotInvocation`, which adds the world map and `targets`, the parts of player names it goes
-after (any case; empty means every person). Make a bot a combat bot when it needs to see past walls
-or find a way around, or takes names from chat.
+`CombatBotInvocation`, which adds `targets`, the parts of player names it goes after (any case;
+empty means every person). Make a bot a combat bot when it takes names from chat. Either kind loads
+the maps of the world it needs itself (see the shared runtime below).
 
 ```python
 async def run_example_bot(
@@ -1537,7 +1557,7 @@ async def run_example_bot(
     ...
 ```
 
-A combat bot also takes the world map and the names it goes after (`CombatBotInvocation`):
+A combat bot also takes the names it goes after (`CombatBotInvocation`):
 
 ```python
 async def run_example_bot(
@@ -1545,7 +1565,6 @@ async def run_example_bot(
     name: str,
     seconds: float,
     *,
-    world: WorldMap,
     targets: tuple[str, ...] = (),
     lobby_url: str | None,
     direct_ws_url: str | None = None,
@@ -1561,8 +1580,7 @@ async def run_example_bot(
 - `lobby_url` is used in production. `direct_ws_url` exists only for local tests.
 - Pass `spawn` and `avatar` straight through to `connect` (see the placement fact below).
 - Do not add a Modal decorator to a bot. The workers in `modal-bots/app.py` choose a registered
-  invocation, supply the lobby URL from the `kathir-world-bots-config` Secret and, for a combat
-  bot, load the map once per container.
+  invocation and supply the lobby URL from the `kathir-world-bots-config` Secret.
 
 Register the function explicitly in `modal-bots/bots/__init__.py`:
 
@@ -1594,20 +1612,30 @@ Bots must use the modules under `modal-bots/common/`:
 - `Controls(connection)` owns input sequence numbers and persistent input intent.
 - `run_input_loop(controls, stop)` sends that intent at the server's 30 Hz tick rate without drift.
 - `log_kill`, `log_death`, and `log_message` write structured JSON to Modal's normal function logs.
-- `load_world_map()` (`common/world.py`) is the world's structures and walkable ground, shared by
-  every bot in the process. `world.clear(a, b)` is the sim's line of sight (what a shot can pass);
-  `world.node_at(feet)` and `world.path(start, goal, avatar)` find a way between the spots a player
-  can stand on a 1 m grid round whatever stands and the rectangles of open floor between
-  (`world.areas`), up the stair and over the rail where only a jump gets there, and only by the
-  jumps that avatar's walk and jump power make (`world.jumps_of`).
-  `Route(world, path, tick, avatar)` (`common/navigation.py`) walks it, across open floor straight
-  for the furthest node of it in reach (`world.straight`): call `route.steer(me.pos, tick,
-  controls)` on every snapshot after `look`, and plan again when `route.stuck(tick)`.
-  `controls.walk_toward(origin, target)` moves toward a point whichever way the bot is looking.
-  `world.lookouts` are the high spots with a wide view (balconies, decks), `world.places` the
-  same by where they are (`tower`, `building` or `elsewhere`), `world.insides` the floors inside
-  the tower's and the keeps' walls and `world.indoors` every spot within those walls (the stairs
-  too), and `world.hitbox(avatar)` is what a shot at that avatar has to land in (head band included).
+- The maps of the world (`common/map/`, see Checking a change) are a loader each, read once per
+  process and shared by every bot in it. Load the ones a bot needs as it starts, and no others:
+  the circle bot takes all three below, the sniper the same, and a bot that only watches none.
+  - `load_solids()`: `solids.clear(a, b)` is the sim's line of sight (what a shot can pass), and
+    `solids.ground_at(x, z, reach)` the ground under a spot for feet that reach that high (a
+    structure's top, the floor, or the ground past its edge), both anywhere in the world.
+  - `load_ground()`: `ground.node_at(feet)` and `ground.path(start, goal, avatar)` find a way
+    between the spots a player can stand on a 1 m grid round whatever stands and the rectangles of
+    open floor between (`ground.areas`), up the stair and over the rail where only a jump gets
+    there, and only by the jumps that avatar's walk and jump power make (`ground.jumps_of`). It
+    covers the floor the buildings stand on: out on a road `node_at` is None.
+    `Route(ground, path, tick, avatar)` (`common/navigation.py`) walks it, across open floor
+    straight for the furthest node of it in reach (`ground.straight`): call `route.steer(me.pos,
+    tick, controls)` on every snapshot after `look`, and plan again when `route.stuck(tick)`.
+    `controls.walk_toward(origin, target)` moves toward a point whichever way the bot is looking.
+    `ground.lookouts` are the high spots with a wide view (balconies, decks), `ground.places` the
+    same by where they are (`tower`, `building` or `elsewhere`), `ground.insides` the floors inside
+    the tower's and the keeps' walls and `ground.indoors` every spot within those walls (the
+    stairs too).
+  - `load_bodies()`: `bodies.hitbox(avatar)` is what a shot at that avatar has to land in (head
+    band included), `bodies.eye_of(player)` where it shoots from and `bodies.walk_speed(avatar)`
+    how fast it walks.
+  - `load_roads()`: `roads.nearest(spot)` and `roads.path(start, goal, gaps=False)` find a way
+    along the roads' middles, across a gap only for a kart (`gaps=True`).
 
 Bot files must not import `httpx` or `websockets`, parse raw JSON, copy lobby/token code, manage
 `InputFrame.seq`, or log a token-bearing redirect or authorization header.
@@ -1637,7 +1665,7 @@ await controls.command("sniper")    # sends /sniper
 There is no generic server-side click message. Browser cube clicks are local visual picking and
 become the `reading` field; use `read_cube`. Attack clicks become the `shoot` action; use
 `fire_once` or `shoot`. A door click is `use`, judged against where the bot looks. A way from
-`world.path` keeps out of doorways unless asked (`doors=True`), and a `Route` given
+`ground.path` keeps out of doorways unless asked (`doors=True`), and a `Route` given
 `doors=state.doors` opens the shut doors on such a way. Sky-object clicks are entirely client-side and have no server interaction.
 
 Tap weapons require a press frame followed by a release frame. Hold weapons require `shoot` on
@@ -1699,8 +1727,8 @@ protocol.
   put players on floors, stairs and bridges, so `y` varies (feet are at `pos.y - 1.7`). Use
   straight-line distance, not `x`/`z` only, when choosing targets. Yaw `0` faces `+z`; positive pitch
   looks down, and `look_at` aims in 3D. An avatar's own eyes (`AVATARS[id].eye`;
-  `world.eye_of(player)`) may sit higher or lower, and its wearer looks and shoots from there, so aim
-  from `world.eye_of(me)`.
+  `bodies.eye_of(player)`) may sit higher or lower, and its wearer looks and shoots from there, so aim
+  from `bodies.eye_of(me)`.
 - `Player.hearts` and `Player.kills` are the scoreboard; `Player.dead` stays true until the
   server drops the seat.
 - Snapshots carry the floating pickups (`state.pickups`); walking into a heart below full health
