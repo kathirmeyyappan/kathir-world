@@ -3,9 +3,11 @@
 // rolling up kerbs and ramps and flying off them, and walls in the way. The Room steps every kart
 // with its driver's keys, and the driver's client steps its own the same way to predict it.
 //
-// A drift: a press of the drift key hops the kart; landing with the key still held and the wheel
-// over, at speed, it drifts that way, turning tighter or wider as the wheel is held into the turn
-// or out of it. Drifting on the ground brings it to a spark, blue, then yellow, then purple
+// A drift: a press of the drift key hops the kart, and the way the wheel is held over as it hops,
+// or first goes over in the hop, is the hop's; landing with the key still held, at speed, it
+// drifts that way whatever the wheel has done since, turning tighter or wider as the wheel is held
+// into the turn or out of it. A hop the wheel stayed straight through lands in no drift, and one
+// begins the way the wheel next goes over. Drifting on the ground brings it to a spark, blue, then yellow, then purple
 // (SPARKS), and letting go of the key on one is a mini-turbo: its top speed raised by half over
 // TURBO.rise, held as long as the spark gives, and let down over TURBO.fall.
 //
@@ -58,7 +60,10 @@ export interface KartState {
   // Seconds since it came down from a flight it did no trick in, for as long as a press can
   // still be that trick (TRICK.late).
   down: number | null;
-  hop: boolean; // it left the ground by the hop a press gives, until it lands
+  // The hop a press gives, from leaving the ground until it lands: its way is the way the wheel was
+  // held over as it hopped, or first went over in the air after (1 right), which the drift it lands
+  // in keeps; none with the wheel not yet over.
+  hop: { way: 1 | -1 | null } | null;
   // Its drift: its way (1 right), the seconds of it on the ground, and the share of its full turn
   // it was turning at as the drift began, which it eases from.
   drift: { way: 1 | -1; t: number; from: number } | null;
@@ -158,7 +163,7 @@ const ROLL = 0.25; // of its width: the most it moves between looks at the groun
 // it, past which it leaves the ground: at its speed, a slope's top a sixth steeper than what follows.
 const LIFT = 3;
 const HOP = 4.2; // m/s up: a press of the drift key, 0.44 m up and 0.42 s to come down on the flat
-const DRIFT_HOLD = 0.3; // of the wheel: held over with the drift key down on the ground, the way the drift goes
+const DRIFT_HOLD = 0.3; // of the wheel: held this far over or more, it's held a way, a hop's, a drift's or a trick's
 // In a drift, how tight it turns, as a share of its turn with the wheel full over: with the wheel
 // held out of the drift's way (all but straight, so a drift can be carried round a long bend),
 // let be, and held into it (tighter than any turn without one).
@@ -188,7 +193,7 @@ export function createKart(kart: KartId, size: number, pos: Vec3, yaw: number): 
     held: false,
     press: null,
     down: null,
-    hop: false,
+    hop: null,
     drift: null,
     trick: null,
     turbo: null,
@@ -275,8 +280,9 @@ export function stepKart(k: KartState, c: KartControls, dt: number, structures: 
   } else if (pressed && k.grounded && !k.drift && !climbing) {
     k.vel.y = HOP;
     k.grounded = false;
-    k.hop = true;
+    k.hop = { way: null };
   }
+  if (k.hop) k.hop.way ??= wayOf(steer);
   // A press is a trick as soon as the kart is in the air (but for its own hop) with no trick
   // still running: at once up there, and off the lip for one that came a moment early.
   if (k.press !== null && !k.grounded && !hopping(k) && !(k.trick && k.trick.t < TRICK.seconds)) {
@@ -309,11 +315,14 @@ export function stepKart(k: KartState, c: KartControls, dt: number, structures: 
     boost(k, TRICK.hold);
     k.trick = null;
   } else if (landing >= TRICK.fall && !hopped) k.down = 0;
-  if (landing > 0) k.hop = false;
-  // The drift key held on the ground at speed: the wheel over begins a drift that way, as the hop
-  // lands or whenever it goes over after.
-  if (k.grounded && !k.drift && c.drift && Math.abs(steer) >= DRIFT_HOLD && forwardSpeed(k) >= DRIFT_FROM * spec.speed)
-    k.drift = { way: steer > 0 ? 1 : -1, t: 0, from: lock };
+  const landed = landing > 0 ? k.hop : null;
+  if (landing > 0) k.hop = null;
+  // The drift key held on the ground at speed begins a drift: the way of the hop it lands from,
+  // or with no hop's way to go, the way the wheel is over, whenever it goes over.
+  if (k.grounded && !k.drift && c.drift && forwardSpeed(k) >= DRIFT_FROM * spec.speed) {
+    const way = landed?.way ?? wayOf(steer);
+    if (way) k.drift = { way, t: 0, from: lock };
+  }
   if (k.drift && k.grounded) k.drift.t += dt;
   if (k.turbo) {
     k.turbo.t += dt;
@@ -332,7 +341,12 @@ function boost(k: KartState, hold: number, spark: Spark | null = null): void {
 // Whether it's in the hop a press gave it: up and back down to where it left the ground. Falling
 // faster than a hop comes down, it has gone off something, and is in the air as off any ledge.
 function hopping(k: KartState): boolean {
-  return k.hop && k.vel.y >= -HOP;
+  return k.hop !== null && k.vel.y >= -HOP;
+}
+
+// The way the wheel is held over (1 right), or null with it held neither way.
+function wayOf(steer: number): 1 | -1 | null {
+  return Math.abs(steer) < DRIFT_HOLD ? null : steer > 0 ? 1 : -1;
 }
 
 // The spark a drift has got to after `t` seconds on the ground, or null short of the first.
@@ -344,8 +358,7 @@ export function sparkOf(t: number, spec: KartSpec): Spark | null {
 // The way a trick goes: the wheel's, held over, else either, by where the kart is: as good as a
 // coin's toss to the driver, and the same on the server and on their client predicting it.
 function trickWay(k: KartState, steer: number): 1 | -1 {
-  if (Math.abs(steer) >= DRIFT_HOLD) return steer > 0 ? 1 : -1;
-  return Math.floor(Math.abs(k.pos.x + k.pos.z) * 100) % 2 ? 1 : -1;
+  return wayOf(steer) ?? (Math.floor(Math.abs(k.pos.x + k.pos.z) * 100) % 2 ? 1 : -1);
 }
 
 // How many times its speed a kart's top speed is through a boost: 1 out of one.

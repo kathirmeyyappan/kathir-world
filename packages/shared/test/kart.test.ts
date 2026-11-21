@@ -73,6 +73,24 @@ test('a kart drifts, sparks blue, yellow and purple by its mini-turbo time, and 
   assert.ok(speed(k) < spec.speed + 0.5, `back at its own speed once it's let down: ${speed(k)}`);
 });
 
+test('a drift goes the way the wheel was held as the kart hopped, whatever way it is held after', () => {
+  const structures = world();
+  const k = createKart('standard', 1, { x: 0, y: 0, z: 0 }, 0);
+  drive(k, { gas: 1, steer: 0, drift: false }, KARTS.standard.acceleration, structures);
+  // Hopped with the wheel left, and the wheel thrown right before it's down.
+  drive(k, { gas: 1, steer: -1, drift: true }, TICK_DT, structures);
+  assert.equal(k.hop?.way, -1);
+  drive(k, { gas: 1, steer: 1, drift: true }, 0.6, structures);
+  assert.deepEqual([k.grounded, k.drift?.way], [true, -1], 'a left drift, the wheel held right');
+  // Hopped with the wheel straight, the way it first goes over in the air is the hop's.
+  drive(k, { gas: 1, steer: 0, drift: false }, 0.5, structures);
+  drive(k, { gas: 1, steer: 0, drift: true }, TICK_DT, structures);
+  assert.deepEqual([k.drift, k.hop?.way], [null, null], 'in a hop with no way yet');
+  drive(k, { gas: 1, steer: 1, drift: true }, TICK_DT, structures);
+  drive(k, { gas: 1, steer: -1, drift: true }, 0.6, structures);
+  assert.deepEqual([k.grounded, k.drift?.way], [true, 1], 'a right drift, the wheel held left');
+});
+
 test('a press in the air tricks a kart the way its wheel is held, edging it across that way, again once that trick is through, and boosts it once as it lands, a moment early or late too, but not in its own hop', () => {
   // The platform, and a jump along +z: up 5 m over 14 m, 8 m of nothing, and back down.
   const structures = world(

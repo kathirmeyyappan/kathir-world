@@ -69,7 +69,7 @@ export class Seat {
     this.yaw = kart.yaw;
     this.wheel = kart.wheel;
     this.speed = speed;
-    this.hop = kart.hop;
+    this.hop = kart.hop !== null;
     this.drift = kart.drift?.way ?? 0;
     this.boost = kart.turbo !== null;
     this.trick = trick;

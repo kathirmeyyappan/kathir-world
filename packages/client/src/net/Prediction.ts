@@ -102,6 +102,7 @@ function cloneKart(k: KartState): KartState {
     ...k,
     pos: { ...k.pos },
     vel: { ...k.vel },
+    hop: k.hop && { ...k.hop },
     drift: k.drift && { ...k.drift },
     trick: k.trick && { ...k.trick },
     turbo: k.turbo && { ...k.turbo },
