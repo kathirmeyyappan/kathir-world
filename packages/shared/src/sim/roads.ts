@@ -17,8 +17,8 @@
 //
 // A road is authored as runs (the world's are in outline.ts): each a straight to its point, cut
 // into stretches end to end, and the bend it takes round that point into the next. `layRoad`
-// turns one into its floor for the outline, its bank for the structures and its marks for the
-// maps.
+// turns one into its floor for the outline, its bank for the structures, its marks for the maps
+// and its middle for whoever follows it.
 import type { Bend, WorldPart } from './ground';
 import { ramp, type Box, type Structure, type StructureMaterial } from './structures';
 
@@ -158,11 +158,21 @@ export type Raised =
 // covers the whole end, so there's no wall to draw.
 export type Caps = [number | null, number | null];
 
+// A length of a road's middle, with the height of the road along it: straight from a to b, with
+// no road under it where it's a `gap` to be jumped, or round a level bend about (x, z) from the
+// bearing `start` on by `turn` (radians, from +x toward +z).
+export type Trace =
+  | { kind: 'straight'; ax: number; ay: number; az: number; bx: number; by: number; bz: number; gap?: boolean }
+  | { kind: 'bend'; x: number; y: number; z: number; r: number; start: number; turn: number };
+
 export interface Road {
   floor: WorldPart[];
   bank: Structure[]; // with its boost pads' pieces
   marks: RoadMark[];
   raised: Raised[];
+  // Its middle, each run of it end to end: the whole road, or for one that splits in two, the run
+  // up to the fork, each strand's, and the run on from where they come together.
+  middle: Trace[][];
 }
 
 export const level = (length?: number): Stretch => ({ length });
@@ -250,12 +260,13 @@ type Leg =
       pads: number[];
     }
   | { kind: 'split'; a: Point; b: Point; height: number; shape: Split; open: true }
-  | { kind: 'gap' };
+  | { kind: 'gap'; a: Point; b: Point; height: number };
 
 export function layRoad(spec: RoadSpec): Road {
   const legs = legsOf(spec);
   const half = spec.width / 2;
-  const road: Road = { floor: [], bank: [], marks: [], raised: [] };
+  const road: Road = { floor: [], bank: [], marks: [], raised: [], middle: [] };
+  let run: Trace[] = []; // its middle since it began, or since its strands last came together
   let floorFrom: Point | null = null; // where the floor being laid began: one part for a run's stretches with no gap between
   // A level boost pad from `from` to `to` on the road at height `y`: a sliver lying on it there, in
   // from its sides, hidden, the panel drawn there being the client's.
@@ -275,14 +286,18 @@ export function layRoad(spec: RoadSpec): Road {
     });
   };
   legs.forEach((leg, i) => {
+    if (leg.kind !== 'split') run.push(traced(leg));
     if (leg.kind === 'gap') return;
     if (leg.kind === 'split') {
+      if (run.length > 0) road.middle.push(run);
+      run = [];
       // Each strand is a road of its own from the fork to the meeting, laid as part of this one.
       for (const strand of strandsOf(spec, leg)) {
         const laid = layRoad(strand);
         road.bank.push(...laid.bank);
         road.marks.push(...laid.marks);
         road.raised.push(...laid.raised);
+        road.middle.push(...laid.middle);
       }
       return;
     }
@@ -418,8 +433,19 @@ export function layRoad(spec: RoadSpec): Road {
     const [ay, by] = [under + PAD.lift, under + PAD.lift + climbs];
     road.marks.push({ kind: 'pad', ax: from.x, ay, az: from.z, bx: to.x, by, bz: to.z, halfWidth: across / 2 });
   });
+  if (run.length > 0) road.middle.push(run);
   road.marks = joined(road.marks);
   return road;
+}
+
+function traced(leg: Exclude<Leg, { kind: 'split' }>): Trace {
+  if (leg.kind === 'bend') {
+    const { x, z, r, start, turn, height: y } = leg;
+    return { kind: 'bend', x, y, z, r, start, turn };
+  }
+  const [ay, by] = leg.kind === 'gap' ? [leg.height, leg.height] : [leg.from, leg.to];
+  const ends = { ax: leg.a.x, ay, az: leg.a.z, bx: leg.b.x, by, bz: leg.b.z };
+  return { kind: 'straight', ...ends, ...(leg.kind === 'gap' && { gap: true }) };
 }
 
 // The marks with every slope that carries straight on into the next, the same way up, made one
@@ -477,7 +503,7 @@ function legsOf(spec: RoadSpec): Leg[] {
       const d = s.length ?? (length - given) / shared;
       if (s.gap) {
         if (s.rise) throw bad(`a gap in run ${i} has a rise`);
-        legs.push({ kind: 'gap' });
+        legs.push({ kind: 'gap', a: point(at), b: point(at + d), height });
       } else if (s.split) {
         if (s.rise) throw bad(`a split in run ${i} has a rise`);
         if (height - s.split.fall < DECK + HEADROOM)

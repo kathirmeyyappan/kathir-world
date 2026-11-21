@@ -20,7 +20,7 @@ if [ "$what" != bots ]; then
 fi
 
 if [ "$what" != room ]; then
-  # Builds only the stages of the map not already built from this world by this sim code.
+  # Builds only the maps not already built from this world by this sim code.
   npm run bot-map
   modal deploy modal-bots/app.py
 fi

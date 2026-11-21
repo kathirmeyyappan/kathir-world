@@ -8,7 +8,7 @@
 // and the Room swings it the other way at once, even mid-swing (the client picks the swing up from
 // where it is); only a second click within DOOR_DEBOUNCE_SECONDS is taken for the same click.
 // Bots' map walks as if every door stood open, and a bot that opens doors clicks the shut ones in
-// its way (botMap.ts, GroundMap.doors).
+// its way (botMap/ground.ts, GroundMap.doors).
 import { wall, type Box } from './structures';
 
 export interface DoorSpec {

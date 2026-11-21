@@ -1,5 +1,5 @@
 """Circle the nearest player, or the world origin when alone, clockwise at a fixed radius, and
-when something's in the way find a way round it through the world map instead."""
+when something's in the way find a way round it over the ground map instead, where it has one."""
 
 from __future__ import annotations
 
@@ -10,22 +10,27 @@ from contextlib import suppress
 from typing import Any
 
 from common import (
+    Bodies,
     Controls,
     Event,
+    Ground,
     Player,
     RoomConnectionError,
+    Solids,
     Vec3,
-    WorldMap,
     WorldState,
     connect,
+    load_bodies,
+    load_ground,
+    load_solids,
     log_death,
     log_message,
     run_input_loop,
 )
 from common.controls import TICK_RATE
 from common.deployment import validate_duration
+from common.map.bodies import EYE_HEIGHT
 from common.navigation import Route
-from common.world import EYE_HEIGHT, load_world_map
 
 ORBIT_RADIUS = 12
 RADIAL_CORRECTION_DISTANCE = 6
@@ -38,9 +43,12 @@ RING_BAND = 3
 DETOUR_STEP = math.radians(60)
 # A detour is planned again when its target has moved this far since.
 REPLAN_DISTANCE = 4
-# Metres ahead along its strafe the bot looks for floor: none there (the world's edge, where a step
-# further drops it to its death, or the map's margin inside it) and it walks the map instead.
+# Metres ahead along its strafe the bot looks for ground: none there within EDGE_DROP under its feet
+# (the floor's edge, where a step further drops it to its death, or the edge of whatever it stands
+# on) and it walks the map instead.
 EDGE_LOOKAHEAD = 1.5
+EDGE_DROP = 1.0
+STEP = 0.5  # metres a walk steps up onto on its own (STEP_UP in packages/shared/src/sim/constants.ts)
 # Blocked means covering under half the commanded distance over a few ticks: a wall is soaking up
 # the move. The window is long enough that one late snapshot doesn't count.
 BLOCKED_PROGRESS = 0.5
@@ -77,7 +85,7 @@ async def run_circle_bot(
     inputs = asyncio.create_task(run_input_loop(controls, stop))
     completed = False
     target_key: str | None = None
-    circler = Circler(load_world_map())
+    circler = Circler(load_solids(), load_ground(), load_bodies())
     observed_until = connected_at
 
     log_message(name, "joined room", player_id=connection.id, room=connection.room)
@@ -146,10 +154,14 @@ async def run_circle_bot(
 
 
 class Circler:
-    """Circling, or on a detour by the map to a point further round the ring."""
+    """Circling, or on a detour by the map to a point further round the ring. Where there's ground
+    comes from the solids, anywhere in the world; a detour needs the ground map, so off the floor
+    the buildings stand on it stops at whatever is in its way until its target moves."""
 
-    def __init__(self, world: WorldMap) -> None:
-        self.world = world
+    def __init__(self, solids: Solids, ground: Ground, bodies: Bodies) -> None:
+        self.solids = solids
+        self.ground = ground
+        self.bodies = bodies
         self.stall = Stall()
         self.route: Route | None = None
         self.route_center: Vec3 | None = None
@@ -173,34 +185,34 @@ class Circler:
         if (
             abs(distance - ORBIT_RADIUS) > RING_BAND
             or self._edge_ahead(me, controls)
-            or self.stall.blocked(tick, me.pos, controls, self.world.walk_speed(me.avatar))
+            or self.stall.blocked(tick, me.pos, controls, self.bodies.walk_speed(me.avatar))
         ):
             controls.stop()
             return self._detour(tick, me, center)
         return False
 
     def _edge_ahead(self, me: Player, controls: Controls) -> bool:
-        """Whether the map has no floor EDGE_LOOKAHEAD along the move ``controls`` command."""
+        """Whether the ground EDGE_LOOKAHEAD along the move ``controls`` command drops away."""
         dx, dz = _world_move(controls)
         length = math.hypot(dx, dz)
         if length < 1e-6:
             return False
         feet = _feet(me)
-        ahead = Vec3(feet.x + dx / length * EDGE_LOOKAHEAD, feet.y, feet.z + dz / length * EDGE_LOOKAHEAD)
-        return self.world.node_at(ahead, reach=1) is None
+        x, z = feet.x + dx / length * EDGE_LOOKAHEAD, feet.z + dz / length * EDGE_LOOKAHEAD
+        return feet.y - self.solids.ground_at(x, z, feet.y + STEP) > EDGE_DROP
 
     def _detour(self, tick: int, me: Player, center: Vec3) -> bool:
         """Plan a way round to the ring; back to circling (and the stall check) when there's none."""
         self.route = None
         self.route_center = center
         self.stall.reset(tick)
-        start = self.world.node_at(_feet(me))
+        start = self.ground.node_at(_feet(me))
         if start is None:
             return False
         for goal in self.ring_goals(me, center):
-            path = self.world.path(start, goal, me.avatar)
+            path = self.ground.path(start, goal, me.avatar)
             if path is not None:
-                self.route = Route(self.world, path, tick, me.avatar)
+                self.route = Route(self.ground, path, tick, me.avatar)
                 self.detours += 1
                 return True
         return False
@@ -214,7 +226,7 @@ class Circler:
         for k in range(1, round(2 * math.pi / DETOUR_STEP) + 1):
             a = bearing + _CIRCLING_SIGN * k * DETOUR_STEP
             spot = Vec3(center.x + ORBIT_RADIUS * math.sin(a), feet_y, center.z + ORBIT_RADIUS * math.cos(a))
-            node = self.world.node_at(spot)
+            node = self.ground.node_at(spot)
             if node is not None and node not in goals:
                 goals.append(node)
         return goals

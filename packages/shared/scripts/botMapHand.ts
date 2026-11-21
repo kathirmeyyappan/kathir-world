@@ -1,7 +1,7 @@
 // One of the threads the bots' map's shares are done on (botMapHands.ts): it's given the stage's
 // nodes as it starts, and then a share at a time, and sends back what each comes to.
 import { parentPort, workerData } from 'node:worker_threads';
-import { doShare } from '../src/sim/botMap';
+import { doShare } from '../src/sim/botMap/ground';
 import type { Vec3 } from '../src/sim/types';
 import type { Given } from './botMapHands';
 
