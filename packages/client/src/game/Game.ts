@@ -751,7 +751,7 @@ export class Game {
         return;
       }
       case 'chat':
-        this.hud.chat(m.name, m.color, m.text);
+        this.hud.chat(m.id, m.name, m.text);
         return;
       case 'system':
         this.hud.system(m.text);

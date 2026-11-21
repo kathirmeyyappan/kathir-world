@@ -59,7 +59,7 @@ export type ServerMessage =
     }
   | { t: 'join'; p: PlayerState }
   | { t: 'leave'; id: string; name: string }
-  | { t: 'chat'; id: string; name: string; color: string; text: string }
+  | { t: 'chat'; id: string; name: string; text: string }
   | { t: 'system'; text: string } // greyed-out line: command results, notices
   | { t: 'refused'; text: string } // what this player asked for can't be done, and why
   | { t: 'shot'; id: string } // someone fired a tap weapon; clients play the effect
