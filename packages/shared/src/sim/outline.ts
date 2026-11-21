@@ -281,8 +281,8 @@ const WEB: Road[] = [
     { at: 0.85, out: -14, radius: 30, height: 5 },
   ]),
   wound('northwest spoke', [ROAD_PLATEAU], NORTHWEST_ISLAND, [
-    { x: -410, z: 200, radius: 40, height: 3 },
-    { x: -350, z: 290, radius: 30, height: 9, pad: true },
+    { x: -410, z: 200, radius: 40, height: 3, pad: true },
+    { x: -350, z: 290, radius: 30, height: 9 },
   ]),
   wound('southwest spoke', [ROAD_PLATEAU], SOUTHWEST_ISLAND, [
     { at: 0.2, out: -28, radius: 36, height: 6 },
@@ -292,7 +292,7 @@ const WEB: Road[] = [
   wound('inner north', [NORTH_ISLAND], INNER_NORTH, [{ at: 0.5, out: -22, radius: 30, height: 7, pad: true }]),
   wound('inner northwest', [INNER_NORTH], ROAD_PLATEAU, [
     { at: 0.25, out: -18, radius: 28, height: 6 },
-    { at: 0.75, out: 18, radius: 28, height: 3 },
+    { at: 0.75, out: 18, radius: 28, height: 3, pad: true },
   ]),
   wound('inner southwest', [ROAD_PLATEAU], INNER_SOUTH, [{ at: 0.2, out: -14, radius: 30, height: 0 }], {
     last: hop(),
@@ -315,7 +315,7 @@ const WEB: Road[] = [
     [
       { x: -590, z: 137, radius: 50, height: 13 },
       { x: -372, z: 158, radius: 32, height: 13, carries: parted() },
-      { x: -395, z: 400, radius: 24, height: 22, pad: true },
+      { x: -395, z: 400, radius: 24, height: 22 },
     ],
     { decked: true },
   ),
@@ -326,9 +326,9 @@ const WEB: Road[] = [
     [
       { x: -561, z: -80, radius: 45, height: 13 },
       { x: -350, z: 75, radius: 45, height: 13, carries: parted() },
-      { x: -245, z: 40, radius: 32, height: 17, pad: true },
+      { x: -245, z: 40, radius: 32, height: 17 },
       { x: -222, z: -30, radius: 30, height: 10 },
-      { x: -252, z: -90, radius: 30, height: 10 },
+      { x: -252, z: -90, radius: 30, height: 10, pad: true },
     ],
     { decked: true },
   ),
