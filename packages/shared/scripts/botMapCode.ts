@@ -1,7 +1,8 @@
-// A hash of the sim code the bots' map is built by (BotMap.code): the text of botMap.ts and of every
-// file it imports to run, directly or through another, so a change to how a body walks, jumps or
-// collides shows up here. Content files are followed but left out of the hash, since what they
-// build is in botMapSource() by value, and so are imports of types alone, which run nothing.
+// A hash of the sim code the bots' ground and moves are built by (`Simulated.code`): the text of
+// botMap/ground.ts and of every file it imports to run, directly or through another, so a change
+// to how a body walks, jumps or collides shows up here. Content files are followed but left out of
+// the hash, since what they build is in the maps' sources by value, and so are imports of types
+// alone, which run nothing.
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -14,7 +15,7 @@ const IMPORT = /^(?:import|export)\s(?!type\s)[^;]*?from\s+'(\.[^']+)'/gm;
 
 export function botMapCode(): number {
   const texts = new Map<string, string>();
-  const queue = [join(SRC, 'sim/botMap.ts')];
+  const queue = [join(SRC, 'sim/botMap/ground.ts')];
   for (let file = queue.pop(); file; file = queue.pop()) {
     if (texts.has(file)) continue;
     const text = readFileSync(file, 'utf8');

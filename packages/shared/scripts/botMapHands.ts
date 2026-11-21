@@ -1,11 +1,11 @@
-// The bots' map's shares (src/sim/botMap.ts `Share`) done on every core at once: a worker thread a
+// The bots' map's shares (src/sim/botMap/ground.ts `Share`) done on every core at once: a worker thread a
 // core (botMapHand.ts), each with the stage's nodes, taking the next share as it finishes its last,
 // so no core waits on a slow one. The threads of one stage are kept for the next that has the same
 // nodes (each way of moving's jumps are a stage of their own over one ground), and `rest` lets
 // them go.
 import { availableParallelism } from 'node:os';
 import { Worker } from 'node:worker_threads';
-import type { Hands, Share, Shared } from '../src/sim/botMap';
+import type { Hands, Share, Shared } from '../src/sim/botMap/ground';
 import type { Vec3 } from '../src/sim/types';
 
 export const THREADS = availableParallelism();
