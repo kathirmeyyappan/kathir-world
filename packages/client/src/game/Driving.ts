@@ -1,12 +1,17 @@
 // Driving a kart, as the player sees it (sim/vehicles/): every kart drawn, the one they drive from
 // its prediction and the rest from the snapshots, with its seat for its driver's body to sit in,
 // and what each has begun said, for what's heard of it; the look carried round with the kart
-// they drive and, once the mouse has been let be a moment, settled back behind it; how far into a
+// they drive and, once the mouse has been let be a moment, settled back behind it, or held round
+// to a side the camera has room on while it lies by the wall of the world's edge; how far into a
 // boost that kart is, for the view it's seen through, with the streaks that fly past it; and the
 // keys that drive it besides the movement keys: the drift held on Space, and E to get out.
 import {
   KART_ACTIONS,
   TURBO,
+  WORLD_STRUCTURES,
+  acrossAt,
+  seatedAt,
+  stranded,
   turboShare,
   type ItemAction,
   type Kart,
@@ -19,11 +24,16 @@ import type { Engine } from '../render/Engine';
 import { KartMesh } from '../render/vehicles/KartMesh';
 import type { Seat } from '../render/vehicles/Seat';
 import { SpeedLines } from '../render/vehicles/SpeedLines';
+import { KART_VIEW } from './View';
 
 const SETTLE_AFTER = 0.8; // seconds of the look let be before it settles back behind the kart
 const SETTLE_RATE = 3; // per second: how fast it settles
 const SETTLED_PITCH = 0.12; // radians down the settled look is, over the kart's nose
 const RUSH_RATE = 9; // per second: how fast the view takes up a boost and lets it go
+// Where a kart down past the world's edge is looked at from, radians round from behind it, the
+// first the camera has room on: behind it, as ever; its left, so Lakitu, who stands to its right,
+// is beyond it; its right; in front of it.
+const VANTAGES = [0, Math.PI / 2, -Math.PI / 2, Math.PI];
 
 export class Driving {
   onKnock: ((at: Vec3) => void) | null = null; // a kart there lost wrenches to a knock: for what's heard of it
@@ -34,6 +44,7 @@ export class Driving {
   private kartYaw: number | null = null; // the yaw of the kart they drive, as last followed
   private left: { yaw: number; pitch: number } | null = null; // the look as it was last left
   private still = 0; // seconds the look has been let be
+  private aside = false; // the look was held round to one side of the kart last frame
   private rushed = 0; // how far into a boost the kart they drive is seen to be, 0 to 1, eased
   private streaks: SpeedLines | null = null; // what flies past their view through a boost, made at their first
 
@@ -73,7 +84,9 @@ export class Driving {
 
   // Follows the kart they drive this frame (null: they aren't): takes up its boost as their `rush`,
   // turns `look` with it, and once the look has been let be for SETTLE_AFTER, eases it back behind
-  // the kart, looking a little down over its nose.
+  // the kart, looking a little down over its nose. Down past the world's edge with no room behind
+  // it (`vantage`), the look is held round to where there is, whatever the player does with it,
+  // and put straight back behind the kart as Lakitu carries it across, which nobody sees.
   follow(look: { yaw: number; pitch: number }, kart: KartState | null, dt: number): void {
     const boost = kart ? (turboShare(kart.turbo) - 1) / (TURBO.boost - 1) : 0;
     this.rushed += (boost - this.rushed) * (1 - Math.exp(-RUSH_RATE * dt));
@@ -82,17 +95,23 @@ export class Driving {
     this.streaks?.update(this.rushed, dt);
     if (!kart) {
       this.kartYaw = this.left = null;
+      this.aside = false;
       return;
     }
     const moved = !this.left || look.yaw !== this.left.yaw || look.pitch !== this.left.pitch;
     this.still = moved ? 0 : this.still + dt;
     if (this.kartYaw !== null) look.yaw += wrap(kart.yaw - this.kartYaw);
     this.kartYaw = kart.yaw;
-    if (this.still > SETTLE_AFTER) {
+    const round = vantage(kart);
+    if (this.aside && round === null && kart.rescue) {
+      look.yaw = kart.yaw;
+      look.pitch = SETTLED_PITCH;
+    } else if (round !== null || this.still > SETTLE_AFTER) {
       const k = 1 - Math.exp(-SETTLE_RATE * dt);
-      look.yaw -= wrap(look.yaw - kart.yaw) * k;
+      look.yaw -= wrap(look.yaw - kart.yaw - (round ?? 0)) * k;
       look.pitch += (SETTLED_PITCH - look.pitch) * k;
     }
+    this.aside = round !== null;
     this.left = { yaw: look.yaw, pitch: look.pitch };
   }
 
@@ -104,6 +123,22 @@ export class Driving {
       return mode === 'hold' ? input.isDown(key) : input.wasPressed(key);
     });
   }
+}
+
+// The way kart `k` is looked at where the camera has no room behind it, radians round from behind
+// it (VANTAGES), or null where it has, or the kart isn't down past the world's edge: stranded
+// there, or in Lakitu's hands and not yet carried across. A kart that tips off the edge lands by
+// the drop's wall with its tail to it, and a camera stopped short of that wall is on its driver's
+// head.
+function vantage(k: KartState): number | null {
+  if (!stranded(k) && !(k.rescue && !acrossAt(k.rescue.t))) return null;
+  const eyes = seatedAt(k);
+  const back = KART_VIEW.back * k.size;
+  const roomy = (round: number): boolean => {
+    const yaw = k.yaw + round;
+    return WORLD_STRUCTURES.raycast(eyes, { x: -Math.sin(yaw), y: 0, z: -Math.cos(yaw) }, back) >= back;
+  };
+  return VANTAGES.find(roomy) || null;
 }
 
 // An angle brought within [-π, π].

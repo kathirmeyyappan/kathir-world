@@ -1200,7 +1200,11 @@ has it (`Prediction` rides it as the Room does, rewinding and replaying it with 
 between its ticks by a part of a step on the keys of their last frame (`Prediction.kartBetween`),
 so it, its driver's eye and their look move on every frame drawn rather than thirty times a
 second; the look
-turned with the kart and settled back behind it once the mouse is let be; and the drift on Space
+turned with the kart and settled back behind it once the mouse is let be, or, while the kart is down
+past the world's edge (stranded, or in Lakitu's hands before he carries it across) with no room
+behind it for the camera, held round to the first side that has room (`vantage`, `VANTAGES`: a kart
+that tips off the edge lands by the drop's wall, tail to it, and a camera stopped short of that
+wall is on its driver's head); and the drift on Space
 and E to get out (`KART_ACTIONS`). A driver is watched as their kart is (`KART_VIEW`,
 `game/View.ts`: a boom from its seat at its size, low and far enough back that all of it shows,
 and one field of view, so a kart sits in one place on screen whoever drives it; through a boost

@@ -47,12 +47,17 @@ export function foldAt(t: number): number {
   return Math.min(unit((t - FOLD_AT) / RESCUE.fold), 1 - unit((t - UNFOLD_AT) / RESCUE.unfold));
 }
 
+// Whether a kart `t` seconds into a rescue has been carried across to where it's set down.
+export function acrossAt(t: number): boolean {
+  return t >= DARK_AT;
+}
+
 // One tick of kart `k` in a rescue: held still where the seconds into it put it, over where it was
 // picked up until its driver's view is shut and over where it's set down after, and let go on the
 // ground there once it's over.
 export function carried(k: KartState, rescue: Rescue, dt: number): KartStep {
   const t = rescue.t + dt;
-  const across = t >= DARK_AT;
+  const across = acrossAt(t);
   const over = across ? rescue.to : rescue.from;
   const up = across ? 1 - eased((t - LOWER_AT) / RESCUE.lower) : eased((t - LIFT_AT) / RESCUE.lift);
   k.pos.x = over.x;
