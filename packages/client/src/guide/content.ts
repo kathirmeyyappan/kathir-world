@@ -26,6 +26,7 @@ export const INTRO = ['this is the kathir world official (can I call it that?) g
 // The keys, on foot, as a dragon and in a kart.
 const SHARED: [string, string][] = [
   ['Z', 'first or third person'],
+  ['L', 'HUD off or on'],
   ['C', 'every command as a button'],
   ['Enter', 'chat, or a /command'],
   ['M / Esc', 'menu'],

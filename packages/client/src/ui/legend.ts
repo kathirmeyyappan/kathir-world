@@ -15,6 +15,7 @@ const cell = (keys: string[], does: string): LegendCell => ({ keys, does });
 const COMMON: LegendCell[] = [
   cell([], 'Click select'),
   cell(['Z'], 'toggle perspective'),
+  cell(['L'], 'toggle HUD'),
   cell(['O'], 'fullscreen'),
   cell(['Esc'], 'mouse'),
 ];
