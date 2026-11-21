@@ -422,6 +422,7 @@ test("a dead player's body leaves a big heart that stays where it lay, heals 10,
   };
   const [drop] = pickups();
   assert.equal(drop?.kind, 'big-heart');
+  assert.deepEqual(drop.from, { avatar: bob.avatar, color: bob.color }, 'his to look at');
   assert.ok(Math.hypot(drop.x - bob.pos.x, drop.z - bob.pos.z) < 0.01, 'where the body was');
   alice.hearts = 1;
   Object.assign(alice.pos, { x: drop.x, z: drop.z });
