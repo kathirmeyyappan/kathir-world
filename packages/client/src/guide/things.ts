@@ -11,6 +11,7 @@ import {
   PICKUP_BOB,
   PICKUP_BOB_HZ,
   PICKUP_SPIN,
+  type Appearance,
   type CubeContent,
   type GearId,
   type ItemId,
@@ -117,8 +118,11 @@ export function cubeThing(content: CubeContent): Thing {
   };
 }
 
-// A kart in Mario's paint, the one a kart wears for anyone outside his family, standing on the
-// floor where it drops.
+// Who the guide's karts stand as dropped by: Mario, whose livery a kart also wears for a look with
+// none. His colour shows nowhere.
+const DROPPER: Appearance = { avatar: 'mario', color: '#ffffff' };
+
+// A kart in Mario's livery, standing on the floor where it drops.
 export function kartThing(id: KartId): Thing {
   const { width, length, height } = KARTS[id].body;
   return {
@@ -126,10 +130,10 @@ export function kartThing(id: KartId): Thing {
     shared: true,
     bounds: { min: new Vector3(-width / 2, 0, -length / 2), max: new Vector3(width / 2, height, length / 2) },
     build(engine, parent) {
-      const mesh = new KartMesh(engine, `guide-${id}`, id, 'mario');
+      const mesh = new KartMesh(engine, `guide-${id}`, id, DROPPER);
       mesh.root.parent = parent;
       parent.onDisposeObservable.add(() => mesh.dispose());
-      const kart = parkedKart(`guide-${id}`, id, 'mario');
+      const kart = parkedKart(`guide-${id}`, id, DROPPER);
       let last = 0;
       return (t) => {
         mesh.update(kart, t - last);

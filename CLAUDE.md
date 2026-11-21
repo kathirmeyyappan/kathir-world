@@ -1025,10 +1025,15 @@ A look's livery (`render/liveries.ts`, `LIVERIES`) is what anything made out in 
 is drawn in: a primary colour, the one the look is known by, a secondary that goes with it, and an
 emblem, a picture of a badge (the look's mark on an off-white disc, filling the picture edge to
 edge) in `public/assets/textures/emblems/`, about 5 KB, fetched by whatever first draws it. A kart
-wears its dropper's (see Karts). The Mario family's are Mario Kart 8's, the colours and the
-emblems `scripts/kart-model.py` takes from the Standard Kart's rip. A look with none is left to
-whatever reads it to stand in for (`liveryOf` gives null). A new one is a row in `LIVERIES` and
-its emblem's picture; nothing that wears a livery has to know the look.
+wears its dropper's as they appeared when they dropped it (see Karts; `Appearance`, the look and
+the colour, which is what the Room keeps and sends of it). The Mario family's are Mario Kart 8's,
+the colours and the emblems `scripts/kart-model.py` takes from the Standard Kart's rip. The rest
+are made here, their emblems drawn by `scripts/emblems.py` (a row each in its `EMBLEMS`: a picture
+set on the disc, or a mark drawn there): the standard body's is its wearer's colour over black,
+its row a function of the colour, with the body's own bust for a mark; Elizabeth's her white over
+the orange of her feet, round the site's logo. A look with none is left to whatever reads it to
+stand in for (`liveryOf` gives null). A new one is a row in `LIVERIES` and its emblem's picture;
+nothing that wears a livery has to know the look.
 
 ## Player classes
 

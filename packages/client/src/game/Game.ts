@@ -966,11 +966,10 @@ export class Game {
 
   // What a command pointed at or `sent` is about to need, sent for ahead of the server's answer: a
   // look's body, and its voice too once it's sent, so the switch finds them here; a kart's files, in
-  // the paint the player would drop it in, so it's drawn from the moment it drops.
+  // the livery the player would drop it in, so it's drawn from the moment it drops.
   private wantCommand(text: string, sent: boolean): void {
     const command = parseCommand(text);
-    if (command?.name === 'kart' && this.prediction)
-      wantKart(this.engine.scene, command.kart, this.prediction.state.avatar);
+    if (command?.name === 'kart' && this.prediction) wantKart(this.engine.scene, command.kart, this.prediction.state);
     if (command?.name !== 'avatar') return;
     void wantLook(this.engine, command.avatar).catch(() => {});
     if (sent) this.wantVoice(command.avatar, true);

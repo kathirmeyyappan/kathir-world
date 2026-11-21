@@ -31,7 +31,7 @@ import {
   noseOf,
   sizeFor,
   sparkOf,
-  type AvatarId,
+  type Appearance,
   type Kart,
   type KartId,
   type Spark,
@@ -115,11 +115,11 @@ const knockedIn = perScene((scene) => {
   return grey;
 });
 
-// What a kart of model `kart` dropped by someone wearing `look` is drawn with, sent for where it
-// hasn't been: null until all of it is here.
-function filesOf(scene: Scene, kart: KartId, look: AvatarId): { parts: Parts; paint: Paint } | null {
+// What a kart of model `kart` dropped by someone who appeared as `who` is drawn with, sent for
+// where it hasn't been: null until all of it is here.
+function filesOf(scene: Scene, kart: KartId, who: Appearance): { parts: Parts; paint: Paint } | null {
   const model = KART_MODELS[kart];
-  const livery = liveryOf(look) ?? MARIO_LIVERY;
+  const livery = liveryOf(who) ?? MARIO_LIVERY;
   const key = [kart, livery.primary, livery.secondary, livery.emblem].join(':');
   const parts = begin(partsIn(scene), kart, () => fetchParts(scene, kart, model)).value;
   const paint = begin(paintsIn(scene), key, () => makePaint(scene, key, model, livery)).value;
@@ -128,18 +128,18 @@ function filesOf(scene: Scene, kart: KartId, look: AvatarId): { parts: Parts; pa
 
 // Sends for what a kart is drawn with. Call as soon as one is likely to be dropped, so it's drawn
 // from the moment it's there.
-export function wantKart(scene: Scene, kart: KartId, look: AvatarId): void {
-  filesOf(scene, kart, look);
+export function wantKart(scene: Scene, kart: KartId, who: Appearance): void {
+  filesOf(scene, kart, who);
 }
 
 // A kart of model `kart` standing still on the ground at the origin, facing +z, in the livery of
-// whoever wears `look` and built to seat them: what a view of one outside the world draws.
-export function parkedKart(id: string, kart: KartId, look: AvatarId): Kart {
+// whoever appears as `who` and built to seat them: what a view of one outside the world draws.
+export function parkedKart(id: string, kart: KartId, who: Appearance): Kart {
   return {
-    ...createKart(kart, sizeFor(look), { x: 0, y: 0, z: 0 }, 0),
+    ...createKart(kart, sizeFor(who.avatar), { x: 0, y: 0, z: 0 }, 0),
     grounded: true,
     id,
-    paint: look,
+    paint: { avatar: who.avatar, color: who.color },
     wrenches: KARTS[kart].wrenches,
     driver: null,
   };
@@ -186,7 +186,7 @@ export class KartMesh {
     engine: Engine,
     readonly id: string,
     private readonly kart: KartId,
-    private readonly paint: AvatarId,
+    private readonly paint: Appearance,
   ) {
     const scene = engine.scene;
     this.scene = scene;
