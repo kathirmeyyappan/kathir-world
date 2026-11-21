@@ -11,7 +11,9 @@
 //
 // A trick: a press of the drift key in the air (off a ramp or a ledge; not its own hop's) tricks
 // it left or right, the way the wheel is held or, with it held neither way, either, and landing
-// after one is a boost like a mini-turbo's held for TRICK.hold.
+// after one is a boost like a mini-turbo's held for TRICK.hold. With the wheel held its way
+// through it, a trick edges the kart across that way (TRICK.edge): the one way to shift where a
+// flight comes down.
 import type { Footing, Structures } from '../collision';
 import { EYE_HEIGHT, GRAVITY } from '../constants';
 import type { ActionSpec, ItemAction } from '../items';
@@ -101,7 +103,9 @@ export const SPARKS = [
 // the seconds its boost holds at full, rising and falling as a mini-turbo's.
 // A press may come late too: up to `late` seconds after landing, where it came down at `fall`
 // m/s or more (a flight, not a kerb), it's the trick the flight didn't have, boosting at once.
-export const TRICK = { early: 0.3, late: 0.25, fall: 2.5, seconds: 0.7, hold: 0.8 };
+// `edge` is the m/s across its way a trick has given the kart by its end, the wheel held full that
+// way through it: about the kart's own width by the time a jump comes down.
+export const TRICK = { early: 0.3, late: 0.25, fall: 2.5, seconds: 0.7, hold: 0.8, edge: 2 };
 // A boost pad's boost (surfaces.ts `boost`): held at full for as long as the kart is on the pad,
 // which drives it on as the gas would whatever its pedal, and for `hold` seconds after it leaves,
 // unless the boost it came with has longer than that left.
@@ -280,6 +284,14 @@ export function stepKart(k: KartState, c: KartControls, dt: number, structures: 
     k.press = null;
   }
   if (k.trick) k.trick.t += dt;
+  // In the air, the wheel held a trick's way edges the kart across that way for as long as the
+  // trick runs.
+  if (k.trick && !k.grounded && k.trick.t <= TRICK.seconds && steer * k.trick.way > 0) {
+    const r = rightOf(k.yaw);
+    const push = steer * (TRICK.edge / TRICK.seconds) * dt;
+    k.vel.x += r.x * push;
+    k.vel.z += r.z * push;
+  }
   const speed = forwardSpeed(k);
   if (k.drift && (!c.drift || speed < DRIFT_FROM * spec.speed)) {
     const spark = c.drift ? null : sparkOf(k.drift.t, spec);

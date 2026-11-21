@@ -1118,7 +1118,10 @@ and let down over `TURBO.fall`, the kart slowing with it, so a boost is over whe
 every hop would be a boost; a hop is up and back down to where it left the ground, so one taken off
 a ledge is in the air as off any once it's falling faster than a hop comes down), is a trick
 (`KartState.trick`), left or right the way the wheel is
-held, else either by where the kart is (so the driver's client predicts the same way); once a
+held, else either by where the kart is (so the driver's client predicts the same way); with the
+wheel held its way through it, a trick edges the kart across that way, `TRICK.edge` m/s by its end,
+which shifts where a jump comes down by about the kart's own width and is all the steering a
+flight has; once a
 trick is through (`TRICK.seconds`) another press is another, as many as the flight has room for,
 and landing after any is one boost like a mini-turbo's held for `TRICK.hold`. The press needn't be
 timed: one up to `TRICK.early` before the kart is in the air is the trick as it leaves the ground
