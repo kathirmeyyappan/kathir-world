@@ -1108,9 +1108,10 @@ it would carry it, whichever tick it crosses on; it reports how fast it ran into
 how fast it came down when it lands. A drift is Space: a press hops it (`HOP`: 0.44 m up and down again in 0.42 s on the flat), and with the key held on the
 ground at speed the wheel going over begins a drift that way, as the hop lands or whenever it goes
 over after, by the wheel from all but straight (held out of its way)
-to tighter than any turn without one (held into it, `DRIFT_TURN`), coming round to that turn over
-`DRIFT_EASE` from the one it began with, so a hop's slight turn doesn't snap into the drift's as it
-lands, a spark blue, yellow and
+to tighter than any turn without one (held into it, `DRIFT_TURN`), coming round to that turn
+from the one it began with over `DRIFT_EASE` (0.45 s, and up to 0.7 s with the wheel held full into
+it, the tightest turn coming on the most gently), so a hop's slight turn doesn't snap into the
+drift's as it lands, a spark blue, yellow and
 purple at 1, 2.25 and 3.5 `miniTurboTime`s of it on the ground (`SPARKS`); let go on a spark, it's a
 mini-turbo, its top speed raised by half over `TURBO.rise`, held as long as the spark gives
 and let down over `TURBO.fall`, the kart slowing with it, so a boost is over when it says. A press in the air, off a ramp or a ledge but not its own hop (or
