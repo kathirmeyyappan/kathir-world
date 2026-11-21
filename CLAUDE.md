@@ -141,7 +141,7 @@ skyline (`render/Skyline.ts`): the world's whole shape in the fog's colour, the 
 by part, the roads' risen lengths and every built piece 8 m or more some way, made from the
 content with no texture, a mesh to each 960 m square (`TILE`), through the loader with a reach of
 its own (`SKYLINE_REACH`, 2,400 m, about where a deck is down to a pixel; today's whole world is
-4 tiles, 14,400 triangles and 0.5 MB, built in 26 ms across the loader's frames, and however big
+4 tiles, 25,400 triangles and 0.9 MB, built in about 40 ms across the loader's frames, and however big
 the world grows only the tiles within that reach are kept). Each of its shapes stands 0.3 m inside
 the real thing, which covers it wherever that's loaded, and anything far enough off to be let go is
 all fog, the skyline's own colour, so nothing shows where one takes over from the other (the floor
