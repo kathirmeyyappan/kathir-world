@@ -281,7 +281,8 @@ wire: server and client both build the world from that file.
   (`dragon.ts`), and a walker it turns back into there, or anywhere out over the void, falls where
   it is. The camera follows it down. The bots' ground map stands its nodes a metre inside the edge, and
   the circle bot, which strafes rather than following that map (it never loads it), asks the
-  solids for ground ahead before it steps and turns back where there's none.
+  solids for ground ahead before it steps and tightens its ring where there's none, turning back
+  only where no ring has any.
 - Size things to the player: eyes at 1.7 m, head at 2.0 m, radius 0.35 m, steps up to 0.5 m climb on
   their own, and a running jump at the standard jump power lands on tops up to about 1.9 m (make
   anything meant to stop a jump 2.1 m or taller; Sulley's 1.2 rises 1.92 m, and may get over it). Doorways at least 1.2 m wide and 2.2 m tall; ramps no steeper than about 30°;

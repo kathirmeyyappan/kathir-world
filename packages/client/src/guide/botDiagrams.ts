@@ -2,30 +2,34 @@
 import type { BotId } from '@world/shared';
 import { Diagram, along, degTo, fmt, polar, type Pt } from './diagram';
 
-// Strafes round the nearest player facing them; blocked by a wall or a drop, it turns back the other way.
+// Strafes round the nearest player facing them; a wall or a drop in the way, it tightens its ring to
+// get round it and eases back out after.
 function circle(d: Diagram): void {
   const c: Pt = [210, 182];
   const r = 118;
   const me = polar(c, r, -140);
-  const stuck = polar(c, r, -4);
-  const [back, from, to] = [r - 20, -12, -70];
-  const [bx1, by1] = polar(c, back, from);
-  const [bx2, by2] = polar(c, back, to);
+  const [from, wall, to] = [-8, 18, 44];
+  const p0 = polar(c, r, from);
+  const bend = polar(c, r - 52, wall);
+  const p2 = polar(c, r, to);
+  // Halfway along the curve: where it passes inside the wall.
+  const tight: Pt = [(p0[0] + 2 * bend[0] + p2[0]) / 4, (p0[1] + 2 * bend[1] + p2[1]) / 4];
   d.ring(c, r);
-  d.wall(polar(c, r, 18), 86, 18);
+  d.wall(polar(c, r, wall), 40, wall);
   d.line(me, along(me, c, 0.86), 'look');
-  d.arc(c, r + 16, -128, -64, 'move', { arrow: true });
-  d.arc(c, r + 16, -150, -128, 'move', { faint: true });
-  d.arc(c, r + 16, -64, -10, 'move', { faint: true });
+  d.arc(c, r, -150, -128, 'move', { faint: true });
+  d.arc(c, r, -128, from, 'move');
+  d.path(`M ${fmt(p0[0])} ${fmt(p0[1])} Q ${fmt(bend[0])} ${fmt(bend[1])}, ${fmt(p2[0])} ${fmt(p2[1])}`, 'detour', {
+    arrow: true,
+  });
   d.subject(me, degTo(me, c));
-  d.path(`M ${fmt(bx1)} ${fmt(by1)} A ${back} ${back} 0 0 0 ${fmt(bx2)} ${fmt(by2)}`, 'move', { arrow: true });
-  d.subject(stuck, degTo(stuck, c), true);
+  d.subject(tight, degTo(tight, c), true);
   d.person(c);
   d.label([c[0], c[1] + 36], ['nearest player'], { anchor: 'middle' });
   d.label([c[0], c[1] + 56], ['(the middle, alone)'], { note: true, anchor: 'middle' });
   d.label([c[0] - 6, 26], ['strafes round, facing them'], { anchor: 'middle' });
   d.label([430, 150], ['a wall or a drop ahead?']);
-  d.label([430, 172], ['turns back with a hop', 'and goes round the', 'other way'], { note: true });
+  d.label([430, 172], ['tightens its ring to get', 'round it, easing back', 'out once there’s room'], { note: true });
 }
 
 // Stands where it is and turns to face the nearest person, whoever else is closer.

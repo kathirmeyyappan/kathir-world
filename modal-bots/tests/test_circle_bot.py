@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import dataclasses
 
-from bots.circle_bot import BLOCKED_TICKS, ORBIT_RADIUS, SETTLE_TICKS, Circler, Stall
+from bots.circle_bot import BLOCKED_TICKS, MIN_RADIUS, ORBIT_RADIUS, SETTLE_TICKS, Circler, Stall
 from common import Controls, Vec3
 from common.controls import TICK_RATE
 from common.map.bodies import load_bodies
@@ -31,24 +31,18 @@ def test_stall_fires_once_per_settle_when_the_bot_stops_making_headway() -> None
     assert stalls[1] - stalls[0] >= SETTLE_TICKS
 
 
-def test_turns_back_where_the_ground_drops_away_ahead() -> None:
-    circler = Circler(load_solids(), load_bodies())
+def test_tightens_its_ring_where_the_ground_drops_away_and_turns_back_only_where_no_ring_fits() -> None:
+    # On the Krusty Krab's road, half a metre in from its side at z -10, far out past its grounds.
+    me = dataclasses.replace(FakeConnection().welcome.players[0], pos=Vec3(-255, 1.7, -9.5))
     controls = Controls(FakeConnection())  # type: ignore[arg-type]
-    # On the Krusty Krab's road, a metre in from its side at z -10, circling a centre along it
-    # (+x): strafing right heads for -z, over the side, so it goes round the other way.
-    me = dataclasses.replace(FakeConnection().welcome.players[0], pos=Vec3(-255, 1.7, -9))
+
+    # Round someone in the road's middle: the full ring runs over the side, a tighter one along it.
+    circler = Circler(load_solids(), load_bodies())
     way = circler.way
-    assert circler.step(0, me, Vec3(-255 + ORBIT_RADIUS, 1.7, -9), controls)
-    assert circler.way == -way and controls.right == -way
+    assert not circler.step(0, me, Vec3(-255, 1.7, 0), controls)
+    assert circler.way == way and MIN_RADIUS < circler.radius < ORBIT_RADIUS
 
-
-def test_circling_looks_for_ground_ahead_out_on_a_road() -> None:
+    # Round someone at the road's side: every ring this way runs over it, so it goes the other way.
     circler = Circler(load_solids(), load_bodies())
-    controls = Controls(FakeConnection())  # type: ignore[arg-type]
-    controls.look(0)  # facing +z
-    # On the Krusty Krab's road, a metre in from its side at z 10, far out past its grounds.
-    me = dataclasses.replace(FakeConnection().welcome.players[0], pos=Vec3(-255, 1.7, 9))
-    controls.move(right=1)
-    assert not circler._edge_ahead(me, controls), "along the road"
-    controls.move(forward=1)
-    assert circler._edge_ahead(me, controls), "over its side"
+    assert circler.step(0, me, Vec3(-255 + ORBIT_RADIUS, 1.7, -9.5), controls)
+    assert circler.way == -way and controls.right == -way
