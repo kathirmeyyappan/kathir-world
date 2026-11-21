@@ -1,8 +1,7 @@
 """The world's structures and walkable ground, for bots that need to see past walls or find a way
 somewhere (up the tower's stair, say).
 
-It reads the map in ``map/``, which ``npm run bot-map`` builds from the TypeScript content and
-sim (``packages/shared/src/sim/botMap.ts``) in three stages, a file each, and joins them: the
+It reads the map's stages (``stages.py``) and joins three of them: the
 ground (the structures, the same list the server collides with, and a graph of the spots a player
 can stand on a 1 m grid round whatever stands and of the rectangles of open floor between, joined
 where the sim walks between them), the jumps of each way of moving, and each avatar's body. ``clear`` mirrors the sim's line of sight (``Structures.clear``), and the map's
@@ -11,21 +10,18 @@ own sight checks pin it to the sim's answers.
 
 from __future__ import annotations
 
-import gzip
 import heapq
-import json
 import math
 import random
 from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass
 from functools import cache
-from pathlib import Path
 from typing import Any
 
-from .protocol import Player, Vec3
+from .bodies import Bodies, load_bodies
+from .protocol import Vec3
+from .stages import read_stage
 
-MAP_DIR = Path(__file__).with_name("map")
-EYE_HEIGHT = 1.7  # metres from feet to eyes (EYE_HEIGHT in packages/shared/src/sim/constants.ts)
 CELL = 8.0  # metres per side of the grid that sight lines look structures up in
 RAY_STEP = 0.05  # metres between samples where a sight line crosses a sloped top (collision.ts)
 OPEN_STEP = 0.5  # metres between the spots a straight walk across open floor is checked at
@@ -64,17 +60,6 @@ class Region:
             return Vec3(self.x + radius * math.cos(angle), self.y, self.z + radius * math.sin(angle))
         half_w, half_d = max(0.0, self.w / 2 - margin), max(0.0, self.d / 2 - margin)
         return Vec3(self.x + rng.uniform(-half_w, half_w), self.y, self.z + rng.uniform(-half_d, half_d))
-
-
-@dataclass(frozen=True, slots=True)
-class Hitbox:
-    """What a shot has to land in (Hitbox in packages/shared/src/sim/avatars.ts): an upright capsule
-    from the feet up to ``top`` metres, ``radius`` round its axis, whose top ``head`` metres are the
-    head."""
-
-    top: float
-    radius: float
-    head: float
 
 
 @dataclass(frozen=True, slots=True)
@@ -118,7 +103,8 @@ class Piece:
 
 
 class WorldMap:
-    def __init__(self, ground: Mapping[str, Any], moves: Mapping[str, Any], bodies: Mapping[str, Any]):
+    def __init__(self, ground: Mapping[str, Any], moves: Mapping[str, Any], bodies: Bodies):
+        self.bodies = bodies
         self.pieces = tuple(_piece(s) for s in ground["structures"])
         # Every door's slab where it stands shut, by the door's id (a double door has two); the
         # graph walks through each as if it stood open.
@@ -138,7 +124,6 @@ class WorldMap:
         self._jump_sets = {
             str(move): tuple(frozenset(int(j) for j in out) for out in jumps) for move, jumps in moves["jumps"].items()
         }
-        self._moves = {str(avatar): str(move) for avatar, move in bodies["moves"].items()}
         self.jumps = self.jumps_of("standard")
         # Spots well up with a wide view out (the balconies and decks), all reachable on foot.
         self.lookouts = tuple(int(i) for i in ground["lookouts"])
@@ -147,13 +132,6 @@ class WorldMap:
         self.places: dict[str, tuple[int, ...]] = {}
         for i, place in zip(self.lookouts, ground["lookoutPlaces"], strict=True):
             self.places[str(place)] = (*self.places.get(str(place), ()), i)
-        self.hitboxes = {
-            avatar: Hitbox(float(h["top"]), float(h["radius"]), float(h["head"]))
-            for avatar, h in bodies["hitboxes"].items()
-        }
-        self.eyes = {avatar: float(e) for avatar, e in bodies["eyes"].items()}
-        # How fast each avatar walks at full input, m/s.
-        self.walks = {avatar: float(w) for avatar, w in bodies["walks"].items()}
         # The floors indoors: the tower's four inside its wall, ground floor first, then each keep's.
         self.insides = tuple(
             Region(
@@ -183,24 +161,10 @@ class WorldMap:
         self._by_doors = frozenset(i for _, slab in self.doors for i in self._nodes_by(slab))
         self._doorways: dict[tuple[int, int], tuple[str, Piece] | None] = {}
 
-    def hitbox(self, avatar: str) -> Hitbox:
-        """An avatar's hitbox, the standard one's for an avatar the map doesn't know."""
-        return self.hitboxes.get(avatar, self.hitboxes["standard"])
-
     def jumps_of(self, avatar: str) -> tuple[frozenset[int], ...]:
         """Per node, the nodes only ``avatar``'s running jump reaches; the standard body's for an
         avatar the map doesn't know."""
-        return self._jump_sets[self._moves.get(avatar, self._moves["standard"])]
-
-    def walk_speed(self, avatar: str) -> float:
-        """How fast an avatar walks at full input, m/s; the standard one's for an avatar the map
-        doesn't know."""
-        return self.walks.get(avatar, self.walks["standard"])
-
-    def eye_of(self, p: Player) -> Vec3:
-        """Where a player's avatar has its eyes, and so where its shots leave: ``pos`` is the body's
-        eye point, EYE_HEIGHT up, and the avatar's own may sit higher or lower."""
-        return Vec3(p.pos.x, p.pos.y - EYE_HEIGHT + self.eyes.get(p.avatar, EYE_HEIGHT), p.pos.z)
+        return self._jump_sets[self.bodies.move(avatar)]
 
     def clear(self, a: Vec3, b: Vec3) -> bool:
         """Whether nothing stands between ``a`` and ``b``: a shot from one reaches the other."""
@@ -373,12 +337,7 @@ class WorldMap:
 @cache
 def load_world_map() -> WorldMap:
     """The world, read once per process and shared by every bot in it."""
-    return WorldMap(*(_stage(name) for name in ("ground", "moves", "bodies")))
-
-
-def _stage(name: str) -> Any:
-    with gzip.open(MAP_DIR / f"{name}.json.gz", "rt", encoding="utf-8") as f:
-        return json.load(f)
+    return WorldMap(read_stage("ground"), read_stage("moves"), load_bodies())
 
 
 def _piece(s: Mapping[str, Any]) -> Piece:

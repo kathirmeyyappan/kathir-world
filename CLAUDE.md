@@ -279,7 +279,8 @@ wire: server and client both build the world from that file.
   down into the drop, where the floor's rim is a wall it climbs before coming back in
   (`dragon.ts`), and a walker it turns back into there, or anywhere out over the void, falls where
   it is. The camera follows it down. A bot's map stands its nodes a metre inside the edge, and the
-  circle bot, which strafes rather than following the map, looks for floor ahead before it steps.
+  circle bot, which has only the world's outline, looks for floor ahead before it steps and turns
+  back where there's none.
 - Size things to the player: eyes at 1.7 m, head at 2.0 m, radius 0.35 m, steps up to 0.5 m climb on
   their own, and a running jump at the standard jump power lands on tops up to about 1.9 m (make
   anything meant to stop a jump 2.1 m or taller; Sulley's 1.2 rises 1.92 m, and may get over it). Doorways at least 1.2 m wide and 2.2 m tall; ramps no steeper than about 30°;
@@ -737,15 +738,18 @@ the client's `build` (the compiler asks for both), a check in `validateStructure
 and one test of its surface in `packages/shared/test/sim.test.ts`.
 
 Bots read the world from the map in `modal-bots/common/map/`, which `npm run bot-map` builds with
-the real sim (`sim/botMap.ts`) in three stages, a file each, each with a fingerprint of what it was
+the real sim (`sim/botMap.ts`) in four stages, a file each, each with a fingerprint of what it was
 built from, so only the stages a change touches are built again: the ground (the structures, the
 walkable graph, a spot every metre round whatever stands and the open floor between as a few
 rectangles, so a lawn or a road costs a few nodes however big it is, the standard body's jumps, the lookouts and the insides; minutes, after a structure
 or landmark added or changed, the world's outline, or the player's body or movement constants), the
 moves (the jumps of each way a look on foot moves, each distinct walk and jump power simulated over
 the whole graph once; a look that moves as one already there adds nothing, and one that moves its
-own way only its own jumps) and the bodies (every avatar's hitbox, eyes, walk and way of moving; at
-once). `common/world.py` joins them into one `WorldMap`. Run it and commit what it writes with the
+own way only its own jumps), the bodies (every avatar's hitbox, eyes, walk and way of moving; at
+once) and the outline (the floor's parts, a few KB; at once). `common/world.py` joins the first
+three into one `WorldMap`, megabytes a process takes seconds and a gigabyte to load, which only
+the combat worker does; a dumb bot that needs to know where the floor ends reads the outline and
+the bodies alone (`load_outline`, `load_bodies`). Run it and commit what it writes with the
 change whenever any of those inputs move; a test in `sim.test.ts` fails until you do. The ground
 and the moves also carry `code`, a hash of the sim files their builder runs
 (`scripts/botMapCode.ts`), which no test holds them to, so a change to how a body walks or collides
@@ -1603,7 +1607,11 @@ Bots must use the modules under `modal-bots/common/`:
   `world.lookouts` are the high spots with a wide view (balconies, decks), `world.places` the
   same by where they are (`tower`, `building` or `elsewhere`), `world.insides` the floors inside
   the tower's and the keeps' walls and `world.indoors` every spot within those walls (the stairs
-  too), and `world.hitbox(avatar)` is what a shot at that avatar has to land in (head band included).
+  too), and `world.bodies.hitbox(avatar)` is what a shot at that avatar has to land in (head band
+  included).
+- `load_outline()` (`common/outline.py`) is the floor's parts alone, `outline.inside(x, z)` whether
+  a spot is on the floor, and `load_bodies()` (`common/bodies.py`) every avatar's hitbox, eyes and
+  walk: what a dumb bot reads of the world, a few KB, where the map is megabytes.
 
 Bot files must not import `httpx` or `websockets`, parse raw JSON, copy lobby/token code, manage
 `InputFrame.seq`, or log a token-bearing redirect or authorization header.
@@ -1695,8 +1703,8 @@ protocol.
   put players on floors, stairs and bridges, so `y` varies (feet are at `pos.y - 1.7`). Use
   straight-line distance, not `x`/`z` only, when choosing targets. Yaw `0` faces `+z`; positive pitch
   looks down, and `look_at` aims in 3D. An avatar's own eyes (`AVATARS[id].eye`;
-  `world.eye_of(player)`) may sit higher or lower, and its wearer looks and shoots from there, so aim
-  from `world.eye_of(me)`.
+  `world.bodies.eye_of(player)`) may sit higher or lower, and its wearer looks and shoots from there, so aim
+  from `world.bodies.eye_of(me)`.
 - `Player.hearts` and `Player.kills` are the scoreboard; `Player.dead` stays true until the
   server drops the seat.
 - Snapshots carry the floating pickups (`state.pickups`); walking into a heart below full health
