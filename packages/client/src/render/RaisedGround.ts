@@ -27,8 +27,8 @@ interface Section {
 }
 
 // A length's quads, added to those of whatever it's drawn in one mesh with: its top, its sides and
-// a deck's underside, and across each end a wall, unless its ends are left `open`.
-export function raisedGround(raised: Raised, quads = new Quads(), ends: 'walled' | 'open' = 'walled'): Quads {
+// a deck's underside, and across each end the wall its `caps` call for, if any.
+export function raisedGround(raised: Raised, quads = new Quads()): Quads {
   const sections = raised.kind === 'straight' ? straight(raised) : bend(raised);
   const half = raised.halfWidth;
   // What a spot of the top stands on: the floor, or for a deck its own underside, `deep` below it.
@@ -36,24 +36,28 @@ export function raisedGround(raised: Raised, quads = new Quads(), ends: 'walled'
   // A side another deck runs along has no line and no wall: the top's uv is measured from its
   // other side alone, across the whole width.
   const bare = raised.kind === 'straight' ? raised.bare : undefined;
+  const lined = (side: 'left' | 'right') => bare !== side && bare !== 'both';
   const [left, right] = bare
-    ? [across(bare === 'left' ? 0 : -1, 2 * half), across(bare === 'right' ? 0 : 1, 2 * half)]
+    ? [across(lined('left') ? -1 : 0, 2 * half), across(lined('right') ? 1 : 0, 2 * half)]
     : [across(-1, half), across(1, half)];
   for (let k = 0; k + 1 < sections.length; k++) {
     const [a, b] = [sections[k], sections[k + 1]];
     const up = unit(cross(minus(b.left, a.left), minus(a.right, a.left)));
     quads.add([a.left, a.right, b.right, b.left], up[1] < 0 ? flipped(up) : up, { uvs: [left, right, right, left] });
     const out = unit(minus(a.left, a.right));
-    if (bare !== 'left') wall(quads, a.left, b.left, out, under);
-    if (bare !== 'right') wall(quads, a.right, b.right, flipped(out), under);
+    if (lined('left')) wall(quads, a.left, b.left, out, under);
+    if (lined('right')) wall(quads, a.right, b.right, flipped(out), under);
     if (Number.isFinite(raised.deep))
       quads.add([a.left, a.right, b.right, b.left].map(under), [0, -1, 0], { uvs: [UNLIT, UNLIT, UNLIT, UNLIT] });
   }
-  if (ends === 'open') return quads;
-  const [first, second] = sections;
-  const [last, before] = [sections[sections.length - 1], sections[sections.length - 2]];
-  wall(quads, first.left, first.right, flat(minus(first.left, second.left)), under);
-  wall(quads, last.left, last.right, flat(minus(last.left, before.left)), under);
+  // The wall across an end, from the height its cap gives down to what the length stands on.
+  const cap = (end: Section, inward: Section, from: number | null) => {
+    if (from === null) return;
+    const hung = ([x, y, z]: Vec): Vec => [x, Math.min(y, from), z];
+    wall(quads, hung(end.left), hung(end.right), flat(minus(end.left, inward.left)), under);
+  };
+  cap(sections[0], sections[1], raised.caps[0]);
+  cap(sections[sections.length - 1], sections[sections.length - 2], raised.caps[1]);
   return quads;
 }
 

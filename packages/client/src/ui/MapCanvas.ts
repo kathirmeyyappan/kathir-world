@@ -484,11 +484,11 @@ function stripPath(s: Pad | Span): Path2D {
 function deckPath(s: Span): Path2D {
   const [a, b, c, d] = stripCorners(s);
   const path = new Path2D();
-  if (s.bare !== 'left') {
+  if (s.bare !== 'left' && s.bare !== 'both') {
     path.moveTo(...a);
     path.lineTo(...b);
   }
-  if (s.bare !== 'right') {
+  if (s.bare !== 'right' && s.bare !== 'both') {
     path.moveTo(...d);
     path.lineTo(...c);
   }

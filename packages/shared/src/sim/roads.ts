@@ -40,7 +40,7 @@ export interface Stretch {
   // The side of it, as the road runs, that another deck at its height runs along, where a road
   // splits in two or its two strands come together: the two are one surface there, so it has no
   // wall and no kerb's line down that side.
-  bare?: 'left' | 'right';
+  bare?: Bare;
   split?: Split; // the road is two strands along it, which fork at its start and come together at its end
 }
 
@@ -57,6 +57,8 @@ export interface Split {
   climb: number;
   pad?: boolean;
 }
+
+export type Bare = 'left' | 'right' | 'both';
 
 export interface Run {
   to: Point; // where the run is headed: the corner the road turns at, or its end
@@ -102,7 +104,7 @@ export interface Pad extends Strip {
 // A deck something can pass under, with the side of it another deck runs along, if one does.
 export interface Span extends Strip {
   kind: 'span';
-  bare?: 'left' | 'right';
+  bare?: Bare;
 }
 // A deck round a bend: a strip round (x, z) from one bearing on to another (radians, from +x toward
 // +z), its top at height y.
@@ -135,7 +137,8 @@ export type Raised =
       bz: number;
       deep: number;
       halfWidth: number;
-      bare?: 'left' | 'right'; // the side another deck at its height runs along: no wall or line there
+      bare?: Bare; // the side another deck at its height runs along: no wall or line there
+      caps: Caps;
     }
   | {
       kind: 'bend';
@@ -147,7 +150,13 @@ export type Raised =
       y: number;
       deep: number;
       halfWidth: number;
+      caps: Caps;
     };
+// The height the wall across each end of a risen length hangs from, the end it starts at and the
+// end it stops at (a bend's, at its `from` and its `to`): its top where the road stops or breaks
+// off there, the underside of a deck that carries on from a bank, and null where what carries on
+// covers the whole end, so there's no wall to draw.
+export type Caps = [number | null, number | null];
 
 export interface Road {
   floor: WorldPart[];
@@ -209,7 +218,7 @@ type Leg =
       to: number;
       open: boolean;
       pad: boolean;
-      bare?: 'left' | 'right';
+      bare?: Bare;
     }
   | {
       kind: 'bend';
@@ -266,6 +275,14 @@ export function layRoad(spec: RoadSpec): Road {
       i === legs.length - 1 && spec.joins?.to !== undefined,
     ];
     const [before, after] = [first || joins(legs[i - 1]), last || joins(legs[i + 1])];
+    // The height the wall across an end of this leg hangs from (Caps), `top` its own there: all of
+    // it where nothing joins it, and where something does, only what a deck leaves bare of a bank.
+    // An end up on another road's deck has that deck carrying on from it.
+    const hang = (joined: boolean, other: Leg | undefined, top: number, open: boolean): number | null => {
+      if (!joined) return top;
+      const deck = other === undefined || (other.kind !== 'gap' && other.open);
+      return deck && !open ? top - DECK : null;
+    };
     // Floor is laid under every leg but a gap and a deck, which is over whatever's there already:
     // another road's floor, or nothing.
     const floored = (other: Leg | undefined) => joins(other) && !other.open;
@@ -280,7 +297,9 @@ export function layRoad(spec: RoadSpec): Road {
         const [from, to] = turn > 0 ? [start, start + turn] : [start + turn, start];
         road.bank.push(...bendBank(leg, half - SHOULDER, lap, under).map(risen));
         const deep = leg.open ? DECK : Infinity;
-        road.raised.push({ kind: 'bend', x, z, r, from, to, y, deep, halfWidth: half + PROUD });
+        const ends: Caps = [hang(before, legs[i - 1], y, leg.open), hang(after, legs[i + 1], y, leg.open)];
+        const caps: Caps = turn > 0 ? ends : [ends[1], ends[0]];
+        road.raised.push({ kind: 'bend', x, z, r, from, to, y, deep, halfWidth: half + PROUD, caps });
         if (leg.open) road.marks.push({ kind: 'sweep', x, y, z, r, from, to, halfWidth: half });
       }
       // Its pads, each lying along the bend where it's that far round, the way the road runs.
@@ -339,28 +358,32 @@ export function layRoad(spec: RoadSpec): Road {
         road.bank.push(looked({ ...ramp(lower, higher, rise / lengths, width, bottom), material: BANK }));
       }
     }
-    if (leg.open) {
-      const [ax, ay, az, bx, by, bz] = [a.x, leg.from, a.z, b.x, leg.to, b.z];
-      road.marks.push({ kind: 'span', ax, ay, az, bx, by, bz, halfWidth: half, bare: leg.bare });
-    }
     if (rise > 0) {
       const [ax, az, bx, bz] = [foot.x, foot.z, top.x, top.z];
       road.marks.push({ kind: 'slope', ax, ay: low, az, bx, by: low + rise, bz, halfWidth: half });
     }
-    if (!built && low + rise > 0) {
-      const [ay, by] = [leg.from, leg.to];
-      road.raised.push({
-        kind: 'straight',
-        ax: a.x,
-        ay,
-        az: a.z,
-        bx: b.x,
-        by,
-        bz: b.z,
-        deep: leg.open ? DECK : Infinity,
-        halfWidth: half + PROUD,
-        bare: leg.bare,
-      });
+    // What's drawn of it, and marked where it's a deck: one length, but for the few metres next to
+    // a split, where the strands' outer sides run out from inside its own and it's bare both sides,
+    // the sides drawn there being theirs.
+    const reach = distance(a, b);
+    const [head, tail] = [legs[i - 1], legs[i + 1]].map((other) =>
+      other?.kind === 'split' ? Math.min(reach / 2, merged(spec.width, other.shape)) : 0,
+    );
+    const cuts = [...new Set([0, head, reach - tail, reach])];
+    for (let k = 0; k + 1 < cuts.length; k++) {
+      const [from, to] = [cuts[k], cuts[k + 1]];
+      const [p, q] = [moved(a, from), moved(b, to - reach)];
+      const [ay, by] = [from, to].map((d) => leg.from + ((leg.to - leg.from) * d) / reach);
+      const bare = (k === 0 && head > 0) || (k === cuts.length - 2 && tail > 0) ? 'both' : leg.bare;
+      const [ax, az, bx, bz] = [p.x, p.z, q.x, q.z];
+      if (leg.open) road.marks.push({ kind: 'span', ax, ay, az, bx, by, bz, halfWidth: half, bare });
+      if (built || low + rise === 0) continue;
+      const caps: Caps = [
+        k === 0 ? hang(before, legs[i - 1], ay, leg.open) : null,
+        k === cuts.length - 2 ? hang(after, legs[i + 1], by, leg.open) : null,
+      ];
+      const deep = leg.open ? DECK : Infinity;
+      road.raised.push({ kind: 'straight', ax, ay, az, bx, by, bz, deep, halfWidth: half + PROUD, bare, caps });
     }
     if (!leg.pad) return;
     // The pad lies on the stretch, in from its ends: level with it, or up a climb a sliver of the
@@ -471,12 +494,15 @@ function legsOf(spec: RoadSpec): Leg[] {
 // The two strands of a split, each as a road from the fork to the meeting, up on the road's deck
 // at both ends: out round a bend to its own side, along beside the other, and back round a bend.
 // From the fork until their inner sides part, and again into the meeting, the two are one level
-// surface, bare along the side they share.
+// surface, bare along the side they share; and for the first few metres from the fork, and the
+// last into the meeting, each one's outer side is still inside the road's own, so it's bare there
+// too.
 function strandsOf(spec: RoadSpec, leg: Extract<Leg, { kind: 'split' }>): RoadSpec[] {
   const { out, fork, rise, fall, climb, pad } = leg.shape;
   const along = unit(leg.a, leg.b);
   const length = distance(leg.a, leg.b);
   const shared = spec.width / 2 / Math.tan(Math.atan2(out, fork)) + STRAND.spare;
+  const inside = merged(spec.width, leg.shape);
   return ([1, -1] as const).map((side) => {
     // `d` metres along the stretch and `out` to this strand's side of it: the left's is +1.
     const corner = (d: number): Point => ({
@@ -484,6 +510,10 @@ function strandsOf(spec: RoadSpec, leg: Extract<Leg, { kind: 'split' }>): RoadSp
       z: leg.a.z + along.z * d + along.x * out * side,
     });
     const bare = side > 0 ? 'right' : 'left';
+    const one: Stretch[] = [
+      { ...span(inside), bare: 'both' },
+      { ...span(shared - inside), bare },
+    ];
     const change = side > 0 ? rise : -fall;
     const middle = pad ? [span(), padded(span(PAD.round)), span()] : [span()];
     return {
@@ -492,17 +522,23 @@ function strandsOf(spec: RoadSpec, leg: Extract<Leg, { kind: 'split' }>): RoadSp
       width: spec.width,
       joins: { from: leg.height, to: leg.height },
       runs: [
-        { to: corner(fork), radius: STRAND.radius, open: true, stretches: [{ ...span(shared), bare }, span()] },
+        { to: corner(fork), radius: STRAND.radius, open: true, stretches: [...one, span()] },
         {
           to: corner(length - fork),
           radius: STRAND.radius,
           open: true,
           stretches: [{ ...span(climb), rise: change }, ...middle, { ...span(climb), rise: -change }],
         },
-        { to: leg.b, stretches: [span(), { ...span(shared), bare }] },
+        { to: leg.b, stretches: [span(), ...[...one].reverse()] },
       ],
     };
   });
+}
+
+// How far along a road from where it splits, or along a strand from the fork, the strand's outer
+// side is still inside the road's own: the two sides cross that far back from the fork.
+function merged(width: number, shape: Split): number {
+  return (width / 2) * Math.tan(Math.atan2(shape.out, shape.fork) / 2);
 }
 
 // A piece of the bank where it's the floor risen: collided with, and drawn by the client as that.
