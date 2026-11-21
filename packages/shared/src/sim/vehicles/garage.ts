@@ -28,6 +28,7 @@ import {
   type KartStep,
 } from './kart';
 import { KARTS, sizeFor, type KartId } from './karts';
+import { watch, watchFrom, type Watch } from './rescue';
 
 // A kart in the room, as every client is sent it: its body, the look of whoever dropped it (which
 // its paint follows), its wrenches left, and who's driving it.
@@ -70,8 +71,9 @@ const BUMP = 0.3; // of the speed two karts closed at that they part at
 // last drove or dropped it), the ticks it has stood empty, when it last hurt each player, what its
 // driver put away to drive, who took its last wrench, its driver's last frame, whose keys it
 // keeps to on a tick their frame is late for, how many steps it has taken that way, ahead of
-// the frames they stood in for, and who has got out of it and not stood clear of it since, whom
-// touching it doesn't get back in.
+// the frames they stood in for, who has got out of it and not stood clear of it since, whom
+// touching it doesn't get back in, and the watch kept over it to fish it back if it's driven off
+// the world (rescue.ts).
 interface Keep {
   owner: string | null;
   empty: number;
@@ -81,6 +83,7 @@ interface Keep {
   breaker: string | null;
   frame: InputFrame | null;
   ahead: number;
+  watch: Watch;
 }
 
 export class Garage {
@@ -128,6 +131,7 @@ export class Garage {
       breaker: null,
       frame: null,
       ahead: 0,
+      watch: watchFrom({ x: p.pos.x, y: feet, z: p.pos.z }, p.yaw),
     });
     return k;
   }
@@ -173,12 +177,12 @@ export class Garage {
     p.vx = p.vy = p.vz = 0;
   }
 
-  // One step of `p`'s kart by their frame, built to seat them, them sat in it, and it worn by what
-  // it ran into. With no frame (theirs is late) it steps on the keys of their last, ahead of the
-  // frame that step stood in for, which is then taken for its look and its keys alone: so a kart
-  // has stepped once for each of its driver's frames, as their client predicted it, and late frames
-  // never run it on further than they would have in time. Past AHEAD_TICKS of that its keys are let
-  // go, and it rolls to a stop.
+  // One step of `p`'s kart by their frame, built to seat them, them sat in it, it worn by what it
+  // ran into, and watched for being stranded. With no frame (theirs is late) it steps on the keys
+  // of their last, ahead of the frame that step stood in for, which is then taken for its look and
+  // its keys alone: so a kart has stepped once for each of its driver's frames, as their client
+  // predicted it, and late frames never run it on further than they would have in time. Past
+  // AHEAD_TICKS of that its keys are let go, and it rolls to a stop.
   drive(p: PlayerState, frame: InputFrame | null, dt: number): void {
     const k = p.riding ? this.karts.get(p.riding) : undefined;
     const keep = p.riding ? this.keeps.get(p.riding) : undefined;
@@ -197,6 +201,12 @@ export class Garage {
     else keep.frame = null;
     k.size = sizeFor(p.avatar);
     this.worn(k, ride(p, k, keep.frame, dt, this.structures));
+    watch(keep.watch, k, dt, this.structures);
+  }
+
+  // Whether the kart `p` drives is in Lakitu's hands (rescue.ts), which there's no getting out of.
+  rescuing(p: PlayerState): boolean {
+    return !!p.riding && !!this.karts.get(p.riding)?.rescue;
   }
 
   // The nearest kart a ray from `o` along unit `d` enters within `maxT`, and how far along it.

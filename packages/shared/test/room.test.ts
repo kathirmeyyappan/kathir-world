@@ -41,7 +41,9 @@ import {
   AVATARS,
   BLAST,
   KARTS,
+  RESCUE,
   SEATED,
+  stranded,
   type BotRequest,
   type InputFrame,
   type ItemAction,
@@ -1407,4 +1409,29 @@ test('a shot that reaches a kart first wears it, and one over it hits the driver
   const speed = Math.hypot(kart.vel.x, kart.vel.z);
   for (let i = 0; i < TICK_RATE; i++) tick(room);
   assert.ok(Math.hypot(kart.vel.x, kart.vel.z) < speed, 'slowing');
+});
+
+test('a kart driven off the world is fished back onto the middle of the road it left, no worse for it', () => {
+  // On the road out behind the Krusty Krab, which runs along x, facing its side.
+  const { room, ids } = kartRoom({ x: -250, y: 0, z: -6 });
+  const [id] = ids;
+  const me = room.players[0];
+  getIn(room, id);
+  const k = room.garage.list[0];
+  for (let i = 0; i < 5 * TICK_RATE && !stranded(k); i++) driving(room, id, 1);
+  assert.ok(stranded(k), 'down past the edge');
+  const [wrenches, hearts] = [k.wrenches, me.hearts];
+  for (let i = 0; i < RESCUE.wait * TICK_RATE; i++) driving(room, id, 0);
+  assert.ok(k.rescue, 'Lakitu has it');
+  driving(room, id, 0, ['exit']);
+  assert.equal(me.riding, k.id, "there's no getting out of his hands");
+  for (let i = 0; i < 10 * TICK_RATE && k.rescue; i++) driving(room, id, 0);
+  for (let i = 0; i < TICK_RATE / 2; i++) driving(room, id, 0);
+  assert.ok(
+    k.grounded && k.pos.y === 0 && Math.abs(k.pos.z) < 0.5,
+    `in the middle of the road: ${k.pos.y}, ${k.pos.z}`,
+  );
+  assert.ok(Math.abs(Math.sin(k.yaw)) > 0.99, `turned along it: ${k.yaw}`);
+  assert.equal(me.riding, k.id, 'its driver still in it');
+  assert.deepEqual([k.wrenches, me.hearts], [wrenches, hearts], 'neither the worse for it');
 });

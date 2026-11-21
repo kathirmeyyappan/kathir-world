@@ -14,12 +14,12 @@
 // after one is a boost like a mini-turbo's held for TRICK.hold.
 import type { Footing, Structures } from '../collision';
 import { EYE_HEIGHT, GRAVITY } from '../constants';
-import { onOutsideGround } from '../ground';
 import type { ActionSpec, ItemAction } from '../items';
 import { takeLook } from '../player';
 import { SURFACES } from '../surfaces';
 import type { InputFrame, PlayerState, Vec3 } from '../types';
 import { KARTS, type KartBody, type KartId, type KartSpec } from './karts';
+import { carried, type Rescue } from './rescue';
 
 // What a kart's driver asks of it this tick: the gas (1, W) or the brake (-1, S, which backs it up
 // once it's stopped), the wheel (-1 full left, A, to 1 full right, D) and the drift key (Space).
@@ -73,6 +73,9 @@ export interface KartState {
   pad: boolean;
   // Seconds left of reeling from what it ran into (REEL), its tires doing nothing: 0 out of one.
   reel: number;
+  // In Lakitu's hands, fished back from the ground past the world's edge (rescue.ts): there only
+  // for as long as it is, and nothing drives it meanwhile.
+  rescue?: Rescue;
 }
 
 // What came of a tick: how fast it was going into what it ran into, square to it (0 for nothing),
@@ -210,13 +213,6 @@ export function ride(
   return step;
 }
 
-// Whether kart `k` is down on the ground past the world's edge (ground.ts): there's no way back up
-// onto the floor from there, and a driver who gets out is on that ground on foot, which is the end
-// of them (room.ts `land`).
-export function stranded(k: KartState): boolean {
-  return k.grounded && onOutsideGround(k.pos.y);
-}
-
 // The box kart `k` drives as, at the size it's built at.
 export function bodyOf(k: KartState): KartBody {
   const { width, length, height, seat } = KARTS[k.kart].body;
@@ -241,6 +237,7 @@ export function seat(p: PlayerState, k: KartState): void {
 }
 
 export function stepKart(k: KartState, c: KartControls, dt: number, structures: Structures): KartStep {
+  if (k.rescue) return carried(k, k.rescue, dt);
   const spec = KARTS[k.kart];
   const steer = Math.max(-1, Math.min(1, c.steer));
   k.wheel += Math.max(-WHEEL_RATE * dt, Math.min(WHEEL_RATE * dt, steer - k.wheel));

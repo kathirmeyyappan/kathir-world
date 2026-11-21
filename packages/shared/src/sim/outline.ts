@@ -49,7 +49,7 @@ export const KRUSTY_KRAB_GROUNDS: Disc = { kind: 'disc', ...turned(KRUSTY_KRAB_B
 // A road straight out from behind the Krusty Krab, ROAD_WIDTH across and ROAD_LENGTH long past its
 // grounds, to a round plateau at the floor's height at its end, the crossroads the roads beyond
 // meet at. ROAD_WIDTH is every road's: wide enough to drift a kart round a bend on.
-const ROAD_WIDTH = 20;
+export const ROAD_WIDTH = 20;
 const ROAD_LENGTH = 200;
 const PLATEAU_R = 40;
 const plateauOut = KEEP_OUT + KRUSTY_KRAB_GROUNDS.r + ROAD_LENGTH + PLATEAU_R;

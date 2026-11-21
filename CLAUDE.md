@@ -94,6 +94,10 @@ anything that can wait off the path everyone pays:
   client, and only its emblem (about 5 KB) is fetched per paint. Nothing of a kart is drawn until
   its files are here, and a fetch that fails is tried again by the next frame that wants it
   (`render/fetchOnce.ts`, as a look's is).
+- Lakitu's files (his body with his rod, his hook and their picture, about 80 KB) are fetched the
+  first time a driver is seen stranded within `SCOPED_SIGHT`, two seconds before he comes
+  (`wantLakitu` in `render/lakitu/Lakitu.ts`). A rescue never waits on them: until they're here
+  the kart is hoisted and set down with nobody holding it.
 - A sound is fetched by everyone up front unless it's `lazy` in `SOUNDS` (`Sfx.soon`, `Sfx.want`).
   Every look's voice is lazy: an intro is fetched as it's said within earshot, and a look's jumps,
   long jumps, hurts and kills (with its death and its theme for its own player) as it's first seen worn
@@ -1213,12 +1217,40 @@ going along its nose and how fast that's changing (`Prediction.kartPace`: a tick
 the keys held, so it's the kart's acceleration now, not a difference between frames); what else
 stands under the hearts (the area's title, the condition's banner) stands under them both
 (`--under-hearts`). A kart driven off the floor lands on the ground past the edge with its driver alive in it
-and no way back up (`stranded` in `kart.ts`); the red box (`ui/Alert.ts`) tells the driver they're
-off the map and that getting out, the one thing left to do, leaves them on foot down there. A tick the Room steps a driver's kart with no frame (theirs is late) is taken on the keys
+and no way back up but Lakitu's (`stranded`, and the rescue below); the red box (`ui/Alert.ts`)
+tells the driver they're off the map and that he's coming. A tick the Room steps a driver's kart with no frame (theirs is late) is taken on the keys
 of their last, ahead of the frame it stood in for, which is then taken for its keys alone
 (`Garage.drive`): a kart steps once for each of its driver's frames, as their client predicted,
 however late they come. Past `AHEAD_TICKS` of that its keys are let go and it rolls to a stop. A kart's meshes and its paint's materials are made once per scene and
 shared by every kart of that model and paint, so a kart let go disposes its own nodes alone.
+
+A kart stranded on the ground past the edge is fished back by Lakitu (`sim/vehicles/rescue.ts`),
+a feature apart from the rest of driving: the kart's step hands a kart in a rescue to it
+(`stepKart`, `KartState.rescue`, there only while one runs), the garage keeps its watch
+(`Garage.drive`) and the Room lets nobody out of his hands, and that's all the sim knows of it.
+Once a driver has sat stranded `RESCUE.wait` (2 s, hops not counted) the Room begins their kart's
+rescue, a timeline (`RESCUE`) the kart is held along whatever its keys (`carried`): still while he
+comes, hoisted `RESCUE.height`, hung while its driver's view folds shut, carried across in the
+dark, hung while it unfolds, lowered, and let go at rest, about 4 s in all. Nothing else about it
+or its driver changes: wrenches and hearts are as they were (the fall onto that ground costs what
+a 10 m landing does, as before). It's set down where it left the world (`Watch`, kept by the Room
+for each driven kart: where it last stood on the world and the way its nose pointed), in the
+middle of the track there, nose along it the way it was pointing (`backOnTrack`: found by walking
+the ground with `groundAt`, out to the nearest edge, across to the far one and along the near
+one, so it knows nothing of roads and works on a deck, a ramp or anything laid later; about a
+millisecond, once a rescue); where what it left is wider than a road (an island, a lay-by, a road
+left over its end) it's half a road in from the edge, as it pointed. The client draws him
+(`render/lakitu/`): `Rescuers` stands one `Lakitu` by each kart in a rescue within
+`SCOPED_SIGHT`, anyone's, coming down from up ahead of it over `RESCUE.come`, his hook on its
+nose and him to its right, facing its driver, bobbing on his cloud, and going back up the way he
+came once it's let go; the driver's own view is folded shut by `ui/Fold.ts` (`foldAt`: two black
+flaps hinged along its top and bottom, under the HUD). His model is written by
+`scripts/lakitu-model.py` from the rip of MK8's referee, a Collada file of skinned meshes with no
+animation: the script turns his joints into a pose (`POSES`: `fishing`, with the rod in his fist
+and one of his four faces) and carries the skin along by its weights, so a new pose is a row
+there, and writes each thing he holds beside him (`hook`; and `flag`, `lap`, `reverse` and
+`signal`, with `props.png`, which nothing draws yet). To other players a rescue is a kart
+hoisted, gone and set down, with him there if they're near.
 
 What's heard of a kart is `KART_SOUNDS` (`audio/Sfx.ts`), every one `lazy` and sent for as the
 first kart is seen. Its engine is two loops crossed over by its revs (`kartLoops`: its speed's share

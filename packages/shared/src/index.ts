@@ -48,4 +48,5 @@ export { toTower } from './content/tower';
 export { ROAD_PADS, ROAD_RAISED } from './content/roads';
 export * from './sim/vehicles/karts';
 export * from './sim/vehicles/kart';
+export * from './sim/vehicles/rescue';
 export * from './sim/vehicles/garage';
