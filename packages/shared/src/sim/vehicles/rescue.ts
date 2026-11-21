@@ -94,8 +94,8 @@ export function watch(w: Watch, k: KartState, dt: number, structures: Structures
   if ((w.stranded += dt) < RESCUE.wait) return;
   w.stranded = 0;
   k.wheel = k.gas = k.reel = 0;
-  k.grounded = k.hop = k.pad = false;
-  k.drift = k.trick = k.turbo = k.press = k.down = null;
+  k.grounded = k.pad = false;
+  k.hop = k.drift = k.trick = k.turbo = k.press = k.down = null;
   k.rescue = { t: 0, from: { ...k.pos }, ...backOnTrack(w, structures) };
 }
 

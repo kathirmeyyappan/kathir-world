@@ -1157,9 +1157,11 @@ slopes and pads), so a
 slope is climbed however fast it's taken and only a face taller than a kerb is a wall; and it
 leaves the ground at a lip, or over a crest it's going `LIFT` faster upward than the ground past
 it would carry it, whichever tick it crosses on; it reports how fast it ran into what it hit and
-how fast it came down when it lands. A drift is Space: a press hops it (`HOP`: 0.44 m up and down again in 0.42 s on the flat), and with the key held on the
-ground at speed the wheel going over begins a drift that way, as the hop lands or whenever it goes
-over after, by the wheel from all but straight (held out of its way)
+how fast it came down when it lands. A drift is Space: a press hops it (`HOP`: 0.44 m up and down again in 0.42 s on the flat), and the way the wheel is
+held over as it hops, or first goes over in the hop, is the hop's (`KartState.hop`): landing with
+the key still held, at speed, it drifts that way whatever the wheel has done since. A hop the wheel
+stayed straight through lands in no drift, and one begins the way the wheel next goes over with the
+key held. A drift turns by the wheel from all but straight (held out of its way)
 to tighter than any turn without one (held into it, `DRIFT_TURN`), coming round to that turn
 from the one it began with over `DRIFT_EASE` (0.45 s, and up to 0.7 s with the wheel held full into
 it, the tightest turn coming on the most gently), so a hop's slight turn doesn't snap into the
@@ -1235,7 +1237,7 @@ draws one: its tires rolled by how far it went and the front pair steered, its s
 turned, the body tipped to the ground under its tires, all at its size, eased there; its files are
 sent for ahead (see Client loading), and it's drawn once they're here. Its body is sprung over its
 tires, so a hop reads as one: kicked up off them as it begins, the tires hanging under it in the
-air, driven down onto them as hard as it lands, and leaning into the turn through the hop and,
+air, driven down onto them as hard as it lands, and leaning the hop's way through it (the wheel's, until the hop has one) and,
 less, the drift; it's kicked again as its drift reaches each spark and as a boost begins, its nose
 up while the boost rises, and through a drift it's turned into the turn, its tail out, its driver
 with it. `KartMesh.update` says what it sees its kart begin from one frame to the next (`Began`:

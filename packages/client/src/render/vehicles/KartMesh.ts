@@ -255,7 +255,7 @@ export class KartMesh {
   // What `kart` has begun since it was last drawn; nothing the first time it's seen.
   private see(kart: Kart): Began {
     const now = {
-      hop: kart.hop,
+      hop: kart.hop !== null,
       grounded: kart.grounded,
       fall: -kart.vel.y,
       trick: kart.trick?.t ?? null,
@@ -307,10 +307,13 @@ export class KartMesh {
     }
     this.droop += ((kart.grounded ? 0 : SPRING.droop) - this.droop) * (1 - Math.exp(-SPRING.rate * dt));
     const { hop, drift, turbo, wheel } = kart;
-    const over = hop ? -wheel * LEAN.hop : drift ? -drift.way * LEAN.drift : 0;
+    // A hop leans and turns the way it's going, where the wheel has given it one, as the drift it
+    // lands in will; and the wheel's own way until then.
+    const hopped = hop?.way ?? wheel;
+    const over = hop ? -hopped * LEAN.hop : drift ? -drift.way * LEAN.drift : 0;
     const rising = turbo !== null && turbo.t < TURBO.rise + LEAN.kick;
     const nose = hop ? LEAN.nose : rising ? LEAN.boost : 0;
-    const slip = drift ? drift.way * LEAN.slip + wheel * LEAN.steer : hop ? (wheel * LEAN.slip) / 2 : 0;
+    const slip = drift ? drift.way * LEAN.slip + wheel * LEAN.steer : hop ? (hopped * LEAN.slip) / 2 : 0;
     const k = 1 - Math.exp(-LEAN.rate * dt);
     this.lean.roll += (over - this.lean.roll) * k;
     this.lean.nose += (nose - this.lean.nose) * k;
