@@ -27,8 +27,7 @@ export type Command =
   | { name: 'bot'; bot: BotId; call: BotCallArgs | null } // null: the flags didn't parse
   | { name: 'kill-bots' }
   | { name: 'kart'; kart: KartId } // drops one in front of them (sim/vehicles/garage.ts)
-  // Puts their feet at a spot, for testing: left out of the commands card and the chat's
-  // completions (ui/commands.ts). null: the coordinates didn't parse.
+  // Puts their feet at a spot (a walker's alone). null: the coordinates didn't parse.
   | { name: 'teleport'; feet: Vec3 | null }
   | { name: 'unknown'; raw: string };
 
