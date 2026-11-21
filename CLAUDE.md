@@ -1043,8 +1043,9 @@ default emblem, the game's initials on a white disc, the K over the W on a diago
 picture has them in a key red (`INK`) that the client paints over with the livery's primary as
 it's drawn (`emblemPixels`, with a dark line round the letters so a pale primary still shows), so one picture serves every colour, and whatever keeps an emblem
 as drawn keeps it by `emblemKey`. Elizabeth's row is her white over the orange of her feet, and
-the site's logo, which is her, on a dark disc. A new one is a row in `LIVERIES` and, with a mark
-of its own, its emblem's picture; nothing that wears a livery has to know the look.
+the site's logo, which is her, on a dark disc. Every other look's row is two colours off its
+own model, what most of it is and what it wears or is marked with, under the default emblem. A new
+one is a row in `LIVERIES` and, with a mark of its own, its emblem's picture; nothing that wears a livery has to know the look.
 
 ## Player classes
 
