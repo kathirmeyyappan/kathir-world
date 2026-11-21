@@ -90,8 +90,8 @@ anything that can wait off the path everyone pays:
   wearing; a dragon rises and roars at once and its body fills in as it lands.
 - A kart's files (its model's parts and pictures, about 110 KB for the Standard Kart) are fetched
   as its command is pointed at or sent, or else the first time a kart of that model is drawn
-  (`wantKart` in `render/vehicles/KartMesh.ts`); every paint is the same picture painted on the
-  client, and only its emblem (about 5 KB) is fetched per paint. Nothing of a kart is drawn until
+  (`wantKart` in `render/vehicles/KartMesh.ts`); every livery is the same picture painted on the
+  client, and only its emblem (about 5 KB) is fetched per livery. Nothing of a kart is drawn until
   its files are here, and a fetch that fails is tried again by the next frame that wants it
   (`render/fetchOnce.ts`, as a look's is).
 - Lakitu's files (his body with his rod, his hook and their picture, about 80 KB) are fetched the
@@ -1019,6 +1019,17 @@ pincers closing on a handle from its sides), and `itemScale` draws the items to 
 shares changes (the walker, a weapon's shape, a rig), audit every look it reaches, not the one the
 change was made for.
 
+### Liveries
+
+A look's livery (`render/liveries.ts`, `LIVERIES`) is what anything made out in its wearer's name
+is drawn in: a primary colour, the one the look is known by, a secondary that goes with it, and an
+emblem, a picture of a badge (the look's mark on an off-white disc, filling the picture edge to
+edge) in `public/assets/textures/emblems/`, about 5 KB, fetched by whatever first draws it. A kart
+wears its dropper's (see Karts). The Mario family's are Mario Kart 8's, the colours and the
+emblems `scripts/kart-model.py` takes from the Standard Kart's rip. A look with none is left to
+whatever reads it to stand in for (`liveryOf` gives null). A new one is a row in `LIVERIES` and
+its emblem's picture; nothing that wears a livery has to know the look.
+
 ## Player classes
 
 A class is what kind of body a player has (`packages/shared/src/sim/classes.ts`): every avatar names
@@ -1230,9 +1241,11 @@ size, each centred along the kart on its axle's hub with its outer face flush wi
 on the edge of its wells, all four on the ground), the steering wheel's middle,
 the axis it turns round and the grips a driver's hands take on it (a wheel's rim or a handlebar's
 ends alike), the seat, where a driver's feet rest (against the pedals, or as far forward under the
-nose as a foot fits), where its exhaust pipes end and the way they point, and each driver's paint. A paint is two colours and an emblem: the body is
-one picture with its two painted colours left white and a second saying where they go, painted on
-the client in whichever colours (`paintOf`: the dropper's own, for the Mario family, else Mario's).
+nose as a foot fits), where its exhaust pipes end and the way they point, and where an emblem's
+picture goes on the patch on its nose. A kart wears the livery of whoever dropped it (see Liveries
+below; Mario's where their look has none): the body is one picture with its two painted colours
+left white and a second saying where the primary and the secondary go, painted on the client in
+whichever colours, and the emblem's picture is set on the patch's canvas there.
 The script prints the box the sim drives it as, for its row in `KARTS`. `render/vehicles/KartMesh.ts`
 draws one: its tires rolled by how far it went and the front pair steered, its steering wheel
 turned, the body tipped to the ground under its tires, all at its size, eased there; its files are
@@ -1282,8 +1295,8 @@ and no way back up but Lakitu's (`stranded`, and the rescue below); the red box 
 tells the driver they're off the map and that he's coming. A tick the Room steps a driver's kart with no frame (theirs is late) is taken on the keys
 of their last, ahead of the frame it stood in for, which is then taken for its keys alone
 (`Garage.drive`): a kart steps once for each of its driver's frames, as their client predicted,
-however late they come. Past `AHEAD_TICKS` of that its keys are let go and it rolls to a stop. A kart's meshes and its paint's materials are made once per scene and
-shared by every kart of that model and paint, so a kart let go disposes its own nodes alone.
+however late they come. Past `AHEAD_TICKS` of that its keys are let go and it rolls to a stop. A kart's meshes and its livery's materials are made once per scene and
+shared by every kart of that model and livery, so a kart let go disposes its own nodes alone.
 
 A kart stranded on the ground past the edge is fished back by Lakitu (`sim/vehicles/rescue.ts`),
 a feature apart from the rest of driving: the kart's step hands a kart in a rescue to it
