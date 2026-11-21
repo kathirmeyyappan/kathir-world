@@ -1023,7 +1023,7 @@ change was made for.
 
 A look's livery (`render/liveries.ts`, `LIVERIES`) is what anything made out in its wearer's name
 is drawn in: a primary colour, the one the look is known by, a secondary that goes with it, and an
-emblem, a picture of a badge (the look's mark on an off-white disc, filling the picture edge to
+emblem, a picture of a badge (the look's mark on a disc, white on the ones made here, filling the picture edge to
 edge) in `public/assets/textures/emblems/`, about 5 KB, fetched by whatever first draws it. A kart
 wears its dropper's as they appeared when they dropped it (see Karts; `Appearance`, the look and
 the colour, which is what the Room keeps and sends of it). The Mario family's are Mario Kart 8's,
