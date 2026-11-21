@@ -23,6 +23,11 @@ const MOVE_HINT_MS = 15_000; // how long the move hint is up: its animation's le
 const HINT_GAP = 8; // CSS pixels between the move hint and what it stacks against
 // The layout where the item hint is at the top of the screen, under the touch buttons (styles.css).
 const COARSE = window.matchMedia('(pointer: coarse)');
+// The roster reaches no further down the view than this share of its height, the rest of the room
+// paged through under it, your own row standing first on every page.
+const ROSTER_SHARE = 0.5;
+const ROSTER_ROW = 20; // CSS pixels, #player-list li's line-height
+const ROSTER_MIN_ROWS = 3; // you and two others, however short the view
 
 // A hint's words, with each key or touch button it names in square brackets drawn as one.
 function keyed(text: string): (string | HTMLElement)[] {
@@ -41,6 +46,10 @@ export class Hud {
   private readonly panelToggle = document.getElementById('panel-toggle') as HTMLButtonElement;
   private readonly playerList = document.getElementById('player-list')!;
   private readonly ping = document.getElementById('ping')!;
+  private readonly pager = document.getElementById('roster-pager')!;
+  private readonly pagerPage = this.pager.querySelector('.page')!;
+  private rosterPage = 0;
+  private rosterPages = 1;
   private readonly chatLog = document.getElementById('chat-log')!;
   private readonly itemHint = document.getElementById('item-hint')!;
   private readonly itemHintMain = this.itemHint.querySelector('.main')!;
@@ -94,6 +103,14 @@ export class Hud {
     this.roomCode.addEventListener('click', () => {
       navigator.clipboard?.writeText(roomLink(roomId)).then(() => this.tip(this.roomCode, 'copied'));
     });
+
+    const turn = (by: number) => {
+      this.rosterPage = (this.rosterPage + by + this.rosterPages) % this.rosterPages;
+      this.renderPlayers();
+    };
+    this.pager.querySelector('.prev')!.addEventListener('click', () => turn(-1));
+    this.pager.querySelector('.next')!.addEventListener('click', () => turn(1));
+    window.addEventListener('resize', () => this.renderPlayers());
 
     this.setPanelCollapsed(window.matchMedia('(pointer: coarse)').matches);
     this.panelToggle.addEventListener('click', () =>
@@ -153,6 +170,7 @@ export class Hud {
     this.panel.classList.toggle('collapsed', collapsed);
     this.panelToggle.textContent = collapsed ? '▸' : '▾';
     this.panelToggle.setAttribute('aria-expanded', String(!collapsed));
+    if (!collapsed) this.renderPlayers();
   }
 
   isChatOpen(): boolean {
@@ -459,29 +477,47 @@ export class Hud {
     setTimeout(() => li.classList.add('faded'), CHAT_FADE_MS);
   }
 
-  private renderPlayers(): void {
-    this.playerList.replaceChildren();
-    for (const [id, p] of this.players) {
-      const li = document.createElement('li');
-      if (id === this.myId) li.className = 'me';
-      const dot = document.createElement('span');
-      dot.className = 'dot';
-      dot.style.background = p.color;
-      li.append(dot);
-      if (p.bot) li.append(pixelSvg(ROBOT, 'robot'));
-      li.append(document.createTextNode(p.name + (id === this.myId ? ' (you)' : '')));
-      const stats = document.createElement('span');
-      stats.className = 'stats';
-      // Dead: just the skull. Alive: hearts and kills.
-      if (p.dead) stats.append(pixelSvg(SKULL, 'skull'));
-      else {
-        stats.append(pixelSvg(HEART, 'heart', { '+': 'hi' }), text(`${fmt(p.hearts)}/${p.life}`));
-        stats.append(pixelSvg(KNIFE, 'knife', { G: 'guard', H: 'hilt' }), text(String(p.kills)));
-      }
-      li.append(stats);
-      this.playerList.appendChild(li);
-    }
+  // Rows that fit between the top of the list and ROSTER_SHARE of the way down the view.
+  private rosterRows(): number {
+    const top = this.playerList.getBoundingClientRect().top;
+    return Math.max(ROSTER_MIN_ROWS, Math.floor((window.innerHeight * ROSTER_SHARE - top) / ROSTER_ROW));
   }
+
+  private renderPlayers(): void {
+    const me = this.players.get(this.myId);
+    const others = [...this.players].filter(([id]) => id !== this.myId);
+    const fit = this.rosterRows();
+    const perPage = me ? fit - 1 : fit;
+    this.rosterPages = Math.max(1, Math.ceil(others.length / perPage));
+    this.rosterPage = Math.min(this.rosterPage, this.rosterPages - 1);
+    const start = this.rosterPage * perPage;
+    const rows = others.slice(start, start + perPage).map(([, p]) => rosterRow(p, false));
+    if (me) rows.unshift(rosterRow(me, true));
+    this.playerList.replaceChildren(...rows);
+    this.pager.hidden = this.rosterPages === 1;
+    this.pagerPage.textContent = `${this.rosterPage + 1}/${this.rosterPages}`;
+  }
+}
+
+function rosterRow(p: RosterEntry, mine: boolean): HTMLLIElement {
+  const li = document.createElement('li');
+  if (mine) li.className = 'me';
+  const dot = document.createElement('span');
+  dot.className = 'dot';
+  dot.style.background = p.color;
+  li.append(dot);
+  if (p.bot) li.append(pixelSvg(ROBOT, 'robot'));
+  li.append(document.createTextNode(p.name + (mine ? ' (you)' : '')));
+  const stats = document.createElement('span');
+  stats.className = 'stats';
+  // Dead: just the skull. Alive: hearts and kills.
+  if (p.dead) stats.append(pixelSvg(SKULL, 'skull'));
+  else {
+    stats.append(pixelSvg(HEART, 'heart', { '+': 'hi' }), text(`${fmt(p.hearts)}/${p.life}`));
+    stats.append(pixelSvg(KNIFE, 'knife', { G: 'guard', H: 'hilt' }), text(String(p.kills)));
+  }
+  li.append(stats);
+  return li;
 }
 
 interface RosterPlayer {
