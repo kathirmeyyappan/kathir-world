@@ -7,20 +7,23 @@ of a set of its tires, each unpacked into a folder:
 A body rip is the body as an OBJ (<name>.obj, MK8's units scaled by OBJ_UNIT, y up, the nose along
 +z): the body itself (material `m_Body`), its steering wheel among its pieces, and the emblem decal
 on its nose (`m_Body.002`); with its albedo once for each driver (bodyk_*_<driver>_alb.png), alike
-but for the two colours it's painted in, and the drivers' emblems (Emblems/<Name>.png). A tire rip
+but for the two colours it's painted in, and the drivers' emblems (Emblems/<Name>.png, a badge
+filling each). A tire rip
 is its tires as Collada files in MK8's own units, the kart's four in TireK_<set>.dae (each a mesh
 with its axle along x), with their albedo (Tire_<set>_Alb.png).
 
 It writes, in public/assets/models/kart-<id>/, the parts in the client's format (house_mesh.py
 `emit_part`): `body`, `steer` (the steering wheel, which turns), `emblem` and one `tire`, all
 simplified to what reads at a kart's size; and their textures, the body's once with its two
-painted colours left white (`body.png`) and where they go (`paint.png`, red the first and green
-the second), so the client paints it in any driver's colours from one picture. And it writes
-render/vehicles/<id>KartModel.ts: what the client needs to put it together and drive it (where
-each tire stands, the wheel's middle, the axis it turns round and the grips on it, the seat,
-where a driver's right foot rests, and where its exhaust pipes end and the way they point) and
-each driver's paint, and prints the box the sim drives it as, for its row in KARTS
-(sim/vehicles/karts.ts).
+painted colours left white (`body.png`) and where they go (`paint.png`, red a livery's primary and
+green its secondary), so the client paints it in any livery (render/liveries.ts) from one picture.
+It writes each driver's emblem as the rip has it, for every kart and whatever else wears one
+(public/assets/textures/emblems/<driver>.png). And it writes render/vehicles/<id>KartModel.ts:
+what the client needs to put it together and drive it (where each tire stands, the wheel's
+middle, the axis it turns round and the grips on it, the seat, where a driver's right foot rests,
+where its exhaust pipes end and the way they point, and where an emblem's picture goes on its
+patch), and prints each driver's two colours, for its row in LIVERIES, and the box the sim drives
+the kart as, for its row in KARTS (sim/vehicles/karts.ts).
 
 The kart is sized against its drivers as MK8 sizes it, and then a tenth bigger (ROOM), so Mario
 sits in it with room: MK8_METRES is the scale that stands MK8's Mario his 2 m (jointed-model.py).
@@ -49,15 +52,15 @@ MK8_METRES = 2.0 / 15.42  # MK8's Mario, 15.42 of its units tall, stood 2 m (joi
 ROOM = 1.1
 OBJ_UNIT = 0.127  # an OBJ rip's units, in MK8's
 BODY_TEXTURE = 512  # px: the body's picture and its paint, each side
-EMBLEM_TEXTURE = 64  # px: an emblem's picture on its canvas (`decal`), each side
+EMBLEM_TEXTURE = 64  # px: an emblem's picture, each side
 TIRE_KEEP = 0.5  # of a tire's triangles kept: a tread's bevels are lost at its size
 PAINT_DIFFERS = 24  # 0-255: a pixel some driver's albedo has this far from another's is painted
 FEET_APART = 0.19  # metres each foot rests out from the middle line: on its pedal, where there are pedals
 FOOT_ROOM = 0.25  # metres over the floor a foot needs: the feet go forward as far as that's clear
 EXHAUST_RIM = 0.03  # metres from a pipe's end its rim's corners are within
 
-# The drivers whose own paint and emblem a kart they drop wears (their albedo's and emblem's
-# names); anyone else's wears the first's.
+# The drivers the rip has the kart painted for, and an emblem of (their albedo's and emblem's
+# names). The first is the one the paint is told apart on.
 DRIVERS = {
     "mario": ("mro", "Mario"),
     "luigi": ("lig", "Luigi"),
@@ -182,20 +185,19 @@ def triangles(pos: np.ndarray, uv: np.ndarray, which: np.ndarray | None = None) 
 
 def decal(uv: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """A decal's patch reaches past its picture, which MK8 draws on it once; a part's picture
-    repeats (emit_part), and past its edge would show its far edge over again. So the picture is
-    set on a clear canvas as big as the patch reaches (`on_canvas`), and the patch's texture
-    coordinates run 0 to 1 over that. Returns those coordinates, and the canvas: where the
-    picture's corner is on it and its size, both in pictures."""
+    repeats (emit_part), and past its edge would show its far edge over again. So the client sets
+    the picture on a clear canvas as big as the patch reaches, and the patch's texture coordinates
+    run 0 to 1 over that: the other way across it from the rip's, since the part is written
+    mirrored (emit_part) and the picture would be turned round with it. Returns those coordinates,
+    and where the picture lies on the canvas: its corner and its size, both in canvases."""
     lo, hi = uv.min(axis=0), uv.max(axis=0)
     picture = np.floor((lo + hi) / 2)  # the repeat the picture is in: the one the patch's middle is in
-    return (uv - lo) / (hi - lo), picture - lo, hi - lo
-
-
-def on_canvas(picture: Image.Image, corner: np.ndarray, size: np.ndarray) -> Image.Image:
-    """`picture` on a clear canvas `size` pictures across and down, its corner `corner` in."""
-    canvas = Image.new("RGBA", tuple(np.round(size * picture.size).astype(int)), (0, 0, 0, 0))
-    canvas.paste(picture, tuple(np.round(corner * picture.size).astype(int)))
-    return canvas
+    size = 1 / (hi - lo)
+    coords = (uv - lo) * size
+    corner = (picture - lo) * size
+    coords[:, 0] = 1 - coords[:, 0]
+    corner[0] = 1 - corner[0] - size[0]
+    return coords, corner, size
 
 
 def simplified(pos: np.ndarray, uv: np.ndarray, keep: float) -> tuple[np.ndarray, np.ndarray]:
@@ -213,10 +215,12 @@ def simplified(pos: np.ndarray, uv: np.ndarray, keep: float) -> tuple[np.ndarray
     return part["positions"][flat], part["uvs"][flat]
 
 
-def paint(albedos: dict[str, Image.Image], out: Path) -> dict[str, tuple[str, str]]:
+def paint(albedos: dict[str, Image.Image], pos: np.ndarray, uv: np.ndarray, out: Path) -> dict[str, tuple[str, str]]:
     """The body's picture with its two painted colours left white, and where they go: a pixel any
-    driver's albedo has otherwise than another's is painted, the first colour where it's nearer the
-    first driver's first colour than their second. Returns each driver's two colours."""
+    driver's albedo has otherwise than another's is painted, in one of the first driver's two
+    colours there. The primary is the one that stands higher on the body (`pos` and `uv`, its
+    triangles): the nose and the top, over the sides and the underside. Returns each driver's two
+    colours, the primary first."""
     arrays = {
         d: np.asarray(a.convert("RGB").resize((BODY_TEXTURE,) * 2, Image.Resampling.LANCZOS), float)
         for d, a in albedos.items()
@@ -229,19 +233,23 @@ def paint(albedos: dict[str, Image.Image], out: Path) -> dict[str, tuple[str, st
     order = colours[np.argsort(-counts)] * 16 + 8
     one = order[0]
     two = next(c for c in order[1:] if np.abs(c - one).max() > 64)
-    primary = painted & (np.linalg.norm(first - one, axis=2) < np.linalg.norm(first - two, axis=2))
-    secondary = painted & ~primary
+    masks = [painted & (np.linalg.norm(first - one, axis=2) < np.linalg.norm(first - two, axis=2))]
+    masks.append(painted & ~masks[0])
+    # How high each stands: the mean height of the triangles whose middles it paints, by their area.
+    corners = pos.reshape(-1, 3, 3)
+    area = np.linalg.norm(np.cross(corners[:, 1] - corners[:, 0], corners[:, 2] - corners[:, 0]), axis=1)
+    at = (uv.reshape(-1, 3, 2).mean(axis=1) % 1 * BODY_TEXTURE).astype(int)
+    painting = [m[at[:, 1], at[:, 0]] for m in masks]
+    heights = [np.average(corners[on, :, 1].mean(axis=1), weights=area[on]) for on in painting]
+    primary, secondary = masks if heights[0] > heights[1] else masks[::-1]
     hexes = {}
     for driver, a in arrays.items():
         c1, c2 = np.median(a[primary], axis=0), np.median(a[secondary], axis=0)
         hexes[driver] = tuple("#" + "".join(f"{int(v):02x}" for v in c) for c in (c1, c2))
     # White where painted, as light as the first driver's colour there is against its median.
     base = first.copy()
-    for mask, colour in (
-        (primary, np.median(first[primary], axis=0)),
-        (secondary, np.median(first[secondary], axis=0)),
-    ):
-        base[mask] = np.clip(first[mask] / np.maximum(colour, 1), 0, 1) * 255
+    for mask in (primary, secondary):
+        base[mask] = np.clip(first[mask] / np.maximum(np.median(first[mask], axis=0), 1), 0, 1) * 255
     Image.fromarray(base.astype(np.uint8)).save(out / "body.png", optimize=True)
     where = np.zeros((*primary.shape, 3), np.uint8)
     where[primary, 0] = 255
@@ -285,18 +293,18 @@ def main(kart_id: str, body_dir: Path, tire_dir: Path) -> None:
 
     emit_part(out / "body.bin", triangles(body_pos * ROOM, body_uv, rest), {})
     emit_part(out / "steer.bin", triangles((body_pos - middle) * ROOM, body_uv, wheel), {})
-    emblem_uv, emblem_corner, emblem_canvas = decal(emblem_uv)
+    emblem_uv, emblem_at, emblem_size = decal(emblem_uv)
     emit_part(out / "emblem.bin", triangles(emblem_pos * ROOM, emblem_uv), {})
     tire_pos, tire_uv = simplified(tire_pos, tire_uv, TIRE_KEEP)
     emit_part(out / "tire.bin", triangles(tire_pos * ROOM, tire_uv), {})
 
     albedos = {d: Image.open(next(body_dir.glob(f"bodyk_*_{code}_alb.png"))) for d, (code, _) in DRIVERS.items()}
-    colours = paint(albedos, out)
+    colours = paint(albedos, body_pos, body_uv, out)
+    emblems = CLIENT / "public" / "assets" / "textures" / "emblems"
+    emblems.mkdir(parents=True, exist_ok=True)
     for driver, (_, name) in DRIVERS.items():
-        emblem = on_canvas(
-            Image.open(body_dir / "Emblems" / f"{name}.png").convert("RGBA"), emblem_corner, emblem_canvas
-        )
-        emblem.resize((EMBLEM_TEXTURE,) * 2, Image.Resampling.LANCZOS).save(out / f"emblem-{driver}.png", optimize=True)
+        emblem = Image.open(body_dir / "Emblems" / f"{name}.png").convert("RGBA")
+        emblem.resize((EMBLEM_TEXTURE,) * 2, Image.Resampling.LANCZOS).save(emblems / f"{driver}.png", optimize=True)
     Image.open(tire_dir / f"Tire_{tire_set}_Alb.png").convert("RGB").save(out / "tire.png", optimize=True)
 
     side = float(hi[0])  # the body's side: it's even about the middle
@@ -331,15 +339,16 @@ def main(kart_id: str, body_dir: Path, tire_dir: Path) -> None:
         "  exhausts: [",
         *[f"    {{ at: {game(at)}, way: {way(out)} }}," for at, out in exhausts],
         "  ],",
-        "  paints: {",
-        *[f"    {d}: {{ colours: ['{c1}', '{c2}'], emblem: '{d}' }}," for d, (c1, c2) in colours.items()],
-        "  },",
+        f"  emblem: {{ at: {[round(float(x), 5) for x in emblem_at]}, size: {[round(float(x), 5) for x in emblem_size]} }},",
         "};",
         "",
     ]
     model_ts = CLIENT / "src" / "render" / "vehicles" / f"{kart_id}KartModel.ts"
     model_ts.write_text("\n".join(lines))
     print(f"wrote {model_ts}")
+    print("the drivers' rows in LIVERIES (render/liveries.ts):")
+    for driver, (primary, secondary) in colours.items():
+        print(f"  {driver}: {{ primary: '{primary}', secondary: '{secondary}', emblem: '{driver}' }},")
     print(
         f"its row's body in KARTS: {{ width: {width * ROOM:.2f}, length: {length * ROOM:.2f}, "
         f"height: {height * ROOM:.2f}, seat: {{ y: {seat[1] * ROOM:.2f}, z: {seat[2] * ROOM:.2f} }} }}"

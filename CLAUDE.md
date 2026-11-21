@@ -90,8 +90,8 @@ anything that can wait off the path everyone pays:
   wearing; a dragon rises and roars at once and its body fills in as it lands.
 - A kart's files (its model's parts and pictures, about 110 KB for the Standard Kart) are fetched
   as its command is pointed at or sent, or else the first time a kart of that model is drawn
-  (`wantKart` in `render/vehicles/KartMesh.ts`); every paint is the same picture painted on the
-  client, and only its emblem (about 5 KB) is fetched per paint. Nothing of a kart is drawn until
+  (`wantKart` in `render/vehicles/KartMesh.ts`); every livery is the same picture painted on the
+  client, and only its emblem (about 5 KB) is fetched per livery. Nothing of a kart is drawn until
   its files are here, and a fetch that fails is tried again by the next frame that wants it
   (`render/fetchOnce.ts`, as a look's is).
 - Lakitu's files (his body with his rod, his hook and their picture, about 80 KB) are fetched the
@@ -696,10 +696,12 @@ the canvas can't become the frame's texture from afar.
 - Pickups (`sim/pickups.ts`) float in the pickup areas listed in `content/pickups.ts`: a region, a
   kind, how many, and how often one comes back. What's where is that list alone, plus drops:
   `dropPickup` leaves one at a spot, in no area, where it stays until taken and never comes back. A
-  dead player's body leaves `CORPSE_DROP` (a big heart, twice the size, back to full health) on
-  whatever it was lying on when its seat is dropped.
+  dead player's body leaves `CORPSE_DROP` (a big heart, two and a half times the size, back to full health) on
+  whatever it was lying on when its seat is dropped, each kept as theirs (`from`, how they
+  appeared), which the client draws in their livery (see Liveries).
 - A new kind is a row in `PICKUPS` (float height, reach, and `heals`, the hearts it gives back, a
-  full life at `Infinity`; one at full health leaves it where it is) plus a shape in `render/Pickups.ts`; the
+  full life at `Infinity`; one at full health leaves it where it is, and the red box, `ui/Alert.ts`,
+  tells them so for as long as they touch it) plus a shape in `render/Pickups.ts`; the
   `Record<PickupKind, …>` there makes the compiler ask. The Room, the wire and the Python mirror
   already carry every kind.
 - Pickups pass through structures like cubes, so keep a region clear of stairs and walls at the
@@ -1019,6 +1021,27 @@ pincers closing on a handle from its sides), and `itemScale` draws the items to 
 shares changes (the walker, a weapon's shape, a rig), audit every look it reaches, not the one the
 change was made for.
 
+### Liveries
+
+A look's livery (`render/liveries.ts`, `LIVERIES`) is what anything made out in its wearer's name
+is drawn in: a primary colour, the one the look is known by, a secondary that goes with it, and an
+emblem, a picture of a badge (the look's mark on a disc, white on the ones made here, filling the picture edge to
+edge) in `public/assets/textures/emblems/`, about 5 KB, fetched by whatever first draws it. A kart
+wears its dropper's as they appeared when they dropped it (see Karts; `Appearance`, the look and
+the colour, which is what the Room keeps and sends of it), and the heart a dead body leaves is
+its player's (`render/Pickups.ts`: the heart in the primary, the emblem on a disc a hair off each
+face, sent for as the body is seen dead and left off until it's here). Its primary is also the
+colour a player goes by wherever they're named or marked: the roster's dot, the name over their
+head, their pin at the screen's edge, their mark on the maps and their name in the chat all read
+`nameColour`, which lightens one too dark to read on the dark those are drawn over. The Mario family's are Mario Kart 8's,
+the colours and the emblems `scripts/kart-model.py` takes from the Standard Kart's rip. The rest
+are made here, their emblems drawn by `scripts/emblems.py` (a row each in its `EMBLEMS`: a
+picture set on the disc). Every look has one (`liveryOf`): a look's row in `LIVERIES` says only
+what of it is its own, and what it leaves unsaid, or all of it for a look with no row (the
+standard body among them), is its wearer's colour over black round the site's logo, which is
+Elizabeth. So Elizabeth's row is her colours alone, her white over the orange of her feet. A new
+one is a row in `LIVERIES` and, with a mark of its own, its emblem's picture; nothing that wears a livery has to know the look.
+
 ## Player classes
 
 A class is what kind of body a player has (`packages/shared/src/sim/classes.ts`): every avatar names
@@ -1233,9 +1256,11 @@ size, each centred along the kart on its axle's hub with its outer face flush wi
 on the edge of its wells, all four on the ground), the steering wheel's middle,
 the axis it turns round and the grips a driver's hands take on it (a wheel's rim or a handlebar's
 ends alike), the seat, where a driver's feet rest (against the pedals, or as far forward under the
-nose as a foot fits), where its exhaust pipes end and the way they point, and each driver's paint. A paint is two colours and an emblem: the body is
-one picture with its two painted colours left white and a second saying where they go, painted on
-the client in whichever colours (`paintOf`: the dropper's own, for the Mario family, else Mario's).
+nose as a foot fits), where its exhaust pipes end and the way they point, and where an emblem's
+picture goes on the patch on its nose. A kart wears the livery of whoever dropped it (see
+Liveries): the body is one picture with its two painted colours
+left white and a second saying where the primary and the secondary go, painted on the client in
+whichever colours, and the emblem's picture is set on the patch's canvas there.
 The script prints the box the sim drives it as, for its row in `KARTS`. `render/vehicles/KartMesh.ts`
 draws one: its tires rolled by how far it went and the front pair steered, its steering wheel
 turned, the body tipped to the ground under its tires, all at its size, eased there; its files are
@@ -1273,8 +1298,8 @@ the view opens out and the camera closes in, `RUSH`, by how far into one the kar
 fly outward past the edges of the view, `render/vehicles/SpeedLines.ts`: one mesh on the camera,
 made at the first boost and drawn only through one), their legend is the
 kart's keys and the hint bar says how to get out, and on touch the pad steers alone and the
-jump button gives way to the pedals, GAS (red, a bar over the other two), BRAKE and DRIFT (grey),
-holding W, S and Space, with OUT up under CHAT and no SELECT (a tap on the view opens a cube).
+jump button gives way to the pedals, DRIFT (grey, a bar over the other two, reading TRICK while a
+press would be one, `canTrick`), BRAKE and GAS (red), holding Space, S and W, with OUT up under CHAT and no SELECT (a tap on the view opens a cube).
 Their kart's wrenches are a row of pixel wrenches under their hearts (`Hearts` with the `wrench`
 sprite), and on a mouse device a gauge under those (`ui/KartGauge.ts`) says how fast the kart is
 going along its nose and how fast that's changing (`Prediction.kartPace`: a tick taken ahead on
@@ -1285,8 +1310,8 @@ and no way back up but Lakitu's (`stranded`, and the rescue below); the red box 
 tells the driver they're off the map and that he's coming. A tick the Room steps a driver's kart with no frame (theirs is late) is taken on the keys
 of their last, ahead of the frame it stood in for, which is then taken for its keys alone
 (`Garage.drive`): a kart steps once for each of its driver's frames, as their client predicted,
-however late they come. Past `AHEAD_TICKS` of that its keys are let go and it rolls to a stop. A kart's meshes and its paint's materials are made once per scene and
-shared by every kart of that model and paint, so a kart let go disposes its own nodes alone.
+however late they come. Past `AHEAD_TICKS` of that its keys are let go and it rolls to a stop. A kart's meshes and its livery's materials are made once per scene and
+shared by every kart of that model and livery, so a kart let go disposes its own nodes alone.
 
 A kart stranded on the ground past the edge is fished back by Lakitu (`sim/vehicles/rescue.ts`),
 a feature apart from the rest of driving: the kart's step hands a kart in a rescue to it

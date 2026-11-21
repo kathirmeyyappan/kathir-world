@@ -276,7 +276,7 @@ export function stepKart(k: KartState, c: KartControls, dt: number, structures: 
   const hopped = hopping(k); // in its own hop as the tick begins, for whether a landing is a hop's
   if (pressed) k.press = 0;
   else if (k.press !== null && !climbing && (k.press += dt) > TRICK.early) k.press = null;
-  if (pressed && k.grounded && k.down !== null) {
+  if (pressed && k.grounded && canTrick(k, structures)) {
     // Just down from a flight with no trick in it: the press is that trick, late.
     k.trick = { way: wayOf(steer) ?? 0, t: 0 };
     boost(k, TRICK.hold);
@@ -289,7 +289,7 @@ export function stepKart(k: KartState, c: KartControls, dt: number, structures: 
   if (k.hop) k.hop.way ??= wayOf(steer);
   // A press is a trick as soon as the kart is in a flight with no trick still running: at once up
   // there, and off the lip for one that came a moment early.
-  if (k.press !== null && flying(k, structures) && !(k.trick && k.trick.t < TRICK.seconds)) {
+  if (k.press !== null && !k.grounded && canTrick(k, structures)) {
     k.trick = { way: wayOf(steer) ?? 0, t: 0 };
     k.press = null;
   }
@@ -347,17 +347,20 @@ function boost(k: KartState, hold: number, spark: Spark | null = null): void {
   k.boosts++;
 }
 
+// Whether a press of the drift key now is a trick: in a flight with no trick still running (in
+// the air other than by its own hop, with TRICK.clear or more between it and the ground under its
+// middle), or just down from a flight that had none (a late one).
+export function canTrick(k: KartState, structures: Structures): boolean {
+  if (k.rescue) return false;
+  if (k.grounded) return k.down !== null;
+  if (hopping(k) || (k.trick && k.trick.t < TRICK.seconds)) return false;
+  return k.pos.y - structures.groundAt(k.pos.x, k.pos.z, k.pos.y + kerbOf(k)) >= TRICK.clear;
+}
+
 // Whether it's in the hop a press gave it: up and back down to where it left the ground. Falling
 // faster than a hop comes down, it has gone off something, and is in the air as off any ledge.
 function hopping(k: KartState): boolean {
   return k.hop !== null && k.vel.y >= -HOP;
-}
-
-// Whether it's in a flight, where a press tricks it: in the air other than by its own hop, with
-// TRICK.clear or more between it and the ground under its middle.
-function flying(k: KartState, structures: Structures): boolean {
-  if (k.grounded || hopping(k)) return false;
-  return k.pos.y - structures.groundAt(k.pos.x, k.pos.z, k.pos.y + kerbOf(k)) >= TRICK.clear;
 }
 
 // The way the wheel is held over (1 right), or null with it held neither way.

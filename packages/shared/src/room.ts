@@ -285,16 +285,18 @@ export class Room {
   }
 
   // The seat goes. A dead one's body poofs away on every client and leaves CORPSE_DROP on whatever
-  // it was lying on (a long body, at points along it).
+  // it was lying on (a long body, at points along it), each theirs to look at.
   private remove(id: string): void {
     const seat = this.seats.get(id);
     if (!seat) return;
     this.seats.delete(id);
     this.garage.getOut(seat.state);
-    if (seat.state.dead)
+    if (seat.state.dead) {
+      const from = { avatar: seat.state.avatar, color: seat.state.color };
       // Not past the edge: nobody walks down to the ground there and back.
       for (const at of classOf(seat.state.avatar).lies(seat.state, this.structures))
-        if (this.structures.ground.inside(at.x, at.z)) dropPickup(this.pickups, CORPSE_DROP, at, this.rng);
+        if (this.structures.ground.inside(at.x, at.z)) dropPickup(this.pickups, CORPSE_DROP, at, this.rng, from);
+    }
     this.broadcast({ t: 'leave', id, name: seat.state.name });
     this.log(`${seat.state.name} (${id}) left ${this.id}, ${this.seats.size} online`);
     if (this.humanCount === 0) this.onEmpty?.(); // bots alone don't keep a room open
@@ -320,7 +322,7 @@ export class Room {
         if (!text) return;
         const command = parseCommand(text);
         if (command) this.runCommand(seat, command);
-        else this.broadcast({ t: 'chat', id, name: seat.state.name, color: seat.state.color, text });
+        else this.broadcast({ t: 'chat', id, name: seat.state.name, text });
         return;
       }
       case 'rename':
@@ -612,6 +614,7 @@ export class Room {
     return this.pickups.items.map((p) => ({
       id: p.id,
       kind: p.kind,
+      ...(p.from && { from: p.from }),
       x: r(p.pos.x),
       y: r(p.pos.y),
       z: r(p.pos.z),

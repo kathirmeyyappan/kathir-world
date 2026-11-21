@@ -1,9 +1,8 @@
 """Circle the nearest player, or the world origin when alone, the same way round, on a ring that
-tightens where a wall stops it (with a hop, over a kerb or a rail) or the ground drops away ahead,
-and eases back out to its full size once there's room, so it keeps circling someone on a bridge or
-a road narrower than the ring. Only where no ring has ground ahead does it turn back the other way.
-It reads the solids and the bodies, not the ground map, which is most of the memory a bot's maps
-take."""
+tightens where a wall stops it or the ground drops away ahead, and eases back out to its full size
+once there's room, so it keeps circling someone on a bridge or a road narrower than the ring. Only
+where no ring has ground ahead does it turn back the other way. It reads the solids and the bodies,
+not the ground map, which is most of the memory a bot's maps take."""
 
 from __future__ import annotations
 
@@ -169,7 +168,6 @@ class Circler:
         controls.look_at(me.pos, center)
         distance = math.hypot(me.pos.x - center.x, me.pos.z - center.z)
         if self.stall.blocked(tick, me.pos, controls, self.bodies.walk_speed(me.avatar)):
-            controls.jump()
             self.radius = max(MIN_RADIUS, self.radius - SHRINK)
         wider = min(ORBIT_RADIUS, self.radius + GROW * dt)
         if wider > self.radius and self._clear(me, controls, distance, wider, self.way):
