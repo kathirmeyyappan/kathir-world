@@ -1230,8 +1230,8 @@ a feature apart from the rest of driving: the kart's step hands a kart in a resc
 (`Garage.drive`) and the Room lets nobody out of his hands, and that's all the sim knows of it.
 Once a driver has sat stranded `RESCUE.wait` (2 s, hops not counted) the Room begins their kart's
 rescue, a timeline (`RESCUE`) the kart is held along whatever its keys (`carried`): still while he
-comes, hoisted `RESCUE.height`, hung while its driver's view folds shut, carried across in the
-dark, hung while it unfolds, lowered, and let go at rest, about 4 s in all. Nothing else about it
+comes, hoisted `RESCUE.height`, hung while its driver's view closes, carried across in the
+dark, lowered as the view opens again, and let go at rest, about 4 s in all. Nothing else about it
 or its driver changes: wrenches and hearts are as they were (the fall onto that ground costs what
 a 10 m landing does, as before). It's set down where it left the world (`Watch`, kept by the Room
 for each driven kart: where it last stood on the world and the way its nose pointed), in the
@@ -1243,8 +1243,8 @@ left over its end) it's half a road in from the edge, as it pointed. The client 
 (`render/lakitu/`): `Rescuers` stands one `Lakitu` by each kart in a rescue within
 `SCOPED_SIGHT`, anyone's, coming down from up ahead of it over `RESCUE.come`, his hook on its
 nose and him to its right, facing its driver, bobbing on his cloud, and going back up the way he
-came once it's let go; the driver's own view is folded shut by `ui/Fold.ts` (`foldAt`: two black
-flaps hinged along its top and bottom, under the HUD). His model is written by
+came once it's let go; the driver's own view is closed by `ui/Iris.ts` (`shutAt`: black but for
+a circle that closes in on their head and opens out from it again, under the HUD). His model is written by
 `scripts/lakitu-model.py` from the rip of MK8's referee, a Collada file of skinned meshes with no
 animation: the script turns his joints into a pose (`POSES`: `fishing`, with the rod in his fist
 and one of his four faces) and carries the skin along by its weights, so a new pose is a row
