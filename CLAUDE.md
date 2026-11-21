@@ -745,7 +745,11 @@ or landmark added or changed, the world's outline, or the player's body or movem
 moves (the jumps of each way a look on foot moves, each distinct walk and jump power simulated over
 the whole graph once; a look that moves as one already there adds nothing, and one that moves its
 own way only its own jumps) and the bodies (every avatar's hitbox, eyes, walk and way of moving; at
-once). `common/world.py` joins them into one `WorldMap`. Run it and commit what it writes with the
+once). Nearly all of the time is each spot's walks and jumps, worked out apart from every other
+spot's, so the ground's and the moves' are cut into shares (`Share` in `botMap.ts`, which stays
+plain sim code) and done on every core at once (`scripts/botMapHands.ts`, a worker thread a core,
+each taking the next share as it finishes its last): about 20 minutes of one core as the world
+stands, so 6 or so on four, and what it writes is what one thread would. `common/world.py` joins them into one `WorldMap`. Run it and commit what it writes with the
 change whenever any of those inputs move; a test in `sim.test.ts` fails until you do. The ground
 and the moves also carry `code`, a hash of the sim files their builder runs
 (`scripts/botMapCode.ts`), which no test holds them to, so a change to how a body walks or collides
