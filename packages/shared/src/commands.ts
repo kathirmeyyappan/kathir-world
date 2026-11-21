@@ -14,6 +14,7 @@ import {
 import { isGearId, type GearId } from './sim/gear';
 import { NAMED_COLORS } from './sim/constants';
 import { ITEMS, isItemId, type ItemId } from './sim/items';
+import type { Vec3 } from './sim/types';
 import { KARTS, KART_IDS, type KartId } from './sim/vehicles/karts';
 
 export type Command =
@@ -26,6 +27,9 @@ export type Command =
   | { name: 'bot'; bot: BotId; call: BotCallArgs | null } // null: the flags didn't parse
   | { name: 'kill-bots' }
   | { name: 'kart'; kart: KartId } // drops one in front of them (sim/vehicles/garage.ts)
+  // Puts their feet at a spot, for testing: left out of the commands card and the chat's
+  // completions (ui/commands.ts). null: the coordinates didn't parse.
+  | { name: 'teleport'; feet: Vec3 | null }
   | { name: 'unknown'; raw: string };
 
 export const COMMAND_SHORTCUTS: Readonly<Partial<Record<string, ItemId | GearId | AvatarId | 'speedy'>>> = {
@@ -56,11 +60,20 @@ export function parseCommand(text: string): Command | null {
   if (avatar) return { name: 'avatar', avatar };
   if (Object.hasOwn(NAMED_COLORS, normalized)) return { name: 'color', color: normalized };
   if (normalized === 'kill-bots') return { name: 'kill-bots' };
+  if (normalized === 'teleport') return { name: 'teleport', feet: teleportTo(args) };
   const kart = KART_IDS.find((id) => KARTS[id].command === normalized);
   if (kart) return { name: 'kart', kart };
   const bot = botIdFor(normalized);
   if (bot) return botCommand(bot, args);
   return { name: 'unknown', raw };
+}
+
+export const TELEPORT_USAGE = 'usage: /teleport x y z (metres, y where your feet go)';
+
+// "/teleport 120 0 -40": three numbers, nothing else.
+function teleportTo(args: string[]): Vec3 | null {
+  const n = args.map(Number);
+  return n.length === 3 && n.every(Number.isFinite) ? { x: n[0], y: n[1], z: n[2] } : null;
 }
 
 // What a bot command asked for: how long the bot stays, what it's called (null: its own name), how
