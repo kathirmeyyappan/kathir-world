@@ -18,6 +18,9 @@
 //   there costs nothing, and one that moves its own way costs only its own jumps;
 // - the bodies (`BodiesMap`): every avatar's hitbox, eyes, walk and which way it moves, from
 //   their rows alone, built at once.
+// The ground's walks and the moves' jumps are nearly all of the time it takes, and each spot's are
+// worked out apart from every other's, so both are cut into shares (`Share`) that whoever builds
+// the map may hand out (`Hands`): scripts/botMapHands.ts does them on every core at once.
 // A test fails when a stage's fingerprint no longer matches. The ground and the moves carry a hash
 // of the sim code that built them as well (scripts/botMapCode.ts), which no test holds them to: a
 // deploy builds either afresh when its source or its code is off (deploy.sh). world.py joins the
@@ -207,22 +210,65 @@ function shapes(): Structure[] {
   });
 }
 
-export function buildGroundMap(code: number): GroundMap {
+// A share of the map's slow work, for the spots `from` up to `to`, as plain data, so it can be
+// handed to another thread: their `walks` to the spots round them with the standard body's jumps
+// where walking doesn't get there, or `avatar`'s `jumps` to the ones round them that `walked`
+// (each of those spots' walks, in order) doesn't reach.
+export type Share =
+  | { kind: 'walks'; from: number; to: number }
+  | { kind: 'jumps'; from: number; to: number; avatar: AvatarId; walked: number[][] };
+// What a share comes to, per spot of it in order: for `walks`, its walks and then its jumps; for
+// `jumps`, its jumps alone.
+export type Shared = number[][][];
+// Whoever does the shares of one stage: given the stage's nodes, how many of them from the first
+// are spots, and every share, what each comes to, in the order given.
+export type Hands = (nodes: Vec3[], spots: number, shares: Share[]) => Promise<Shared[]>;
+// Every share done here, one after the next.
+export const alone: Hands = async (nodes, spots, shares) => shares.map((share) => doShare(nodes, spots, share));
+
+const SHARE = 500; // spots to a share: small enough that the last few shares out are quick
+
+// The spots cut into shares of `kind`, in order.
+function shared<S extends Share>(spots: number, of: (from: number, to: number) => S): S[] {
+  return Array.from({ length: Math.ceil(spots / SHARE) }, (_, k) => of(k * SHARE, Math.min(spots, (k + 1) * SHARE)));
+}
+
+// The spots' columns of the nodes last asked about: a stage's shares are all of the same nodes.
+let columned: { nodes: Vec3[]; columns: Map<string, number[]> } | null = null;
+
+export function doShare(nodes: Vec3[], spots: number, share: Share): Shared {
+  if (columned?.nodes !== nodes) columned = { nodes, columns: columnsOf(nodes.slice(0, spots)) };
+  const { columns } = columned;
+  return Array.from({ length: share.to - share.from }, (_, k) => {
+    const a = nodes[share.from + k];
+    const round = neighbours(a, nodes, columns);
+    if (share.kind === 'jumps')
+      return [round.filter((j) => !share.walked[k].includes(j) && reaches(a, nodes[j], true, share.avatar))];
+    const [walks, jumps]: number[][] = [[], []];
+    for (const j of round) {
+      if (reaches(a, nodes[j], false, 'standard')) walks.push(j);
+      else if (reaches(a, nodes[j], true, 'standard')) jumps.push(j);
+    }
+    return [walks, jumps];
+  });
+}
+
+export async function buildGroundMap(code: number, hands: Hands = alone): Promise<GroundMap> {
   const open = openFloor();
   const spots = walkableNodes(open);
   // The open floor's nodes come after the spots': each rectangle's middle, then each stretch's.
   const first = spots.length;
   const middles = open.areas.map((a) => ({ x: a.x + a.w / 2, y: 0, z: a.z + a.d / 2 }));
   const nodes = [...spots, ...middles, ...open.stretches.map((s) => ({ x: s.x, y: 0, z: s.z }))];
-  const columns = columnsOf(spots);
   const edges: number[][] = nodes.map(() => []);
   const jumps: number[][] = nodes.map(() => []);
-  spots.forEach((a, i) => {
-    for (const j of neighbours(a, nodes, columns)) {
-      if (reaches(a, nodes[j], false, 'standard')) edges[i].push(j);
-      else if (reaches(a, nodes[j], true, 'standard')) jumps[i].push(j);
-    }
-  });
+  const shares = shared(first, (from, to): Share => ({ kind: 'walks', from, to }));
+  (await hands(nodes, first, shares)).forEach((done, k) =>
+    done.forEach(([walks, leaps], i) => {
+      edges[shares[k].from + i] = walks;
+      jumps[shares[k].from + i] = leaps;
+    }),
+  );
   // Each rectangle's middle to the middles of the stretches it shares and to the spots beside it,
   // each way the sim walks it.
   const join = (i: number, j: number) => {
@@ -259,23 +305,36 @@ export function buildGroundMap(code: number): GroundMap {
 // For every way of moving, its jumps between the ground's neighbouring spots that walking doesn't
 // join: the standard body's the ground's own, and any `kept` from a build over the same ground by
 // the same code taken as they are, so only a new way of moving is worked out.
-export function buildMovesMap(ground: GroundMap, code: number, kept?: MovesMap): MovesMap {
+export async function buildMovesMap(
+  ground: GroundMap,
+  code: number,
+  kept?: MovesMap,
+  hands: Hands = alone,
+): Promise<MovesMap> {
   // Written to the centimetre: each node is the top within that of where it's written.
   const nodes = ground.nodes.map(([x, y, z]) => ({ x, y: MAP_STRUCTURES.groundAt(x, z, y + 0.01), z }));
-  const columns = columnsOf(nodes.slice(0, ground.spots));
   const known: Record<Move, number[][]> = { [moveOf('standard')]: ground.jumps };
   if (kept && kept.ground === ground.source && kept.code === code) Object.assign(known, kept.jumps);
   const jumps: Record<Move, number[][]> = {};
-  for (const [move, avatar] of movers())
-    jumps[move] =
-      known[move] ??
-      nodes.map((a, i) =>
-        i < ground.spots
-          ? neighbours(a, nodes, columns).filter(
-              (j) => !ground.edges[i].includes(j) && reaches(a, nodes[j], true, avatar),
-            )
-          : [],
-      );
+  for (const [move, avatar] of movers()) {
+    if (known[move]) {
+      jumps[move] = known[move];
+      continue;
+    }
+    const shares = shared(ground.spots, (from, to): Share => ({
+      kind: 'jumps',
+      from,
+      to,
+      avatar,
+      walked: ground.edges.slice(from, to),
+    }));
+    const done = await hands(nodes, ground.spots, shares);
+    // The open floor's nodes, after the spots, have no jumps.
+    jumps[move] = [
+      ...done.flatMap((share) => share.map(([leaps]) => leaps)),
+      ...nodes.slice(ground.spots).map(() => []),
+    ];
+  }
   return { source: movesMapSource(), code, ground: ground.source, jumps };
 }
 
