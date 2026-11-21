@@ -260,7 +260,7 @@ export const BOT_DIAGRAM_TEXT: Partial<Record<BotId, string>> = {
   sniper:
     'The sniper seen from above: it shoots a person close by, keeps one further off in its sights, can’t see one behind a wall, and ducks behind cover to reload.',
   circle:
-    'A circle bot seen from above: it strafes round the nearest player facing them, and when something is in the way finds a way round it to the ring further on.',
+    'A circle bot seen from above: it strafes round the nearest player facing them, and when a wall or a drop is in the way tightens its ring to get round it, easing back out once there’s room.',
   stalker:
     'A stalker bot seen from above: it stands still and turns to face the nearest person as they walk past, ignoring bots and anyone further off.',
 };

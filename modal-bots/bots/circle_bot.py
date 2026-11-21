@@ -1,5 +1,9 @@
-"""Circle the nearest player, or the world origin when alone, clockwise at a fixed radius, and
-when something's in the way find a way round it over the ground map instead, where it has one."""
+"""Circle the nearest player, or the world origin when alone, the same way round, on a ring that
+tightens where a wall stops it (with a hop, over a kerb or a rail) or the ground drops away ahead,
+and eases back out to its full size once there's room, so it keeps circling someone on a bridge or
+a road narrower than the ring. Only where no ring has ground ahead does it turn back the other way.
+It reads the solids and the bodies, not the ground map, which is most of the memory a bot's maps
+take."""
 
 from __future__ import annotations
 
@@ -13,7 +17,6 @@ from common import (
     Bodies,
     Controls,
     Event,
-    Ground,
     Player,
     RoomConnectionError,
     Solids,
@@ -21,7 +24,6 @@ from common import (
     WorldState,
     connect,
     load_bodies,
-    load_ground,
     load_solids,
     log_death,
     log_message,
@@ -30,22 +32,15 @@ from common import (
 from common.controls import TICK_RATE
 from common.deployment import validate_duration
 from common.map.bodies import EYE_HEIGHT
-from common.navigation import Route
 
-ORBIT_RADIUS = 12
+ORBIT_RADIUS = 12  # metres: the ring's full size, which it never grows past
+MIN_RADIUS = 3  # metres: the tightest ring, a couple of bodies clear of whoever it circles
+SHRINK = 1.5  # metres the ring tightens each time a drop or a wall is in its way
+GROW = 1.0  # m/s the ring eases back out toward ORBIT_RADIUS while there's ground for it
 RADIAL_CORRECTION_DISTANCE = 6
-# Within this of the ring the bot circles; further off (a wall pushing it off, or the target having
-# moved) it walks to the ring by the map.
-RING_BAND = 3
-# The ring point a detour heads for is this far round the circle from where the bot is, so the
-# way there goes round whatever it stopped at; the next ones round are tried when the map has no
-# way to it.
-DETOUR_STEP = math.radians(60)
-# A detour is planned again when its target has moved this far since.
-REPLAN_DISTANCE = 4
-# Metres ahead along its strafe the bot looks for ground: none there within EDGE_DROP under its feet
+# Metres ahead along its move the bot looks for ground: none there within EDGE_DROP under its feet
 # (the floor's edge, where a step further drops it to its death, or the edge of whatever it stands
-# on) and it walks the map instead.
+# on) and it tightens the ring, turns back where no ring has any, or stands where neither way has.
 EDGE_LOOKAHEAD = 1.5
 EDGE_DROP = 1.0
 STEP = 0.5  # metres a walk steps up onto on its own (STEP_UP in packages/shared/src/sim/constants.ts)
@@ -53,7 +48,7 @@ STEP = 0.5  # metres a walk steps up onto on its own (STEP_UP in packages/shared
 # the move. The window is long enough that one late snapshot doesn't count.
 BLOCKED_PROGRESS = 0.5
 BLOCKED_TICKS = 4
-# After joining or a detour, the snapshots still show the old input for a round trip, so the
+# After joining or tightening, the snapshots still show the old input for a round trip, so the
 # check waits this long before judging again.
 SETTLE_TICKS = 15
 
@@ -85,7 +80,7 @@ async def run_circle_bot(
     inputs = asyncio.create_task(run_input_loop(controls, stop))
     completed = False
     target_key: str | None = None
-    circler = Circler(load_solids(), load_ground(), load_bodies())
+    circler = Circler(load_solids(), load_bodies())
     observed_until = connected_at
 
     log_message(name, "joined room", player_id=connection.id, room=connection.room)
@@ -114,7 +109,7 @@ async def run_circle_bot(
                 target = state.nearest_player()
                 center = target.pos if target else Vec3(0, state.me.pos.y, 0)
                 if circler.step(state.tick, state.me, center, controls):
-                    log_message(name, "detour", tick=state.tick, nodes=len(circler.route.path) if circler.route else 0)
+                    log_message(name, "turned back", tick=state.tick, way=circler.way)
                 next_target = target.id if target else "origin"
                 if next_target != target_key:
                     target_key = next_target
@@ -139,7 +134,7 @@ async def run_circle_bot(
         completed=completed,
         observed_seconds=round(observed_seconds, 3),
         target=target_key,
-        detours=circler.detours,
+        turns=circler.turns,
     )
     return {
         "bot": name,
@@ -147,100 +142,84 @@ async def run_circle_bot(
         "observed_seconds": round(observed_seconds, 6),
         "connection_seconds": round(connected_at - connect_started, 6),
         "target": target_key,
-        "detours": circler.detours,
+        "turns": circler.turns,
         "last_tick": state.tick,
         "final_state": state.to_dict(),
     }
 
 
 class Circler:
-    """Circling, or on a detour by the map to a point further round the ring. Where there's ground
-    comes from the solids, anywhere in the world; a detour needs the ground map, so off the floor
-    the buildings stand on it stops at whatever is in its way until its target moves."""
+    """Circling one way round on a ring that tightens round a wall or a drop and eases back out,
+    turning back the other way only where no ring has ground ahead. Where there's ground comes
+    from the solids, anywhere in the world."""
 
-    def __init__(self, solids: Solids, ground: Ground, bodies: Bodies) -> None:
+    def __init__(self, solids: Solids, bodies: Bodies) -> None:
         self.solids = solids
-        self.ground = ground
         self.bodies = bodies
         self.stall = Stall()
-        self.route: Route | None = None
-        self.route_center: Vec3 | None = None
-        self.detours = 0
+        self.way = CLOCKWISE
+        self.radius: float = ORBIT_RADIUS
+        self.turns = 0
+        self._tick: int | None = None  # the snapshot it last stepped on
 
     def step(self, tick: int, me: Player, center: Vec3, controls: Controls) -> bool:
-        """Set the controls for this snapshot; True when a detour was planned."""
+        """Set the controls for this snapshot; True when it turned back."""
+        dt = 0.0 if self._tick is None else (tick - self._tick) / TICK_RATE
+        self._tick = tick
         controls.look_at(me.pos, center)
-        if self.route is not None and self.route_center is not None:
-            moved = math.hypot(center.x - self.route_center.x, center.z - self.route_center.z)
-            if self.route.done or moved > REPLAN_DISTANCE:
-                self.route = None
-                self.stall.reset(tick)
-            elif self.route.stuck(tick):
-                return self._detour(tick, me, center)
-            else:
-                self.route.steer(me.pos, tick, controls)
-                return False
         distance = math.hypot(me.pos.x - center.x, me.pos.z - center.z)
-        _orbit(controls, distance)
-        if (
-            abs(distance - ORBIT_RADIUS) > RING_BAND
-            or self._edge_ahead(me, controls)
-            or self.stall.blocked(tick, me.pos, controls, self.bodies.walk_speed(me.avatar))
-        ):
-            controls.stop()
-            return self._detour(tick, me, center)
+        if self.stall.blocked(tick, me.pos, controls, self.bodies.walk_speed(me.avatar)):
+            controls.jump()
+            self.radius = max(MIN_RADIUS, self.radius - SHRINK)
+        wider = min(ORBIT_RADIUS, self.radius + GROW * dt)
+        if wider > self.radius and self._clear(me, controls, distance, wider, self.way):
+            self.radius = wider
+        for way in (self.way, -self.way):
+            radius = self._ring(me, controls, distance, way)
+            if radius is None:
+                continue
+            self.radius = radius
+            if way == self.way:
+                return False
+            self.way = way
+            self.turns += 1
+            self.stall.reset(tick)
+            return True
+        controls.stop()
         return False
 
-    def _edge_ahead(self, me: Player, controls: Controls) -> bool:
-        """Whether the ground EDGE_LOOKAHEAD along the move ``controls`` command drops away."""
+    def _ring(self, me: Player, controls: Controls, distance: float, way: int) -> float | None:
+        """The widest ring no wider than its own with ground ahead circling ``way`` round, the
+        controls set to circle it; None where even the tightest has none."""
+        radius: float = self.radius
+        while not self._clear(me, controls, distance, radius, way):
+            if radius <= MIN_RADIUS:
+                return None
+            radius = max(MIN_RADIUS, radius - SHRINK)
+        return radius
+
+    def _clear(self, me: Player, controls: Controls, distance: float, radius: float, way: int) -> bool:
+        """Set the controls to circle ``way`` round on a ring of ``radius``; whether the ground
+        EDGE_LOOKAHEAD along that move is there, within EDGE_DROP under the feet."""
+        _orbit(controls, distance, radius, way)
         dx, dz = _world_move(controls)
         length = math.hypot(dx, dz)
         if length < 1e-6:
-            return False
+            return True
         feet = _feet(me)
         x, z = feet.x + dx / length * EDGE_LOOKAHEAD, feet.z + dz / length * EDGE_LOOKAHEAD
-        return feet.y - self.solids.ground_at(x, z, feet.y + STEP) > EDGE_DROP
-
-    def _detour(self, tick: int, me: Player, center: Vec3) -> bool:
-        """Plan a way round to the ring; back to circling (and the stall check) when there's none."""
-        self.route = None
-        self.route_center = center
-        self.stall.reset(tick)
-        start = self.ground.node_at(_feet(me))
-        if start is None:
-            return False
-        for goal in self.ring_goals(me, center):
-            path = self.ground.path(start, goal, me.avatar)
-            if path is not None:
-                self.route = Route(self.ground, path, tick, me.avatar)
-                self.detours += 1
-                return True
-        return False
-
-    def ring_goals(self, me: Player, center: Vec3) -> list[int]:
-        """The map's nodes nearest the ring points round the circle from the bot's side, the
-        first a step on in the circling direction, in the order to try them."""
-        bearing = math.atan2(me.pos.x - center.x, me.pos.z - center.z)
-        feet_y = center.y - EYE_HEIGHT
-        goals: list[int] = []
-        for k in range(1, round(2 * math.pi / DETOUR_STEP) + 1):
-            a = bearing + _CIRCLING_SIGN * k * DETOUR_STEP
-            spot = Vec3(center.x + ORBIT_RADIUS * math.sin(a), feet_y, center.z + ORBIT_RADIUS * math.cos(a))
-            node = self.ground.node_at(spot)
-            if node is not None and node not in goals:
-                goals.append(node)
-        return goals
+        return feet.y - self.solids.ground_at(x, z, feet.y + STEP) <= EDGE_DROP
 
 
-# Strafing right while facing the centre takes the bot clockwise seen from above, which is the
-# way its bearing from the centre decreases (bearing is atan2(x, z), yaw's frame).
-_CIRCLING_SIGN = -1
+# Which way round the bot circles, as the way it strafes facing the centre: right is clockwise seen
+# from above.
+CLOCKWISE = 1
 
 
-def _orbit(controls: Controls, distance: float) -> None:
-    """Strafe round the centre, easing in or out toward the ring."""
-    radial = max(-1.0, min(1.0, (distance - ORBIT_RADIUS) / RADIAL_CORRECTION_DISTANCE))
-    controls.move(forward=radial, right=1)
+def _orbit(controls: Controls, distance: float, radius: float, way: int) -> None:
+    """Strafe ``way`` round the centre, easing in or out toward a ring of ``radius``."""
+    radial = max(-1.0, min(1.0, (distance - radius) / RADIAL_CORRECTION_DISTANCE))
+    controls.move(forward=radial, right=way)
 
 
 class Stall:
