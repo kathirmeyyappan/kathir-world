@@ -1,5 +1,5 @@
-// GLSL for the environment. Kept in one place so the ground, sky and boundary share helpers.
-import { EYE_HEIGHT, OUTSIDE_HEIGHT } from '@world/shared';
+// GLSL for the environment. Kept in one place so the ground and sky share helpers.
+import { OUTSIDE_HEIGHT } from '@world/shared';
 import { BASE_FOG_DENSITY } from './Engine';
 import { KERB_HEIGHT, KERB_WIDTH } from './Floor';
 
@@ -241,62 +241,5 @@ void main() {
   float twinkle = 0.6 + 0.4 * sin(time * 2.0 + hash(cell + 1.0) * 6.28);
   col += vec3(0.9, 0.95, 1.0) * star * twinkle * 0.8;
   gl_FragColor = vec4(col, 1.0);
-}
-`;
-
-// The wall ribbon carries its distance along the outline in uv.x so the hex pattern tiles evenly
-// around any shape.
-export const WALL_VERTEX = `
-precision highp float;
-attribute vec3 position;
-attribute vec2 uv;
-uniform mat4 worldViewProjection;
-uniform mat4 world;
-varying vec3 vWorld;
-varying float vArc;
-void main() {
-  vec4 wp = world * vec4(position, 1.0);
-  vWorld = wp.xyz;
-  vArc = uv.x;
-  gl_Position = worldViewProjection * vec4(position, 1.0);
-}
-`;
-
-// The play boundary: a hex mesh that only appears near the camera: within revealDistance across,
-// and within a few metres of your feet up and down, so it shows at whatever height you're at.
-export const WALL_FRAGMENT = `
-precision highp float;
-varying vec3 vWorld;
-varying float vArc;
-uniform vec3 cameraPos;
-uniform vec3 wallColor;
-uniform float revealDistance;
-uniform float time;
-
-float hexLine(vec2 p, float scale, float width) {
-  p /= scale;
-  vec2 r = vec2(1.0, 1.7320508);
-  vec2 h = r * 0.5;
-  vec2 a = mod(p, r) - h;
-  vec2 b = mod(p - h, r) - h;
-  vec2 g = dot(a, a) < dot(b, b) ? a : b;
-  vec2 q = abs(g);
-  float d = max(dot(q, normalize(vec2(1.0, 1.7320508))), q.x);
-  float edge = 0.5 - d;
-  float fw = fwidth(edge) * 1.5;
-  return 1.0 - smoothstep(width - fw, width + fw, edge);
-}
-
-void main() {
-  vec2 uv = vec2(vArc, vWorld.y);
-  float line = hexLine(uv, 1.6, 0.06);
-  float dist = length(vWorld.xz - cameraPos.xz);
-  float reveal = 1.0 - smoothstep(2.0, revealDistance, dist); // fully lit only right at the wall
-  float feet = cameraPos.y - ${EYE_HEIGHT.toFixed(2)};
-  float heightFade = 1.0 - smoothstep(6.0, 14.0, abs(vWorld.y - feet));
-  float pulse = 0.8 + 0.2 * sin(time * 3.0 + vWorld.y * 0.8);
-  float alpha = line * reveal * heightFade * pulse;
-  if (alpha <= 0.0) discard; // most of the ribbon, most of the time: skip the blend
-  gl_FragColor = vec4(wallColor * (0.6 + 0.4 * reveal), alpha);
 }
 `;

@@ -142,7 +142,6 @@ export const DRAGON: ClassSpec = {
   },
   actionTicks: ROAR_SECONDS * TICK_RATE,
   fits,
-  confine: (p, ground) => ground.keepWithin(p.pos, dragonShape(p.avatar).headRadius),
   enter(p) {
     p.dragon = createDragon(p.pos, dragonShape(p.avatar));
   },
@@ -234,7 +233,6 @@ function fly(
   const floor = ground + MIN_ALTITUDE;
   if (head.y < floor) head.y = Math.min(floor, Math.max(head.y, from.y) + CLIMB_SPEED * dt);
   structures.move(head, dir.x * step, dir.z * step, headBody(head.y, r));
-  structures.ground.keepWithin(head, r);
   // Down in the drop past the edge, the floor's rim is a wall the head climbs at CLIMB_SPEED, held
   // off it, until it's MIN_ALTITUDE over the floor and can come in.
   const inward = from.y < MIN_ALTITUDE ? structures.ground.edge(head.x, head.z) : Infinity;

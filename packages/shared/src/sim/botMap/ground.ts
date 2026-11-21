@@ -1,29 +1,27 @@
-// The world as the Python bots (modal-bots/) see it: the structures, for line of sight, and a graph
-// of where a player can walk, for finding a way anywhere (up the tower's stair included). Bots run
-// no sim of their own, so the graph is worked out here with the real one: round whatever stands,
-// every walkable spot on a 1 m grid is a node, and the open floor between (`openFloor`) is a few
-// rectangles, a node each at its middle, with a node in the middle of every stretch two of them
-// share; an edge joins two nodes when stepPlayer, walking straight from one, arrives at the other.
-// Where only a running jump gets there (over the tower stair's rail onto a floor), that's a jump
-// edge. With them come the lookouts (high spots with a view) and the place each is in, each
-// avatar's hitbox, for aiming, and the buildings' insides (their floors, and every spot within
-// their walls), where a sniper starts out and lies in wait.
+// The bots' map of where a body walks (modal-bots/common/map/ground.py): a graph over the floor the
+// buildings stand on (`WALKED`), for finding a way anywhere on it (up the tower's stair included).
+// Bots run no sim of their own, so the graph is worked out here with the real one: round whatever
+// stands, every walkable spot on a 1 m grid is a node, and the open floor between (`openFloor`) is
+// a few rectangles, a node each at its middle, with a node in the middle of every stretch two of
+// them share; an edge joins two nodes when stepPlayer, walking straight from one, arrives at the
+// other. Where only a running jump gets there (over the tower stair's rail onto a floor), that's a
+// jump edge. With them come the lookouts (high spots with a view) and the place each is in, and the
+// buildings' insides (their floors, and every spot within their walls), where a sniper starts out
+// and lies in wait.
 //
-// It's built in four stages, each its own file in modal-bots/common/map/ with a fingerprint of
-// what it was built from (its `source`), so a change rebuilds only the stages it touches:
-// - the ground (`GroundMap`): the structures, the nodes and walks between them, the standard
-//   body's jumps, the lookouts and the insides, from the world and the standard body;
+// It's two of the bots' maps (index.ts), each built slowly:
+// - the ground (`GroundMap`): the nodes and walks between them, the standard body's jumps, the
+//   lookouts and the insides, from the walked floor, what stands on and round it, and the standard
+//   body;
 // - the moves (`MovesMap`): for every way a look on foot moves (its walk and jump power), its
 //   jumps between the ground's nodes, each worked out once, so a look that moves as one already
-//   there costs nothing, and one that moves its own way costs only its own jumps;
-// - the bodies (`BodiesMap`): every avatar's hitbox, eyes, walk and which way it moves, from
-//   their rows alone, built at once;
-// - the outline (`OutlineMap`): the parts of the floor, a few KB, built at once, for a bot that
-//   only needs to know where the floor ends (the circle bot) and not the ground's megabytes.
-// A test fails when a stage's fingerprint no longer matches. The ground and the moves carry a hash
-// of the sim code that built them as well (scripts/botMapCode.ts), which no test holds them to: a
-// deploy builds either afresh when its source or its code is off (deploy.sh). world.py joins the
-// first three back into one map; outline.py reads the outline alone.
+//   there costs nothing, and one that moves its own way costs only its own jumps.
+// The ground's walks and the moves' jumps are nearly all of the time it takes, and each spot's are
+// worked out apart from every other's, so both are cut into shares (`Share`) that whoever builds
+// the map may hand out (`Hands`): scripts/botMapHands.ts does them on every core at once.
+//
+// Nothing past `AROUND` of the walked floor is in the sim the graph is walked in, or in its
+// `source`: a road laid or moved out beyond leaves the ground and the moves as they are.
 import {
   EYE_HEIGHT,
   GRAVITY,
@@ -33,25 +31,24 @@ import {
   STEP_DOWN,
   STEP_UP,
   TICK_DT,
-} from './constants';
-import { BUILDING_FOOTPRINTS, STANDING_KEEPS } from '../content/buildings';
-import { TUNG_TUNG_TOWER_FOOTPRINT, TUNG_TUNG_TOWER_LEVELS } from '../content/tower';
-import { AVATAR_IDS, AVATARS, jumpVelocityOf, walkSpeedOf, type AvatarId, type Hitbox } from './avatars';
-import { CAPSULE_TOP } from './health';
-import { createPlayer, stepPlayer } from './player';
-import { isGrounded } from './walker';
-import type { Region } from './regions';
-import { createRng, hashSeed } from './rng';
-import { ladderRun, surfaceOf, type Structure } from './structures';
-import type { Vec3 } from './types';
-import { STRUCTURES } from '../content/structures';
-import { Structures } from './collision';
-import { partBounds, type Disc, type WorldPart } from './ground';
-import { WORLD_GROUND, WORLD_OUTLINE } from './outline';
-
-// The world without its doors (doors.ts): the graph walks as if every one stood open, and a bot that
-// opens doors opens the shut ones in its way (`GroundMap.doors`).
-const MAP_STRUCTURES = new Structures(STRUCTURES.filter((s) => !s.door));
+} from '../constants';
+import { BUILDING_FOOTPRINTS, STANDING_KEEPS } from '../../content/buildings';
+import { TUNG_TUNG_TOWER_FOOTPRINT, TUNG_TUNG_TOWER_LEVELS } from '../../content/tower';
+import { jumpVelocityOf, walkSpeedOf, type AvatarId } from '../avatars';
+import { CAPSULE_TOP } from '../health';
+import { createPlayer, stepPlayer } from '../player';
+import { isGrounded } from '../walker';
+import type { Region } from '../regions';
+import { hashSeed } from '../rng';
+import { ladderRun, surfaceOf, type Structure } from '../structures';
+import type { Vec3 } from '../types';
+import { STRUCTURES } from '../../content/structures';
+import { Structures } from '../collision';
+import { Ground, partDistance, type Disc } from '../ground';
+import { BUILDINGS_OUTLINE, WORLD_GROUND } from '../outline';
+import { moveOf, movers, type Move } from './bodies';
+import { shapeOf } from './solids';
+import type { Simulated } from './stage';
 
 // Metres inside the floor's edge the map stands its nodes, so a route never takes a bot over it.
 const EDGE_MARGIN = 1;
@@ -61,9 +58,6 @@ const MAX_RISE = 1.5; // metres between neighbouring nodes worth trying an edge 
 // Metres round open floor that nothing stands in (`openFloor`), so the way onto it from a spot
 // beside it (a diagonal step, 1.4 m, off at most) is clear of everything too.
 const CLEARANCE = 2;
-const SIGHT_CHECKS = 64;
-const INSIDE_CHECKS = 64;
-const INSIDE_SPREAD = 10; // metres past a part's bounds that a spot checked against it may be
 // A lookout stands this high or more, on floor (walks to at least LOOKOUT_FLOOR of its eight
 // neighbours, so not along a rail or parapet top), and at eye level sees this far out along this many of a ring of level sight
 // lines: the balconies and decks, not the floors inside the tower's wall.
@@ -79,19 +73,45 @@ const BUILDINGS = [{ footprint: TUNG_TUNG_TOWER_FOOTPRINT, levels: TUNG_TUNG_TOW
 const INSIDES: Region[] = BUILDINGS.flatMap((b) => b.levels.slice(0, -1));
 const INDOORS_MARGIN = 0.5; // metres under a roof, or over a ground floor, that are still inside
 
+// Where the map walks: the floor the buildings stand on. The roads beyond are driven, and a way
+// along them is the roads' map (roads.ts).
+export const WALKED = new Ground(BUILDINGS_OUTLINE);
+// Metres round the walked floor within which what stands, and what floor there is, can come into a
+// walk across it or a lookout's view out from it: as far as a lookout looks, the furthest anything
+// here does.
+const AROUND = LOOKOUT_RANGE;
+// The world the graph is walked in: the structures within AROUND of the walked floor, and the
+// floor's parts that reach within AROUND of the box round it. Without the doors (doors.ts), since
+// the graph walks as if every one stood open and a bot that opens doors opens the shut ones in its
+// way (`GroundMap.doors`).
+const NEAR_STRUCTURES = STRUCTURES.filter((s) => {
+  const reach = Math.hypot(s.w, s.d) / 2 + (s.kind === 'ladder' ? ladderRun(s) : 0);
+  return Math.min(...BUILDINGS_OUTLINE.map((part) => partDistance(s.x, s.z, part))) <= reach + AROUND;
+});
+const MAP_GROUND = new Ground(
+  WORLD_GROUND.partsIn({
+    minX: WALKED.bounds.minX - AROUND,
+    maxX: WALKED.bounds.maxX + AROUND,
+    minZ: WALKED.bounds.minZ - AROUND,
+    maxZ: WALKED.bounds.maxZ + AROUND,
+  }),
+);
+const MAP_STRUCTURES = new Structures(
+  NEAR_STRUCTURES.filter((s) => !s.door),
+  MAP_GROUND,
+);
+
+// Whether (x, z) is over the walked floor: on it, or on anything that stands on it.
+function walked(x: number, z: number): boolean {
+  return WALKED.edge(x, z) <= 0;
+}
+
 // Where a lookout is, for a bot choosing where to perch: on the tower (its balconies and roof), on
 // a building (its roof and the foot of its staircase), or elsewhere (the terrace and the bridges
 // and staircases up to it).
 export type LookoutPlace = 'tower' | 'building' | 'elsewhere';
 
-// A stage the sim builds, slowly: what it was built from, and the code that built it.
-interface Simulated {
-  source: number;
-  code: number;
-}
-
 export interface GroundMap extends Simulated {
-  structures: Structure[]; // as content/structures.ts lists them, without their looks or doors
   doors: Door[];
   nodes: [number, number, number][]; // feet x, y, z
   spots: number; // how many of the nodes, from the first, are spots on the grid; the rest are the open floor's
@@ -104,9 +124,6 @@ export interface GroundMap extends Simulated {
   areas: [number, number, number, number, number][];
   insides: Region[]; // the floors indoors, inside the tower's wall and the keeps': where a sniper starts and lies in wait
   indoors: number[]; // every node inside a building's wall, the stairs between its floors included
-  // Segments the sim answered for (a x, y, z, b x, y, z, 1 when nothing stands between): the
-  // Python side's line of sight is checked against these.
-  sightChecks: number[][];
 }
 
 // A door's slab where it stands shut, without its looks, by the door's id: a double door is two.
@@ -122,41 +139,8 @@ export interface MovesMap extends Simulated {
   jumps: Record<Move, number[][]>;
 }
 
-export interface BodiesMap {
-  source: number;
-  hitboxes: Record<string, Hitbox>; // what a shot has to land in, by avatar id (sim/avatars.ts)
-  eyes: Record<string, number>; // metres from the feet to each avatar's eyes, where its shots leave (sim/avatars.ts)
-  walks: Record<string, number>; // how fast each avatar walks at full keys, m/s (sim/avatars.ts walkSpeedOf)
-  moves: Record<string, Move>; // how each avatar moves, the moves' key to its jumps
-}
-
-export interface OutlineMap {
-  source: number;
-  parts: WorldPart[]; // the floor's parts (sim/ground.ts), as WORLD_OUTLINE lists them
-  // Spots the sim answered for (x, z, 1 when on the floor): the Python side's outline is checked
-  // against these.
-  insideChecks: number[][];
-}
-
-// A way of moving on foot: a walk in m/s and a jump's velocity, as `${walk} ${jump}`. Every class
-// but the walker moves as the standard body does here.
-type Move = string;
-
-function moveOf(id: AvatarId): Move {
-  const as = AVATARS[id].class === 'walker' ? id : 'standard';
-  return `${walkSpeedOf(as)} ${jumpVelocityOf(as)}`;
-}
-
-// Each way of moving there is, with the look that stands for it: the first to move that way, the
-// standard body for its own.
-function movers(): Map<Move, AvatarId> {
-  const movers = new Map<Move, AvatarId>();
-  for (const id of ['standard', ...AVATAR_IDS] as const) if (!movers.has(moveOf(id))) movers.set(moveOf(id), id);
-  return movers;
-}
-
-// What the ground depends on: the world's outline and structures, the body and the standard body's
-// movement constants, this file's own settings, and the buildings' insides.
+// What the ground depends on: the walked floor, the floor and the structures round it, the body
+// and the standard body's movement constants, this file's own settings, and the buildings' insides.
 export function groundMapSource(): number {
   const physics = [
     EYE_HEIGHT,
@@ -174,7 +158,6 @@ export function groundMapSource(): number {
     WALL_CLEARANCE,
     MAX_RISE,
     CLEARANCE,
-    SIGHT_CHECKS,
     LOOKOUT_HEIGHT,
     LOOKOUT_RANGE,
     LOOKOUT_LINES,
@@ -182,7 +165,8 @@ export function groundMapSource(): number {
     LOOKOUT_FLOOR,
     KEEP_REACH,
   ];
-  return hashSeed(JSON.stringify([WORLD_OUTLINE, shapes(), doors(), physics, settings, BUILDINGS]));
+  const floor = [WALKED.parts, MAP_GROUND.parts];
+  return hashSeed(JSON.stringify([floor, shapes(), doors(), physics, settings, BUILDINGS]));
 }
 
 // What the moves depend on: the ground they're measured over, and the ways there are of moving.
@@ -190,80 +174,75 @@ export function movesMapSource(): number {
   return hashSeed(JSON.stringify([groundMapSource(), [...movers().keys()].sort()]));
 }
 
-// What the bodies depend on: nothing but what they are.
-export function bodiesMapSource(): number {
-  return hashSeed(JSON.stringify(bodies()));
-}
-
-// What the outline depends on: the floor's parts alone.
-export function outlineMapSource(): number {
-  return hashSeed(JSON.stringify(WORLD_OUTLINE));
-}
-
-export function buildOutlineMap(): OutlineMap {
-  return { source: outlineMapSource(), parts: WORLD_OUTLINE, insideChecks: insideChecks() };
-}
-
-// Spots round the parts, each near one picked at random so every kind is tried, half of them on
-// the floor; none within a centimetre of its edge, where the two sides' rounding could disagree.
-function insideChecks(): number[][] {
-  const rng = createRng(1);
-  const parts = WORLD_GROUND.parts;
-  const checks: number[][] = [];
-  const counts = [0, 0];
-  while (checks.length < INSIDE_CHECKS) {
-    const b = partBounds(parts[Math.floor(rng() * parts.length)]);
-    const x = b.minX - INSIDE_SPREAD + rng() * (b.maxX - b.minX + 2 * INSIDE_SPREAD);
-    const z = b.minZ - INSIDE_SPREAD + rng() * (b.maxZ - b.minZ + 2 * INSIDE_SPREAD);
-    if (Math.abs(WORLD_GROUND.edge(x, z)) < 0.01) continue;
-    const inside = WORLD_GROUND.inside(x, z) ? 1 : 0;
-    if (counts[inside] >= INSIDE_CHECKS / 2) continue;
-    counts[inside]++;
-    checks.push([x, z, inside]);
-  }
-  return checks;
-}
-
 function doors(): Door[] {
-  return STRUCTURES.flatMap(({ material: _m, color: _c, ...slab }) =>
+  return NEAR_STRUCTURES.flatMap(({ material: _m, color: _c, ...slab }) =>
     slab.door && !slab.door.open ? [{ id: slab.door.id, slab }] : [],
   );
 }
 
-// The structures without their looks, which nothing here depends on; a leaning ladder as the
-// wedge under its rails, a ramp over its footprint (collision.ts), since world.py knows no lean.
 function shapes(): Structure[] {
-  return MAP_STRUCTURES.list.map(({ material: _m, color: _c, ...shape }) => {
-    if (shape.kind !== 'ladder' || !shape.lean) return shape;
-    const { lean: _l, ...rest } = shape;
-    const run = ladderRun(shape);
-    const yaw = shape.yaw ?? 0;
-    return {
-      ...rest,
-      kind: 'ramp',
-      x: shape.x + (Math.sin(yaw) * run) / 2,
-      z: shape.z + (Math.cos(yaw) * run) / 2,
-      d: shape.d + run,
-    };
+  return MAP_STRUCTURES.list.map(shapeOf);
+}
+
+// A share of the map's slow work, for the spots `from` up to `to`, as plain data, so it can be
+// handed to another thread: their `walks` to the spots round them with the standard body's jumps
+// where walking doesn't get there, or `avatar`'s `jumps` to the ones round them that `walked`
+// (each of those spots' walks, in order) doesn't reach.
+export type Share =
+  | { kind: 'walks'; from: number; to: number }
+  | { kind: 'jumps'; from: number; to: number; avatar: AvatarId; walked: number[][] };
+// What a share comes to, per spot of it in order: for `walks`, its walks and then its jumps; for
+// `jumps`, its jumps alone.
+export type Shared = number[][][];
+// Whoever does the shares of one stage: given the stage's nodes, how many of them from the first
+// are spots, and every share, what each comes to, in the order given.
+export type Hands = (nodes: Vec3[], spots: number, shares: Share[]) => Promise<Shared[]>;
+// Every share done here, one after the next.
+export const alone: Hands = async (nodes, spots, shares) => shares.map((share) => doShare(nodes, spots, share));
+
+const SHARE = 500; // spots to a share: small enough that the last few shares out are quick
+
+// The spots cut into shares of `kind`, in order.
+function shared<S extends Share>(spots: number, of: (from: number, to: number) => S): S[] {
+  return Array.from({ length: Math.ceil(spots / SHARE) }, (_, k) => of(k * SHARE, Math.min(spots, (k + 1) * SHARE)));
+}
+
+// The spots' columns of the nodes last asked about: a stage's shares are all of the same nodes.
+let columned: { nodes: Vec3[]; columns: Map<string, number[]> } | null = null;
+
+export function doShare(nodes: Vec3[], spots: number, share: Share): Shared {
+  if (columned?.nodes !== nodes) columned = { nodes, columns: columnsOf(nodes.slice(0, spots)) };
+  const { columns } = columned;
+  return Array.from({ length: share.to - share.from }, (_, k) => {
+    const a = nodes[share.from + k];
+    const round = neighbours(a, nodes, columns);
+    if (share.kind === 'jumps')
+      return [round.filter((j) => !share.walked[k].includes(j) && reaches(a, nodes[j], true, share.avatar))];
+    const [walks, jumps]: number[][] = [[], []];
+    for (const j of round) {
+      if (reaches(a, nodes[j], false, 'standard')) walks.push(j);
+      else if (reaches(a, nodes[j], true, 'standard')) jumps.push(j);
+    }
+    return [walks, jumps];
   });
 }
 
-export function buildGroundMap(code: number): GroundMap {
+export async function buildGroundMap(code: number, hands: Hands = alone): Promise<GroundMap> {
   const open = openFloor();
   const spots = walkableNodes(open);
   // The open floor's nodes come after the spots': each rectangle's middle, then each stretch's.
   const first = spots.length;
   const middles = open.areas.map((a) => ({ x: a.x + a.w / 2, y: 0, z: a.z + a.d / 2 }));
   const nodes = [...spots, ...middles, ...open.stretches.map((s) => ({ x: s.x, y: 0, z: s.z }))];
-  const columns = columnsOf(spots);
   const edges: number[][] = nodes.map(() => []);
   const jumps: number[][] = nodes.map(() => []);
-  spots.forEach((a, i) => {
-    for (const j of neighbours(a, nodes, columns)) {
-      if (reaches(a, nodes[j], false, 'standard')) edges[i].push(j);
-      else if (reaches(a, nodes[j], true, 'standard')) jumps[i].push(j);
-    }
-  });
+  const shares = shared(first, (from, to): Share => ({ kind: 'walks', from, to }));
+  (await hands(nodes, first, shares)).forEach((done, k) =>
+    done.forEach(([walks, leaps], i) => {
+      edges[shares[k].from + i] = walks;
+      jumps[shares[k].from + i] = leaps;
+    }),
+  );
   // Each rectangle's middle to the middles of the stretches it shares and to the spots beside it,
   // each way the sim walks it.
   const join = (i: number, j: number) => {
@@ -282,7 +261,6 @@ export function buildGroundMap(code: number): GroundMap {
   return {
     source: groundMapSource(),
     code,
-    structures: shapes(),
     doors: doors(),
     nodes: nodes.map((n) => [n.x, Math.round(n.y * 100) / 100, n.z]),
     spots: spots.length,
@@ -293,45 +271,43 @@ export function buildGroundMap(code: number): GroundMap {
     areas: open.areas.map((a, k) => [first + k, a.x, a.z, a.w, a.d]),
     insides: INSIDES,
     indoors: nodes.flatMap((n, i) => (indoors(n) ? [i] : [])),
-    sightChecks: sightChecks(nodes),
   };
 }
 
 // For every way of moving, its jumps between the ground's neighbouring spots that walking doesn't
 // join: the standard body's the ground's own, and any `kept` from a build over the same ground by
 // the same code taken as they are, so only a new way of moving is worked out.
-export function buildMovesMap(ground: GroundMap, code: number, kept?: MovesMap): MovesMap {
+export async function buildMovesMap(
+  ground: GroundMap,
+  code: number,
+  kept?: MovesMap,
+  hands: Hands = alone,
+): Promise<MovesMap> {
   // Written to the centimetre: each node is the top within that of where it's written.
   const nodes = ground.nodes.map(([x, y, z]) => ({ x, y: MAP_STRUCTURES.groundAt(x, z, y + 0.01), z }));
-  const columns = columnsOf(nodes.slice(0, ground.spots));
   const known: Record<Move, number[][]> = { [moveOf('standard')]: ground.jumps };
   if (kept && kept.ground === ground.source && kept.code === code) Object.assign(known, kept.jumps);
   const jumps: Record<Move, number[][]> = {};
-  for (const [move, avatar] of movers())
-    jumps[move] =
-      known[move] ??
-      nodes.map((a, i) =>
-        i < ground.spots
-          ? neighbours(a, nodes, columns).filter(
-              (j) => !ground.edges[i].includes(j) && reaches(a, nodes[j], true, avatar),
-            )
-          : [],
-      );
+  for (const [move, avatar] of movers()) {
+    if (known[move]) {
+      jumps[move] = known[move];
+      continue;
+    }
+    const shares = shared(ground.spots, (from, to): Share => ({
+      kind: 'jumps',
+      from,
+      to,
+      avatar,
+      walked: ground.edges.slice(from, to),
+    }));
+    const done = await hands(nodes, ground.spots, shares);
+    // The open floor's nodes, after the spots, have no jumps.
+    jumps[move] = [
+      ...done.flatMap((share) => share.map(([leaps]) => leaps)),
+      ...nodes.slice(ground.spots).map(() => []),
+    ];
+  }
   return { source: movesMapSource(), code, ground: ground.source, jumps };
-}
-
-export function buildBodiesMap(): BodiesMap {
-  return { source: bodiesMapSource(), ...bodies() };
-}
-
-function bodies(): Omit<BodiesMap, 'source'> {
-  const each = <T>(f: (id: AvatarId) => T) => Object.fromEntries(AVATAR_IDS.map((id) => [id, f(id)]));
-  return {
-    hitboxes: each((id) => AVATARS[id].hitbox),
-    eyes: each((id) => AVATARS[id].eye),
-    walks: each(walkSpeedOf),
-    moves: each(moveOf),
-  };
 }
 
 function columnsOf(nodes: Vec3[]): Map<string, number[]> {
@@ -373,8 +349,8 @@ interface Area {
   d: number;
 }
 
-// The open floor: bare floor that nothing stands within CLEARANCE of, at least EDGE_MARGIN inside
-// the edge, where a body walks straight from anywhere to anywhere, laid out in cells of the grid
+// The open floor: bare walked floor that nothing stands within CLEARANCE of, at least EDGE_MARGIN
+// inside the edge, where a body walks straight from anywhere to anywhere, laid out in cells of the grid
 // (SPACING a side, each holding the column on its corner with the least x and z) gathered into
 // rectangles, the largest first. Two rectangles side by side share a stretch of that side, its
 // middle at (x, z), and a walk from either's middle to it keeps to that rectangle. Round whatever
@@ -387,7 +363,7 @@ interface OpenFloor {
 }
 
 function openFloor(): OpenFloor {
-  const b = WORLD_GROUND.bounds;
+  const b = WALKED.bounds;
   const i0 = Math.floor(b.minX / SPACING);
   const j0 = Math.floor(b.minZ / SPACING);
   const cols = Math.floor(b.maxX / SPACING) - i0 + 1;
@@ -397,7 +373,7 @@ function openFloor(): OpenFloor {
     return i < 0 || j < 0 || i >= cols || j >= rows ? -1 : j * cols + i;
   };
   const crowded = new Uint8Array(cols * rows);
-  for (const s of [...shapes(), ...STRUCTURES.filter((s) => s.door)]) {
+  for (const s of [...shapes(), ...NEAR_STRUCTURES.filter((s) => s.door)]) {
     const reach = Math.hypot(s.w, s.d) / 2 + CLEARANCE;
     for (let x = Math.floor((s.x - reach) / SPACING) * SPACING; x <= s.x + reach; x += SPACING)
       for (let z = Math.floor((s.z - reach) / SPACING) * SPACING; z <= s.z + reach; z += SPACING) {
@@ -415,8 +391,9 @@ function openFloor(): OpenFloor {
   for (let j = 0; j < rows; j++)
     for (let i = 0; i < cols; i++) {
       const [x, z] = [(i + i0) * SPACING, (j + j0) * SPACING];
-      const corners = [0, SPACING].flatMap((dx) => [0, SPACING].map((dz) => WORLD_GROUND.edge(x + dx, z + dz)));
-      free[j * cols + i] = !crowded[j * cols + i] && corners.every((e) => e <= deep) ? 1 : 0;
+      const corners = [0, SPACING].flatMap((dx) => [0, SPACING].map((dz) => [x + dx, z + dz]));
+      const open = corners.every(([cx, cz]) => walked(cx, cz) && MAP_GROUND.edge(cx, cz) <= deep);
+      free[j * cols + i] = !crowded[j * cols + i] && open ? 1 : 0;
     }
   const areas: Area[] = [];
   for (let found = largestRectangle(free, cols, rows); found; found = largestRectangle(free, cols, rows)) {
@@ -489,19 +466,19 @@ function largestRectangle(set: Uint8Array, cols: number, rows: number): Cells | 
   return best;
 }
 
-// The standing heights in every grid column round what stands (OpenFloor.crowded): the floor and
-// each top there that a player settles on (nothing higher within a step), with room for their head
+// The standing heights in every grid column of the walked floor round what stands
+// (OpenFloor.crowded): the floor and each top there that a player settles on (nothing higher within a step), with room for their head
 // and not inside or against a wall.
 function walkableNodes(open: OpenFloor): Vec3[] {
-  const b = WORLD_GROUND.bounds;
+  const b = WALKED.bounds;
   const nodes: Vec3[] = [];
   for (let x = Math.ceil(b.minX / SPACING) * SPACING; x <= b.maxX; x += SPACING) {
     for (let z = Math.ceil(b.minZ / SPACING) * SPACING; z <= b.maxZ; z += SPACING) {
-      if (!open.crowded(x, z)) continue;
+      if (!open.crowded(x, z) || !walked(x, z)) continue;
       // The floor is stood on only EDGE_MARGIN inside its edge. A top out past that (a road's
       // deck, which has no floor under it) is its own floor, with a drop of its own round it, and
       // is stood on only where it carries on EDGE_MARGIN every way.
-      const floored = WORLD_GROUND.edge(x, z) <= -EDGE_MARGIN;
+      const floored = MAP_GROUND.edge(x, z) <= -EDGE_MARGIN;
       const tops = MAP_STRUCTURES.list.flatMap((s) => topAt(s, x, z));
       for (const y of new Set(floored ? [0, ...tops] : tops)) {
         if (Math.abs(MAP_STRUCTURES.groundAt(x, z, y + STEP_UP) - y) > 1e-9) continue;
@@ -608,24 +585,6 @@ function indoors(n: Vec3): boolean {
 function placeOf(n: Vec3): LookoutPlace {
   const near = (keep: Disc) => Math.hypot(n.x - keep.x, n.z - keep.z) <= keep.r + KEEP_REACH;
   return near(TUNG_TUNG_TOWER_FOOTPRINT) ? 'tower' : BUILDING_FOOTPRINTS.some(near) ? 'building' : 'elsewhere';
-}
-
-// Eye-to-eye segments between nodes on or around the structures, half of them blocked.
-function sightChecks(nodes: Vec3[]): number[][] {
-  const rng = createRng(1);
-  const near = nodes.filter((n) => n.y > 0 || MAP_STRUCTURES.groundAt(n.x, n.z, Infinity) > 0);
-  const checks: number[][] = [];
-  const counts = [0, 0];
-  while (checks.length < SIGHT_CHECKS) {
-    const [a, b] = [0, 1].map(() => near[Math.floor(rng() * near.length)]);
-    const from = { x: a.x, y: a.y + EYE_HEIGHT, z: a.z };
-    const to = { x: b.x, y: b.y + EYE_HEIGHT, z: b.z };
-    const clear = MAP_STRUCTURES.clear(from, to) ? 1 : 0;
-    if (counts[clear] >= SIGHT_CHECKS / 2) continue;
-    counts[clear]++;
-    checks.push([from.x, from.y, from.z, to.x, to.y, to.z, clear]);
-  }
-  return checks;
 }
 
 function columnKey(x: number, z: number): string {

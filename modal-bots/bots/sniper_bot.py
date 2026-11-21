@@ -1,7 +1,7 @@
 """Live in Tung Tung Tower and snipe whoever comes into view.
 
-How the sniper works. Every decision comes from the latest snapshot and the world map
-(``common.world``); about players it remembers only when it first saw each one and who it's
+How the sniper works. Every decision comes from the latest snapshot and its maps of the world
+(``common.map``: the ground, the solids and the bodies); about players it remembers only when it first saw each one and who it's
 aiming at.
 
 1. The rifle. It asks for one with ``/sniper`` when it joins, and again until it's holding one.
@@ -11,7 +11,7 @@ aiming at.
    join less than SPAWN_GRACE_SECONDS ago (whoever was there when it joined counts as settled).
 
 3. Seeing. A quarry is in sight when nothing stands between the sniper's eye and the target's
-   chest (``world.clear``, the same line a shot travels; cubes don't block). It checks the nearest
+   chest (``solids.clear``, the same line a shot travels; cubes don't block). It checks the nearest
    few every SIGHT_EVERY ticks, nearest first, so whoever is closest gets its attention.
 
 4. Shooting. With someone in sight it watches them, walking or not, but fires only when it has
@@ -29,13 +29,13 @@ aiming at.
    can fire again; in the open it holds its spot and shoots again from there (a stair head or a
    deck's edge is no cover worth bobbing in and out of).
 
-5. Moving. Whatever ``spawn`` it's given, it starts on a floor indoors (``world.insides``: the
+5. Moving. Whatever ``spawn`` it's given, it starts on a floor indoors (``ground.insides``: the
    tower's and the keeps'), and from there it always has one spot it's walking to or standing
    at. It picks a place first, by PLACES: indoors on a floor of the tower or a keep most of the
    time, the tower's balconies and roof often, a building's roof and the terrace and the ways up
    to it now and then. There it takes the nearest of a sample of spots (the map's lookouts, or
    indoors any spot on the floor) that sees one of its quarry, or when none does the one nearest
-   the nearest of them, so it waits near where they are. It follows ``world.path`` there (up the stair
+   the nearest of them, so it waits near where they are. It follows ``ground.path`` there (up the stair
    and over its rail where it has to, opening any shut door in the way as a person does: it stops
    at it, turns to it and clicks it), and once outdoors with SPEEDY_WORTH metres or more of the way
    still in the open it takes /speedy, to be out there half as long; then it stays. It moves to
@@ -61,23 +61,28 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from common import (
+    Bodies,
     Controls,
     Event,
+    Ground,
     Player,
     RoomConnectionError,
     Route,
+    Solids,
     Vec3,
-    WorldMap,
     WorldState,
     connect,
+    load_bodies,
+    load_ground,
+    load_solids,
     log_death,
     log_kill,
     log_message,
     run_input_loop,
 )
-from common.bodies import EYE_HEIGHT, Hitbox
 from common.controls import TICK_RATE
 from common.deployment import validate_duration
+from common.map.bodies import EYE_HEIGHT, Hitbox
 
 GRACE_TICKS = (3, 10)  # a target must stay in sight this long (inclusive range) before a shot
 HIT_COOLDOWN_SECONDS = 3.0  # no shot for this long after one that hit
@@ -100,7 +105,7 @@ MISS_BY = (0.1, 0.6)  # metres past the hitbox's side that a near miss goes
 SPOT_CHOICES = 40  # spots it weighs when picking where to shoot from
 SPOT_TARGETS = 4  # the nearest this many quarry a spot is checked against
 # Where it looks for its next spot, and how often: indoors (a floor of the tower or a keep,
-# world.insides) or one of the lookouts' places (world.places): the tower's balconies and roof, a
+# ground.insides) or one of the lookouts' places (ground.places): the tower's balconies and roof, a
 # building's roof, or elsewhere (the terrace and the bridges and staircases up to it).
 PLACES = {"indoors": 0.45, "tower": 0.25, "building": 0.2, "elsewhere": 0.1}
 PATIENCE_SECONDS = 6.0  # how long it stands at a spot with nobody in sight before changing floors
@@ -116,7 +121,6 @@ async def run_sniper_bot(
     name: str = "sniper-bot",
     seconds: float = 30,
     *,
-    world: WorldMap,
     targets: tuple[str, ...] = (),
     lobby_url: str | None = None,
     direct_ws_url: str | None = None,
@@ -126,7 +130,8 @@ async def run_sniper_bot(
     validate_duration(seconds)
     rng = random.Random()
     # Its home is indoors, so it starts on a floor there wherever it was called from (``spawn`` unused).
-    start = rng.choice(world.insides).random_point(START_MARGIN, rng)
+    ground = load_ground()
+    start = rng.choice(ground.insides).random_point(START_MARGIN, rng)
     connect_started = time.monotonic()
     connection = await connect(
         lobby_url,
@@ -141,7 +146,9 @@ async def run_sniper_bot(
     controls = Controls(connection)
     stop = asyncio.Event()
     inputs = asyncio.create_task(run_input_loop(controls, stop))
-    sniper = Sniper(world, targets, name, rng, seen=dict.fromkeys(state.players, -(10**9)))
+    sniper = Sniper(
+        ground, load_solids(), load_bodies(), targets, name, rng, seen=dict.fromkeys(state.players, -(10**9))
+    )
     completed = False
     rifle_asked = -RIFLE_RETRY_TICKS
     speedy_asked = -SPEEDY_RETRY_TICKS
@@ -254,7 +261,9 @@ def aim_point(origin: Vec3, target: Vec3, hitbox: Hitbox, zone: str, rng: random
 class Sniper:
     """What the sniper is doing between snapshots; ``decide`` runs once per snapshot."""
 
-    world: WorldMap
+    ground: Ground  # where it walks and perches
+    solids: Solids  # what it sees past
+    bodies: Bodies  # what it aims from and at
     targets: tuple[str, ...]
     name: str
     rng: random.Random = field(default_factory=random.Random)
@@ -263,7 +272,7 @@ class Sniper:
     kills: int = 0
     hurt: bool = False  # something hit it since it last picked a spot
     hurt_at: int = -(10**9)  # the tick something last hit it
-    floor_spots: tuple[int, ...] = field(init=False)  # the spots on the floors indoors (world.insides)
+    floor_spots: tuple[int, ...] = field(init=False)  # the spots on the floors indoors (ground.insides)
     in_sight: str | None = None  # who it's watching, if anyone
     last_in_sight: int = 0  # the tick it last had anyone in sight
     fire_at: int = 0  # the tick it may shoot them: its grace delay's end
@@ -280,7 +289,7 @@ class Sniper:
     _next_sight_check: int = 0
 
     def __post_init__(self) -> None:
-        self.floor_spots = tuple(i for region in self.world.insides for i in self.world.nodes_in(region))
+        self.floor_spots = tuple(i for region in self.ground.insides for i in self.ground.nodes_in(region))
 
     def decide(self, state: WorldState, controls: Controls) -> None:
         me = state.me
@@ -300,7 +309,7 @@ class Sniper:
         self._plan(me, quarry, tick)
         # Look first: the walk is relative to it.
         if target is not None:
-            controls.look_at(self.world.bodies.eye_of(me), chest(target))
+            controls.look_at(self.bodies.eye_of(me), chest(target))
         elif self.route is not None and not self.route.done:
             controls.look_at(me.pos, self.route.ahead(me.pos))
         if self.route is None or not self.route.steer(me.pos, tick, controls):
@@ -326,8 +335,8 @@ class Sniper:
         """The nearest quarry with a clear line from the eye, the one it's watching first."""
         candidates = quarry[:SIGHT_CHECKS]
         candidates.sort(key=lambda p: p.id != self.in_sight)
-        eye = self.world.bodies.eye_of(me)
-        return next((p for p in candidates if self.world.clear(eye, chest(p))), None)
+        eye = self.bodies.eye_of(me)
+        return next((p for p in candidates if self.solids.clear(eye, chest(p))), None)
 
     def _must_fight(self, me: Player, target: Player, tick: int) -> bool:
         """Whether to fire on a target in sight: one within ENGAGE_RANGE, or anyone while it was
@@ -353,10 +362,8 @@ class Sniper:
         if not me.scoped or not holding:
             return
         zone = self.rng.choices(list(AIM_ZONES), weights=list(AIM_ZONES.values()))[0]
-        eye = self.world.bodies.eye_of(me)
-        controls.look_at(
-            eye, aim_point(eye, self._lead(target), self.world.bodies.hitbox(target.avatar), zone, self.rng)
-        )
+        eye = self.bodies.eye_of(me)
+        controls.look_at(eye, aim_point(eye, self._lead(target), self.bodies.hitbox(target.avatar), zone, self.rng))
         controls.fire_once()
         self.last_shot = tick
         self.ready_at = tick + round(MISS_COOLDOWN_SECONDS * TICK_RATE)  # until it hears it hit
@@ -387,20 +394,20 @@ class Sniper:
     def _take_cover(self, me: Player, target: Player, tick: int) -> None:
         """Indoors, step to the nearest spot within HIDE_RADIUS that the target can't see, if there
         is one, and wait there until it can fire again."""
-        start = self.world.node_at(_feet(me))
-        if start is None or start not in self.world.indoors:
+        start = self.ground.node_at(_feet(me))
+        if start is None or start not in self.ground.indoors:
             return
         hidden = [
             i
-            for i in self.world.nodes_near(_feet(me), HIDE_RADIUS)
-            if not self.world.clear(_eye(self.world.nodes[i]), chest(target))
+            for i in self.ground.nodes_near(_feet(me), HIDE_RADIUS)
+            if not self.solids.clear(_eye(self.ground.nodes[i]), chest(target))
         ]
         if not hidden:
             return
-        cover = min(hidden, key=lambda i: _distance(me.pos, _eye(self.world.nodes[i])))
-        path = self.world.path(start, cover, me.avatar, doors=True)
+        cover = min(hidden, key=lambda i: _distance(me.pos, _eye(self.ground.nodes[i])))
+        path = self.ground.path(start, cover, me.avatar, doors=True)
         if path is not None:
-            self.cover, self.route, self.arrived_at = cover, Route(self.world, path, tick, me.avatar, self.doors), None
+            self.cover, self.route, self.arrived_at = cover, Route(self.ground, path, tick, me.avatar, self.doors), None
 
     def _plan(self, me: Player, quarry: list[Player], tick: int) -> None:
         """Pick a spot when it has none, or another floor's when it has waited there too long with
@@ -425,18 +432,18 @@ class Sniper:
         """In a place picked by PLACES, the nearest of a sample of its spots that sees one of its
         quarry, or with none that does the one nearest the nearest of them (a random one with nobody
         to go after), on a floor other than its spot's (any floor the first time)."""
-        places = [p for p in PLACES if self._spots(p)] or [p for p in self.world.places if self._spots(p)]
+        places = [p for p in PLACES if self._spots(p)] or [p for p in self.ground.places if self._spots(p)]
         place = self.rng.choices(places, weights=[PLACES.get(p, 1.0) for p in places])[0]
         pool = list(self._spots(place))
         floor = self._floor(self.spot) if self.spot is not None else None
         options = [i for i in pool if self._floor(i) != floor] or pool
         sample = self.rng.sample(options, min(SPOT_CHOICES, len(options)))
         wanted = quarry[:SPOT_TARGETS]
-        seeing = [i for i in sample if any(self.world.clear(_eye(self.world.nodes[i]), chest(p)) for p in wanted)]
+        seeing = [i for i in sample if any(self.solids.clear(_eye(self.ground.nodes[i]), chest(p)) for p in wanted)]
         if seeing:
-            self.spot = min(seeing, key=lambda i: _distance(me.pos, _eye(self.world.nodes[i])))
+            self.spot = min(seeing, key=lambda i: _distance(me.pos, _eye(self.ground.nodes[i])))
         elif wanted:
-            self.spot = min(sample, key=lambda i: _distance(wanted[0].pos, _eye(self.world.nodes[i])))
+            self.spot = min(sample, key=lambda i: _distance(wanted[0].pos, _eye(self.ground.nodes[i])))
         else:
             self.spot = self.rng.choice(sample)
         self.hurt = False
@@ -445,25 +452,25 @@ class Sniper:
 
     def _spots(self, place: str) -> tuple[int, ...]:
         """The spots a place offers: every spot on the floors indoors, or a place's lookouts."""
-        return self.floor_spots if place == "indoors" else self.world.places.get(place, ())
+        return self.floor_spots if place == "indoors" else self.ground.places.get(place, ())
 
     def _floor(self, node: int) -> int:
-        return round(self.world.nodes[node].y / FLOOR) * FLOOR
+        return round(self.ground.nodes[node].y / FLOOR) * FLOOR
 
     def _route_to_spot(self, me: Player, tick: int) -> None:
         """A way from here to its spot; with none, it'll pick another spot."""
         self.route = self.arrived_at = None
         self.replan_at = tick + TICK_RATE
-        start = self.world.node_at(_feet(me))
+        start = self.ground.node_at(_feet(me))
         path = (
-            self.world.path(start, self.spot, me.avatar, doors=True)
+            self.ground.path(start, self.spot, me.avatar, doors=True)
             if start is not None and self.spot is not None
             else None
         )
         if path is None:
             self.spot = None
         else:
-            self.route = Route(self.world, path, tick, me.avatar, self.doors)
+            self.route = Route(self.ground, path, tick, me.avatar, self.doors)
 
     def wants_speed(self, me: Player) -> bool:
         """Whether a /speedy would help: it isn't sped up, and it's outdoors on its way with
@@ -474,15 +481,15 @@ class Sniper:
     def _outdoors_ahead(self, me: Player) -> float:
         """Metres of its route in the open from here until it next goes inside a building, or 0
         when it's indoors or has no way to walk."""
-        here = self.world.node_at(_feet(me))
-        if self.route is None or self.route.done or here is None or here in self.world.indoors:
+        here = self.ground.node_at(_feet(me))
+        if self.route is None or self.route.done or here is None or here in self.ground.indoors:
             return 0.0
         metres = 0.0
         last = _feet(me)
         for i in self.route.path[self.route.next :]:
-            if i in self.world.indoors:
+            if i in self.ground.indoors:
                 break
-            node = self.world.nodes[i]
+            node = self.ground.nodes[i]
             metres += math.hypot(node.x - last.x, node.z - last.z)
             last = node
         return metres

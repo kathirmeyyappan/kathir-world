@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { gunzipSync } from 'node:zlib';
-import { bodiesMapSource, groundMapSource, movesMapSource, outlineMapSource } from '../src/sim/botMap';
+import { MAP_SOURCES } from '../src/sim/botMap';
 import { climb, gap, layRoad, level, padded, span, split } from '../src/sim/roads';
 import {
   CHILL_SECONDS,
@@ -910,17 +910,11 @@ test('a dead dragon drapes over an edge, its body a link apart, rather than stre
   );
 });
 
-test('the Python bots’ map of the world is up to date (else run npm run bot-map)', () => {
-  const stages = {
-    ground: groundMapSource(),
-    moves: movesMapSource(),
-    bodies: bodiesMapSource(),
-    outline: outlineMapSource(),
-  };
-  for (const [stage, source] of Object.entries(stages)) {
-    const file = new URL(`../../../modal-bots/common/map/${stage}.json.gz`, import.meta.url);
+test('the Python bots’ maps of the world are up to date (else run npm run bot-map)', () => {
+  for (const [name, source] of Object.entries(MAP_SOURCES)) {
+    const file = new URL(`../../../modal-bots/common/map/${name}.json.gz`, import.meta.url);
     const map = JSON.parse(gunzipSync(readFileSync(file)).toString()) as { source: number };
-    assert.equal(map.source, source, `the ${stage}`);
+    assert.equal(map.source, source(), `the ${name}`);
   }
 });
 

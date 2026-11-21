@@ -9,7 +9,7 @@ import type { Vec3 } from './types';
 export type BotId = 'circle' | 'stalker' | 'observer' | 'sniper';
 
 // The bots app's workers, each with its own arguments. A dumb bot takes only how long to stay; a
-// combat bot reads the world map (line of sight, a way round) and takes the names it hunts.
+// combat bot takes the names it hunts as well.
 export type BotWorker = 'dumb' | 'combat';
 
 export interface BotSpec {

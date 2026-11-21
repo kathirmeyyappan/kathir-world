@@ -1,5 +1,5 @@
-"""Each avatar's body as the bots need it: its hitbox, its eyes, its walk and how it moves (the map's
-bodies stage, ``BodiesMap`` in ``packages/shared/src/sim/botMap.ts``)."""
+"""The bodies there are: every avatar's hitbox, for aiming, its eyes, its walk and the way it moves
+(``packages/shared/src/sim/botMap/bodies.ts``)."""
 
 from __future__ import annotations
 
@@ -8,8 +8,8 @@ from dataclasses import dataclass
 from functools import cache
 from typing import Any
 
-from .protocol import Player, Vec3
-from .stages import read_stage
+from ..protocol import Player, Vec3
+from . import read
 
 EYE_HEIGHT = 1.7  # metres from feet to eyes (EYE_HEIGHT in packages/shared/src/sim/constants.ts)
 
@@ -26,8 +26,6 @@ class Hitbox:
 
 
 class Bodies:
-    """Every avatar's body; an avatar the map doesn't know is the standard one."""
-
     def __init__(self, bodies: Mapping[str, Any]):
         self.hitboxes = {
             avatar: Hitbox(float(h["top"]), float(h["radius"]), float(h["head"]))
@@ -36,17 +34,21 @@ class Bodies:
         self.eyes = {avatar: float(e) for avatar, e in bodies["eyes"].items()}
         # How fast each avatar walks at full input, m/s.
         self.walks = {avatar: float(w) for avatar, w in bodies["walks"].items()}
-        # Which way of moving each avatar's is, the key to its jumps in the moves stage.
+        # The way each avatar moves on foot (its walk and jump power): the key to its jumps over
+        # the ground.
         self.moves = {str(avatar): str(move) for avatar, move in bodies["moves"].items()}
 
     def hitbox(self, avatar: str) -> Hitbox:
+        """An avatar's hitbox, the standard one's for an avatar the map doesn't know."""
         return self.hitboxes.get(avatar, self.hitboxes["standard"])
 
     def walk_speed(self, avatar: str) -> float:
-        """How fast an avatar walks at full input, m/s."""
+        """How fast an avatar walks at full input, m/s; the standard one's for an avatar the map
+        doesn't know."""
         return self.walks.get(avatar, self.walks["standard"])
 
-    def move(self, avatar: str) -> str:
+    def move_of(self, avatar: str) -> str:
+        """The way an avatar moves; the standard body's for an avatar the map doesn't know."""
         return self.moves.get(avatar, self.moves["standard"])
 
     def eye_of(self, p: Player) -> Vec3:
@@ -57,5 +59,4 @@ class Bodies:
 
 @cache
 def load_bodies() -> Bodies:
-    """The bodies, read once per process and shared by every bot in it."""
-    return Bodies(read_stage("bodies"))
+    return Bodies(read("bodies"))

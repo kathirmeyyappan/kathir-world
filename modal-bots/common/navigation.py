@@ -1,4 +1,4 @@
-"""Following a way through the world map: steer at each node of a path in turn, jumping where the
+"""Following a way over the ground (``map.ground``): steer at each node of a path in turn, jumping where the
 map says only a jump gets there, across open floor straight for the furthest of them it can, and
 opening a shut door in the way where it's told which are."""
 
@@ -7,10 +7,11 @@ from __future__ import annotations
 import math
 from collections.abc import Mapping
 
-from .bodies import EYE_HEIGHT
 from .controls import TICK_RATE, Controls
+from .map.bodies import EYE_HEIGHT
+from .map.ground import Ground
+from .map.solids import Piece
 from .protocol import Vec3
-from .world import Piece, WorldMap
 
 ARRIVE = 0.6  # metres across the floor from a node that count as there
 JUMP_FROM = 0.3  # metres from a jump's take-off a bot lines up within first (the map jumped from it)
@@ -26,7 +27,7 @@ LOOKAHEAD = 2.5
 
 
 class Route:
-    """A path from ``world.path``, for a body that moves as ``avatar`` does (the same one the path
+    """A path from ``ground.path``, for a body that moves as ``avatar`` does (the same one the path
     was found for). Call ``steer`` on every snapshot; it sets the controls' move (relative to
     whatever they're looking at, so look first) and says when the walk is over. Given the room's
     ``doors`` (``WorldState.doors``), it stops at a shut one in the way, turns to it and clicks it
@@ -34,16 +35,16 @@ class Route:
 
     def __init__(
         self,
-        world: WorldMap,
+        ground: Ground,
         path: list[int],
         tick: int,
         avatar: str = "standard",
         doors: Mapping[str, bool] | None = None,
     ):
-        self.world = world
+        self.ground = ground
         self.doors = doors
         self._used_at: int | None = None  # when it last clicked a shut door in the way
-        self.jumps = world.jumps_of(avatar)
+        self.jumps = ground.jumps_of(avatar)
         self.path = path
         self.next = 1 if len(path) > 1 else 0
         self._since = tick  # when it last made HEADWAY toward the next node
@@ -74,10 +75,10 @@ class Route:
             and i + 1 < len(self.path)
             and self.path[i + 1] not in self.jumps[self.path[i]]
             and self._shut(i + 1) is None
-            and _across(feet, self.world.nodes[self.path[i + 1]]) <= LOOKAHEAD
+            and _across(feet, self.ground.nodes[self.path[i + 1]]) <= LOOKAHEAD
         ):
             i += 1
-        node = self.world.nodes[self.path[i]]
+        node = self.ground.nodes[self.path[i]]
         return Vec3(node.x, node.y + EYE_HEIGHT, node.z)
 
     def steer(self, eye: Vec3, tick: int, controls: Controls, speed: float = 1) -> bool:
@@ -89,14 +90,14 @@ class Route:
             controls.stop()
             return False
         self._cut(feet, tick)
-        off = _across(feet, self.world.nodes[self.path[self.next]])
+        off = _across(feet, self.ground.nodes[self.path[self.next]])
         if off < self._closest - HEADWAY:
             self._closest, self._since = off, tick
         door = self._shut(self.next)
         if door is not None:
             # Stand where the way meets it, turn to its slab and click it, again every USE_EVERY
             # ticks until the room says it's open.
-            start = self.world.nodes[self.path[self.next - 1]]
+            start = self.ground.nodes[self.path[self.next - 1]]
             away = _across(feet, start)
             if away > JUMP_FROM:
                 controls.walk_toward(eye, start, speed * min(1.0, away / LINE_UP))
@@ -111,7 +112,7 @@ class Route:
         if self._jumping and not self._jumped:
             # Line up on the take-off spot and stand there a moment, then go: the map's jump
             # starts there.
-            start = self.world.nodes[self.path[self.next - 1]]
+            start = self.ground.nodes[self.path[self.next - 1]]
             off = _across(feet, start)
             if off > JUMP_FROM:
                 # Slowing as it closes in, so a bot that sees itself late doesn't overshoot.
@@ -137,7 +138,7 @@ class Route:
         while (
             i + 1 < len(self.path)
             and self.path[i + 1] not in self.jumps[self.path[i]]
-            and self.world.straight(feet, self.world.nodes[self.path[i + 1]])
+            and self.ground.straight(feet, self.ground.nodes[self.path[i + 1]])
         ):
             i += 1
         if i != self.next:
@@ -156,7 +157,7 @@ class Route:
         been told which are."""
         if self.doors is None or not 0 < k < len(self.path):
             return None
-        found = self.world.doorway(self.path[k - 1], self.path[k])
+        found = self.ground.doorway(self.path[k - 1], self.path[k])
         return found if found is not None and not self.doors.get(found[0], True) else None
 
     @property
@@ -167,15 +168,15 @@ class Route:
     def _reached(self, feet: Vec3) -> bool:
         """Within ARRIVE of the next node, or on it where it's a square of open floor."""
         i = self.path[self.next]
-        node = self.world.nodes[i]
-        if i in self.world.areas and self.world.area_at(feet) == i:
+        node = self.ground.nodes[i]
+        if i in self.ground.areas and self.ground.area_at(feet) == i:
             return True
         return _across(feet, node) <= ARRIVE and abs(feet.y - node.y) <= 0.6
 
     def _passed(self, feet: Vec3) -> bool:
         """Beyond the next node along the way to it, at its height and not far off the line: an
         overshoot, which counts as getting there."""
-        prev, node = self.world.nodes[self.path[self.next - 1]], self.world.nodes[self.path[self.next]]
+        prev, node = self.ground.nodes[self.path[self.next - 1]], self.ground.nodes[self.path[self.next]]
         along = (feet.x - node.x) * (node.x - prev.x) + (feet.z - node.z) * (node.z - prev.z)
         return along >= 0 and _across(feet, node) <= 2 * ARRIVE and abs(feet.y - node.y) <= 0.6
 

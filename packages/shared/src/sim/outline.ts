@@ -380,20 +380,20 @@ const EAST: Road[] = [
 ];
 export const ROADS: Road[] = [...CIRCUIT, ...WEB, ...REACHES, ...EAST];
 
-// The floor the buildings stand on, with the Krusty Krab's road: where people mostly are, which
-// the sky's objects float round (the client's SkyObject.ts). The main disc first: it's the cubes'
-// home (sim/cubes.ts).
-export const HOME_OUTLINE: WorldPart[] = [
+// The floor the buildings stand on: where people are on foot, and all of the world the bots' map
+// walks (botMap/ground.ts). The main disc first: it's the cubes' home (sim/cubes.ts).
+export const BUILDINGS_OUTLINE: WorldPart[] = [
   MAIN_DISC,
   ANNEX,
   FLOOR_BRIDGE,
   ...BUILDING_GROUNDS,
   KRUSTY_KRAB_GROUNDS,
-  KRUSTY_KRAB_ROAD,
-  ROAD_PLATEAU,
   BUILDING_FAN,
   ...FAN_SIDES,
 ];
+// That floor with the Krusty Krab's road and the crossroads at its end: where people mostly are,
+// which the sky's objects float round (the client's SkyObject.ts).
+export const HOME_OUTLINE: WorldPart[] = [...BUILDINGS_OUTLINE, KRUSTY_KRAB_ROAD, ROAD_PLATEAU];
 export const WORLD_OUTLINE: WorldPart[] = [...HOME_OUTLINE, ...ISLANDS, ...ROADS.flatMap((road) => road.floor)];
 
 export const HOME_GROUND = new Ground(HOME_OUTLINE);

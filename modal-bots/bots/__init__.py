@@ -1,15 +1,15 @@
 """Modal bots to make kathir world peak.
 
 Each bot runs on one of the bots app's workers (``app.py``), which decides what it's given. A dumb
-bot gets a room, a name, how long to stay and where to stand; a combat bot also gets the world map
-(``common.world``) and the parts of player names it goes after, empty for every person. The
-worker a chat-called bot runs on is its ``worker`` in ``packages/shared/src/sim/bots.ts``.
+bot gets a room, a name, how long to stay and where to stand; a combat bot also gets the parts of
+player names it goes after, empty for every person. Either loads the maps of the world it needs
+itself (``common.map``). The worker a chat-called bot runs on is its ``worker`` in ``packages/shared/src/sim/bots.ts``.
 """
 
 from collections.abc import Awaitable
 from typing import Any, Protocol, TypeVar
 
-from common import Vec3, WorldMap
+from common import Vec3
 
 from .circle_bot import run_circle_bot
 from .observer_bot import run_observer_bot
@@ -38,7 +38,6 @@ class CombatBotInvocation(Protocol):
         name: str,
         seconds: float,
         *,
-        world: WorldMap,
         targets: tuple[str, ...] = (),
         lobby_url: str | None,
         direct_ws_url: str | None = None,

@@ -6,10 +6,11 @@ from types import SimpleNamespace
 
 from bots.sniper_bot import Sniper, quarry
 from common import Controls, Welcome, WorldState
-from common.bodies import EYE_HEIGHT
+from common.map.bodies import EYE_HEIGHT, load_bodies
+from common.map.ground import load_ground
+from common.map.solids import load_solids
 from common.navigation import Route
 from common.protocol import Player, decode
-from common.world import load_world_map
 
 from tests.helpers import player, welcome
 
@@ -41,7 +42,7 @@ def test_quarry_is_every_living_person_or_whoever_the_names_pick() -> None:
 def test_sniper_fires_only_on_a_target_in_range_or_once_hit() -> None:
     """Someone 35 m off in plain view is watched, not shot; 20 m off, or anyone after a hit on
     the sniper, is shot once the grace delay has passed."""
-    world = load_world_map()
+    maps = (load_ground(), load_solids(), load_bodies())
 
     def scene(target_x: float) -> tuple[WorldState, Controls]:
         rifle = {"id": "sniper", "locked": False, "fuel": None}
@@ -59,17 +60,17 @@ def test_sniper_fires_only_on_a_target_in_range_or_once_hit() -> None:
                 return True
         return False
 
-    far = Sniper(world, (), "sniper-bot", random.Random(1), seen=dict.fromkeys(("p1", "p2"), -(10**9)))
+    far = Sniper(*maps, (), "sniper-bot", random.Random(1), seen=dict.fromkeys(("p1", "p2"), -(10**9)))
     state, controls = scene(35)
     assert not shoots(state, controls, far), "35 m off in plain view: watched, not shot"
     assert far.in_sight == "p2", "but kept in its sights"
 
-    near = Sniper(world, (), "sniper-bot", random.Random(1), seen=dict.fromkeys(("p1", "p2"), -(10**9)))
+    near = Sniper(*maps, (), "sniper-bot", random.Random(1), seen=dict.fromkeys(("p1", "p2"), -(10**9)))
     state, controls = scene(20)
     assert shoots(state, controls, near), "20 m off: shot"
     assert near.cover is None, "in the open it holds its spot after the shot"
 
-    hit = Sniper(world, (), "sniper-bot", random.Random(1), seen=dict.fromkeys(("p1", "p2"), -(10**9)))
+    hit = Sniper(*maps, (), "sniper-bot", random.Random(1), seen=dict.fromkeys(("p1", "p2"), -(10**9)))
     state, controls = scene(35)
     hit.hurt_at = state.tick
     assert shoots(state, controls, hit), "35 m off but it has just been hit: shot back"
@@ -78,18 +79,18 @@ def test_sniper_fires_only_on_a_target_in_range_or_once_hit() -> None:
 def test_sniper_wants_speedy_only_outdoors_with_a_long_way_ahead() -> None:
     """On a way from a tower floor to a keep's: no /speedy inside the tower, one as it steps out
     with the main disc still to cross, none once it's sped up or at the keep's door."""
-    world = load_world_map()
-    path = world.path(world.nodes_in(world.insides[0])[0], world.nodes_in(world.insides[-1])[0])
+    ground = load_ground()
+    path = ground.path(ground.nodes_in(ground.insides[0])[0], ground.nodes_in(ground.insides[-1])[0])
     assert path is not None
-    outdoors = [k for k, i in enumerate(path) if i not in world.indoors]
-    sniper = Sniper(world, (), "sniper-bot", random.Random(1))
-    route = Route(world, path, 0)
+    outdoors = [k for k, i in enumerate(path) if i not in ground.indoors]
+    sniper = Sniper(ground, load_solids(), load_bodies(), (), "sniper-bot", random.Random(1))
+    route = Route(ground, path, 0)
     sniper.route = route
 
     def me_at(k: int, boost: float = 0) -> Player:
         """The sniper standing on the path's k-th node, with the route there."""
         route.next = k + 1
-        node = world.nodes[path[k]]
+        node = ground.nodes[path[k]]
         me = {**player("p1", "sniper-bot"), "pos": {"x": node.x, "y": node.y + EYE_HEIGHT, "z": node.z}, "boost": boost}
         message = decode(json.dumps({**welcome(), "players": [me]}))
         assert isinstance(message, Welcome)

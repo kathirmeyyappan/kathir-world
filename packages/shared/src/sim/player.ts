@@ -7,7 +7,6 @@ import { classOf, heartsOf, lifeOf } from './classes';
 import type { Structures } from './collision';
 import { ITEMS, createItem, nextFuel, type ItemState } from './items';
 import type { InputFrame, PlayerState, Vec3 } from './types';
-import { WORLD_GROUND } from './outline';
 import { WORLD_STRUCTURES } from './world';
 
 export function createPlayer(id: string, name: string, color: string, spawn: Vec3, bot = false): PlayerState {
@@ -94,7 +93,6 @@ export function becomeAvatar(p: PlayerState, avatar: AvatarId): void {
   if (to !== from) from.exit(p);
   if (changed) to.enter(p);
   if (to !== from) {
-    to.confine(p, WORLD_GROUND);
     p.vy = 0;
     if (!to.kit) {
       p.gear = null;

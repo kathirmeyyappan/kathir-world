@@ -82,14 +82,11 @@ const NEAR = CHUNK;
 
 export class Ground {
   readonly bounds: Bounds;
-  // Metres from the origin to the furthest of the floor: a circle round all of it.
-  readonly reach: number;
   private readonly chunks = new Map<number, WorldPart[]>();
   private readonly boxes = new Map<WorldPart, Bounds>(); // each part's, worked out once
 
   constructor(readonly parts: readonly WorldPart[]) {
     this.bounds = { minX: Infinity, maxX: -Infinity, minZ: Infinity, maxZ: -Infinity };
-    let reach = 0;
     for (const part of parts) {
       const b = partBounds(part);
       this.boxes.set(part, b);
@@ -97,7 +94,6 @@ export class Ground {
       this.bounds.maxX = Math.max(this.bounds.maxX, b.maxX);
       this.bounds.minZ = Math.min(this.bounds.minZ, b.minZ);
       this.bounds.maxZ = Math.max(this.bounds.maxZ, b.maxZ);
-      reach = Math.max(reach, partReach(part));
       for (let cx = chunkOf(b.minX - NEAR); cx <= chunkOf(b.maxX + NEAR); cx++)
         for (let cz = chunkOf(b.minZ - NEAR); cz <= chunkOf(b.maxZ + NEAR); cz++) {
           const key = chunkKey(cx, cz);
@@ -106,7 +102,6 @@ export class Ground {
           else this.chunks.set(key, [part]);
         }
     }
-    this.reach = reach;
   }
 
   // Signed metres from (x, z) to the floor's edge, negative inside: exact within NEAR of the edge,
@@ -124,16 +119,6 @@ export class Ground {
   // The height of the ground at (x, z): the floor inside the edge, the ground past it.
   height(x: number, z: number): number {
     return this.inside(x, z) ? 0 : OUTSIDE_HEIGHT;
-  }
-
-  // Keeps `pos` within the world's reach, `margin` short of it: the one barrier, a circle round
-  // everything, the same for a walker and a dragon.
-  keepWithin(pos: Vec3, margin: number): void {
-    const reach = this.reach - margin;
-    const out = Math.hypot(pos.x, pos.z);
-    if (out <= reach) return;
-    pos.x *= reach / out;
-    pos.z *= reach / out;
   }
 
   // Pushes a circle of `radius` at `pos` out of the slab's footprint, as the drop's face is a wall
@@ -338,7 +323,7 @@ function chunkKey(cx: number, cz: number): number {
   return (cx + 32768) * 65536 + (cz + 32768);
 }
 
-export function partBounds(part: WorldPart): Bounds {
+function partBounds(part: WorldPart): Bounds {
   if (part.kind === 'disc')
     return { minX: part.x - part.r, maxX: part.x + part.r, minZ: part.z - part.r, maxZ: part.z + part.r };
   if (part.kind === 'bridge' && !part.square)
@@ -357,13 +342,6 @@ export function partBounds(part: WorldPart): Bounds {
       Math.max(b.maxZ, z),
     ];
   return b;
-}
-
-function partReach(part: WorldPart): number {
-  if (part.kind === 'disc') return Math.hypot(part.x, part.z) + part.r;
-  if (part.kind === 'bridge' && !part.square)
-    return Math.max(Math.hypot(part.ax, part.az), Math.hypot(part.bx, part.bz)) + part.halfWidth;
-  return Math.max(...rimOf(part).map(([x, z]) => Math.hypot(x, z)));
 }
 
 // Points round the edge of a part with corners: a square bridge's four, and a slice's or a bend's
