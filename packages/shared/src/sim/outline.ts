@@ -220,41 +220,37 @@ const [HOUSE_GROUNDS, KEEP_2_GROUNDS, KEEP_3_GROUNDS, KEEP_4_GROUNDS] = BUILDING
 const road = (name: string, from: Point, runs: Parameters<typeof layRoad>[0]['runs']): Road =>
   layRoad({ name, from, width: ROAD_WIDTH, runs });
 
-// How a road winds along its way from one disc of floor to another: a bend for each of `heights`,
-// spaced evenly along the way between `lead` metres clear of either disc, each standing `swing`
-// metres off the way, to its left and its right by turns (the first to its left, or with `swing`
-// negative its right), `radius` along the road's middle, and level at its height. The straights
-// between ease from each height to the next (roads.ts `grade`), from the floor at the rim of the
-// disc it leaves and back to it at the rim of the one it reaches, so it's nowhere a flat ramp.
-// The bends in `pads` (counted from 0) carry a boost pad halfway round.
-interface Winding {
-  swing: number;
-  heights: number[];
+// A bend of a wound road: where it stands (`at`, from 0 to 1 along the road's way between `LEAD`
+// metres clear of the disc it leaves and as far short of the one it reaches, and `out` metres off
+// that way to its left, or negative, its right), its `radius` along the road's middle, the
+// `height` it's level at, whether a boost `pad` lies halfway round it, and what the straight into
+// it `carries` in its middle (a jump, a pad), which only a level straight can.
+interface Turn {
+  at: number;
+  out: number;
   radius: number;
-  lead?: number;
-  pads?: number[];
+  height: number;
+  pad?: boolean;
+  carries?: Stretch[];
 }
 const WINDING = { lead: 30, clear: 2, steep: 0.4, short: 8 };
-// A road wound along `way`: the disc it leaves, any corners its way turns at, and the disc it reaches.
-const wound = (name: string, way: [Disc, ...Point[]], to: Disc, winding: Winding): Road => {
+// A road wound along `way` (the disc it leaves and any corners its way turns at) to the disc `to`,
+// through `turns`: level round each at its height, and between them easing from one height to the
+// next (roads.ts `grade`), from the floor at the rim of the disc it leaves and back to it at the
+// rim of the one it reaches, so no climb of it is a flat ramp. `last` is what the straight into
+// `to` carries, as a turn's `carries`. It throws where a straight is too short for its climb.
+const wound = (name: string, way: [Disc, ...Point[]], to: Disc, turns: Turn[], last?: Stretch[]): Road => {
   const [from, ...via] = way;
   const base: Point[] = [from, ...via, to];
   const lengths = base.slice(1).map((p, i) => Math.hypot(p.x - base[i].x, p.z - base[i].z));
-  const lead = winding.lead ?? WINDING.lead;
-  const [start, end] = [from.r + lead, lengths.reduce((sum, d) => sum + d, 0) - to.r - lead];
-  // The spot `d` metres along the way, and the way it runs there.
-  const along = (d: number): { at: Point; left: Point } => {
-    let i = 0;
+  const [start, end] = [from.r + WINDING.lead, lengths.reduce((sum, d) => sum + d, 0) - to.r - WINDING.lead];
+  const corners = turns.map(({ at, out }) => {
+    // The spot that far along the way, and `out` to the left of the way it runs there.
+    let [i, d] = [0, start + (end - start) * at];
     while (i < lengths.length - 1 && d > lengths[i]) d -= lengths[i++];
     const [a, b] = [base[i], base[i + 1]];
     const [ux, uz] = [(b.x - a.x) / lengths[i], (b.z - a.z) / lengths[i]];
-    return { at: { x: a.x + ux * d, z: a.z + uz * d }, left: { x: -uz, z: ux } };
-  };
-  const count = winding.heights.length;
-  const corners = winding.heights.map((_, k) => {
-    const { at, left } = along(start + ((end - start) * (k + 0.5)) / count);
-    const out = winding.swing * (k % 2 ? -1 : 1);
-    return { x: at.x + left.x * out, z: at.z + left.z * out };
+    return { x: a.x + ux * d - uz * out, z: a.z + uz * d + ux * out };
   });
   // How much of each straight a bend takes up, as roads.ts lays one: its radius by the tangent of half its turn.
   const points: Point[] = [from, ...corners, to];
@@ -263,62 +259,65 @@ const wound = (name: string, way: [Disc, ...Point[]], to: Disc, winding: Winding
     const [a, b] = [points[i - 1], points[i + 1]];
     const [ix, iz, ox, oz] = [p.x - a.x, p.z - a.z, b.x - p.x, b.z - p.z];
     const turn = Math.atan2(ix * oz - iz * ox, ix * ox + iz * oz);
-    return winding.radius * Math.tan(Math.abs(turn) / 2);
+    return turns[i - 1].radius * Math.tan(Math.abs(turn) / 2);
   });
-  const heights = [0, ...winding.heights, 0];
+  const heights = [0, ...turns.map((turn) => turn.height), 0];
   const runs = points.slice(1).map((p, k) => {
+    const turn: Turn | undefined = turns[k];
     const straight = Math.hypot(p.x - points[k].x, p.z - points[k].z) - takes[k] - takes[k + 1];
-    const [rimFrom, rimTo] = [k === 0 ? from.r + WINDING.clear : 0, k === count ? to.r + WINDING.clear : 0];
+    const [rimFrom, rimTo] = [k === 0 ? from.r + WINDING.clear : 0, turn ? 0 : to.r + WINDING.clear];
     const [length, rise] = [straight - rimFrom - rimTo, heights[k + 1] - heights[k]];
-    if (length < WINDING.short || (1.5 * Math.abs(rise)) / length > WINDING.steep)
+    const carries = turn ? turn.carries : last;
+    if (length < WINDING.short || (1.5 * Math.abs(rise)) / length > WINDING.steep || (carries && rise !== 0))
       throw new Error(`road ${name}: straight ${k} has ${length.toFixed(1)} m to climb ${rise} m in`);
-    const stretches = [...(rimFrom ? [level(rimFrom)] : []), ...grade(length, rise), ...(rimTo ? [level(rimTo)] : [])];
-    const pads = winding.pads?.includes(k) ? [0.5] : undefined;
-    return k === count ? { to: p, stretches } : { to: p, radius: winding.radius, pads, stretches };
+    const stretches = [
+      ...(rimFrom ? [level(rimFrom)] : []),
+      ...(carries ? [level(), ...carries, level()] : grade(length, rise)),
+      ...(rimTo ? [level(rimTo)] : []),
+    ];
+    return turn ? { to: p, radius: turn.radius, pads: turn.pad ? [0.5] : undefined, stretches } : { to: p, stretches };
   });
   return road(name, from, runs);
 };
 
-// The circuit winds all the way round: every road of it a string of tight bends to one side and
-// the other, each level at a height of its own, with the road easing up and down between them, up
-// to 22 m over the floor, and a pad on a bend or two.
+// The circuit: no two roads of it wind alike. From Building 2 two wide sweepers, low; from the
+// north island a climb to a plateau 20 m up, held through two wide bends, and a plunge off it;
+// then six quick chicanes along a level causeway; a double dip, 15 m, down to 3 and up to 17; a
+// straight on the floor with a jump in it into a right-angle bend, and a climb round the next;
+// and a long climb to a hairpin and a flick down to Building 3.
 const CIRCUIT: Road[] = [
-  wound('circuit north', [KEEP_2_GROUNDS, { x: -150, z: 180 }], NORTH_ISLAND, {
-    swing: 26,
-    radius: 32,
-    heights: [7, 12, 5],
-    pads: [1],
-  }),
-  wound('circuit northwest', [NORTH_ISLAND, NORTH_BEND], NORTHWEST_ISLAND, {
-    swing: 30,
-    radius: 28,
-    heights: [10, 18, 9],
-    pads: [1],
-  }),
-  wound('circuit west, north', [NORTHWEST_ISLAND, NORTHWEST_BEND], WEST_ISLAND, {
-    swing: 34,
-    radius: 28,
-    heights: [10, 20, 9, 14],
-    pads: [0, 2],
-  }),
-  wound('circuit west, south', [WEST_ISLAND, SOUTHWEST_BEND], SOUTHWEST_ISLAND, {
-    swing: -34,
-    radius: 28,
-    heights: [11, 22, 12, 14],
-    pads: [1, 3],
-  }),
-  wound('circuit southwest', [SOUTHWEST_ISLAND, SOUTH_BEND], SOUTH_ISLAND, {
-    swing: 30,
-    radius: 28,
-    heights: [9, 16, 8],
-    pads: [1],
-  }),
-  wound('circuit south', [SOUTH_ISLAND, { x: -30, z: -250 }], KEEP_3_GROUNDS, {
-    swing: -26,
-    radius: 32,
-    heights: [7, 13, 6],
-    pads: [1],
-  }),
+  wound('circuit north', [KEEP_2_GROUNDS, { x: -150, z: 180 }], NORTH_ISLAND, [
+    { at: 0.3, out: 20, radius: 45, height: 5 },
+    { at: 0.75, out: -28, radius: 36, height: 9, pad: true },
+  ]),
+  wound('circuit northwest', [NORTH_ISLAND, NORTH_BEND], NORTHWEST_ISLAND, [
+    { at: 0.18, out: -22, radius: 34, height: 12 },
+    { at: 0.47, out: 16, radius: 55, height: 20, pad: true },
+    { at: 0.68, out: -6, radius: 60, height: 20 },
+  ]),
+  wound('circuit west, north', [NORTHWEST_ISLAND, NORTHWEST_BEND], WEST_ISLAND, [
+    { at: 0.08, out: 16, radius: 22, height: 6 },
+    { at: 0.25, out: -18, radius: 22, height: 6, pad: true },
+    { at: 0.42, out: 18, radius: 24, height: 6 },
+    { at: 0.58, out: -18, radius: 22, height: 6 },
+    { at: 0.75, out: 18, radius: 24, height: 6, pad: true },
+    { at: 0.92, out: -16, radius: 22, height: 6 },
+  ]),
+  wound('circuit west, south', [WEST_ISLAND, SOUTHWEST_BEND], SOUTHWEST_ISLAND, [
+    { at: 0.12, out: 30, radius: 26, height: 15 },
+    { at: 0.38, out: -26, radius: 30, height: 3, pad: true },
+    { at: 0.62, out: 14, radius: 40, height: 13 },
+    { at: 0.86, out: -30, radius: 26, height: 17 },
+  ]),
+  wound('circuit southwest', [SOUTHWEST_ISLAND, SOUTH_BEND], SOUTH_ISLAND, [
+    { at: 0.56, out: -30, radius: 24, height: 0, carries: hop() },
+    { at: 0.86, out: 34, radius: 26, height: 12, pad: true },
+  ]),
+  wound('circuit south', [SOUTH_ISLAND, { x: -30, z: -250 }], KEEP_3_GROUNDS, [
+    { at: 0.28, out: 30, radius: 44, height: 10 },
+    { at: 0.62, out: -26, radius: 28, height: 10, pad: true },
+    { at: 0.9, out: 10, radius: 22, height: 6 },
+  ]),
 ];
 const WEB: Road[] = [
   // Over the floor the home has there already (KRUSTY_KRAB_ROAD), laid for its pad: in the half

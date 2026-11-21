@@ -314,13 +314,13 @@ wire: server and client both build the world from that file.
   `worldTop: true` on them so their tops map alike. The same goes for anything else the client
   draws: never lay a decal, glow or second mesh exactly on a surface.
 - Client cost: the renderer merges pieces with the same look in the same 48 m square into one mesh,
-  so draw calls stay in the tens however many pieces there are. The world's 14,512 pieces (5,632
+  so draw calls stay in the tens however many pieces there are. The world's 14,348 pieces (5,634
   drawn; the house's rooms and shell are 7,516 hidden pieces, the Krusty Krab 175 and the roads'
-  1,189: their risen banks, a block and a wedge to each 4 m of a graded climb, their decks and
+  1,023: their risen banks, a block and a wedge to each 4 m of a graded climb, their decks and
   their boost pads) render as
   about 100 meshes (about 15 in view at once; the roads' built ramps are 22 pieces in 15 of them, a
-  road's lengths of risen road are one mesh, 506 lengths in 18, and its boost pads a mesh of their
-  frames and a panel each, 49 pads in 74, and the floor is 340 chunks), and a raycast tries the pieces a stretch of grid cells at a
+  road's lengths of risen road are one mesh, 441 lengths in 18, and its boost pads a mesh of their
+  frames and a panel each, 50 pads in 75, and the floor is 337 chunks), and a raycast tries the pieces a stretch of grid cells at a
   time, so one across open floor costs a few µs, one through the Krusty Krab about 10 µs and one
   through the house about 130 µs. The sim's grid has height bands as well as cells, so a walker's
   tick pays only for the pieces at its own height (about 70 µs inside the house, 27 µs inside the
@@ -380,16 +380,20 @@ whatever lies on the road beneath it and what lies on the deck shows on it). It 
 run, a bend too tight, an end left up off the floor.
 
 The world's roads and islands are in `sim/outline.ts` (`ROADS`, `ISLANDS`), every road 20 m across
-(`ROAD_WIDTH`), room to drift a bend on: 25 roads, 9.4 km of them (1.6 km of that deck), mostly west of the buildings.
+(`ROAD_WIDTH`), room to drift a bend on: 25 roads, 9.3 km of them (1.6 km of that deck), mostly west of the buildings.
 One main circuit (`CIRCUIT`) runs round the west of the world, from Building 2's grounds by the
 north, northwest, west, southwest and south islands to Building 3's, closing across the floor
-between the keeps: a lap of about 2.7 km. Each road of it is wound (`wound` in `outline.ts`, a
-`Winding`): three or four bends of 28 to 32 m, turning 50° to 115° to one side and the other by
-turns, each standing off the way the road used to run and level at a height of its own, 5 to 22 m
-up, with the straights between easing from one height to the next (`grade`), so it's never level
-for long and nowhere a flat ramp; a bend or two of each carries a boost pad. A wound road throws
-where a straight is too short for its climb (the steepest of a graded climb is half again its
-mean, kept to 0.4), which says what to change. Inside it a web (`WEB`): the Krusty Krab's road itself,
+between the keeps: a lap of about 2.5 km. Each road of it is wound (`wound` in `outline.ts`): a
+list of `Turn`s, each a bend with where it stands along and off the way the road used to run, its
+radius, and the height it's level at, with the straights between easing from one height to the
+next (`grade`), so no climb of it is a flat ramp; a turn can carry a boost pad round it, and a
+level straight a jump or a pad in its middle (`carries`). No two of the circuit's roads wind
+alike, and a new one should be another kind again: two wide sweepers, low; a climb to a plateau
+20 m up, held through two wide bends, and a plunge off it; six quick chicanes along a level
+causeway; a double dip, 15 m, down to 3 and up to 17; a straight on the floor with a jump into a
+right-angle bend and a climb round the next; a long climb to a hairpin and a flick down. A wound
+road throws where a straight is too short for its climb (the steepest of a graded climb is half
+again its mean, kept to 0.4), which says what to change. Inside it a web (`WEB`): the Krusty Krab's road itself,
 laid over the floor the home has there for the pad on it, and carried
 on west from the crossroads at its end to the west island, a spoke from the crossroads to each of
 the northwest and southwest islands, and an inner ring from the north island by two small islands
