@@ -187,11 +187,17 @@ def decal(uv: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """A decal's patch reaches past its picture, which MK8 draws on it once; a part's picture
     repeats (emit_part), and past its edge would show its far edge over again. So the client sets
     the picture on a clear canvas as big as the patch reaches, and the patch's texture coordinates
-    run 0 to 1 over that. Returns those coordinates, and where the picture lies on the canvas: its
-    corner and its size, both in canvases."""
+    run 0 to 1 over that: the other way across it from the rip's, since the part is written
+    mirrored (emit_part) and the picture would be turned round with it. Returns those coordinates,
+    and where the picture lies on the canvas: its corner and its size, both in canvases."""
     lo, hi = uv.min(axis=0), uv.max(axis=0)
     picture = np.floor((lo + hi) / 2)  # the repeat the picture is in: the one the patch's middle is in
-    return (uv - lo) / (hi - lo), (picture - lo) / (hi - lo), 1 / (hi - lo)
+    size = 1 / (hi - lo)
+    coords = (uv - lo) * size
+    corner = (picture - lo) * size
+    coords[:, 0] = 1 - coords[:, 0]
+    corner[0] = 1 - corner[0] - size[0]
+    return coords, corner, size
 
 
 def simplified(pos: np.ndarray, uv: np.ndarray, keep: float) -> tuple[np.ndarray, np.ndarray]:
