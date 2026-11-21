@@ -341,7 +341,12 @@ and come together again at the stretch's end, back at the road's height. Each st
 part of the road, a road of its own up on the deck at both ends (`RoadSpec.joins`); from the
 fork until their inner sides part, and again into the meeting, the two are one level surface,
 each `bare` along the side they share (no wall and no kerb's line there, and no line on the
-maps), so which strand a kart takes is where it is across the road. A bank looks one of two ways: under a padded stretch that climbs it's a ramp built
+maps), so which strand a kart takes is where it is across the road. For the few metres next to a
+split the road and each strand are bare both sides, where a strand's outer side is still inside
+the road's own, so no line of one is drawn in the other's surface; and a risen length has a wall
+across an end only where that end shows (`Caps`: all of it where the road stops there, under a
+deck that carries on from a bank, and none between two lengths that run on into each other), so
+none stands edge-on in a surface. Two things drawn in one plane flicker wherever they differ. A bank looks one of two ways: under a padded stretch that climbs it's a ramp built
 on the floor, of stone, drawn as the structures it is; anywhere else (a level stretch up off the
 floor with a pad lying on it too) it's the floor itself risen,
 its pieces `hidden`, and the client draws the road there in the floor's own look
