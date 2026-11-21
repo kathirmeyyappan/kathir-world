@@ -1541,10 +1541,12 @@ export class Game {
     );
   }
 
-  // Whether the look (o, d) lands on the foghorn within reach with nothing in the way.
+  // Whether the look (o, d) lands on the foghorn within reach with nothing in the way. HORN stands
+  // the clock on the world's ground like any Structures, so a look landing on that ground first is
+  // no look at the clock.
   private hornAt(o: Vec3, d: Vec3): boolean {
-    const t = HORN.raycast(o, d, HORN_REACH);
-    return t !== Infinity && WORLD_STRUCTURES.raycast(o, d, t) >= t - HORN_SLACK;
+    const hit = HORN.touch(o, d, HORN_REACH);
+    return hit?.piece === 0 && WORLD_STRUCTURES.raycast(o, d, hit.t) >= hit.t - HORN_SLACK;
   }
 
   private updateHover(): void {
