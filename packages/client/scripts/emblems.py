@@ -1,6 +1,6 @@
-"""Draws the emblems made here (render/liveries.ts): each the off-white disc of Mario Kart 8's
-emblems, which kart-model.py takes from that game for the Mario family, filling the picture, with
-a mark in its middle.
+"""Draws the emblems made here (render/liveries.ts): each a white disc filling the picture, the
+shape of Mario Kart 8's emblems (which kart-model.py takes from that game for the Mario family,
+and are off-white), with a mark in its middle.
 
     pip install pillow
     python packages/client/scripts/emblems.py
@@ -20,7 +20,7 @@ OUT = CLIENT / "public" / "assets" / "textures" / "emblems"
 
 SIZE = 64  # px: an emblem's picture, each side
 FINE = 8  # times that size it's drawn at, then brought down, so its edges come out smooth
-DISC = (203, 204, 203)  # the off-white of Mario Kart 8's badges
+DISC = (255, 255, 255)
 
 # Each emblem's mark: its picture, and the share of the disc's width its longer side takes.
 EMBLEMS: dict[str, tuple[Path, float]] = {

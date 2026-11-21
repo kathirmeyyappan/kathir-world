@@ -2,7 +2,7 @@
 // wears, as a kart they drop does (vehicles/KartMesh.ts). The primary is the colour the look is
 // known by, which its wearer is named and marked in (`nameColour`), and the secondary the one that
 // goes with it; the emblem names a picture of its badge,
-// the look's mark on an off-white disc that fills the picture edge to edge
+// the look's mark on a disc that fills the picture edge to edge, white on the ones made here
 // (/assets/textures/emblems/<emblem>.png, about 5 KB, fetched by whatever first draws it).
 import type { Appearance, AvatarId } from '@world/shared';
 
