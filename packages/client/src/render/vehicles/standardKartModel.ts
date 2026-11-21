@@ -21,12 +21,5 @@ export const STANDARD_KART: KartModel = {
     { at: [0.456, 0.821, -1.381], way: [0.104, 0.354, -0.929] },
     { at: [-0.456, 0.821, -1.381], way: [-0.104, 0.354, -0.929] },
   ],
-  paints: {
-    mario: { colours: ['#183ab9', '#aa0f10'], emblem: 'mario' },
-    luigi: { colours: ['#10287e', '#156d05'], emblem: 'luigi' },
-    wario: { colours: ['#761f7b', '#ffb800'], emblem: 'wario' },
-    waluigi: { colours: ['#6b0f94', '#130057'], emblem: 'waluigi' },
-    peach: { colours: ['#c0a20b', '#e15660'], emblem: 'peach' },
-    daisy: { colours: ['#cb6a00', '#eba800'], emblem: 'daisy' },
-  },
+  emblem: { at: [0.07813, 0.1875], size: [0.84375, 0.78125] },
 };
