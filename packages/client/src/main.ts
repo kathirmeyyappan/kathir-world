@@ -1,6 +1,5 @@
 import { showHome } from './app/home';
 import type { Game } from './game/Game';
-import { IS_TOUCH } from './input/touch';
 import { leaveRoom } from './net/lobby';
 import { reloadOnStaleChunks } from './staleBuild';
 
@@ -33,37 +32,6 @@ async function main(): Promise<void> {
   game.start();
   stopReloading();
   requestAnimationFrame(() => loading.classList.add('hidden'));
-  showStart(canvas);
-}
-
-// The world waits behind one press. It's what lets the browser start sound (Sfx unlocks on it; on a
-// touchscreen only a tap does, never a drag), and with a mouse it takes the pointer, so moving the
-// mouse turns the view from the start. Pressing anywhere on it pushes the button in. No key gets
-// past it: Enter would open the chat behind it, and the typing then holds the focus the press needs.
-const START_FADE_MS = 200; // matches #start's transition
-function showStart(canvas: HTMLCanvasElement): void {
-  const gate = document.getElementById('start')!;
-  gate.querySelector('.label')!.textContent = IS_TOUCH ? 'TAP TO PLAY' : 'CLICK TO PLAY';
-  gate.classList.remove('hidden');
-  gate.addEventListener('pointerdown', () => gate.classList.add('pressed'));
-  for (const up of ['pointerup', 'pointercancel', 'pointerleave'])
-    gate.addEventListener(up, () => gate.classList.remove('pressed'));
-  const keys = (e: KeyboardEvent) => e.stopPropagation();
-  window.addEventListener('keydown', keys, { capture: true });
-  gate.addEventListener(
-    'click',
-    () => {
-      window.removeEventListener('keydown', keys, { capture: true });
-      if (!IS_TOUCH) void canvas.requestPointerLock?.();
-      // A phone or tablet plays fullscreen, out from under the browser's bars, where its browser
-      // can take a page fullscreen (an iPhone's can't, so it's left as it is).
-      else if (document.fullscreenEnabled)
-        void document.documentElement.requestFullscreen({ navigationUI: 'hide' }).catch(() => {});
-      gate.classList.add('gone');
-      setTimeout(() => gate.remove(), START_FADE_MS);
-    },
-    { once: true },
-  );
 }
 
 main().catch((err) => {

@@ -134,7 +134,6 @@ export const DRAGON: ClassSpec = {
   life: { hearts: 40, row: 8, sprite: 'heart' },
   kit: false,
   bots: false,
-  corpseSeconds: 30,
   actions: {
     'roar-1': { key: 'KeyA', mode: 'tap' },
     'roar-2': { key: 'KeyS', mode: 'tap' },

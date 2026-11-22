@@ -35,6 +35,11 @@ export class PositionHistory {
     while (this.entries.length > MAX_REWIND_TICKS + 1) this.entries.shift();
   }
 
+  // Forgets where `id` was: they're in a new body, which was never where the last one was.
+  forget(id: string): void {
+    for (const e of this.entries) e.was.delete(id);
+  }
+
   // Where `id` was at `tick`, which may be fractional (the client draws between snapshots, so
   // it can be looking at tick 41.4): the eye point between the two records, and the spine of the
   // earlier one (it moves less than a body's width in a tick). Null when there is no record, e.g.

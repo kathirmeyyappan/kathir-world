@@ -22,8 +22,8 @@ import {
   MAX_PLAYERS,
   RENAME_SECONDS,
   CHILL_SECONDS,
-  DEATH_SCREEN_SECONDS,
   NAMED_COLORS,
+  RESPAWN_SECONDS,
   SPEEDY_SECONDS,
   STEP_UP,
   TICK_DT,
@@ -68,13 +68,12 @@ declare function clearInterval(handle: unknown): void;
 
 const SPAWN_WALL_MARGIN = 3;
 const SPAWN_MARGIN = 1; // metres a spawn keeps inside its area: more than a body's radius
-// Browsers leave whenever the player rejoins during the death screen, with a little extra time
-// as a fallback. Bots cannot rejoin themselves, so approximate that window's midpoint.
+// How long the dead lie where they fell: a person until they're brought back, a bot, which never
+// is, until its seat is dropped.
+const RESPAWN_TICKS = RESPAWN_SECONDS * TICK_RATE;
 const BOT_CORPSE_TICKS = 5 * TICK_RATE;
 const OUT_OF_BOUNDS_STEPS = Math.round(OUT_OF_BOUNDS_SECONDS * TICK_RATE);
-const BROWSER_CORPSE_TICKS = (DEATH_SCREEN_SECONDS + 3) * TICK_RATE;
 const SPAWN_CUBE_MARGIN = 4;
-const GONE: ClientLink = { send() {} }; // the link of a body whose client has left
 const POUND_HEIGHT = 1; // metres over or under where a ground pound lands that its reach goes: a jump clears it
 const CALLED_BOT_RANGE = 50; // metres from the caller, across the floor, that a called bot spawns within
 
@@ -89,6 +88,7 @@ interface Seat {
   lastRenameTick: number;
   held: ItemAction[]; // last frame's actions, for the press edge of tap ones
   diedTick: number | null;
+  onFoot: AvatarId; // the look on foot they last wore, which they come back from the dead in
   outSteps: number; // steps taken stood on the ground past the edge, one heart lost every OUT_OF_BOUNDS_STEPS
   state: PlayerState;
   link: ClientLink;
@@ -102,7 +102,6 @@ export interface JoinOptions extends BotPlacement {
   // A bot's spawn and avatar are honoured as given, its look fixed for the run. A person always
   // spawns at random, in the avatar if it's one on foot they could switch to by command.
   color?: string; // one of NAMED_COLORS' names, for the standard body; else one of them at random
-  respawn?: boolean; // a person back after dying (the death screen's reload): RESPAWN_AREAS, not SPAWN_AREAS
 }
 
 // Starts a bot for this room; the host wires it to Modal. Rejects with a message on failure.
@@ -207,16 +206,12 @@ export class Room {
       return null;
     }
     const id = `p${this.nextPlayerId++}`;
-    const at =
-      opts.bot && opts.spawn
-        ? this.placedSpawn(opts.spawn)
-        : this.spawnPoint(opts.respawn && !opts.bot ? RESPAWN_AREAS : SPAWN_AREAS);
+    const at = opts.bot && opts.spawn ? this.placedSpawn(opts.spawn) : this.spawnPoint(SPAWN_AREAS);
     const names = Object.keys(NAMED_COLORS);
     const named =
       opts.color && Object.hasOwn(NAMED_COLORS, opts.color) ? opts.color : names[Math.floor(this.rng() * names.length)];
     const color = NAMED_COLORS[named];
-    const state = createPlayer(id, sanitizeName(rawName), color, at, !!opts.bot);
-    state.yaw = this.rng() * 2 * Math.PI; // a fresh body faces any way, so no landmark greets every spawn
+    const state = this.newBody(id, sanitizeName(rawName), color, at, !!opts.bot);
     if (opts.bot && opts.avatar) {
       becomeAvatar(state, opts.avatar);
       state.avatarLocked = true;
@@ -234,6 +229,7 @@ export class Room {
       lastRenameTick: -Infinity,
       held: [],
       diedTick: null,
+      onFoot: state.avatar,
       outSteps: 0,
     });
     link.send({
@@ -271,34 +267,50 @@ export class Room {
     }
   }
 
-  // A player's client went. A dead one whose class keeps its body for a while stays as that body
-  // until its time (step); anyone else goes at once.
+  // The seat goes, its client gone or its bot dead long enough, and a dead one's body with it.
   leave(id: string): void {
-    const seat = this.seats.get(id);
-    if (!seat) return;
-    if (seat.state.dead && classOf(seat.state.avatar).corpseSeconds !== null) {
-      seat.link = GONE;
-      seat.queue = [];
-      return;
-    }
-    this.remove(id);
-  }
-
-  // The seat goes. A dead one's body poofs away on every client and leaves CORPSE_DROP on whatever
-  // it was lying on (a long body, at points along it), each theirs to look at.
-  private remove(id: string): void {
     const seat = this.seats.get(id);
     if (!seat) return;
     this.seats.delete(id);
     this.garage.getOut(seat.state);
-    if (seat.state.dead) {
-      const from = { avatar: seat.state.avatar, color: seat.state.color };
-      for (const at of classOf(seat.state.avatar).lies(seat.state, this.structures))
-        dropPickup(this.pickups, CORPSE_DROP, at, this.rng, from);
-    }
+    if (seat.state.dead) this.buryBody(seat.state);
     this.broadcast({ t: 'leave', id, name: seat.state.name });
     this.log(`${seat.state.name} (${id}) left ${this.id}, ${this.seats.size} online`);
     if (this.humanCount === 0) this.onEmpty?.(); // bots alone don't keep a room open
+  }
+
+  // A dead body goes, which every client sees as a poof, and leaves CORPSE_DROP on whatever it was
+  // lying on (a long body, at points along it), each theirs to look at.
+  private buryBody(body: PlayerState): void {
+    const from = { avatar: body.avatar, color: body.color };
+    for (const at of classOf(body.avatar).lies(body, this.structures))
+      dropPickup(this.pickups, CORPSE_DROP, at, this.rng, from);
+  }
+
+  // A dead person comes back: the same seat, name, colour and score in a new body, as whoever comes
+  // in is given (a full life, nothing held or worn), somewhere in RESPAWN_AREAS, in the look on
+  // foot they last wore. The frames still queued were the dead body's.
+  private respawn(seat: Seat): void {
+    const was = seat.state;
+    this.buryBody(was);
+    const body = this.newBody(was.id, was.name, was.color, this.spawnPoint(RESPAWN_AREAS), false);
+    becomeAvatar(body, seat.onFoot);
+    body.kills = was.kills;
+    body.deaths = was.deaths;
+    body.lastSeq = was.lastSeq;
+    seat.state = body;
+    seat.diedTick = null;
+    seat.outSteps = 0;
+    seat.held = [];
+    seat.queue = [];
+    this.history.forget(was.id);
+  }
+
+  // A body new to the world at `at`, facing any way, so no landmark greets every spawn.
+  private newBody(id: string, name: string, color: string, at: Vec3, bot: boolean): PlayerState {
+    const body = createPlayer(id, name, color, at, bot);
+    body.yaw = this.rng() * 2 * Math.PI;
+    return body;
   }
 
   receive(id: string, raw: unknown): void {
@@ -326,6 +338,9 @@ export class Room {
       }
       case 'rename':
         this.rename(seat, msg.name);
+        return;
+      case 'respawn':
+        if (seat.state.dead && !seat.state.bot) this.respawn(seat);
         return;
       case 'ping':
         seat.link.send({ t: 'pong', at: msg.at });
@@ -461,6 +476,7 @@ export class Room {
     });
     if (!killed) return;
     this.garage.getOut(victim);
+    victim.deaths++;
     const seat = this.seats.get(victim.id);
     if (seat) seat.diedTick = this.tick;
     if (!shooter || shooter === victim) return this.broadcast({ t: death, victim: victim.id });
@@ -554,11 +570,14 @@ export class Room {
   step(): void {
     for (const [id, seat] of this.seats) {
       const me = seat.state;
-      const stays = classOf(me.avatar).corpseSeconds;
-      const corpseTicks = stays !== null ? stays * TICK_RATE : me.bot ? BOT_CORPSE_TICKS : BROWSER_CORPSE_TICKS;
-      if (seat.diedTick !== null && this.tick - seat.diedTick >= corpseTicks) {
-        this.remove(id);
+      const lain = seat.diedTick === null ? 0 : this.tick - seat.diedTick;
+      if (me.bot && lain >= BOT_CORPSE_TICKS) {
+        this.leave(id);
         seat.link.close?.('dead');
+        continue;
+      }
+      if (!me.bot && lain >= RESPAWN_TICKS) {
+        this.respawn(seat);
         continue;
       }
       if (AVATARS[me.avatar].regen && !me.dead)
@@ -699,6 +718,7 @@ export class Room {
       return false;
     }
     becomeAvatar(seat.state, avatar);
+    if (classOf(avatar).id === 'walker') seat.onFoot = avatar;
     this.storm(seat);
     return true;
   }
@@ -776,7 +796,7 @@ export class Room {
   }
 
   // "/kill-bots": every living bot drops dead where it stands, as if shot, so each lies as a corpse
-  // and is dropped like any other; a bot's run ends when the room closes its connection. People only.
+  // until its seat is dropped; a bot's run ends when the room closes its connection. People only.
   private killBots(seat: Seat): void {
     if (seat.state.bot) return this.refuse(seat, "bots can't kill bots");
     const bots = [...this.seats.values()].filter((s) => s.state.bot && !s.state.dead);
@@ -784,6 +804,7 @@ export class Room {
     for (const bot of bots) {
       bot.state.hearts = 0;
       bot.state.dead = true;
+      bot.state.deaths++;
       bot.diedTick = this.tick;
     }
     this.broadcast({ t: 'system', text: `${seat.state.name} killed ${botRollCall(bots.map((b) => b.state.name))}` });

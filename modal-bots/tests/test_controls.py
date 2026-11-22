@@ -31,6 +31,7 @@ class FakeConnection:
             avatar_locked=False,
             hearts=10,
             kills=0,
+            deaths=0,
             bot=False,
             dead=False,
         )

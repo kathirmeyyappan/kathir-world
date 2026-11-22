@@ -43,7 +43,6 @@ export const WALKER: ClassSpec = {
   life: { hearts: MAX_HEARTS, row: 5, sprite: 'heart' },
   kit: true,
   bots: true,
-  corpseSeconds: null,
   actions: {},
   actionTicks: 0,
   fits: () => true,

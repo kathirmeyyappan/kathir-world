@@ -14,7 +14,7 @@ import { nameColour } from '../render/liveries';
 const CHAT_LINES = 8;
 const CHAT_FADE_MS = 12_000;
 // Lines sent from this tab, oldest first, that Up and Down step back through like a shell's history.
-// Kept in sessionStorage, since dying reloads the page.
+// Kept in sessionStorage, so a reload of the page keeps them.
 const HISTORY_KEY = 'world.chat-history';
 const HISTORY_LINES = 50;
 // What a kill by a look's own move is said to be with (the kill's `item` on the wire): a strike is
@@ -261,8 +261,8 @@ export class Hud {
     this.system(`${p.name} joined`);
   }
 
-  // Once per snapshot: names (a rename shows here), hearts and kills on the roster. Re-renders only
-  // when something moved.
+  // Once per snapshot: names (a rename shows here), hearts, kills and deaths on the roster.
+  // Re-renders only when something moved.
   updateStats(
     list: {
       id: string;
@@ -270,6 +270,7 @@ export class Hud {
       color: string;
       hearts: number;
       kills: number;
+      deaths: number;
       dead: boolean;
       avatar: AvatarId;
     }[],
@@ -286,6 +287,7 @@ export class Hud {
         e.hearts !== p.hearts ||
         e.life !== life ||
         e.kills !== p.kills ||
+        e.deaths !== p.deaths ||
         e.dead !== p.dead
       ) {
         e.name = p.name;
@@ -293,6 +295,7 @@ export class Hud {
         e.hearts = p.hearts;
         e.life = life;
         e.kills = p.kills;
+        e.deaths = p.deaths;
         e.dead = p.dead;
         changed = true;
       }
@@ -507,7 +510,8 @@ export class Hud {
 
 function rosterRow(p: RosterEntry, mine: boolean): HTMLLIElement {
   const li = document.createElement('li');
-  if (mine) li.className = 'me';
+  li.classList.toggle('me', mine);
+  li.classList.toggle('dead', p.dead); // dimmed, with no hearts to show
   const dot = document.createElement('span');
   dot.className = 'dot';
   dot.style.background = p.color;
@@ -516,12 +520,9 @@ function rosterRow(p: RosterEntry, mine: boolean): HTMLLIElement {
   li.append(document.createTextNode(p.name + (mine ? ' (you)' : '')));
   const stats = document.createElement('span');
   stats.className = 'stats';
-  // Dead: just the skull. Alive: hearts and kills.
-  if (p.dead) stats.append(pixelSvg(SKULL, 'skull'));
-  else {
-    stats.append(pixelSvg(HEART, 'heart', { '+': 'hi' }), text(`${fmt(p.hearts)}/${p.life}`));
-    stats.append(pixelSvg(KNIFE, 'knife', { G: 'guard', H: 'hilt' }), text(String(p.kills)));
-  }
+  if (!p.dead) stats.append(pixelSvg(HEART, 'heart', { '+': 'hi' }), text(`${fmt(p.hearts)}/${p.life}`));
+  stats.append(pixelSvg(KNIFE, 'knife', { G: 'guard', H: 'hilt' }), text(String(p.kills)));
+  stats.append(pixelSvg(SKULL, 'skull'), text(String(p.deaths)));
   li.append(stats);
   return li;
 }
@@ -534,6 +535,7 @@ interface RosterPlayer {
   hearts?: number;
   avatar: AvatarId;
   kills?: number;
+  deaths?: number;
   dead?: boolean;
 }
 
@@ -544,6 +546,7 @@ interface RosterEntry {
   hearts: number;
   life: number; // a full life for their class
   kills: number;
+  deaths: number;
   dead: boolean;
 }
 
@@ -555,6 +558,7 @@ function entry(p: RosterPlayer): RosterEntry {
     hearts: p.hearts ?? MAX_HEARTS,
     life: heartsOf(p.avatar),
     kills: p.kills ?? 0,
+    deaths: p.deaths ?? 0,
     dead: !!p.dead,
   };
 }

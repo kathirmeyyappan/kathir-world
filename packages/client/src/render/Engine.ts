@@ -96,7 +96,7 @@ export class Engine {
 
     window.addEventListener('resize', () => this.engine.resize());
     // The GPU dropping the context leaves nothing to draw with: the size drawn is pinned off for
-    // this device (Picture.lost) and the page starts over, as it does after a death.
+    // this device (Picture.lost) and the page starts over.
     if (main)
       this.engine.onContextLostObservable.add(() => {
         this.picture.lost();

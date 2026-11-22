@@ -17,6 +17,7 @@ import {
   MAX_BOTS,
   MAX_PITCH,
   MAX_REWIND_TICKS,
+  RESPAWN_SECONDS,
   MOVE_SPEED,
   PICKUP_AREAS,
   RENAME_SECONDS,
@@ -227,27 +228,35 @@ test('players spawn at random spots in every spawn area, on its floor, and the d
     r.kind === 'disc'
       ? Math.hypot(p.x - r.x, p.z - r.z) <= r.r
       : r.kind === 'rect' && Math.abs(p.x - r.x) <= r.w / 2 && Math.abs(p.z - r.z) <= r.d / 2;
-  for (const [areas, respawn, joins] of [
-    [SPAWN_AREAS, false, 40],
-    [RESPAWN_AREAS, true, 120],
+  const comeIn = () => {
+    const id = room.join('new', link())!;
+    const me = room.players.find((p) => p.id === id)!;
+    room.leave(id);
+    return me;
+  };
+  const ghost = room.join('ghost', link())!;
+  const comeBack = () => {
+    room.players.find((p) => p.id === ghost)!.dead = true;
+    room.receive(ghost, { t: 'respawn' });
+    return room.players.find((p) => p.id === ghost)!;
+  };
+  for (const [areas, spawn, times] of [
+    [SPAWN_AREAS, comeIn, 40],
+    [RESPAWN_AREAS, comeBack, 120],
   ] as const) {
     const used = new Set<number>();
     const spots = new Set<string>();
-    for (let i = 0; i < joins; i++) {
-      const l = link();
-      const id = room.join(`p${i}`, l, { respawn })!;
-      const me = l.inbox[0].t === 'welcome' ? l.inbox[0].players.find((p) => p.id === id)! : null;
-      assert.ok(me);
+    for (let i = 0; i < times; i++) {
+      const me = spawn();
       const area = areas.findIndex(({ region }) => inside(region, me.pos));
       assert.ok(area >= 0, 'in a spawn area');
       used.add(area);
       spots.add(`${me.pos.x.toFixed(1)},${me.pos.z.toFixed(1)}`);
       const floor = areas[area].region.y;
       assert.ok(me.pos.y - EYE_HEIGHT <= floor + STEP_UP + 1e-9, 'on the floor, or a step up from it');
-      room.leave(id);
     }
     assert.equal(used.size, areas.length, 'every area gets some');
-    assert.equal(spots.size, joins, 'all different');
+    assert.equal(spots.size, times, 'all different');
   }
 });
 
@@ -511,36 +520,58 @@ test('commands and their shortcuts swap items freely, gear goes on beside, items
   assert.equal(alice.gear, null, 'and takes the gear off');
 });
 
-test('a corpse that never rejoins is removed and its link closed', () => {
-  const room = new Room('corpse', { seed: 5 });
+test('the dead: a person comes back after 10 s, or at once when they ask, in their own seat with their score, in a new body where the old one leaves its heart; a dead bot is dropped after 5 s', () => {
+  const room = new Room('respawn', { seed: 5, pickupAreas: [] });
   const a = link();
-  let closed = false;
-  const bLink = {
-    ...link(),
-    close: () => {
-      closed = true;
-    },
-  };
   const ida = room.join('alice', a)!;
-  const idb = room.join('bot', bLink)!;
-  const alice = room.players.find((p) => p.id === ida)!;
-  const bot = room.players.find((p) => p.id === idb)!;
-  bot.pos = { x: alice.pos.x, y: alice.pos.y, z: alice.pos.z + 5 };
   room.receive(ida, { t: 'chat', text: '/sniper' });
-  press(room, ida, 0, true);
-  assert.ok(bot.dead, 'a scoped sniper headshot');
-  for (let i = 0; i < 30 * 12; i++) room.step();
-  assert.ok(
-    room.players.some((p) => p.id === idb),
-    'still a corpse at 12 s',
-  );
-  for (let i = 0; i < 30 * 2; i++) room.step();
-  assert.ok(!room.players.some((p) => p.id === idb), 'gone after the death screen would have reloaded');
-  assert.ok(closed, 'its socket was closed');
-  assert.ok(
-    a.inbox.some((m) => m.t === 'leave' && m.id === idb),
-    'everyone saw it leave',
-  );
+  const closed: string[] = [];
+  const closing = (who: string) => ({ ...link(), close: () => closed.push(who) });
+  const idb = room.join('bob', closing('bob'))!;
+  const idc = room.join('circle-bot', closing('bot'), { bot: true })!;
+  const player = (id: string) => room.players.find((p) => p.id === id)!;
+  // Alice snipes whoever is put 5 m in front of her, through the head.
+  const snipe = (victim: string) => {
+    const alice = player(ida);
+    player(victim).pos = { x: alice.pos.x, y: alice.pos.y, z: alice.pos.z + 5 };
+    for (let i = 0; i < ITEMS.sniper.cooldownTicks; i++) room.step();
+    press(room, ida, 0, true);
+    assert.ok(player(victim).dead);
+  };
+  room.receive(idb, { t: 'chat', text: '/gun' });
+  player(idb).kills = 2;
+  snipe(idb);
+  const died = room.tick - 1; // on the press, a tick before its release
+  snipe(idc);
+  const lay = { ...player(idb).pos };
+
+  while (room.tick < died + RESPAWN_SECONDS * TICK_RATE - 5) room.step();
+  assert.ok(player(idb).dead, 'still lying there just short of 10 s');
+  assert.deepEqual(closed, ['bot'], 'the bot was dropped on the way, its connection closed');
+  assert.ok(!room.players.some((p) => p.id === idc));
+  const seen = room.tick;
+  for (let i = 0; i < 10; i++) room.step();
+  const bob = player(idb);
+  assert.ok(!bob.dead && bob.hearts === MAX_HEARTS && bob.item === null, 'a new body, with nothing in hand');
+  assert.ok(Math.hypot(bob.pos.x - lay.x, bob.pos.z - lay.z) > 1, 'somewhere else');
+  assert.deepEqual([bob.name, bob.kills, bob.deaths], ['bob', 2, 1], 'the same player, with their score');
+  assert.deepEqual(closed, ['bot'], 'bob never left');
+  assert.ok(!a.inbox.some((m) => m.t === 'leave' && m.id === idb));
+  const snap = [...a.inbox].reverse().find((m) => m.t === 'snap')!;
+  const hearts = snap.pickups.filter((p) => p.kind === 'big-heart');
+  assert.equal(hearts.length, 2, "a heart each where bob's body and the bot's lay");
+  assert.ok(hearts.some((p) => Math.hypot(p.x - lay.x, p.z - lay.z) < 0.01));
+  // A shot at where the body lay, judged at a tick it lay there, finds nobody: bob isn't hit where he was.
+  room.receive(ida, { t: 'input', f: { ...frame(0, ['scope', 'shoot']), view: seen } });
+  room.step();
+  assert.equal(player(idb).hearts, MAX_HEARTS);
+
+  // Dead again in another look and as a dragon, bob asks to come back: at once, in the look on foot.
+  room.receive(idb, { t: 'chat', text: '/elizabeth' });
+  room.receive(idb, { t: 'chat', text: '/light-dragon' });
+  player(idb).dead = true;
+  room.receive(idb, { t: 'respawn' });
+  assert.ok(!player(idb).dead && player(idb).avatar === 'elizabeth' && player(idb).dragon === null);
 });
 
 test('looks: /elizabeth is for good, and /red recolours', () => {
@@ -939,50 +970,6 @@ test('/circle-bot asks the host to start a bot in this room; people only, defaul
   assert.deepEqual(d.inbox.at(-1), { t: 'refused', text: "bots can't be called in this room" });
 });
 
-test('a bot corpse lingers for 5 s while a browser gets the full death screen', () => {
-  const room = new Room('corpses', { seed: 5 });
-  const ida = room.join('alice', link())!;
-  room.receive(ida, { t: 'chat', text: '/sniper' });
-  let botClosed = false;
-  const idb = room.join(
-    'circle-bot',
-    {
-      ...link(),
-      close: () => {
-        botClosed = true;
-      },
-    },
-    { bot: true },
-  )!;
-  let humanClosed = false;
-  const idc = room.join('bob', {
-    ...link(),
-    close: () => {
-      humanClosed = true;
-    },
-  })!;
-  const [alice, bot, bob] = [ida, idb, idc].map((id) => room.players.find((p) => p.id === id)!);
-  bot.pos = { x: alice.pos.x, y: alice.pos.y, z: alice.pos.z + 5 };
-  press(room, ida, 0, true);
-  assert.ok(bot.dead, 'sniper headshot');
-  bob.pos = { x: alice.pos.x, y: alice.pos.y, z: alice.pos.z + 5 };
-  for (let i = 0; i < ITEMS.sniper.cooldownTicks; i++) room.step();
-  press(room, ida, 0, true);
-  assert.ok(bob.dead);
-
-  for (let i = 0; i < 30 * 3; i++) room.step();
-  assert.ok(!botClosed, 'the bot corpse is still visible before 5 s');
-  assert.ok(!humanClosed, 'the browser corpse is still visible');
-
-  for (let i = 0; i < 30 * 2; i++) room.step();
-  assert.ok(botClosed, "the bot's connection was closed after about 5 s");
-  assert.ok(!room.players.some((p) => p.id === idb), "the bot's corpse is gone");
-  assert.ok(!humanClosed, 'the browser still has time to use its death screen');
-
-  for (let i = 0; i < 30 * 9; i++) room.step();
-  assert.ok(humanClosed, "the browser's fallback cleanup eventually closed it");
-});
-
 test('/colgera: a crystal heart a ring, shattered by a bullet up into its underside and by nothing else (a spray washes over it), the third shot killing it; it rises in a storm that ices the floor and throws the bystanders', () => {
   const room = new Room('colgera', { seed: 5, structures: new Structures([]), spawnBot: async () => {} });
   const a = link();
@@ -1062,7 +1049,7 @@ test('/colgera: a crystal heart a ring, shattered by a bullet up into its unders
   assert.ok(b.inbox.some((m) => m.t === 'kill' && m.victim === ida && m.shooter === idb));
 });
 
-test('/light-dragon: 40 hearts, full, breath for good and no kit, 1.5 hearts back a second, one roar at a time, no bots; dead, it lies 30 s and leaves hearts along its body', () => {
+test('/light-dragon: 40 hearts, full, breath for good and no kit, 1.5 hearts back a second, one roar at a time, no bots; dead, it leaves hearts along its body', () => {
   const room = new Room('dragon', { seed: 3, structures: new Structures([]), spawnBot: async () => {} });
   const a = link();
   const ida = room.join('alice', a, { room: 'dragon' })!;
@@ -1134,9 +1121,9 @@ test('/light-dragon: 40 hearts, full, breath for good and no kit, 1.5 hearts bac
   assert.deepEqual(a.inbox.at(-1), { t: 'refused', text: "bots can't be an asian-dragon" });
 
   // Shot dead by a sniper at its head, level with it (the body hangs under the head, in the way of
-  // a shot from the ground): it drops to the ground and lies there, long after alice has gone, then
-  // poofs with a heart under the head and four along the body. Bob is set back down before the
-  // fall from up there can kill him.
+  // a shot from the ground): it drops to the ground and lies there until alice goes, then poofs with
+  // a heart under the head and four along the body. Bob is set back down before the fall from up
+  // there can kill him.
   bob.pos = { x: alice.pos.x, y: alice.pos.y, z: alice.pos.z - 6 };
   alice.hearts = 9; // under a headshot, even with the tick's regen
   press(room, idb, 0, true);
@@ -1149,13 +1136,7 @@ test('/light-dragon: 40 hearts, full, breath for good and no kit, 1.5 hearts bac
   for (let i = 0; i < 9 * TICK_RATE; i++) room.step();
   assert.equal(alice.pos.y, dragonShape('light-dragon').underside.head, 'the head came to rest on the ground');
   room.leave(ida);
-  for (let i = 0; i < 20 * TICK_RATE; i++) room.step();
-  assert.ok(
-    room.players.some((p) => p.id === ida),
-    'still lying there at 29 s',
-  );
-  for (let i = 0; i < 2 * TICK_RATE; i++) room.step();
-  assert.ok(!room.players.some((p) => p.id === ida), 'gone at 30 s');
+  room.step();
   const snap = [...b.inbox].reverse().find((m) => m.t === 'snap')!;
   assert.equal(snap.pickups.filter((p) => p.kind === 'big-heart').length, 5);
 });

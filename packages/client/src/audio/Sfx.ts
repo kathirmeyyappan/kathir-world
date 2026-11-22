@@ -380,7 +380,7 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   // length, and Roz's line. Each is heard only by a player who dies as that look, so each is fetched
   // on demand. Each is a cut from something longer, so each swells and fades by how its cut begins
   // and ends: the song comes in mid-bar, and the jingle and the line stop short. The song has no
-  // fade: it lasts the death screen out, whose reload ends it.
+  // fade: it lasts the death screen out, and the respawn ends it.
   'mario-death': { file: 'mario-death.mp3', half: 6, reach: 30, volume: 0.25, fade: 0.4, lazy: true },
   'spongebob-death': { file: 'spongebob-death.mp3', half: 6, reach: 30, volume: 0.25, swell: 0.8, lazy: true },
   'mike-death': { file: 'mike-death.mp3', half: 6, reach: 30, volume: 0.25, swell: 0.15, fade: 0.15, lazy: true },

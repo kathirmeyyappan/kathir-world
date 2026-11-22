@@ -120,6 +120,7 @@ import { Condition } from '../ui/Condition';
 import { KartGauge } from '../ui/KartGauge';
 import { EdgeFlash } from '../ui/EdgeFlash';
 import { Death } from '../ui/Death';
+import { StartGate } from '../ui/StartGate';
 import { Fuel } from '../ui/Fuel';
 import { GearHud } from '../ui/GearHud';
 import { Hearts } from '../ui/Hearts';
@@ -192,6 +193,7 @@ const GLOAT_DELAY = 0.4; // seconds after a kill that the killer's own line for 
 const OWN_MOVE = 0.6; // the share of its volume the player's own ground pound turns over at, as their own steps do (Footsteps.ts)
 const DEATH_SOUND_DELAY = 0.5; // seconds from dying to the look's death sound: the hurt sound or cry of the last hit, played out
 const CRY_GAP_MS = 600; // a player's cries, at a hit or a boost, come no closer together than this, however short the cry
+const DIRGE = 'dirge'; // who says the look's death sound (Sfx.play's `by`): nobody's voice, so it cuts no cry and a respawn can end it
 type Line = 'hurt' | 'kill' | 'boost' | 'enter' | 'death'; // the lines of a look's voice that are a list of takes (voices.ts)
 // Metres nearer than the player or building whose theme is playing another has to be to take the
 // theme over, so two at a like distance don't trade it back and forth.
@@ -234,7 +236,7 @@ export class Game {
   private readonly frost: FrostLayer; // the ice sprayed over the world's surfaces (sim/frost.ts)
   // What a click uses, under the crosshair within reach: a door (sim/doors.ts).
   private hoveredUse: string | null = null;
-  private introduced = false; // the look the player came in as has said its intro
+  private introduced = false; // the look the player came into this body as has said its intro
   private hoveredHorn = false; // the bedroom's foghorn is under the crosshair within reach
   private use: string | null = null; // a door clicked since the last input frame
   private readonly driving: Driving;
@@ -281,7 +283,8 @@ export class Game {
   private readonly wallFrames: WallFrames;
   private readonly interiors: Interiors;
   private readonly minimap = new Minimap();
-  private readonly death = new Death();
+  private readonly death = new Death(() => this.conn.send({ t: 'respawn' }));
+  private readonly startGate: StartGate;
   private readonly hearts = new Hearts();
   // The wrenches of the kart they drive, under the hearts while they drive one.
   private readonly wrenches = new Hearts(document.getElementById('wrenches')!, WRENCHES);
@@ -368,6 +371,7 @@ export class Game {
       this.cubeByMesh.set(cube.mesh.name, cube);
     });
 
+    this.startGate = new StartGate(canvas);
     this.input = new InputManager(canvas);
     this.mobile = new MobileControls(this.input);
     this.mobileActions = new MobileActions({
@@ -476,6 +480,7 @@ export class Game {
   start(): void {
     this.pingTimer = window.setInterval(() => this.conn.send({ t: 'ping', at: performance.now() }), PING_INTERVAL_MS);
     this.engine.run((dt) => this.frame(dt));
+    this.startGate.show();
   }
 
   private stop(reason: string): void {
@@ -713,6 +718,7 @@ export class Game {
           // A pickup's worth of hearts flashes; a regen's trickle each tick doesn't.
           if (me.hearts - this.hearts.count >= 1 && !this.dead) this.healFlash.flash();
           this.hearts.set(me.hearts);
+          if (this.dead && !me.dead) this.revive(me);
           const kart = m.karts.find((k) => k.id === me.riding);
           this.wrenches.show(!!kart);
           if (kart) {
@@ -738,14 +744,7 @@ export class Game {
         this.hud.addPlayer(m.p);
         return;
       case 'leave': {
-        const avatar = this.avatars.get(m.id);
-        const corpse = avatar?.corpse();
-        if (corpse) {
-          poof(this.engine, corpse);
-          this.sfx.play('hurt', corpse);
-        }
-        avatar?.dispose();
-        this.avatars.delete(m.id);
+        this.dropAvatar(m.id);
         this.criedOut.delete(m.id);
         this.pounds.delete(m.id);
         this.strikes.delete(m.id);
@@ -837,6 +836,18 @@ export class Game {
     return p ? { x: p.x, y: p.y, z: p.z } : null;
   }
 
+  // A player's body goes, a dead one's in a poof where it lay.
+  private dropAvatar(id: string): void {
+    const avatar = this.avatars.get(id);
+    const corpse = avatar?.corpse();
+    if (corpse) {
+      poof(this.engine, corpse);
+      this.sfx.play('hurt', corpse);
+    }
+    avatar?.dispose();
+    this.avatars.delete(id);
+  }
+
   // The local player died; `how` heads the death screen.
   private die(how: string): void {
     this.dead = true;
@@ -848,9 +859,28 @@ export class Game {
     // as it lasts it's the player's own music: the theme playing is gone by the time it starts, and
     // none comes back under it (`music`).
     const said = this.line(this.myId, 'death');
-    if (!said || !this.sfx.play(said.sound, null, { delay: DEATH_SOUND_DELAY })) return;
+    if (!said || !this.sfx.play(said.sound, null, { delay: DEATH_SOUND_DELAY, by: DIRGE })) return;
     this.sfx.endLoops('music', DEATH_SOUND_DELAY);
     this.mourningUntil = performance.now() + (DEATH_SOUND_DELAY + this.sfx.seconds(said.sound)) * 1000;
+  }
+
+  // The local player is back from the dead, in the new body `me` (the Room's `respawn`): the death
+  // screen and its sound end, the look is the new body's, which says its intro as one coming into
+  // the world does, and the world has the mouse again, behind the start press where the browser
+  // won't give it back without one (a respawn on the Room's clock, nothing pressed since).
+  private revive(me: PlayerState): void {
+    this.dead = false;
+    this.death.hide();
+    this.sfx.hush(DIRGE);
+    this.mourningUntil = 0;
+    this.input.yaw = me.yaw;
+    this.input.pitch = me.pitch;
+    this.ownAvatar?.dispose();
+    this.ownAvatar = null;
+    this.look = null;
+    this.introduced = false;
+    this.syncBlocked();
+    if (!IS_TOUCH) Promise.resolve(this.canvasEl.requestPointerLock?.()).catch(() => this.startGate.show());
   }
 
   // A shot landed, or with no shooter, a fall hurt. The victim's client flashes red, plays the
@@ -1101,10 +1131,10 @@ export class Game {
       this.look = self.avatar;
       this.wantVoice(self.avatar, true);
     }
-    // The look the player comes in as says its intro too, once the start press (main.ts showStart,
-    // which takes #start away) has let sound play, with longer to arrive than a switch's: it is
-    // fetched among everything else the world's first seconds send for.
-    if (!this.introduced && !document.getElementById('start')) {
+    // The look the player comes in as says its intro too, once the start press (ui/StartGate.ts)
+    // has let sound play, with longer to arrive than a switch's: it is fetched among everything
+    // else the world's first seconds send for.
+    if (!this.introduced && !this.startGate.up) {
       this.introduced = true;
       const intro = take(VOICES[self.avatar].enter);
       if (intro) this.sfx.soon(intro, null, START_INTRO_LATE_MS, this.myId);
@@ -1182,10 +1212,10 @@ export class Game {
       free ? 'kart' : showHint ? held.id : '',
       held ? ITEMS[held.id].element : null,
     );
-    // A look's own moves get their hint as the look is taken, once the start press (main.ts
-    // showStart, which takes #start away) has let the player in to read it.
+    // A look's own moves get their hint as the look is taken, once the start press
+    // (ui/StartGate.ts) has let the player in to read it.
     // None while driving: a kart's keys are its own.
-    const moves = this.dead || self.riding || document.getElementById('start') ? [] : movesHelp(self.avatar, IS_TOUCH);
+    const moves = this.dead || self.riding || this.startGate.up ? [] : movesHelp(self.avatar, IS_TOUCH);
     this.hud.setMoveHint(self.avatar.toUpperCase(), moves);
     const fuelMax = held && ITEMS[held.id].fuelSeconds;
     this.fuel.set(
@@ -1213,7 +1243,7 @@ export class Game {
             ? "you're already at full health"
             : null,
     );
-    this.commandHint.update(this.isBlocked());
+    this.commandHint.update(this.startGate.up, this.isBlocked());
     this.minimap.update({
       me: { x: p.x, y: p.y, z: p.z, yaw: this.input.yaw },
       players: sampled.players,
@@ -1310,6 +1340,8 @@ export class Game {
     const seen = new Set<string>();
     for (const rp of sampled.players) {
       seen.add(rp.id);
+      // Back from the dead, they're in a new body: the one that lay there goes.
+      if (!rp.dead && this.avatars.get(rp.id)?.corpse()) this.dropAvatar(rp.id);
       let avatar = this.avatars.get(rp.id);
       // A new look, or a new colour on the figure that wears it, is a new avatar.
       const was = avatar?.kind;

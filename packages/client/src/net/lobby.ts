@@ -66,8 +66,8 @@ export function rememberName(name: string): void {
   if (sessionStorage.getItem('world.room')) sessionStorage.setItem('world.name', name);
 }
 
-// A new look, kept the same way, so a reload (a death's among them) comes back in it. Only a look
-// a person can join in counts (on foot, with a command): a dragon or a bot's look leaves the last.
+// A new look, kept the same way, so a reload comes back in it. Only a look a person can join in
+// counts (on foot, with a command): a dragon or a bot's look leaves the last.
 export function rememberLook(avatar: AvatarId, color: string | null): void {
   if (AVATARS[avatar].class !== 'walker' || AVATARS[avatar].command === null) return;
   keep(SKIN_KEY, skinChoice(avatar, color));
@@ -82,14 +82,6 @@ function keep(key: string, value: string): void {
   } catch {
     // Storage blocked: the home screen won't offer it next time.
   }
-}
-
-// Back into the room after dying: the page reloads as a fresh player, and the join says it's a
-// respawn, so the Room puts it where the dead come back (RESPAWN_AREAS) rather than where people
-// first come in.
-export function respawn(): void {
-  sessionStorage.setItem('world.respawn', '1');
-  location.reload();
 }
 
 // Home, opening on `query` when given (the home screen's own: a refused join's ?error=&tab=&code=),
@@ -191,8 +183,6 @@ export async function joinRoom(roomId: string, you: Joiner, mode: JoinMode | nul
     const query = joinQuery(you);
     query.set('room', roomId);
     if (mode) query.set('mode', mode);
-    if (sessionStorage.getItem('world.respawn')) query.set('respawn', '1');
-    sessionStorage.removeItem('world.respawn');
     return query;
   };
   const wsScheme = location.protocol === 'https:' ? 'wss' : 'ws';

@@ -1,8 +1,8 @@
-// The "you died" screen: a red wash over everything, who got you, and a countdown to rejoin.
-// Rejoining reloads the page; the session cookie puts the player back in the same room as a
-// fresh player, which is what a death means here, coming back where the dead do (lobby.ts respawn).
-import { DEATH_SCREEN_SECONDS } from '@world/shared';
-import { leaveRoom, respawn } from '../net/lobby';
+// The "you died" screen: a red wash over everything, who got you, and a countdown to the respawn.
+// Coming back is the Room's to do (room.ts `respawn`): the count runs beside the Room's own clock,
+// the button asks to come back now, and the Game takes the screen down once the player is alive.
+import { RESPAWN_SECONDS } from '@world/shared';
+import { leaveRoom } from '../net/lobby';
 
 export class Death {
   private readonly root = document.getElementById('death')!;
@@ -10,27 +10,26 @@ export class Death {
   private readonly count = document.getElementById('death-count')!;
   private timer: number | null = null;
 
-  constructor() {
-    document.getElementById('death-rejoin')!.addEventListener('click', respawn);
-    document.getElementById('death-exit')!.addEventListener('click', () => {
-      if (this.timer !== null) clearTimeout(this.timer);
-      this.timer = null;
-      leaveRoom();
-    });
+  constructor(respawn: () => void) {
+    document.getElementById('death-respawn')!.addEventListener('click', respawn);
+    document.getElementById('death-exit')!.addEventListener('click', leaveRoom);
   }
 
   // `how`: "shot by kathir", "you fell".
   show(how: string): void {
-    if (this.timer !== null) return;
+    this.hide();
     this.by.textContent = how;
     this.root.classList.remove('hidden');
     document.exitPointerLock?.();
-    let left = DEATH_SCREEN_SECONDS;
-    const tick = () => {
-      this.count.textContent = `rejoining in ${left}`;
-      if (left-- <= 0) respawn();
-      else this.timer = window.setTimeout(tick, 1000);
-    };
+    let left = RESPAWN_SECONDS;
+    const tick = () => (this.count.textContent = `respawning in ${Math.max(0, left--)}`);
     tick();
+    this.timer = window.setInterval(tick, 1000);
+  }
+
+  hide(): void {
+    if (this.timer !== null) clearInterval(this.timer);
+    this.timer = null;
+    this.root.classList.add('hidden');
   }
 }

@@ -787,6 +787,9 @@ body {
 #player-list li.me {
   color: var(--accent);
 }
+#player-list li.dead {
+  opacity: 0.45;
+}
 .ping-line {
   display: flex;
   align-items: center;
@@ -1673,7 +1676,7 @@ body {
   fill: var(--accent);
 }
 
-/* Over the world until the first press (main.ts showStart): the button pushes in while held. */
+/* Over the world until the start press (ui/StartGate.ts): the button pushes in while held. */
 #start {
   position: fixed;
   inset: 0;
@@ -1742,11 +1745,11 @@ body {
   gap: 10px;
   margin-top: 12px;
 }
-#death #death-rejoin {
+#death #death-respawn {
   border-color: #ff3b4e;
   background: rgba(255, 59, 78, 0.2);
 }
-#death #death-rejoin:hover {
+#death #death-respawn:hover {
   background: rgba(255, 59, 78, 0.4);
 }
 
