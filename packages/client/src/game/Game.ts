@@ -922,12 +922,13 @@ export class Game {
   }
 
   // The local player is in a new body, `me` (the Room's `rebody`: back from the dead, or put
-  // somewhere by a game): its look is theirs, and their own avatar is made afresh. Back from the
-  // dead, the death screen and its sound end and the world has the mouse again, behind the start
-  // press where the browser won't give it back without one (a respawn on the Room's clock, nothing
-  // pressed since).
+  // somewhere by a game): a new life, begun in third person, its look theirs and their own avatar
+  // made afresh. Back from the dead, the death screen and its sound end and the world has the mouse
+  // again, behind the start press where the browser won't give it back without one (a respawn on
+  // the Room's clock, nothing pressed since).
   private embody(me: PlayerState): void {
     this.body = me.body;
+    this.view.set('third');
     this.input.yaw = me.yaw;
     this.input.pitch = me.pitch;
     this.ownAvatar?.dispose();
