@@ -19,7 +19,14 @@ export interface Rules {
   side(game: GameState, player: string): Side | null;
   // How the game stands, the best first: who has what, and who's winning, or once it's over, won.
   standings(game: GameState): Standing[];
+  // How `viewer` is shown the player `other` (by id) as the game stands.
+  sees(game: GameState, viewer: { id: string; ghost: boolean }, other: string): Sight;
 }
+
+// How one player is shown another: `plain`, as anyone is in freeplay (their name over their head, a
+// pin at the screen's edge, a mark on the maps); `side`, the same with a mark as big as the viewer's
+// own, for someone on their side; or `hidden`, with none of the three.
+export type Sight = 'plain' | 'side' | 'hidden';
 
 // A side in a game (a team): what it's called, and the colour its players go by.
 export interface Side {
@@ -51,6 +58,7 @@ export const FREEPLAY_RULES: Rules = {
   starts: () => null,
   side: () => null,
   standings: () => [],
+  sees: () => 'plain',
 };
 
 // What a command is to a game's rules. A game says of every kind whether it allows it (`Allowed`),

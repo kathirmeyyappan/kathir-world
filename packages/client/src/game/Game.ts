@@ -127,6 +127,8 @@ import { EdgeFlash } from '../ui/EdgeFlash';
 import { Death } from '../ui/Death';
 import { GameBanner } from '../ui/GameBanner';
 import { Results } from '../ui/Results';
+import { Scores } from '../ui/Scores';
+import { colourOf, shownTo } from '../ui/sight';
 import { StartGate } from '../ui/StartGate';
 import { Fuel } from '../ui/Fuel';
 import { GearHud } from '../ui/GearHud';
@@ -296,6 +298,7 @@ export class Game {
   private tick = 0;
   private readonly banner = new GameBanner();
   private readonly results = new Results();
+  private readonly scores = new Scores();
   private readonly master = (): boolean => this.game.master === this.myId;
   // What leaving the room does besides, which every way out warns of first: closing it for
   // everyone, when it's the room master leaving.
@@ -762,7 +765,13 @@ export class Game {
             this.wrenches.set(kart.wrenches);
           }
         }
-        this.hud.updateStats(m.players);
+        this.hud.updateStats(
+          m.players.map((p) => ({
+            ...p,
+            colour: colourOf(this.game, p),
+            side: rulesOf(this.game).side(this.game, p.id)?.name ?? null,
+          })),
+        );
         this.hearShots(m.players);
         if (me && this.prediction) {
           const d = this.prediction.reconcile(
@@ -873,6 +882,7 @@ export class Game {
     const ended = (this.game.phase === 'starting' || this.game.phase === 'playing') && game.phase === 'lobby';
     this.game = game;
     this.hud.setMaster(game.master);
+    this.hud.sided = rulesOf(game).standings(game).length > 0;
     this.commandsMenu.refresh();
     if (ended) this.banner.say('room master ended the game!');
   }
@@ -1337,15 +1347,13 @@ export class Game {
     this.commandHint.update(this.startGate.up, this.isBlocked());
     this.banner.set(this.startGate.up ? null : this.standing());
     const over = this.game.phase === 'results' && this.game.until !== null;
-    this.results.set(
-      over ? rulesOf(this.game).standings(this.game) : null,
-      over ? Math.max(0, Math.ceil((this.game.until! - this.tick) / TICK_RATE)) : 0,
-    );
-    this.minimap.update({
-      me: { x: p.x, y: p.y, z: p.z, yaw: this.input.yaw },
-      players: sampled.players,
-      cubes: sampled.cubes,
-    });
+    const standings = rulesOf(this.game).standings(this.game);
+    const left = this.game.until === null ? null : Math.max(0, Math.ceil((this.game.until - this.tick) / TICK_RATE));
+    this.results.set(over ? standings : null, left ?? 0);
+    this.scores.set(this.game.phase === 'playing' && standings.length > 0 ? standings : null, left);
+    // Everyone else the player is shown, as the game has it: a mode hides the other side.
+    const shown = shownTo(this.game, self, sampled.players);
+    this.minimap.update({ me: { x: p.x, y: p.y, z: p.z, yaw: this.input.yaw }, players: shown, cubes: sampled.cubes });
     this.menu.sync({
       name: self.name,
       avatar: self.avatar,
@@ -1457,8 +1465,8 @@ export class Game {
     }
     for (const [id, avatar] of this.avatars) if (!seen.has(id)) avatar.hide();
     this.updateOwnAvatar({ x: eye.x, y: p.y + this.correction.y, z: eye.z }, held);
-    this.pins.update(sampled.players, this.engine.scene, this.camera, this.canvasEl);
-    this.nameTags.update(sampled.players, this.engine.scene, this.camera, this.canvasEl);
+    this.pins.update(shown, this.engine.scene, this.camera, this.canvasEl);
+    this.nameTags.update(shown, this.engine.scene, this.camera, this.canvasEl);
     this.bubble.update(this.engine.scene, this.camera, this.canvasEl);
     this.frameBubble.update(this.engine.scene, this.camera, this.canvasEl);
     this.areaTitle.update(p);

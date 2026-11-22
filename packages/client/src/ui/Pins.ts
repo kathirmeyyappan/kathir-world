@@ -3,7 +3,7 @@
 // "0m"). On-screen players get nothing; their name tag already marks them.
 import { Matrix, Vector3, type Camera, type Scene } from '@babylonjs/core';
 import type { RemotePlayer } from '../net/Interpolation';
-import { nameColour } from '../render/liveries';
+import type { Sighted } from './sight';
 
 const EDGE_MARGIN = 34;
 
@@ -18,7 +18,7 @@ export class Pins {
   private readonly root = document.getElementById('pins')!;
   private readonly pins = new Map<string, Pin>();
 
-  update(players: RemotePlayer[], scene: Scene, camera: Camera, canvas: HTMLCanvasElement): void {
+  update(players: (RemotePlayer & Sighted)[], scene: Scene, camera: Camera, canvas: HTMLCanvasElement): void {
     const w = canvas.clientWidth;
     const h = canvas.clientHeight;
     const cx = w / 2;
@@ -41,7 +41,7 @@ export class Pins {
       }
       const onScreen = !behind && screen.x >= 0 && screen.x <= w && screen.y >= 0 && screen.y <= h;
       const pin = this.pins.get(p.id) ?? this.create(p);
-      const colour = nameColour(p);
+      const colour = p.colour;
       if (colour !== pin.color) pin.el.style.color = pin.color = colour;
       if (onScreen) {
         pin.el.style.display = 'none';
