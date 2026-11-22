@@ -637,9 +637,6 @@ function botPage(id: BotId): HTMLElement {
   return page;
 }
 
-// The sniper first, the bot people ask about most; then the rest as the registry lists them.
-const SHOWN_BOTS: BotId[] = ['sniper', ...BOT_IDS.filter((id) => id !== 'sniper')];
-
 function botsPanel(): HTMLElement {
   const panel = el('div', 'cards');
   const lineup = defaultBotsFor('guide', () => 0);
@@ -656,7 +653,7 @@ function botsPanel(): HTMLElement {
     ),
   );
   const bots = el('section', 'card wide');
-  bots.append(subTabs(SHOWN_BOTS.map((id) => ({ title: BOTS[id].playerName, body: botPage(id) }))));
+  bots.append(subTabs(BOT_IDS.map((id) => ({ title: BOTS[id].playerName, body: botPage(id) }))));
   panel.append(about, bots);
   return panel;
 }
