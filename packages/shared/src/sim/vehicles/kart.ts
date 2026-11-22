@@ -153,7 +153,8 @@ export function wearOf({ impact, landing }: KartStep): number {
 export const DRIFT_FROM = 0.4; // of its speed: the least a drift begins or carries on at
 
 // m/s²: how fast the wheels take back a slide sideways, every kart alike: past what turning full
-// over or drifting tight at its speed asks of them, so only a boosted turn, or ice, slides.
+// over or drifting tight at its speed asks of them, so only a boosted turn, or ice, slides. A
+// footing that grips less than this (ice) grips as little along the kart as across it.
 const TRACTION = 40;
 const REVERSE = 0.35; // of its speed: flat out backing up
 const BRAKING = 2.5; // times its acceleration: braking while still rolling forward
@@ -446,7 +447,12 @@ function drive(k: KartState, spec: KartSpec, gas: number, dt: number, structures
   // fall, whatever its acceleration, so the boost is over when it says.
   const boosted = (TURBO.boost - 1) * spec.speed;
   const push = k.turbo ? Math.max(accel, boosted / TURBO.rise) : accel;
-  const toward = (target: number, rate: number) => (along += Math.max(-rate * dt, Math.min(rate * dt, target - along)));
+  // Its speed along it changes by its tires on the ground, so no faster than the footing grips
+  // them: on ice the gas, the brake, a boost and its roll to a stop all come on as slowly.
+  const toward = (target: number, rate: number) => {
+    const most = Math.min(rate, surface.grip) * dt;
+    along += Math.max(-most, Math.min(most, target - along));
+  };
   if (gas > 0) toward(top, along < top ? push * gas : boosted / TURBO.fall);
   else if (gas < 0 && along > 0) toward(0, BRAKING * accel * -gas);
   else if (gas < 0) toward(-REVERSE * spec.speed, accel * -gas);

@@ -5,6 +5,7 @@ import {
   KARTS,
   PAD,
   SPARKS,
+  SURFACES,
   Structures,
   TICK_DT,
   TRICK,
@@ -174,6 +175,23 @@ test('a trick needs a flight: a press over a low step, as it lands from one, or 
   while (drifted.grounded) drive(drifted, hard, TICK_DT, structures);
   drive(drifted, hard, 0.2, structures);
   assert.deepEqual([drifted.grounded, drifted.trick], [false, null], 'off the lip with no trick');
+});
+
+test('on ice a kart gains and loses speed no faster than the ice grips its tires', () => {
+  // A sheet of ice 400 m along +z, the kart on its near end.
+  const ice: Structure & { h: number } = { kind: 'box', x: 0, z: 190, w: 40, d: 400, h: 0.1, surface: 'ice' };
+  const structures = world(ice);
+  const { grip } = SURFACES.ice;
+  const k = createKart('standard', 1, { x: 0, y: ice.h, z: 0 }, 0);
+  const about = (was: number, change: number) => Math.abs(speed(k) - (was + change)) < 0.4;
+  drive(k, { gas: 1, steer: 0, drift: false }, 2, structures);
+  assert.ok(about(0, 2 * grip), `two seconds on the gas: ${speed(k)}`);
+  k.vel.z = KARTS.standard.speed;
+  drive(k, { gas: -1, steer: 0, drift: false }, 1, structures);
+  assert.ok(about(KARTS.standard.speed, -grip), `a second on the brake from flat out: ${speed(k)}`);
+  const braked = speed(k);
+  drive(k, { gas: 0, steer: 0, drift: false }, 1, structures);
+  assert.ok(about(braked, -grip), `and a second rolling with no key held: ${speed(k)}`);
 });
 
 test('a boost pad drives a kart rolling over it up to its boosted speed with no gas, is a boost begun each time it rolls on, holds the boost on past it, and leaves one parked on it alone', () => {
