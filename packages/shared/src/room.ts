@@ -164,6 +164,19 @@ export class Room {
         this.rebody(seat, this.spawnPoint(areas));
         return seat.state;
       },
+      seat: (player, at, yaw) => {
+        const seat = this.seats.get(player.id)!;
+        this.rebody(seat, { x: at.x, y: at.y + EYE_HEIGHT, z: at.z });
+        this.garage.park(seat.state, 'standard', at, yaw);
+        return seat.state;
+      },
+      haunt: (player) => {
+        const seat = this.seats.get(player.id)!;
+        this.rebody(seat, { ...player.pos });
+        seat.state.ghost = true;
+        return seat.state;
+      },
+      kartOf: (player) => this.garage.list.find((k) => k.id === player.riding) ?? null,
       dropBots: () => this.dropBots(),
       clear: () => this.clear(),
     });
@@ -476,7 +489,8 @@ export class Room {
     const me = seat.state;
     const pressed = (action: ItemAction) => frame.actions.includes(action) && !seat.held.includes(action);
     if (me.riding) {
-      if (pressed('exit') && !this.garage.rescuing(me)) this.garage.getOut(me);
+      const game = this.mode.state;
+      if (pressed('exit') && !this.garage.rescuing(me) && !rulesOf(game).seated(game, me.id)) this.garage.getOut(me);
       seat.held = frame.actions;
       return;
     }
@@ -669,7 +683,11 @@ export class Room {
   // One step of a seat's player, on `frame` or with none, and what comes of it: for a ghost,
   // nothing, however it lands and whatever it swings.
   private advance(seat: Seat, frame: InputFrame | null): void {
-    if (seat.state.riding) return this.garage.drive(seat.state, frame, TICK_DT);
+    if (seat.state.riding) {
+      const game = this.mode.state;
+      const held = rulesOf(game).held(game, seat.state.id, frame?.view ?? this.tick);
+      return this.garage.drive(seat.state, frame, TICK_DT, held);
+    }
     const struck = seat.state.strike;
     const landing = stepPlayer(seat.state, frame, TICK_DT, this.structures);
     if (seat.state.ghost) return;

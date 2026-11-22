@@ -119,8 +119,7 @@ It's a rule of the mode's (`Rules.refuses`, `modes/rules.ts`), holding from a ga
 its lobby is back. A command is of a kind (`CommandKind`, `kindOf`: a weapon, gear, a look on
 foot, a dragon, a bot's), and a game says of every kind whether it allows it (`Playing.allows`, an
 `Allowed`: a table, made rules by `gameRules` in `modes/game.ts`), so a new kind is a compile error
-until each game has said. Until a mode has a table of its own it has every game's (`ANY_GAME`):
-everything but the bots' commands. The Room asks before anything else about a command (`runCommand`), and the
+until each game has said. The Room asks before anything else about a command (`runCommand`), and the
 client asks the same function of the state it was sent (`rulesOf` for both; `refusedBy` in
 `ui/commands.ts`): a refused command's button on the commands card is greyed, and at a press says
 why in the red box, the card staying up, and its line in the chat's completions is greyed too. One
@@ -287,6 +286,20 @@ A series of races, each on a track of its own, in karts, for points.
   behind first (N for first, 1 for the last of N to finish), and the next race begins.
 - After the last, the racer with the most points wins, a tie being shared.
 
+A game's own state is `RacingState` (`modes/racing/state.ts`): how many `races`, the `racers` (each
+with the name and colour they had as it began, and whether they've left), their `points`, and the
+`round` being run: its track (a place in `routes()`), the tick it's let `go`, the tick it `closes`
+once someone has finished, who has `finished` in order, who's `out`, and once it's run the tick
+the next begins. The referee (`Racing`, `referee.ts`) deals the tracks as the game begins, seats
+every racer in a kart on the grid (`ModeRoom.seat`, the garage's `park`), and each tick asks the
+track where every racer's kart is (`onTrack`): over the line is finished, in no kart is out
+(`ModeRoom.haunt`: a ghost until the next race), and when the clock on the rest runs out, or
+nobody is left racing, the places are scored (`pointsFor`) and the leaderboard stands. Its rules
+(`rules.ts`) are what the Room and the client both ask: only looks on foot are allowed, the
+round's track is the floor in play (`track`), a racer can't get out (`seated`), and a kart is held
+on the grid, over the line and once the race is run (`held`, by the tick of the snapshot its
+driver's frame was made on, so the Room and their prediction let go on the same frame).
+
 ## How the code is laid out
 
 ```
@@ -296,7 +309,7 @@ packages/shared/src/modes/
   rules.ts      Rules: what the Room and the client both ask of a game's state, with freeplay's answers
   game.ts       Game: what every mode with a game shares: the master, settings, the phases, start and end
   shootout/     its state (state.ts), rules (rules.ts) and referee (referee.ts): teams, spawn sites, points
-  racing/       tracks, the grid, places, elimination, points, and its answers
+  racing/       its state (state.ts), rules (rules.ts) and referee (referee.ts): the series, a race's clocks, places
 packages/client/src/modes/
   index.ts      what each mode adds to the client, by mode: its settings' rows
   shootout/     its settings (settings.ts: the board of teams, the clock) and its HUD (points and clock)
@@ -316,7 +329,8 @@ everything else, and it will change as modes and features are added (`CLAUDE.md`
 
 | The Room or the client asks                       | Freeplay answers                       | For                                                 | Asked as                        |
 | ------------------------------------------------- | -------------------------------------- | --------------------------------------------------- | ------------------------------- |
-| May this player do this (a command, getting out)? | yes                                    | `runCommand`, a kart's exit; the commands card      | `Rules.refuses`, of a command   |
+| May this player do this (a command, getting out)? | yes                                    | `runCommand`, a kart's exit; the commands card      | `Rules.refuses`, `Rules.seated` |
+| Is this player's kart held where it stands?       | no                                     | the Room's drive; the driver's prediction           | `Rules.held`                    |
 | What does no hearts mean here?                    | lie 10 s, the death screen, a new body | the Room's respawn; `ui/Death.ts`                   | `Rules.dying`                   |
 | Where is this body put?                           | `SPAWN_AREAS`, `RESPAWN_AREAS`         | joining, a game's start, coming back, a spectator   | `Game.startsAt`, at a start     |
 | What floor is in play?                            | the whole world's                      | a kart's rescue, the red box, the maps, the floor   | `Rules.track`                   |

@@ -4,7 +4,7 @@
 // which mode it's in: it tells its mode what happened and takes its answers. What the client has
 // to agree with isn't asked here: that's the mode's rules (rules.ts), read off the state it gives.
 import type { SpawnArea } from '../content/regions';
-import type { PlayerState } from '../sim/types';
+import type { PlayerState, Vec3 } from '../sim/types';
 import type { GameAction, GameModeId, GameState } from './index';
 
 // What a mode can do to the room it's the game of.
@@ -17,6 +17,13 @@ export interface ModeRoom {
   // A new body for `player` somewhere in `areas`, as whoever comes in is given: a full life, nothing
   // held or worn, in the look they had if it's one on foot. Returns them in it.
   embody(player: PlayerState, areas: SpawnArea[]): PlayerState;
+  // A new body for `player` sat in a kart of their own that stands at `at` on the ground, its
+  // nose along `yaw`. Returns them in it.
+  seat(player: PlayerState, at: Vec3, yaw: number): PlayerState;
+  // A new body for `player` where they are, as a ghost (sim/types.ts): out of the game, and of
+  // whatever they drove. Returns them in it.
+  haunt(player: PlayerState): PlayerState;
+  kartOf(player: PlayerState): { pos: Vec3 } | null; // the kart they drive, where it is; null on foot
   dropBots(): void; // every living bot drops dead where it stands, as /kill-bots does
   // The world as a room starts with it: no karts, no frost, no hearts left lying, and no bots, the
   // dead ones going at once.

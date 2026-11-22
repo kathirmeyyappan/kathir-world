@@ -25,6 +25,12 @@ export interface Rules {
   // The track in play as the game stands (sim/tracks.ts), which is all the floor there is to a
   // kart while it is; null: the whole world's.
   track(game: GameState): Track | null;
+  // Whether a player (by id) is kept in the kart they drive as the game stands: there's no getting
+  // out of it.
+  seated(game: GameState, player: string): boolean;
+  // Whether the kart a player (by id) drives is held as the game stood at `tick`: its keys do
+  // nothing, so it stands where it is, or rolls to a stop.
+  held(game: GameState, player: string, tick: number): boolean;
 }
 
 // How one player is shown another: `plain`, as anyone is in freeplay (their name over their head, a
@@ -64,6 +70,8 @@ export const FREEPLAY_RULES: Rules = {
   standings: () => [],
   sees: () => 'plain',
   track: () => null,
+  seated: () => false,
+  held: () => false,
 };
 
 // What a command is to a game's rules. A game says of every kind whether it allows it (`Allowed`),

@@ -42,6 +42,9 @@ import {
   PINEAPPLE_PLACEMENT,
   botRequest,
   defaultBotsFor,
+  RACE,
+  isRacing,
+  trackOf,
   courseOf,
   layTrack,
   onTrack,
@@ -267,7 +270,7 @@ test('a room with a game has a room master: whoever made it, told to everyone, w
 });
 
 test("a game's flow: its master starts it from the lobby, counted down, on a world cleared with everyone in a new body, and ends it back to the lobby", () => {
-  const room = new Room('flow', { seed: 2, mode: 'racing', structures: new Structures([]), pickupAreas: [] });
+  const room = new Room('flow', { seed: 2, mode: 'shootout', structures: new Structures([]), pickupAreas: [] });
   const [a, b] = [link(), link()];
   const ida = room.join('alice', a, { made: true })!;
   const idb = room.join('bob', b)!;
@@ -316,7 +319,7 @@ test("a game's flow: its master starts it from the lobby, counted down, on a wor
   while (room.tick < starts) room.step();
   assert.equal(told(a).phase, 'starting');
   room.step();
-  assert.deepEqual([told(b).phase, told(b).until], ['playing', null]);
+  assert.equal(told(b).phase, 'playing');
   assert.ok(
     snap().karts.length === 0 && snap().pickups.length === 0 && room.structures.frost.size === 0,
     'a clear world',
@@ -537,6 +540,80 @@ test("a shootout: the teams start apart indoors in their colours; a kill of the 
   );
   assert.equal(rulesOf(game()).side(game(), idb), null, 'and nobody is on a side');
   assert.equal(sees(false, idb), 'plain');
+});
+
+test("a race: racers start held on the grid in karts there's no getting out of; the first over the line starts the clock on the rest; whoever's kart blows up, or who runs out of time, is out of it and a ghost; places score, the next race puts everyone still here back on a grid, and after the last the results stand", () => {
+  const room = new Room('race', { seed: 9, mode: 'racing', pickupAreas: [] });
+  const a = link();
+  const ida = room.join('alice', a, { made: true })!;
+  const [idb, idc] = ['bob', 'carol'].map((name) => room.join(name, link())!);
+  const player = (id: string) => room.players.find((p) => p.id === id)!;
+  const kart = (id: string) => room.garage.list.find((k) => k.driver === id)!;
+  const game = () => {
+    const told_ = told(a);
+    assert.ok(isRacing(told_));
+    return told_;
+  };
+  const round = () => game().round!;
+  room.receive(ida, { t: 'settings', change: { races: 2 } });
+  room.receive(ida, { t: 'game', do: 'start' });
+  while (game().phase !== 'playing') room.step();
+  assert.ok(
+    [ida, idb, idc].every((id) => player(id).riding),
+    'everyone in a kart on the grid',
+  );
+  assert.equal(rulesOf(game()).track(game()), trackOf(round().track), 'its track is the floor in play');
+
+  const from = { ...kart(ida).pos };
+  for (let i = 0; i < TICK_RATE; i++) driving(room, ida, 1);
+  driving(room, ida, 1, ['exit']);
+  const moved = () => Math.hypot(kart(ida).pos.x - from.x, kart(ida).pos.z - from.z);
+  assert.ok(moved() < 0.5 && player(ida).riding, `held where it stands, its driver in it: ${moved()}`);
+  while (room.tick < round().go) room.step();
+  for (let i = 0; i < 2 * TICK_RATE; i++) driving(room, ida, 1);
+  assert.ok(moved() > 5, `and let go: ${moved()}`);
+
+  // A kart put just over the line has finished.
+  const over = (id: string) => {
+    const track = trackOf(round().track);
+    const s = spotAt(track, track.finish + 2);
+    Object.assign(kart(id).pos, { x: s.x, y: s.y, z: s.z });
+    room.step();
+  };
+  over(ida);
+  assert.deepEqual([round().finished, round().closes], [[ida], room.tick - 1 + RACE.close * TICK_RATE]);
+  room.garage.shoot(kart(idb).id, 99, ida);
+  room.step();
+  room.step();
+  assert.ok(round().out.includes(idb) && player(idb).ghost, 'out with their kart, and a ghost');
+  while (round().over === null) room.step();
+  assert.deepEqual([round().out, player(idc).ghost], [[idb, idc], true], 'out of time');
+  assert.deepEqual(game().points, [3, 0, 0], 'a point a racer for first');
+
+  while (round().number === 0) room.step();
+  assert.ok(
+    [ida, idb, idc].every((id) => player(id).riding && !player(id).ghost),
+    'the next race: all back on a grid',
+  );
+  room.leave(idb);
+  assert.ok(game().racers[1].gone && round().out.includes(idb), 'a leaver is out of it, and stays on the board');
+  while (room.tick < round().go) room.step();
+  over(idc);
+  over(ida);
+  assert.deepEqual(round().finished, [idc, ida]);
+  assert.ok(round().over !== null, 'run, with nobody left racing');
+  while (game().phase === 'playing') room.step();
+  assert.equal(game().phase, 'results');
+  assert.deepEqual(
+    rulesOf(game())
+      .standings(game())
+      .map((s) => [s.side.name, s.points, s.won]),
+    [
+      ['alice', 5, true],
+      ['carol', 3, false],
+      ['bob', 0, false],
+    ],
+  );
 });
 
 test('room calls onEmpty when the last player leaves', () => {

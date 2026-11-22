@@ -123,12 +123,26 @@ export class Garage {
     const x = p.pos.x + f.x * ahead;
     const z = p.pos.z + f.z * ahead;
     const y = Math.max(feet, Math.min(feet + DROP_HEIGHT, this.structures.ceilingAt(x, z, feet + 0.1) - height - 0.1));
+    return this.add(p, { ...made, pos: { x, y, z } }, { x: p.pos.x, y: feet, z: p.pos.z });
+  }
+
+  // A kart of `p`'s own standing at `at` on the ground, its nose along `yaw`, with them sat in it
+  // from the start: where a game puts someone to drive.
+  park(p: PlayerState, kart: KartId, at: Vec3, yaw: number): Kart {
+    p.yaw = yaw;
+    const k = this.add(p, { ...createKart(kart, sizeFor(p.avatar), at, yaw), pos: { ...at } }, at);
+    this.getIn(p, k);
+    return k;
+  }
+
+  // Takes in a kart made for `p`, in their paint, watched from `safe`: where it's rescued to if it
+  // never stands anywhere on the world.
+  private add(p: PlayerState, made: KartState, safe: Vec3): Kart {
     const k: Kart = {
       ...made,
-      pos: { x, y, z },
       id: `kart-${this.next++}`,
       paint: { avatar: p.avatar, color: p.color },
-      wrenches: KARTS[kart].wrenches,
+      wrenches: KARTS[made.kart].wrenches,
       driver: null,
     };
     this.karts.set(k.id, k);
@@ -141,7 +155,7 @@ export class Garage {
       breaker: null,
       frame: null,
       ahead: 0,
-      watch: watchFrom({ x: p.pos.x, y: feet, z: p.pos.z }, p.yaw, this.structures),
+      watch: watchFrom(safe, p.yaw, this.structures),
     });
     return k;
   }
@@ -193,7 +207,7 @@ export class Garage {
   // its keys alone: so a kart has stepped once for each of its driver's frames, as their client
   // predicted it, and late frames never run it on further than they would have in time. Past
   // AHEAD_TICKS of that its keys are let go, and it rolls to a stop.
-  drive(p: PlayerState, frame: InputFrame | null, dt: number): void {
+  drive(p: PlayerState, frame: InputFrame | null, dt: number, held = false): void {
     const k = p.riding ? this.karts.get(p.riding) : undefined;
     const keep = p.riding ? this.keeps.get(p.riding) : undefined;
     if (!k || !keep) {
@@ -210,7 +224,7 @@ export class Garage {
     } else if (keep.ahead < AHEAD_TICKS) keep.ahead++;
     else keep.frame = null;
     k.size = sizeFor(p.avatar);
-    this.worn(k, ride(p, k, keep.frame, dt, this.structures));
+    this.worn(k, ride(p, k, keep.frame, dt, this.structures, held));
     watch(keep.watch, k, dt, this.structures, this.course);
   }
 
