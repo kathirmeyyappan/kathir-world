@@ -352,11 +352,18 @@ roster's marks (crown, ghost, team), a ghost's drawing, and the mode's say in `u
 `ui/Pins.ts`, `ui/MapCanvas.ts` and `ui/Death.ts`. A mode's client directory adds its own HUD and
 nothing else, and `Game.ts` asks the questions rather than growing a branch per mode.
 
-**The roads' graph.** `sim/botMap/roads.ts` builds a graph of the roads' middle lines for the bots
-alone. It becomes the sim's own: a race's track is a way through it, the bots' roads map is the
-same graph written out, and the client draws a track (on the maps, on the floor) from it, so
-there's one account of the roads for all three. Ways across the buildings' floor join it for the
-bots' laps in freeplay; a track takes one only to end on it.
+**The roads' graph.** `sim/tracks.ts` reads the roads as a graph off the road layer's own account
+of each (`Road.middle`): a road is a leg between the two discs it's laid from and to, and a route
+is a run of legs from an island to a dead-end island or onto the buildings' floor, 1.2 to 2.4 km,
+taking no road and passing no place twice (`routes()`, about a thousand of them, listed once in an
+order that's the same everywhere, so a race names its track by its place in the list). `layTrack`
+turns a route into its track: its middle as a spot every few metres with the road's height and the
+way it runs (both strands of a split), its start line at the rim of the island it leaves, with a
+grid behind it (`gridOf`), and its finish line short of where it ends. `onTrack` places a body
+against it (how far along, how far off the middle, by the road's own level, so a deck and the road
+under it are apart), which is what the floor in play, a racer's place and the finish are all asked
+of. The bots' roads map (`sim/botMap/roads.ts`) is built from the same `Road.middle` and stays its
+own file until the racing bots are built, when the two graphs become one.
 
 ## The stack
 
@@ -393,7 +400,7 @@ outside dev until each can be played, so freeplay is run on every merge.
 
 **4. Racing**
 
-- [ ] The roads' graph in the sim, and tracks found through it.
+- [x] The roads' graph in the sim, and tracks found through it.
 - [ ] The floor in play: a kart off the track rescued onto it, the red box.
 - [ ] A race: the grid, the countdown, no getting out, places, the line, the 45 seconds,
       elimination, points, the leaderboard, the series.
