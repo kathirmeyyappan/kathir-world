@@ -1249,8 +1249,8 @@ like any.
 A room's karts are its `Garage` (`garage.ts`), which the Room steps and whose hurts it deals out,
 and every client is sent them (`karts` in `welcome` and `snap`, each a `Kart`: its `KartState`,
 its paint, its wrenches and its driver). One is dropped `DROP_AHEAD` in front of whoever asks,
-short of a wall down to right over them, from `DROP_HEIGHT` up; there are never more karts than
-players, and one left empty `IDLE_SECONDS` is taken away. A person on foot gets
+short of a wall down to right over them, from `DROP_HEIGHT` up; there are never more than two karts
+for each player in the room, and one left empty `IDLE_SECONDS` is taken away. A person on foot gets
 into an empty one by walking or jumping into it (`Garage.runInto`: any touch that doesn't hurt
 them; bots are left out, and someone who has just got out isn't taken back in until they've stood
 clear of it): what they hold and wear is put away till they get
