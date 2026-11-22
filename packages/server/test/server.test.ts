@@ -1,10 +1,11 @@
 // Spins up the real server on a random port and drives it with two ws clients.
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
+import { once } from 'node:events';
 import { createServer } from 'node:http';
 import { test } from 'node:test';
 import WebSocket from 'ws';
-import { botRequest, defaultBotsFor, type BotRequest, type ServerMessage } from '@world/shared';
+import { MASTER_LEFT, botRequest, defaultBotsFor, type BotRequest, type ServerMessage } from '@world/shared';
 
 async function startServer(port: number, env: Record<string, string> = {}) {
   const proc = spawn(process.execPath, ['--import', 'tsx', new URL('../src/index.ts', import.meta.url).pathname], {
@@ -70,6 +71,28 @@ test('two clients in one room, in the game its first join asked for, see each ot
     const leave = await b.next((m) => m.t === 'leave');
     assert.equal(leave.t === 'leave' && leave.id, wa.id);
     b.ws.close();
+  } finally {
+    proc.kill();
+  }
+});
+
+test('a room its master left turns a join away with why, and its code can be created again', async () => {
+  const port = 18000 + Math.floor(Math.random() * 1000);
+  const proc = await startServer(port);
+  try {
+    const a = connect(port, 'derby', 'alice', '&mode=create&game=racing');
+    await a.next((m) => m.t === 'welcome');
+    const b = connect(port, 'derby', 'bob', '&mode=join');
+    await b.next((m) => m.t === 'game' || m.t === 'welcome');
+    const told = once(b.ws, 'close');
+    a.ws.close();
+    assert.equal(String((await told)[1]), MASTER_LEFT, 'everyone in it is told as it closes');
+    const late = connect(port, 'derby', 'carol', '&mode=join');
+    assert.equal(String((await once(late.ws, 'close'))[1]), MASTER_LEFT, 'and so is a join that comes after');
+    const again = connect(port, 'derby', 'dave', '&mode=create');
+    const welcome = await again.next((m) => m.t === 'welcome');
+    assert.ok(welcome.t === 'welcome' && welcome.game.mode === 'freeplay', 'a new room under the code');
+    again.ws.close();
   } finally {
     proc.kill();
   }

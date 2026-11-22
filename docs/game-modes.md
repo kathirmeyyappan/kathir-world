@@ -32,10 +32,26 @@ no room master, no GAME tab and no banner: it is the game as it stands, and stay
   read and in the code: never "game master".
 - Only the master changes the game's settings, starts it and ends it.
 - When the master leaves, the room closes for everyone, who get the disconnected page saying the
-  room master ended the room. Any way of leaving counts: the LEAVE ROOM button (which warns the
-  master first that it closes the room), a closed tab, a lost connection, a reloaded page. A
-  master whose page comes back after one of those is told the same as everyone.
-- A closed room's code is free to be created again.
+  room master ended the room. Any way of leaving counts: the LEAVE ROOM button, a closed tab, a
+  lost connection, a reloaded page. A master whose page comes back after one of those is told the
+  same as everyone.
+- Every way out of the room the game itself offers warns the master first that it closes the room,
+  and goes at a second press: the menu's LEAVE ROOM, JOIN GLOBAL and room code, and the death
+  screen's EXIT TO HOME.
+- A closed room's code is free to be created again once its session has idled out, about a minute
+  on.
+
+The master is `GameState.master`, kept by `Game` (`modes/game.ts`, what every mode with a game
+shares): the player whose join made the room, which the Room is told by its host (`JoinOptions.made`:
+the lobby's word, `made=1` on the join whose request started the room's session, and on a bare
+server a create). It isn't whoever is seated first, since someone told the code can be in before
+the room's maker. A page can say `made=1` for itself before the maker's does, and is believed: the
+lobby vouches for nothing the room server can check. The master leaving ends the room (`Room.end`,
+through the mode's `close`): every link is closed with the reason, which the client's disconnected
+page shows, and the room server keeps the room's key as ended, so a join that still reaches its
+session is told the same rather than made a new room under it. On the client the crown is the
+roster's (`Hud.setMaster`), and the warning is `Game.leaving`, given to the menu's ways out
+(`ui/menu/tabs.ts`) and the death screen's, each a press made twice (`ui/pressTwice.ts`).
 
 ### The flow
 
@@ -180,9 +196,9 @@ A series of races, each on a track of its own, in karts, for points.
 
 ```
 packages/shared/src/modes/
-  index.ts      the registry: each mode's id, name and line, and what makes its game
-  mode.ts       GameMode: the questions the Room and the client ask a mode, with freeplay's answers
-  game.ts       what every mode with a game shares: the master, settings, the phases, start and end
+  index.ts      the registry: each mode's id, name and line, and what makes its game (makeMode)
+  mode.ts       GameMode: what the Room tells a mode and asks it, with freeplay's answers
+  game.ts       Game: what every mode with a game shares: the master, settings, the phases, start and end
   shootout/     teams, spawn sites, points, and its answers
   racing/       tracks, the grid, places, elimination, points, and its answers
 packages/client/src/modes/
@@ -211,10 +227,10 @@ everything else, and it will change as modes and features are added (`CLAUDE.md`
 | What is someone who joins now?                           | a player                                  | joining                                             |
 | What does this player leaving do?                        | their seat goes                           | leaving                                             |
 
-**State and the wire.** A game's state (`GameState`: the mode, and to come the master, the phase,
-the settings, the points, a race's track and order) is one object a mode owns, sent whole in
-`welcome` (`welcome.game`) and again whenever it changes; clocks are in it as the tick they run out
-at. The master's changes go up as one kind of
+**State and the wire.** A game's state (`GameState`: the mode and the master, and to come the
+phase, the settings, the points, a race's track and order) is one object a mode owns, sent whole in
+`welcome` (`welcome.game`) and again whenever it changes (the `game` message); clocks are in it as
+the tick they run out at. The master's changes go up as one kind of
 message. A player's own part in it rides on `PlayerState` (`ghost`). The mode rides the join as
 `game=` (the join's `mode=` is already create or join). The Python mirror carries all of it, and
 bots take no ghost for a target.
@@ -222,9 +238,10 @@ bots take no ghost for a target.
 **The hosts.** A create's pick rides it as `?game=`. The lobby keeps it with the room's session
 (checking only its shape: which modes there are is the shared package's to know) and hands it on
 with every join, whatever that join asks for, so whichever join makes the Room makes it in the
-right mode (`RoomOptions.mode`); in dev the room server takes it from the create. A room its master
-closed is to refuse every join from then on, and its session to read as dead to the lobby, which
-frees its code.
+right mode (`RoomOptions.mode`); in dev the room server takes it from the create. The join whose
+request started the session is told it made the room (`made=1`), and the page hands both on to
+the room server as given (`LOBBY_SAYS`, the client's `net/lobby.ts`). A room its master closed
+refuses every join from then on, and its code is free once its session has idled out.
 
 **The client.** What every mode shares is written once: the banner (the lobby's lines, the
 countdown, a race's last seconds), the results screen, the GAME tab, refused commands greyed, the
@@ -247,7 +264,7 @@ outside dev until each can be played, so freeplay is run on every merge.
 
 - [x] The mode at create: the registry, the home screen's dropdown and line, the mode through the
       lobby and the room server into the Room, and into `welcome`.
-- [ ] The room master: the crown, the master's leaving closing the room, the warning on LEAVE ROOM,
+- [x] The room master: the crown, the master's leaving closing the room, the warning on LEAVE ROOM,
       a closed room's code freed.
 - [ ] The flow: the phases, START and END GAME, the banner and the countdown, the results screen,
       back to the lobby; the lobby's bots killed at the start and bot seats refused in a game.

@@ -134,7 +134,9 @@ def build_api(warm: Callable[[], Coroutine[Any, Any, None]] = warm_room) -> "Fas
         it isn't running, and so never anyone's to create. A refused join is sent back to the page
         it came from with the reason as `?error=`. A room is in the game mode (`game`, freeplay
         when empty) of the join that starts it, kept with its session and handed to every join
-        from then on, whatever that join asks for; the global room is freeplay. A bot (`bot=1`, what the bot framework sends) only joins a
+        from then on, whatever that join asks for; the global room is freeplay. The join that
+        starts a room's session is told it made the room (`made=1`), which the room server takes
+        its word for. A bot (`bot=1`, what the bot framework sends) only joins a
         room that is already running: bots don't keep rooms open, so one must never start a room
         either."""
         print(f"Attempting to join room {room_id} with name {name}")
@@ -156,6 +158,7 @@ def build_api(warm: Callable[[], Coroutine[Any, Any, None]] = warm_room) -> "Fas
         entry_info = await live_session(room_id, room_url)
         if mode == "create" and (always_open or entry_info is not None):
             return refuse(f"room {room_id} already exists")
+        made = entry_info is None
         if entry_info is None:
             if bot == "1":
                 raise HTTPException(409, "no one here")
@@ -176,6 +179,8 @@ def build_api(warm: Callable[[], Coroutine[Any, Any, None]] = warm_room) -> "Fas
             params["color"] = color
         if entry_info.get("game"):
             params["game"] = entry_info["game"]
+        if made:
+            params["made"] = "1"
         # Where the room page sends the player to pick a room. From the room host itself that's its
         # own address, which the page ignores, keeping the home it was given on the way in.
         params["home"] = home_page(request.headers.get("referer", ""), room_url)

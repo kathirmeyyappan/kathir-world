@@ -43,8 +43,10 @@ import {
   itemStats,
   lookDirection,
   resolveFire,
+  FREEPLAY,
   type AvatarId,
   type FrostCell,
+  type GameState,
   type ItemAction,
   type ItemId,
   type ItemState,
@@ -283,7 +285,12 @@ export class Game {
   private readonly wallFrames: WallFrames;
   private readonly interiors: Interiors;
   private readonly minimap = new Minimap();
-  private readonly death = new Death(() => this.conn.send({ t: 'respawn' }));
+  private game: GameState = { mode: FREEPLAY, master: null }; // the room's game, as the Room last told of it
+  // What leaving the room does besides, which every way out warns of first: closing it for
+  // everyone, when it's the room master leaving.
+  private readonly leaving = (): string | null =>
+    this.game.master === this.myId ? "You're the room master: leaving closes this room for everyone." : null;
+  private readonly death = new Death(() => this.conn.send({ t: 'respawn' }), this.leaving);
   private readonly startGate: StartGate;
   private readonly hearts = new Hearts();
   // The wrenches of the kart they drive, under the hearts while they drive one.
@@ -419,6 +426,7 @@ export class Game {
       picture: this.engine.picture,
       minimap: this.minimap,
       rename: (name) => conn.send({ t: 'rename', name }),
+      leaving: this.leaving,
       commands: () => this.commandsMenu.set(true),
       command: (word) => conn.send({ t: 'chat', text: `/${word}` }),
     });
@@ -682,6 +690,7 @@ export class Game {
     switch (m.t) {
       case 'welcome': {
         this.myId = m.id;
+        this.setGame(m.game);
         // The sky is seeded by the room's key (the Modal session id), which welcome carries, so
         // everyone in a session shares one sky and a new session gets a new one.
         const sky = placeSkyObjects(this.engine, SKY_OBJECTS, HOME_GROUND, WORLD_GROUND, createRng(hashSeed(m.room)));
@@ -739,6 +748,9 @@ export class Game {
         }
         return;
       }
+      case 'game':
+        this.setGame(m.game);
+        return;
       case 'join':
         this.addAvatar(m.p);
         this.hud.addPlayer(m.p);
@@ -819,6 +831,12 @@ export class Game {
         this.hud.system(m.message);
         return;
     }
+  }
+
+  // The room's game as the Room tells of it, in its welcome and whenever it changes.
+  private setGame(game: GameState): void {
+    this.game = game;
+    this.hud.setMaster(game.master);
   }
 
   // Frost comes and goes for the sim (so prediction slides where the server does) and the eye alike.

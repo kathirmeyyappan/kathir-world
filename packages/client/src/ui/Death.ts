@@ -3,6 +3,7 @@
 // the button asks to come back now, and the Game takes the screen down once the player is alive.
 import { RESPAWN_SECONDS } from '@world/shared';
 import { leaveRoom } from '../net/lobby';
+import { pressTwice } from './pressTwice';
 
 export class Death {
   private readonly root = document.getElementById('death')!;
@@ -10,9 +11,12 @@ export class Death {
   private readonly count = document.getElementById('death-count')!;
   private timer: number | null = null;
 
-  constructor(respawn: () => void) {
+  // `leaving`: what leaving the room does besides, to warn of before the way out (the menu's own
+  // ways out warn of the same, ui/menu/tabs.ts).
+  constructor(respawn: () => void, leaving: () => string | null) {
     document.getElementById('death-respawn')!.addEventListener('click', respawn);
-    document.getElementById('death-exit')!.addEventListener('click', leaveRoom);
+    const warning = document.getElementById('death-warning')!;
+    pressTwice(document.getElementById('death-exit')!, leaving, (text) => (warning.textContent = text), leaveRoom);
   }
 
   // `how`: "shot by kathir", "you fell".

@@ -1517,7 +1517,9 @@ click outside the page), so a free mouse always means the menu, the chat, a card
 screen is up, and M, Esc or a click beside the card goes back into the world; `tabs.ts` is what's in it, rows that read and change what
 other parts keep (the connection, `Sfx`'s channels, `View`, the browser's fullscreen, the `Picture`),
 handed in as `MenuHooks`; `rows.ts` is the kinds of row (a toggle, a stepper with < and > and maybe
-an AUTO button, a field, buttons, a link to share) and how each draws; and `menu.css` is its look. A
+an AUTO button, a field, buttons, a link to share) and how each draws, a button able to warn of what
+it does and go at a second press (`ui/pressTwice.ts`, as every way out of a room warns its room
+master that leaving closes it); and `menu.css` is its look. A
 new setting is a row in `tabs.ts`, and a new kind of row a type and a case in `rows.ts`. The PLAY
 tab opens on a window (`Preview.ts`) with the player's own body in it and the map in a square in
 its corner (on touch, the other way round), the two swapping places at a click on the small one, and under it the hint to press C

@@ -24,6 +24,10 @@ const SIM_JITTER_MS = Number(process.env.SIM_JITTER_MS ?? 0);
 const STATIC_DIR = process.env.STATIC_DIR;
 
 const rooms = new Map<string, Room>();
+// The rooms that ended themselves (their master left), by key, and why. Nobody is seated in one
+// again: behind Modal a room is its session, which idles out with nobody in it, and a join that
+// reaches it meanwhile is told why it ended rather than made a new room under it.
+const ended = new Map<string, string>();
 const spawnBot = createBotSpawner(log) ?? undefined;
 const emptyTimers = new Map<string, NodeJS.Timeout>();
 
@@ -42,11 +46,17 @@ function roomFor(key: string, mode: GameModeId): Room {
   if (!room) {
     // Seeded by the key (the Modal session id in production): the same session always gets the
     // same cube layout and spawns, even if Node rebuilt the room after an empty spell.
+    ended.delete(key);
     room = new Room(key, {
       mode,
       seed: hashSeed(key),
       log,
       spawnBot,
+      onEnd: (reason) => {
+        rooms.delete(key);
+        ended.set(key, reason);
+        log(`room ${key} ended: ${reason}`);
+      },
       onEmpty: () => {
         emptyTimers.set(
           key,
@@ -80,18 +90,32 @@ function gameOf(url: URL): GameModeId {
   return isGameModeId(game) && url.searchParams.get('room') !== GLOBAL_ROOM ? game : FREEPLAY;
 }
 
-// Why a join's mode (?mode=create or join; none is either) turns it away, or null. Behind Modal the
-// lobby has already checked it against the room's session; a bare server keeps rooms by code, so it
-// checks here. The global room is always there to join, whether or not anyone is in it, and so
-// never anyone's to create. Any other room is there while it's in `rooms`, its empty spell included,
-// as a session is.
+// Whether a join came through the lobby, which has checked it against the room's session and says
+// what it knows of the room. A bare server (local dev) has no lobby and works those out itself.
+function lobbied(req: IncomingMessage): boolean {
+  return !!req.headers[SESSION_HEADER];
+}
+
+// Why a join is turned away, or null: its room ended itself, or its mode (?mode=create or join;
+// none is either) doesn't fit. Behind Modal the lobby has already checked the mode against the
+// room's session; a bare server keeps rooms by code, so it checks here. The global room is always
+// there to join, whether or not anyone is in it, and so never anyone's to create. Any other room is
+// there while it's in `rooms`, its empty spell included, as a session is, and one that ended is
+// gone: its code can be created again.
 function refusal(req: IncomingMessage, url: URL, key: string): string | null {
-  if (req.headers[SESSION_HEADER]) return null;
   const mode = url.searchParams.get('mode');
+  const over = ended.get(key);
+  if (lobbied(req)) return over ?? null;
   const exists = key === GLOBAL_ROOM || rooms.has(key);
   if (mode === 'create' && exists) return `room ${key} already exists`;
-  if (mode === 'join' && !exists) return `room ${key} doesn't exist`;
-  return null;
+  if (mode === 'join' && !exists) return over ?? `room ${key} doesn't exist`;
+  return mode === 'create' ? null : (over ?? null);
+}
+
+// Whether a join made its room: the lobby's word (?made=1, on the join whose request started the
+// room's session), or on a bare server a create, which is only let in to a room that wasn't there.
+function made(req: IncomingMessage, url: URL): boolean {
+  return lobbied(req) ? url.searchParams.get('made') === '1' : url.searchParams.get('mode') === 'create';
 }
 
 function linkFor(ws: WebSocket): ClientLink {
@@ -145,6 +169,7 @@ http.on('upgrade', (req, socket, head) => {
       bot: url.searchParams.get('bot') === '1',
       room: url.searchParams.get('room') ?? undefined,
       color: url.searchParams.get('color') ?? undefined,
+      made: made(req, url),
       ...placementFromQuery((key) => url.searchParams.get(key)),
     });
     if (!id) {

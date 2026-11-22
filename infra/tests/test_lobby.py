@@ -97,5 +97,7 @@ def test_join_starts_a_room_only_when_asked(monkeypatch: pytest.MonkeyPatch) -> 
             joined = await client.get("/join/derby", params={"mode": "join", "game": "shootout"})
             for seated in (made, joined):
                 assert parse_qs(urlparse(seated.headers["location"]).query)["game"] == ["racing"]
+            # Only the join that started the room is told it made it.
+            assert "made=1" in made.headers["location"] and "made" not in joined.headers["location"]
 
     asyncio.run(run())

@@ -3,7 +3,7 @@
 // the best nearest it: Up picks from the bottom, Down comes back, Enter or Tab (or a click) puts
 // the pick in the box, where Enter sends it as anything else.
 import { MAX_CHAT_LENGTH, MAX_HEARTS, heartsOf, type AvatarId, type Element, type KillItem } from '@world/shared';
-import { HEART, KNIFE, ROBOT, SKULL, pixelSvg } from './pixelIcons';
+import { CROWN, HEART, KNIFE, ROBOT, SKULL, pixelSvg } from './pixelIcons';
 
 import { IS_TOUCH } from '../input/touch';
 import { roomLink } from '../net/lobby';
@@ -79,6 +79,7 @@ export class Hud {
   private readonly crosshair = document.getElementById('crosshair')!;
   private players = new Map<string, RosterEntry>();
   private myId = '';
+  private master: string | null = null; // the room master's id, if the room has one
   onChat: ((text: string) => void) | null = null;
   onChatOpenChange: ((open: boolean) => void) | null = null;
 
@@ -248,6 +249,13 @@ export class Hud {
 
   setSelf(id: string): void {
     this.myId = id;
+  }
+
+  // The room master, who has a crown on the roster (the shared package's modes/game.ts); null: none.
+  setMaster(id: string | null): void {
+    if (id === this.master) return;
+    this.master = id;
+    this.renderPlayers();
   }
 
   setPlayers(list: RosterPlayer[]): void {
@@ -500,15 +508,15 @@ export class Hud {
     this.rosterPages = Math.max(1, Math.ceil(others.length / perPage));
     this.rosterPage = Math.min(this.rosterPage, this.rosterPages - 1);
     const start = this.rosterPage * perPage;
-    const rows = others.slice(start, start + perPage).map(([, p]) => rosterRow(p, false));
-    if (me) rows.unshift(rosterRow(me, true));
+    const rows = others.slice(start, start + perPage).map(([id, p]) => rosterRow(p, false, id === this.master));
+    if (me) rows.unshift(rosterRow(me, true, this.myId === this.master));
     this.playerList.replaceChildren(...rows);
     this.rosterPageEl.hidden = this.rosterPages === 1;
     this.rosterPageEl.textContent = `${this.rosterPage + 1}/${this.rosterPages}`;
   }
 }
 
-function rosterRow(p: RosterEntry, mine: boolean): HTMLLIElement {
+function rosterRow(p: RosterEntry, mine: boolean, master: boolean): HTMLLIElement {
   const li = document.createElement('li');
   li.classList.toggle('me', mine);
   li.classList.toggle('dead', p.dead); // dimmed, with no hearts to show
@@ -517,6 +525,7 @@ function rosterRow(p: RosterEntry, mine: boolean): HTMLLIElement {
   dot.style.background = p.color;
   li.append(dot);
   if (p.bot) li.append(pixelSvg(ROBOT, 'robot'));
+  if (master) li.append(pixelSvg(CROWN, 'crown'));
   li.append(document.createTextNode(p.name + (mine ? ' (you)' : '')));
   const stats = document.createElement('span');
   stats.className = 'stats';
