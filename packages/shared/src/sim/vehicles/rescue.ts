@@ -7,7 +7,7 @@
 // a kart left the world only the Room knows (`Watch`), so it's the Room that begins one.
 import type { Structures } from '../collision';
 import { STEP_UP } from '../constants';
-import { onOutsideGround, type Ground } from '../ground';
+import { onOutsideGround } from '../ground';
 import { ROAD_WIDTH } from '../outline';
 import type { Vec3 } from '../types';
 import type { KartState, KartStep } from './kart';
@@ -76,12 +76,13 @@ export interface Watch {
 const INLAND = 10;
 
 // A watch over a kart that has yet to stand anywhere, dropped by someone standing at `feet` and
-// facing `yaw`; out of bounds, the nearest spot INLAND in from the floor's edge.
-export function watchFrom(feet: Vec3, yaw: number, ground: Ground): Watch {
+// facing `yaw`; out of bounds, the top of whatever stands at the nearest spot INLAND in from the
+// floor's edge (a road's bank stands on the floor).
+export function watchFrom(feet: Vec3, yaw: number, structures: Structures): Watch {
   const safe = { ...feet };
   if (onOutsideGround(feet.y)) {
-    ground.clamp(safe, INLAND);
-    safe.y = 0;
+    structures.ground.clamp(safe, INLAND);
+    safe.y = structures.groundAt(safe.x, safe.z, Infinity);
   }
   return { safe, yaw, stranded: 0 };
 }

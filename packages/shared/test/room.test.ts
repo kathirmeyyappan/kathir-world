@@ -29,6 +29,7 @@ import {
   TICK_DT,
   TICK_RATE,
   WORLD_GROUND,
+  WORLD_STRUCTURES,
   CIRCLE_LOOKS,
   DOOR_SWING_SECONDS,
   DUNE_HEIGHT,
@@ -1239,10 +1240,11 @@ test('a strike: a windup after the press its blow lands once on whoever on foot 
 
 // A room on an empty world with `names` in it, each standing where given, facing +z.
 function kartRoom(...at: Vec3[]): { room: Room; ids: string[]; inboxes: ServerMessage[][] } {
-  const room = new Room('karts', {
-    seed: 1,
-    structures: new Structures([wall({ x: -10, z: 40 }, { x: 10, z: 40 }, 4)]),
-  });
+  return kartRoomIn(new Structures([wall({ x: -10, z: 40 }, { x: 10, z: 40 }, 4)]), ...at);
+}
+
+function kartRoomIn(structures: Structures, ...at: Vec3[]): { room: Room; ids: string[]; inboxes: ServerMessage[][] } {
+  const room = new Room('karts', { seed: 1, structures });
   const links = at.map(() => link());
   const ids = at.map((feet, i) => {
     const id = room.join(`p${i}`, links[i])!;
@@ -1433,13 +1435,16 @@ test('a kart driven off the world is fished back onto the middle of the road it 
   assert.deepEqual([k.wrenches, me.hearts], [wrenches, hearts], 'neither the worse for it');
 });
 
-test('a kart dropped from out of bounds is fished back onto the floor, not set down out there again', () => {
-  // On the ground past the world's south-west edge, facing the drop.
-  const { room, ids } = kartRoom({ x: 0, y: OUTSIDE_HEIGHT, z: -120 });
+test('a kart dropped from out of bounds is fished back onto the road, not set down out there again', () => {
+  // On the ground past the edge of a road whose bank stands 3.4 m over the floor there.
+  const { room, ids } = kartRoomIn(WORLD_STRUCTURES, { x: -241, y: OUTSIDE_HEIGHT, z: -140 });
   const [id] = ids;
   getIn(room, id);
   const k = room.garage.list[0];
   assert.ok(stranded(k), 'dropped out of bounds');
   for (let i = 0; i < (RESCUE.wait + 10) * TICK_RATE; i++) driving(room, id, 0);
-  assert.ok(k.grounded && !stranded(k), `back on the floor: ${k.pos.y}`);
+  assert.ok(k.grounded && k.pos.y > 3, `back on top of the road: ${k.pos.y}`);
+  const from = { ...k.pos };
+  for (let i = 0; i < 2 * TICK_RATE; i++) driving(room, id, 1);
+  assert.ok(Math.hypot(k.pos.x - from.x, k.pos.z - from.z) > 5, 'and driven off');
 });

@@ -131,7 +131,7 @@ export class Garage {
       breaker: null,
       frame: null,
       ahead: 0,
-      watch: watchFrom({ x: p.pos.x, y: feet, z: p.pos.z }, p.yaw, this.structures.ground),
+      watch: watchFrom({ x: p.pos.x, y: feet, z: p.pos.z }, p.yaw, this.structures),
     });
     return k;
   }
