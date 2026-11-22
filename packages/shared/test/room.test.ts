@@ -1283,7 +1283,7 @@ function getIn(room: Room, id: string): string {
   assert.ok(typeof kart !== 'string', 'a kart dropped');
   for (let i = 0; i < TICK_RATE; i++) tick(room);
   assert.equal(me.riding, null, 'not in it yet, standing off');
-  me.pos = { x: kart.pos.x, y: EYE_HEIGHT, z: kart.pos.z - KARTS.standard.body.length / 2 };
+  me.pos = { x: kart.pos.x, y: kart.pos.y + EYE_HEIGHT, z: kart.pos.z - KARTS.standard.body.length / 2 };
   tick(room);
   assert.equal(me.riding, kart.id, 'in the kart');
   return kart.id;
@@ -1453,4 +1453,15 @@ test('a kart driven off the world is fished back onto the middle of the road it 
   assert.ok(Math.abs(Math.sin(k.yaw)) > 0.99, `turned along it: ${k.yaw}`);
   assert.equal(me.riding, k.id, 'its driver still in it');
   assert.deepEqual([k.wrenches, me.hearts], [wrenches, hearts], 'neither the worse for it');
+});
+
+test('a kart dropped from out of bounds is fished back onto the floor, not set down out there again', () => {
+  // On the ground past the world's south-west edge, facing the drop.
+  const { room, ids } = kartRoom({ x: 0, y: OUTSIDE_HEIGHT, z: -120 });
+  const [id] = ids;
+  getIn(room, id);
+  const k = room.garage.list[0];
+  assert.ok(stranded(k), 'dropped out of bounds');
+  for (let i = 0; i < (RESCUE.wait + 10) * TICK_RATE; i++) driving(room, id, 0);
+  assert.ok(k.grounded && !stranded(k), `back on the floor: ${k.pos.y}`);
 });
