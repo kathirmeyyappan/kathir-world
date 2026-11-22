@@ -6,7 +6,7 @@
 import { isAvatarId, type AvatarId } from './avatars';
 import type { Vec3 } from './types';
 
-export type BotId = 'circle' | 'stalker' | 'observer' | 'sniper';
+export type BotId = 'sniper' | 'circle' | 'stalker' | 'observer';
 
 // The bots app's workers, each with its own arguments. A dumb bot takes only how long to stay; a
 // combat bot takes the names it hunts as well.
@@ -24,6 +24,12 @@ export const BOT_DEFAULT_SECONDS = 300; // a called bot's stay when the caller d
 export const BOT_MAX_SECONDS = 3500; // the Modal workers' own cap (MAX_BOT_SECONDS)
 
 export const BOTS: Record<BotId, BotSpec> = {
+  sniper: {
+    id: 'sniper',
+    playerName: 'sniper-bot',
+    worker: 'combat',
+    blurb: 'climbs to a lookout and snipes every person',
+  },
   circle: {
     id: 'circle',
     playerName: 'circle-bot',
@@ -42,12 +48,6 @@ export const BOTS: Record<BotId, BotSpec> = {
     playerName: 'observer-bot',
     worker: 'dumb',
     blurb: 'stands where it lands and does nothing at all',
-  },
-  sniper: {
-    id: 'sniper',
-    playerName: 'sniper-bot',
-    worker: 'combat',
-    blurb: 'climbs to a lookout and snipes every person',
   },
 };
 
