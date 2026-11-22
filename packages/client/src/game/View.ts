@@ -112,23 +112,13 @@ const CONVERGE_FAR = 60;
 const CONVERGE_MIN = 5;
 const EASE = 0.25; // seconds the boom takes to go out or come in, as the eyes take to rise for a new look
 const BODY_FROM = 0.35; // the way out past which the body is drawn: the camera is clear of the head
-const STORAGE_KEY = 'world.view'; // the choice, kept for next time
 
 export class View {
-  mode: ViewMode = 'third';
+  mode: ViewMode = 'third'; // every life starts in third person; Z toggles it, and nothing keeps it
   // The body is watched from the boom whatever the mode: its player lies dead with nothing over the
   // view to say so, and sees it for themselves.
   watching = false;
-  private reach = 0; // how far along its way out the boom is, 0 at the eyes to 1 at its length
-
-  constructor() {
-    try {
-      if (localStorage.getItem(STORAGE_KEY) === 'first') this.mode = 'first';
-    } catch {
-      // no storage: the default
-    }
-    this.reach = this.mode === 'third' ? 1 : 0;
-  }
+  private reach = 1; // how far along its way out the boom is, 0 at the eyes to 1 at its length
 
   toggle(): void {
     this.set(this.mode === 'first' ? 'third' : 'first');
@@ -136,11 +126,6 @@ export class View {
 
   set(mode: ViewMode): void {
     this.mode = mode;
-    try {
-      localStorage.setItem(STORAGE_KEY, this.mode);
-    } catch {
-      // not kept
-    }
   }
 
   // Whether the camera is at the eyes this frame, where the first-person hands belong.
