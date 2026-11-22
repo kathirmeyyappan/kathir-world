@@ -17,7 +17,8 @@ import {
 } from '@world/shared';
 
 export interface Row {
-  label: string; // the command and its shortcuts, as shown
+  name: string; // the command, with its slash
+  shortcuts: string[]; // what else types it, with slashes
   note: string;
   args?: string; // dimmed after the command
   tap: string; // what choosing it puts in chat
@@ -50,9 +51,8 @@ export function commandGroups(): Group[] {
     {
       title: 'bot commands',
       rows: [
-        ...BOT_IDS.map((id): Row => ({
-          label: `/${BOTS[id].playerName}`,
-          note: BOTS[id].blurb,
+        ...BOT_IDS.map((id) => ({
+          ...command(BOTS[id].playerName, BOTS[id].blurb),
           args: nobreak(botArguments(id)),
           tap: `/${BOTS[id].playerName} `,
           needsArgs: true,
@@ -64,14 +64,14 @@ export function commandGroups(): Group[] {
       title: 'wear skin',
       rows: [
         ...skins.map((id) => command(AVATARS[id].command ?? id, AVATARS[id].blurb)),
-        { label: '/[color]', note: 'change your color', tap: '/', needsArgs: true },
+        { name: '/[color]', shortcuts: [], note: 'change your color', tap: '/', needsArgs: true },
       ],
     },
     {
       title: 'other',
       rows: [
         command('speedy', 'run faster for a bit'),
-        { label: '/teleport', note: 'jump straight to a spot', args: 'x y z', tap: '/teleport ', needsArgs: true },
+        { ...command('teleport', 'jump straight to a spot'), args: 'x y z', tap: '/teleport ', needsArgs: true },
       ],
     },
   ];
@@ -82,19 +82,22 @@ export function commandGroups(): Group[] {
 export function completionsOf(rows: Row[], text: string): Row[] {
   const typed = text.trim().toLowerCase();
   if (!typed.startsWith('/') || text.includes(' ')) return [];
-  const names = (row: Row) => row.label.split(', ');
-  const byName = rows.filter((row) => row.tap !== '/' && names(row)[0].startsWith(typed));
+  const byName = rows.filter((row) => row.tap !== '/' && row.name.startsWith(typed));
   const byShortcut = rows.filter(
-    (row) => row.tap !== '/' && !byName.includes(row) && names(row).some((name) => name.startsWith(typed)),
+    (row) => row.tap !== '/' && !byName.includes(row) && row.shortcuts.some((name) => name.startsWith(typed)),
   );
   return [...byName, ...byShortcut].slice(0, COMPLETIONS);
 }
 
-function command(name: string, note: string): Row {
-  const shortcuts = Object.entries(COMMAND_SHORTCUTS)
+// What else types `name` (no slash), with slashes.
+export function shortcutsOf(name: string): string[] {
+  return Object.entries(COMMAND_SHORTCUTS)
     .filter(([, c]) => c === name)
     .map(([shortcut]) => `/${shortcut}`);
-  return { label: [`/${name}`, ...shortcuts].join(', '), note, tap: `/${name}` };
+}
+
+function command(name: string, note: string): Row {
+  return { name: `/${name}`, shortcuts: shortcutsOf(name), note, tap: `/${name}` };
 }
 
 // Flags and their values unbreakable, so a line wraps only between "-t [seconds]" and the next,

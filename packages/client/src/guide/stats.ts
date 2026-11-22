@@ -47,10 +47,12 @@ import {
   type KartId,
   type PickupKind,
 } from '@world/shared';
+import { shortcutsOf } from '../ui/commands';
 
 export interface Stat {
   label: string;
   value: string;
+  shortcuts?: string[]; // other ways to type the command the value is, shown dimmed after it
 }
 
 // A number as the guide shows it: at most two decimals, none when it's whole.
@@ -67,7 +69,7 @@ export function characterStats(id: AvatarId): Stat[] {
   const look = AVATARS[id];
   const life = lifeOf(id);
   const rows: Stat[] = [];
-  if (look.command) rows.push({ label: 'Equip', value: `/${look.command}` });
+  if (look.command) rows.push({ label: 'Equip', value: `/${look.command}`, shortcuts: shortcutsOf(look.command) });
   rows.push({ label: life.sprite === 'crystal' ? 'Crystals' : 'Hearts', value: num(life.hearts) });
   if (look.regen) rows.push({ label: 'Regen', value: `${num(REGEN_RATE)} hearts/s` });
   if (look.class === 'walker') {
@@ -224,7 +226,7 @@ export function itemStats(id: ItemId): Stat[] {
   // A dragon's breath comes with its look, and that look's command is how to get it.
   const owner = (Object.keys(AVATARS) as AvatarId[]).find((a) => AVATARS[a].item === id);
   const command = spec.own && owner ? AVATARS[owner].command : id;
-  if (command) rows.push({ label: 'Equip', value: `/${command}` });
+  if (command) rows.push({ label: 'Equip', value: `/${command}`, shortcuts: shortcutsOf(command) });
   if (spec.actions.scope?.key)
     rows.push(
       { label: 'Scope key', value: keyName(spec.actions.scope.key) },
@@ -273,7 +275,7 @@ export function gearStats(id: GearId): Stat[] {
 export function kartStats(id: KartId): Stat[] {
   const spec = KARTS[id];
   return [
-    { label: 'Drop', value: `/${spec.command}` },
+    { label: 'Drop', value: `/${spec.command}`, shortcuts: shortcutsOf(spec.command) },
     { label: 'Top speed', value: `${num(spec.speed)} m/s` },
     { label: 'Boosted speed', value: `${num(spec.speed * TURBO.boost)} m/s` },
     { label: 'Acceleration', value: `${num(spec.acceleration)} s` },

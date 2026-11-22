@@ -38,7 +38,7 @@ import { BodyView, type Shown, type Thing } from '../render/BodyView';
 import { Elevation } from '../ui/Elevation';
 import { MapCanvas } from '../ui/MapCanvas';
 import { MapControls } from '../ui/mapControls';
-import { commandGroups } from '../ui/commands';
+import { commandGroups, shortcutsOf } from '../ui/commands';
 import {
   ABILITIES,
   BOT_EXAMPLES,
@@ -199,9 +199,16 @@ function statTable(stats: Stat[]): HTMLTableElement {
   const table = el('table', 'stats');
   for (const s of stats) {
     const row = table.insertRow();
-    row.append(el('th', '', s.label), el('td', '', s.value));
+    const value = el('td', '', s.value);
+    if (s.shortcuts?.length) value.append(shortcutsNote(s.shortcuts));
+    row.append(el('th', '', s.label), value);
   }
   return table;
+}
+
+// A command's other spellings, dimmed and smaller beside it.
+function shortcutsNote(shortcuts: string[]): HTMLElement {
+  return el('span', 'shortcuts', ` ${shortcuts.join(' ')}`);
 }
 
 function list(lines: string[]): HTMLUListElement {
@@ -615,7 +622,7 @@ function botPage(id: BotId): HTMLElement {
   const bot = BOTS[id];
   const page = el('div');
   const head = el('h2', 'command', `/${bot.playerName}`);
-  head.append(el('span', 'args', ` ${botArguments(id)}`));
+  head.append(shortcutsNote(shortcutsOf(bot.playerName)), el('span', 'args', ` ${botArguments(id)}`));
   const [cmd, what] = BOT_EXAMPLES[id];
   const example = el('p', 'example');
   example.append(el('code', '', cmd), el('span', '', what));
@@ -666,7 +673,11 @@ function commandsPanel(): HTMLElement {
   panel.append(controls);
   for (const group of commandGroups()) {
     const card = el('section', 'card');
-    card.append(el('h2', '', group.title), statTable(group.rows.map((r) => ({ label: r.label, value: r.note }))));
+    const table = statTable(group.rows.map((r) => ({ label: r.name, value: r.note })));
+    group.rows.forEach((r, i) => {
+      if (r.shortcuts.length) table.rows[i].cells[0].append(shortcutsNote(r.shortcuts));
+    });
+    card.append(el('h2', '', group.title), table);
     panel.append(card);
   }
   return panel;

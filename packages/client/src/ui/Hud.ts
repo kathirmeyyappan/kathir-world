@@ -197,7 +197,10 @@ export class Hud {
         const li = document.createElement('li');
         li.dataset.n = String(n);
         li.append(
-          Object.assign(document.createElement('span'), { className: 'cmd', textContent: row.label }),
+          Object.assign(document.createElement('span'), {
+            className: 'cmd',
+            textContent: [row.name, ...row.shortcuts].join(', '),
+          }),
           Object.assign(document.createElement('span'), { className: 'note', textContent: row.note }),
         );
         return li;

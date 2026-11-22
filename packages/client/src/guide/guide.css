@@ -280,6 +280,12 @@ table.stats th {
   color: var(--panel);
 }
 
+/* A command's other spellings, dimmed beside it. */
+.shortcuts {
+  color: var(--dim);
+  font-size: 0.8em;
+}
+
 /* A command with its arguments dimmed and smaller after it, as the commands card has them. */
 h2.command .args {
   color: var(--dim);
