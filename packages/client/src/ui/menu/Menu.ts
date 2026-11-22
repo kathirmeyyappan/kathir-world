@@ -66,6 +66,7 @@ export class Menu {
 
     const opener = document.createElement('button');
     opener.id = 'menu-button';
+    opener.className = 'corner-button';
     opener.append(gearIcon('gear'), Object.assign(document.createElement('span'), { textContent: 'MENU' }));
     if (!IS_TOUCH) opener.append(Object.assign(document.createElement('kbd'), { textContent: 'M', translate: false }));
     opener.addEventListener('click', () => this.show());
