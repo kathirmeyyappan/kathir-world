@@ -10,6 +10,7 @@ import { SHOOTOUT_RULES } from './shootout/rules';
 
 export { MASTER_LEFT, RESULTS_SECONDS, START_SECONDS, type Phase } from './game';
 export type { GameMode, Joining, ModeRoom } from './mode';
+export { FREEPLAY_DYING } from './rules';
 export type { Dying, Rules, Side, Sight, Standing } from './rules';
 export * from './shootout/state';
 
@@ -41,7 +42,7 @@ export const GAME_MODES: Record<GameModeId, GameModeSpec> = {
     id: 'shootout',
     name: 'Shootout',
     blurb: 'Split up into even teams and get as many kills as you can. Team with the most kills wins.',
-    playable: false,
+    playable: true,
   },
 };
 
