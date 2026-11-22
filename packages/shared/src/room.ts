@@ -4,7 +4,7 @@
 import { CUBE_IDS } from './content/cubes';
 import { CORPSE_DROP, PICKUP_AREAS } from './content/pickups';
 import { RESPAWN_AREAS, SPAWN_AREAS, type SpawnArea } from './content/regions';
-import { FREEPLAY, makeMode, rulesOf, type Dying, type GameMode, type GameModeId } from './modes';
+import { FREEPLAY, makeMode, refusal, rulesOf, type Dying, type GameMode, type GameModeId } from './modes';
 import {
   isClientMessage,
   type ClientMessage,
@@ -49,7 +49,7 @@ import { GEAR, createGear, gearHelp, type GearId } from './sim/gear';
 import { ITEMS, createItem, itemHelp, type Element, type ItemAction, type ItemId, type ItemSpec } from './sim/items';
 import { createCubes, stepCubes } from './sim/cubes';
 import { onOutsideGround } from './sim/ground';
-import { randomPointInDisc, randomPointInRegion } from './sim/regions';
+import { randomPointInRegion } from './sim/regions';
 import {
   clearDrops,
   createPickups,
@@ -83,6 +83,7 @@ const OUT_OF_BOUNDS_STEPS = Math.round(OUT_OF_BOUNDS_SECONDS * TICK_RATE);
 const SPAWN_CUBE_MARGIN = 4;
 const POUND_HEIGHT = 1; // metres over or under where a ground pound lands that its reach goes: a jump clears it
 const CALLED_BOT_RANGE = 50; // metres from the caller, across the floor, that a called bot spawns within
+const SPECTATOR_DISTANCE = 10; // metres from someone in the game, across the floor, that a ghost comes in
 
 export interface ClientLink {
   send(msg: ServerMessage): void;
@@ -194,6 +195,11 @@ export class Room {
     return [...this.seats.values()].map((s) => s.state);
   }
 
+  // Everyone the world can touch: all but the ghosts, who are in the room and not in it.
+  private get bodies(): PlayerState[] {
+    return this.players.filter((p) => !p.ghost);
+  }
+
   start(): void {
     if (this.timer) return;
     this.timer = setInterval(() => this.step(), 1000 / TICK_RATE);
@@ -240,18 +246,25 @@ export class Room {
       link.send({ t: 'error', message: `bots can't be ${opts.avatar}` });
       return null;
     }
-    const away = this.mode.turnsAway(!!opts.bot);
-    if (away !== null) {
-      link.send({ t: 'error', message: away });
+    const joining = this.mode.joining(!!opts.bot);
+    if (typeof joining === 'object') {
+      link.send({ t: 'error', message: joining.away });
       return null;
     }
+    const ghost = joining === 'ghost';
     const id = `p${this.nextPlayerId++}`;
-    const at = opts.bot && opts.spawn ? this.placedSpawn(opts.spawn) : this.spawnPoint(SPAWN_AREAS);
+    const at =
+      opts.bot && opts.spawn
+        ? this.placedSpawn(opts.spawn)
+        : ghost
+          ? this.besideSomeone()
+          : this.spawnPoint(SPAWN_AREAS);
     const names = Object.keys(NAMED_COLORS);
     const named =
       opts.color && Object.hasOwn(NAMED_COLORS, opts.color) ? opts.color : names[Math.floor(this.rng() * names.length)];
     const color = NAMED_COLORS[named];
     const state = this.newBody(id, sanitizeName(rawName), color, at, !!opts.bot);
+    state.ghost = ghost;
     if (opts.bot && opts.avatar) {
       becomeAvatar(state, opts.avatar);
       state.avatarLocked = true;
@@ -466,6 +479,7 @@ export class Room {
     if (!wants || this.tick - seat.lastShotTick < spec.cooldownTicks) return;
     seat.lastShotTick = this.tick;
     if (shoot.mode === 'tap') this.broadcast({ t: 'shot', id: me.id });
+    if (me.ghost) return; // seen to fire, and nothing comes of it
     // Judge the shot where the targets were on the shooter's screen (rewind.ts); the shooter
     // fires from where they are now, which is what their own prediction showed them.
     const at = rewindTick(frame.view, this.tick);
@@ -474,6 +488,7 @@ export class Room {
       return {
         id: p.id,
         dead: p.dead,
+        ghost: p.ghost,
         avatar: p.avatar,
         pos: was?.pos ?? p.pos,
         dragon: was ? was.dragon : p.dragon,
@@ -519,7 +534,7 @@ export class Room {
   // the first being the same click.
   private use(seat: Seat, id: string): void {
     const me = seat.state;
-    if (me.dead || !this.structures.doorIds.includes(id)) return;
+    if (me.dead || me.ghost || !this.structures.doorIds.includes(id)) return;
     if (this.tick - (this.doorSwung.get(id) ?? -Infinity) < DOOR_DEBOUNCE_SECONDS * TICK_RATE) return;
     if (this.structures.doorAt(me.pos, lookVector(me.yaw, me.pitch), DOOR_REACH) !== id) return;
     const open = !this.structures.isOpen(id);
@@ -538,6 +553,7 @@ export class Room {
     by: { shooter: Seat; headshot: boolean; move?: 'pound' | 'strike' | 'kart' | 'explosion' } | null,
     death: 'fell' | 'out' | 'crashed' = 'fell',
   ): void {
+    if (victim.ghost) return; // nothing hurts a ghost, whatever reached this far
     const killed = applyDamage(victim, damage);
     const shooter = by?.shooter.state ?? null;
     const headshot = by?.headshot ?? false;
@@ -586,8 +602,7 @@ export class Room {
     const pound = poundOf(me.avatar);
     if (!pound || me.dead || me.pound?.stage !== 'land' || me.pound.t !== 0) return;
     const { damage: hurt, reach } = poundPower(pound, me.pound.from - me.pos.y);
-    for (const other of this.seats.values()) {
-      const p = other.state;
+    for (const p of this.bodies) {
       if (p === me || p.dead || p.riding || classOf(p.avatar).id !== 'walker') continue;
       if (Math.hypot(p.pos.x - me.pos.x, p.pos.z - me.pos.z) > reach) continue;
       if (Math.abs(p.pos.y - me.pos.y) > POUND_HEIGHT || !this.structures.clear(me.pos, p.pos)) continue;
@@ -634,11 +649,14 @@ export class Room {
     for (const k of this.garage.within(o, dir, strike.reach, strike.arc)) this.garage.shoot(k.id, strike.damage, me.id);
   }
 
-  // One step of a seat's player, on `frame` or with none, and what comes of it.
+  // One step of a seat's player, on `frame` or with none, and what comes of it: for a ghost,
+  // nothing, however it lands and whatever it swings.
   private advance(seat: Seat, frame: InputFrame | null): void {
     if (seat.state.riding) return this.garage.drive(seat.state, frame, TICK_DT);
     const struck = seat.state.strike;
-    this.land(seat, stepPlayer(seat.state, frame, TICK_DT, this.structures));
+    const landing = stepPlayer(seat.state, frame, TICK_DT, this.structures);
+    if (seat.state.ghost) return;
+    this.land(seat, landing);
     this.strike(seat, struck);
   }
 
@@ -674,7 +692,7 @@ export class Room {
       }
       seat.queue.splice(0, n);
     }
-    const { blows, booms } = this.garage.step(this.players);
+    const { blows, booms } = this.garage.step(this.bodies);
     for (const blow of blows) {
       const victim = this.seats.get(blow.victim)?.state;
       const by = blow.by === null ? undefined : this.seats.get(blow.by);
@@ -684,7 +702,7 @@ export class Room {
     for (const at of booms) this.broadcast({ t: 'boom', at });
     stepCubes(this.cubes, TICK_DT, this.rng);
     stepPickups(this.pickups, TICK_DT, this.rng);
-    for (const p of this.players) takePickups(this.pickups, p, EYE_HEIGHT);
+    for (const p of this.bodies) takePickups(this.pickups, p, EYE_HEIGHT);
     this.tick++;
     const players = this.players;
     this.broadcast({
@@ -728,8 +746,7 @@ export class Room {
 
   private runCommand(seat: Seat, command: Command): void {
     const me = seat.state;
-    const game = this.mode.state;
-    const refused = rulesOf(game).refuses(game, command);
+    const refused = refusal(this.mode.state, me, command);
     if (refused !== null) return this.refuse(seat, refused);
     // A driver holds the wheel: no kit, no body that can't sit in a kart and no leaving their seat
     // for somewhere else, till they get out.
@@ -816,8 +833,7 @@ export class Room {
       if (on.length || off.length) this.broadcast({ t: 'frost', on, off });
     }
     const { reach, speed, lift, damage, grip } = rising.blast;
-    for (const other of this.seats.values()) {
-      const p = other.state;
+    for (const p of this.bodies) {
       if (p === me || p.dead || classOf(p.avatar).id !== 'walker') continue;
       const dx = p.pos.x - me.pos.x;
       const dz = p.pos.z - me.pos.z;
@@ -861,7 +877,7 @@ export class Room {
     const who = name === undefined ? bot.playerName : `${name} (${bot.playerName})`;
     const after = targets.length > 0 ? ` after ${targets.join(', ')}` : '';
     this.broadcast({ t: 'system', text: `${me.name} called ${who} for ${seconds}s${after}` });
-    const spawn = this.standingSpot(() => this.pointNear(me.pos), me.pos.y - EYE_HEIGHT);
+    const spawn = this.standingSpot(() => this.pointNear(me.pos, 0, CALLED_BOT_RANGE), me.pos.y - EYE_HEIGHT);
     const named = name === undefined ? {} : { name };
     const dressed = call.avatar === null ? {} : { avatar: call.avatar };
     const req = botRequest(
@@ -976,15 +992,28 @@ export class Room {
     return Math.max(height, this.structures.groundAt(x, z, height + STEP_UP));
   }
 
-  // A random point within CALLED_BOT_RANGE of `near` and SPAWN_WALL_MARGIN inside the world; `near`
-  // itself if twenty tries all land outside (at the world's edge, over half the circle can).
-  private pointNear(near: Vec3): { x: number; z: number } {
-    const around = { kind: 'disc' as const, x: near.x, z: near.z, r: CALLED_BOT_RANGE };
+  // A random point `from` to `to` metres from `near` across the floor and SPAWN_WALL_MARGIN inside
+  // the world; `near` itself if twenty tries all land outside (at the world's edge, over half the
+  // circle can).
+  private pointNear(near: Vec3, from: number, to: number): { x: number; z: number } {
+    const around = { kind: 'ring' as const, x: near.x, y: near.y, z: near.z, inner: from, r: to };
     for (let i = 0; i < 20; i++) {
-      const p = randomPointInDisc(around, 0, this.rng);
+      const p = randomPointInRegion(around, 0, this.rng);
       if (this.structures.ground.edge(p.x, p.z) <= -SPAWN_WALL_MARGIN) return p;
     }
     return { x: near.x, z: near.z };
+  }
+
+  // Where a ghost comes in (its eye point): SPECTATOR_DISTANCE from someone in the game, picked at
+  // random, at their height, on whatever is within a step of it there or in the air to fall from.
+  // With nobody to stand by, where anyone comes in.
+  private besideSomeone(): Vec3 {
+    const playing = this.bodies.filter((p) => !p.dead);
+    if (playing.length === 0) return this.spawnPoint(SPAWN_AREAS);
+    const near = playing[Math.floor(this.rng() * playing.length)].pos;
+    const pick = () => this.pointNear(near, SPECTATOR_DISTANCE, SPECTATOR_DISTANCE);
+    const feet = this.standingSpot(pick, near.y - EYE_HEIGHT);
+    return { ...feet, y: feet.y + EYE_HEIGHT };
   }
 }
 

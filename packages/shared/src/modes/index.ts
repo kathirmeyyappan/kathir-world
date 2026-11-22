@@ -3,10 +3,11 @@
 // shares always is. The rest are games, each with its own rules over the same world.
 import { ANY_GAME, Game, gameRules, type Phase } from './game';
 import { GameMode, type ModeRoom } from './mode';
-import { FREEPLAY_RULES, type Rules } from './rules';
+import type { Command } from '../commands';
+import { FREEPLAY_RULES, GHOST_ALLOWS, kindOf, type Rules } from './rules';
 
 export { MASTER_LEFT, START_SECONDS, type Phase } from './game';
-export type { GameMode, ModeRoom } from './mode';
+export type { GameMode, Joining, ModeRoom } from './mode';
 export type { Dying, Rules } from './rules';
 
 export const GAME_MODE_IDS = ['freeplay', 'racing', 'shootout'] as const;
@@ -67,6 +68,14 @@ export function makeMode(id: GameModeId, room: ModeRoom): GameMode {
 // of the game as it stands, `rulesOf(game).dying(game)`.
 export function rulesOf(game: GameState): Rules {
   return RULES[game.mode];
+}
+
+// Why `command` is refused of `player` as `game` stands, or null: a ghost's own limits, then the
+// game's rules. What the Room enforces and the client greys by.
+export function refusal(game: GameState, player: { ghost: boolean }, command: Command): string | null {
+  const kind = kindOf(command);
+  if (player.ghost && kind !== null && !GHOST_ALLOWS[kind]) return 'not as a ghost';
+  return rulesOf(game).refuses(game, command);
 }
 
 // A room's game as everyone in it is told of it.

@@ -31,8 +31,8 @@ export const FREEPLAY_RULES: Rules = {
   dying: () => FREEPLAY_DYING,
 };
 
-// What a command is to a game's rules. A game says of every kind whether it allows it (game.ts
-// `Allowed`), so a new kind of command doesn't build until every game has said.
+// What a command is to a game's rules. A game says of every kind whether it allows it (`Allowed`),
+// and so does a ghost, so a new kind of command doesn't build until each has said.
 export type CommandKind =
   | 'speedy'
   | 'weapon'
@@ -63,3 +63,22 @@ export function kindOf(command: Command): CommandKind | null {
       return command.name;
   }
 }
+
+// Whether each kind of command is allowed.
+export type Allowed = Record<CommandKind, boolean>;
+
+// What a ghost may ask for, in whatever game: what's a body's own to do (a look on foot, something
+// in hand or worn), and nothing that puts a thing in the world or takes up room in it.
+export const GHOST_ALLOWS: Allowed = {
+  speedy: true,
+  weapon: true,
+  gear: true,
+  unequip: true,
+  look: true,
+  dragon: false,
+  colour: true,
+  bot: false,
+  'kill-bots': false,
+  kart: false,
+  teleport: true,
+};

@@ -59,6 +59,7 @@ class Player:
     body: int
     bot: bool
     dead: bool
+    ghost: bool
 
 
 @dataclass(frozen=True, slots=True)
@@ -181,6 +182,7 @@ def player(data: Mapping[str, Any]) -> Player:
         body=data["body"],
         bot=data["bot"],
         dead=data["dead"],
+        ghost=data["ghost"],
     )
 
 

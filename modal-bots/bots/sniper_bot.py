@@ -227,7 +227,7 @@ def quarry(state: WorldState, targets: tuple[str, ...]) -> list[Player]:
     wanted = [t.lower() for t in targets]
 
     def chosen(p: Player) -> bool:
-        if p.id == me.id or p.dead:
+        if p.id == me.id or p.dead or p.ghost:
             return False
         return any(w in p.name.lower() for w in wanted) if wanted else not p.bot
 

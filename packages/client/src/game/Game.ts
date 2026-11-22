@@ -413,7 +413,7 @@ export class Game {
       this.commandsMenu.set(false); // typed over the commands: the card goes, so what it did is in view
     };
     this.commandsMenu.onCommand = (text) => this.hud.onChat?.(text);
-    this.commandsMenu.refused = this.hud.refused = (row) => refusedBy(this.game, row);
+    this.commandsMenu.refused = this.hud.refused = (row) => refusedBy(this.game, this.prediction?.state ?? null, row);
     this.commandsMenu.onDraft = (text) => this.hud.openChat(text);
     this.commandsMenu.onPoint = (text) => this.wantCommand(text, false);
     this.commandsMenu.onNotice = (text) => this.alert.flash(text);
@@ -1441,7 +1441,7 @@ export class Game {
       this.canFire() &&
       resolveFire(
         ITEMS[held.id],
-        { id: this.myId, pos: me.pos, yaw: this.aim.yaw, pitch: this.aim.pitch, avatar: me.avatar, dragon: me.dragon },
+        { ...me, yaw: this.aim.yaw, pitch: this.aim.pitch },
         targets(sampled.players),
         WORLD_STRUCTURES,
       ).length > 0;
@@ -1644,6 +1644,7 @@ export class Game {
         climb: self.climb,
         chilled: self.chilled > 0,
         dead: this.dead,
+        ghost: self.ghost,
         body: self.body,
         avatar: self.avatar,
         dragon: self.dragon,
@@ -1778,6 +1779,7 @@ function targets(players: RemotePlayer[]) {
     id: p.id,
     pos: { x: p.x, y: p.y, z: p.z },
     dead: p.dead,
+    ghost: p.ghost,
     avatar: p.avatar,
     dragon: p.dragon,
     riding: p.riding,

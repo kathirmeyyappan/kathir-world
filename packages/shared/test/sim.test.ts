@@ -5,6 +5,7 @@ import { gunzipSync } from 'node:zlib';
 import { MAP_SOURCES } from '../src/sim/botMap';
 import { climb, gap, layRoad, level, padded, span, split } from '../src/sim/roads';
 import {
+  doorPieces,
   CHILL_SECONDS,
   CHILLED_SPEED_MULTIPLIER,
   CLIMB_SHARE,
@@ -548,6 +549,17 @@ test('a roof stops a jump and a doorway lets a player in', () => {
     top = Math.max(top, p.pos.y + 0.3);
   }
   assert.ok(top <= 2.4 + 1e-9, `head stopped at the roof, reached ${top}`);
+
+  // A door shut across that doorway stops a player at it, and is no wall to a ghost.
+  const front = { id: 'front', hinge: { x: -1, z: 4 }, y: 0, bearing: 0, reach: 2, height: 2.2, thickness: 0.2 };
+  const shut = new Structures([
+    ...building({ x: 0, z: 0, w: 8, d: 8, h: 2.4, door: 2, doorHeight: 2.2 }),
+    ...doorPieces({ ...front, swing: Math.PI / 2 }),
+  ]);
+  const [stopped, ghost] = ['b', 'c'].map((id) => createPlayer(id, id, '#fff', { x: 0, y: EYE_HEIGHT, z: 8 }));
+  ghost.ghost = true;
+  for (const walker of [stopped, ghost]) walk(walker, Math.PI, 45, shut);
+  assert.ok(stopped.pos.z > 4 && ghost.pos.z < 2, `outside at z ${stopped.pos.z}, and inside at z ${ghost.pos.z}`);
 });
 
 test("the Krusty Krab's roof has no seam to drop through: anywhere across it, some of it is under a body's middle", () => {

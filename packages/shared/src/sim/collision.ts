@@ -86,6 +86,7 @@ export class Structures {
   private readonly placed: Placed[];
   private readonly grid = new Map<string, number[]>();
   private readonly doors = new Map<string, number[]>(); // each door's pieces
+  private doorsStand = true; // false while a body that no door stops is stepped (`throughDoors`)
   private readonly lowBand: number; // the grid's lowest and highest height bands with anything in them
   private readonly highBand: number;
 
@@ -140,6 +141,18 @@ export class Structures {
 
   isOpen(id: string): boolean {
     return (this.doors.get(id) ?? []).some((i) => this.placed[i].door!.open && this.placed[i].on);
+  }
+
+  // Runs `step` with no door's pieces standing, shut or swung open: these structures as a body that
+  // no door stops meets them (a ghost's, types.ts). Everything else stands as it does.
+  throughDoors<T>(step: () => T): T {
+    const stood = this.doorsStand;
+    this.doorsStand = false;
+    try {
+      return step();
+    } finally {
+      this.doorsStand = stood;
+    }
   }
 
   // The door the ray (o, d) meets first within maxT, before anything else, or null.
@@ -479,7 +492,7 @@ export class Structures {
   }
 
   // Structures whose grid cells touch the box, standing (a door's piece only while the door is
-  // its way). Anything wholly above or below the box's height is left out; a height past every
+  // its way, and none of one through `throughDoors`). Anything wholly above or below the box's height is left out; a height past every
   // band with anything in it (an infinite reach) looks no further than those.
   private near(minX: number, minZ: number, maxX: number, maxZ: number, minY: number, maxY: number): Placed[] {
     return this.nearIndices(minX, minZ, maxX, maxZ, minY, maxY).map((i) => this.placed[i]);
@@ -491,7 +504,7 @@ export class Structures {
     const low = Math.max(minY, this.lowBand * CELL);
     const high = Math.min(maxY, this.highBand * CELL);
     for (const key of cells(minX, minZ, maxX, maxZ, low, high)) for (const i of this.grid.get(key) ?? []) found.add(i);
-    return [...found].filter((i) => this.placed[i].on);
+    return [...found].filter((i) => this.placed[i].on && (this.doorsStand || !this.placed[i].door));
   }
 }
 
