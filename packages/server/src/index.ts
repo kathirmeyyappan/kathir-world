@@ -63,13 +63,15 @@ function roomKey(req: IncomingMessage, url: URL): string {
 
 // Why a join's mode (?mode=create or join; none is either) turns it away, or null. Behind Modal the
 // lobby has already checked it against the room's session; a bare server keeps rooms by code, so it
-// checks here. The global room is always open. A room counts while it's in `rooms`, its empty spell
-// included, as a session does.
+// checks here. The global room is always there to join, whether or not anyone is in it, and so
+// never anyone's to create. Any other room is there while it's in `rooms`, its empty spell included,
+// as a session is.
 function refusal(req: IncomingMessage, url: URL, key: string): string | null {
-  if (req.headers[SESSION_HEADER] || key === GLOBAL_ROOM) return null;
+  if (req.headers[SESSION_HEADER]) return null;
   const mode = url.searchParams.get('mode');
-  if (mode === 'create' && rooms.has(key)) return `room ${key} already exists`;
-  if (mode === 'join' && !rooms.has(key)) return `room ${key} doesn't exist`;
+  const exists = key === GLOBAL_ROOM || rooms.has(key);
+  if (mode === 'create' && exists) return `room ${key} already exists`;
+  if (mode === 'join' && !exists) return `room ${key} doesn't exist`;
   return null;
 }
 

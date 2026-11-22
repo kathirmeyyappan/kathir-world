@@ -98,7 +98,7 @@ export function leaveRoom(): void {
   location.href = homeUrl();
 }
 
-// The room everyone shares. It is always open: creating or joining it both just go in.
+// The room everyone shares. It is always there to join, and so never anyone's to create.
 export const GLOBAL_ROOM = 'global';
 
 // What a join asks of its code: `create` a room no one is in yet, or `join` one that's running. The
