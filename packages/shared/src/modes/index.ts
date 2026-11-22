@@ -5,10 +5,13 @@ import { ANY_GAME, Game, gameRules, type Phase } from './game';
 import { GameMode, type ModeRoom } from './mode';
 import type { Command } from '../commands';
 import { FREEPLAY_RULES, GHOST_ALLOWS, kindOf, type Rules } from './rules';
+import { Shootout } from './shootout/referee';
+import { SHOOTOUT_RULES } from './shootout/rules';
 
 export { MASTER_LEFT, START_SECONDS, type Phase } from './game';
 export type { GameMode, Joining, ModeRoom } from './mode';
 export type { Dying, Rules } from './rules';
+export * from './shootout/state';
 
 export const GAME_MODE_IDS = ['freeplay', 'racing', 'shootout'] as const;
 export type GameModeId = (typeof GAME_MODE_IDS)[number];
@@ -46,17 +49,17 @@ export function isGameModeId(v: unknown): v is GameModeId {
   return typeof v === 'string' && (GAME_MODE_IDS as readonly string[]).includes(v);
 }
 
-// What makes each mode's game, and its rules. Racing and Shootout are what every game shares and no
-// more, until their own are built.
+// What makes each mode's game, and its rules. Racing is what every game shares and no more, until
+// its own is built.
 const GAMES: Record<GameModeId, new (id: GameModeId, room: ModeRoom) => GameMode> = {
   freeplay: GameMode,
   racing: Game,
-  shootout: Game,
+  shootout: Shootout,
 };
 const RULES: Record<GameModeId, Rules> = {
   freeplay: FREEPLAY_RULES,
   racing: gameRules(ANY_GAME),
-  shootout: gameRules(ANY_GAME),
+  shootout: SHOOTOUT_RULES,
 };
 
 // A room's game in mode `id`.

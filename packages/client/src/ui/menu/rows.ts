@@ -16,9 +16,11 @@ export interface Tab {
 export interface Section {
   title: string;
   rows: Row[];
+  shown?: () => boolean; // whether it's there right now; always, unless said
+  wide?: boolean; // takes the room of two where a tab's sections stand side by side (a phone on its side)
 }
 
-export type Row = Toggle | Stepper | Field | Select | Buttons | Links | Share | Words;
+export type Row = Toggle | Stepper | Field | Select | Buttons | Links | Share | Words | Board;
 
 // A setting with a few values: its button reads the one it's on and moves it to the next.
 export interface Toggle {
@@ -82,6 +84,23 @@ export interface Words {
   big?: boolean;
 }
 
+// Players in columns, a team to each: its name in its colour over who's on it. While they `can` be
+// moved, a player goes to another column by a drag of their name onto it, or by a tap on the name
+// and then on the column (a touch has no drag).
+export interface Board {
+  kind: 'board';
+  columns: () => Column[];
+  can: () => boolean;
+  move: (player: string, to: number) => void; // a player, by id, to the column at that place
+  hint?: () => string | null; // said under it, while there's something to say
+}
+
+export interface Column {
+  name: string;
+  colour: string;
+  players: { id: string; name: string }[];
+}
+
 export interface Button {
   label: string;
   press?: () => void;
@@ -142,7 +161,72 @@ export function draw(row: Row): Drawn {
       return share(row);
     case 'words':
       return words(row);
+    case 'board':
+      return board(row);
   }
+}
+
+// Drawn afresh whenever what it shows changes, and otherwise left alone, so a drag isn't cut short.
+function board(row: Board): Drawn {
+  const el = element('div', 'board');
+  const columns = element('div', 'columns');
+  const hint = element('div', 'hint');
+  el.append(columns, hint);
+  let picked: string | null = null; // the player tapped, to go where the next tap lands
+  let shown = '';
+  const fill = (cols: Column[], can: boolean) =>
+    columns.replaceChildren(
+      ...cols.map((col, to) => {
+        const column = element('div', can ? 'column open' : 'column');
+        column.style.setProperty('--team', col.colour);
+        const head = element('div', 'head');
+        head.append(element('span', 'name', col.name), element('span', 'count', String(col.players.length)));
+        column.append(head);
+        for (const p of col.players) {
+          const player = element('div', p.id === picked ? 'player picked' : 'player', p.name);
+          player.translate = false;
+          if (can) {
+            player.draggable = true;
+            player.addEventListener('dragstart', (e) => e.dataTransfer?.setData('text/plain', p.id));
+            player.addEventListener('click', (e) => {
+              if (picked !== null && picked !== p.id) return; // a tap on their column, for the one picked
+              e.stopPropagation();
+              picked = picked === p.id ? null : p.id;
+              refresh();
+            });
+          }
+          column.append(player);
+        }
+        if (!can) return column;
+        column.addEventListener('dragover', (e) => e.preventDefault());
+        column.addEventListener('drop', (e) => {
+          e.preventDefault();
+          const id = e.dataTransfer?.getData('text/plain');
+          if (id) row.move(id, to);
+        });
+        column.addEventListener('click', () => {
+          if (picked === null) return;
+          row.move(picked, to);
+          picked = null;
+          refresh();
+        });
+        return column;
+      }),
+    );
+  const refresh = () => {
+    const cols = row.columns();
+    const can = row.can();
+    if (!can || !cols.some((col) => col.players.some((p) => p.id === picked))) picked = null;
+    const now = JSON.stringify([cols, can, picked]);
+    if (now !== shown) {
+      shown = now;
+      fill(cols, can);
+    }
+    const text = row.hint?.() ?? '';
+    if (hint.textContent !== text) hint.textContent = text;
+    hint.hidden = !text;
+  };
+  return { el, refresh };
 }
 
 function words(row: Words): Drawn {

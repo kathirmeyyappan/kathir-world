@@ -13,7 +13,7 @@ import { railScroll } from '../scrollRail';
 import { CLOSE, pixelSvg } from '../pixelIcons';
 import { gearIcon } from './gearIcon';
 import { Preview } from './Preview';
-import { draw, type Drawn, type Tab } from './rows';
+import { draw, type Drawn, type Section, type Tab } from './rows';
 import { menuTabs, type Me, type MenuHooks } from './tabs';
 import './menu.css';
 
@@ -26,6 +26,7 @@ export class Menu {
   private readonly specs: Tab[]; // what each tab is (tabs.ts), in the order of their buttons
   private readonly tabs: HTMLButtonElement[] = [];
   private readonly panels: HTMLElement[] = [];
+  private readonly sections: { spec: Section; el: HTMLElement }[] = []; // the ones that come and go
   private readonly preview: Preview;
   private readonly me: Me = {
     name: '',
@@ -129,10 +130,11 @@ export class Menu {
     } else if (e.code === 'KeyP') this.hooks.minimap.toggle();
   }
 
-  // Every row brought up to date, and every tab that comes and goes: one that's gone while it was
-  // the one shown gives way to the first.
+  // Every row brought up to date, and every section and tab that comes and goes: a tab that's gone
+  // while it was the one shown gives way to the first.
   private refresh(): void {
     for (const d of this.drawn) d.refresh?.();
+    for (const { spec, el } of this.sections) el.hidden = !there(spec);
     this.specs.forEach((tab, i) => (this.tabs[i].hidden = !there(tab)));
     if (!there(this.specs[this.shown])) this.select(0);
   }
@@ -169,6 +171,8 @@ export class Menu {
       panel.className = 'panel';
       for (const section of tab.sections) {
         const el = document.createElement('section');
+        if (section.shown) this.sections.push({ spec: section, el });
+        el.classList.toggle('wide', !!section.wide);
         el.append(Object.assign(document.createElement('h2'), { textContent: section.title }));
         for (const row of section.rows) {
           const d = draw(row);
@@ -208,6 +212,6 @@ export class Menu {
 }
 
 // Whether a tab is there right now.
-function there(tab: Tab): boolean {
-  return tab.shown?.() ?? true;
+function there(part: Tab | Section): boolean {
+  return part.shown?.() ?? true;
 }

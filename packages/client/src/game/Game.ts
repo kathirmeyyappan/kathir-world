@@ -441,6 +441,8 @@ export class Game {
       leaving: this.leaving,
       game: () => this.game,
       master: this.master,
+      set: (change) => conn.send({ t: 'settings', change }),
+      nameOf: (id) => this.hud.playerName(id),
       // The menu goes as the game is asked for anything, so what comes of it is in view.
       act: (action) => {
         conn.send({ t: 'game', do: action });

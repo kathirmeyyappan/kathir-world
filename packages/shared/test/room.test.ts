@@ -42,6 +42,7 @@ import {
   PINEAPPLE_PLACEMENT,
   botRequest,
   defaultBotsFor,
+  isShootout,
   rulesOf,
   AVATARS,
   BLAST,
@@ -390,6 +391,43 @@ test('a ghost: who joins a game being played comes in beside someone in it, and 
 
   room.receive(ida, { t: 'game', do: 'end' });
   assert.ok(!player(idc).ghost, 'a player like any, back in the lobby');
+});
+
+test("shootout's lobby: everyone goes on the team with the fewest, its master moves them, adds and takes away teams and sets the clock, and it starts only on even teams", () => {
+  const room = new Room('teams', { seed: 7, mode: 'shootout', structures: new Structures([]), pickupAreas: [] });
+  const a = link();
+  const ida = room.join('alice', a, { made: true })!;
+  const [idb, idc] = ['bob', 'carol'].map((name) => room.join(name, link())!);
+  const game = () => {
+    const told_ = told(a);
+    assert.ok(isShootout(told_));
+    return told_;
+  };
+  const set = (id: string, change: unknown) => room.receive(id, { t: 'settings', change });
+  assert.deepEqual(game().teams, [[ida, idc], [idb]]);
+  room.receive(ida, { t: 'game', do: 'start' });
+  assert.equal(game().phase, 'lobby', 'not on uneven teams');
+  assert.equal(rulesOf(game()).starts(game()), 'every team needs the same number of players');
+
+  set(idb, { teams: 3 });
+  assert.equal(game().teams.length, 2, "it's its master's to set up");
+  set(ida, { teams: 3 });
+  set(ida, { move: idc, to: 2 });
+  assert.deepEqual(game().teams, [[ida], [idb], [idc]]);
+  set(ida, { clock: 95 });
+  assert.equal(game().seconds, 90, 'the clock moves in steps');
+  set(ida, { teams: 9 });
+  assert.equal(game().teams.length, 4, 'as many teams as there can be');
+  assert.equal(rulesOf(game()).starts(game()), 'every team needs a player');
+  set(ida, { teams: 2 });
+  assert.deepEqual(game().teams, [[ida, idc], [idb]], 'a team that goes has its players dealt round the rest');
+  room.leave(idc);
+  assert.deepEqual(game().teams, [[ida], [idb]], 'whoever leaves is off their team');
+
+  room.receive(ida, { t: 'game', do: 'start' });
+  assert.equal(game().phase, 'starting');
+  set(ida, { teams: 3 });
+  assert.equal(game().teams.length, 2, 'and set up in the lobby alone');
 });
 
 test('room calls onEmpty when the last player leaves', () => {

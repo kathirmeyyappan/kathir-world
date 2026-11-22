@@ -95,10 +95,16 @@ message (`GameAction`), which the Room hands its mode (`asked`); the mode is ste
 The menu's third tab, there only in a room with a game, and the one the master's menu opens on
 (`Tab.shown` and `Tab.first`, `ui/menu/rows.ts`; `theGame` in `ui/menu/tabs.ts`). It names the mode,
 and has START GAME in the lobby and END GAME in a game, the master's to press and greyed for
-everyone else; the menu goes as either is pressed. Each mode's settings come with the mode:
-everyone sees the same ones, changing as the master changes them, only the master's live. Its rows
-are the menu's own kinds with the few new ones the modes need (a board of players, a board of
-teams), and it has to stay clean and easy on a phone: team drag has a tap to move.
+everyone else; the menu goes as either is pressed. START is there to press once the game is set up
+to start, the mode's rule (`Rules.starts`, which the Room holds the master's START to), and says
+what's missing until then. Each mode's settings come with the mode, in a section of its own under
+it (`MODE_SETTINGS`, the client's `modes/index.ts`, a section to each mode, there in a room of that
+mode): everyone sees the same ones, changing as the master changes them, only the master's live,
+and only in the lobby. A change goes up as a `settings` message, which the Room hands its mode to
+read (`GameMode.changed`; `Game.changed` takes one from the master, in the lobby, and the mode's
+own `set` reads it). Its rows are the menu's own kinds with the few new ones the modes need (a
+board of players in columns, `Board` in `ui/menu/rows.ts`), and it has to stay clean and easy on a
+phone: a player is dragged to a team, or tapped and then the team.
 
 ### Refused commands
 
@@ -188,6 +194,15 @@ Teams, a clock, and the most points when it runs out.
   at the start. Drawn and disabled until there are combat bots (below).
 - START once every team has the same number of players, bots counted, and at least one.
 
+Its settings are its own part of the game's state (`ShootoutState`, `modes/shootout/state.ts`: the
+clock's `seconds` and each team's players), changed by the master's `ShootoutChange`s (the clock, how
+many teams, a player to a team; `Shootout.set`, `modes/shootout/referee.ts`). The referee keeps
+everyone on a team: whoever comes into the lobby or the countdown, and whoever watched the last
+game as a ghost once the lobby is back, goes on the one with the fewest, and whoever leaves is off
+theirs. The start's condition is `SHOOTOUT_RULES.starts`. On the client they're
+`modes/shootout/settings.ts`: the TEAMS and CLOCK steppers, the board of teams, and the bots' row,
+drawn and off.
+
 **The game.**
 
 - The whole world is in play.
@@ -261,10 +276,11 @@ packages/shared/src/modes/
   mode.ts       GameMode: what the Room tells a mode and asks it, with freeplay's answers
   rules.ts      Rules: what the Room and the client both ask of a game's state, with freeplay's answers
   game.ts       Game: what every mode with a game shares: the master, settings, the phases, start and end
-  shootout/     teams, spawn sites, points, and its answers
+  shootout/     its state (state.ts), rules (rules.ts) and referee (referee.ts): teams, spawn sites, points
   racing/       tracks, the grid, places, elimination, points, and its answers
 packages/client/src/modes/
-  shootout/     its HUD (points and clock) and its board of teams
+  index.ts      what each mode adds to the client, by mode: its settings' rows
+  shootout/     its settings (settings.ts: the board of teams, the clock) and its HUD (points and clock)
   racing/       its HUD (place), the track on the maps and the floor, the finish line
 ```
 
@@ -289,12 +305,15 @@ everything else, and it will change as modes and features are added (`CLAUDE.md`
 | How does this player see that one?                | plainly, in their own colour           | name tags, pins, maps, the roster, the chat's names | to build                        |
 | What is someone who joins now?                    | a player                               | joining                                             | `GameMode.joining`, `joined`    |
 | What does this player leaving do?                 | their seat goes                        | leaving                                             | `GameMode.left`                 |
+| Is the game set up to start?                      | there's none                           | the master's START; the GAME tab                    | `Rules.starts`                  |
 
 **State and the wire.** A game's state (`GameState`: the mode, the master and the phase with its
 clock, and to come the settings, the points, a race's track and order) is one object a mode owns,
 sent whole in `welcome` (`welcome.game`) and again whenever it changes (the `game` message); clocks
-are in it as the tick they run out at, read against the tick of the client's last snapshot. The master's changes go up as one kind of
-message. A player's own part in it rides on `PlayerState` (`ghost`). The mode rides the join as
+are in it as the tick they run out at, read against the tick of the client's last snapshot. A
+mode's own part of it is a type of its own over the shared one (`ShootoutState extends GameState`),
+which only that mode's code reads, by its guard (`isShootout`). The master's changes go up as one
+kind of message (`settings`, its `change` the mode's own to read). A player's own part in it rides on `PlayerState` (`ghost`). The mode rides the join as
 `game=` (the join's `mode=` is already create or join). The Python mirror carries all of it, and
 bots take no ghost for a target.
 
@@ -344,7 +363,7 @@ outside dev until each can be played, so freeplay is run on every merge.
 
 **3. Shootout**
 
-- [ ] Teams in the settings: the board, adding and taking away teams, dragging, joiners dealt in,
+- [x] Teams in the settings: the board, adding and taking away teams, dragging, joiners dealt in,
       the condition to start; bots' rows drawn and disabled.
 - [ ] The game: colours, the sites dealt, the clock, the points, the kill lines, the end, and the
       results screen every mode fills in.

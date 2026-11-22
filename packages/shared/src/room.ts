@@ -430,6 +430,9 @@ export class Room {
       case 'game':
         this.mode.asked(seat.state, msg.do);
         return;
+      case 'settings':
+        this.mode.changed(seat.state, msg.change);
+        return;
       case 'ping':
         seat.link.send({ t: 'pong', at: msg.at });
         return;
