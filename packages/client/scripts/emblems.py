@@ -7,7 +7,7 @@ mark in its middle.
 
 It writes public/assets/textures/emblems/<emblem>.png for every row of EMBLEMS: the disc's colour
 and the mark on it, a picture (`picture`) or one drawn here (`kw_mark`). A character's mark is a
-picture of something of theirs, cut out of its background and kept in scripts/marks/ at a few
+picture of them or of something of theirs, cut out of its background and kept in scripts/marks/ at a few
 times the size it's drawn; one is drawn only where there's nothing to go off.
 
 The default emblem's letters are in INK, a red the client paints over with a livery's primary
@@ -85,6 +85,7 @@ EMBLEMS: dict[str, Emblem] = {
     "spongebob": Emblem(WHITE, picture(MARKS / "krabby-patty.png", 0.8)),  # a Krabby Patty, as the show draws it
     "krabs": Emblem(WHITE, picture(MARKS / "dollar.png", 0.86)),  # a Bikini Bottom dollar
     "squidward": Emblem(WHITE, picture(MARKS / "clarinet.png", 0.78)),  # his clarinet
+    "puff": Emblem(WHITE, picture(MARKS / "puff.png", 0.84)),  # herself, cross, out of a frame of the show
 }
 
 
