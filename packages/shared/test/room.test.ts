@@ -1274,6 +1274,13 @@ function driving(room: Room, id: string, gas: number, actions: ItemAction[] = []
   room.step();
 }
 
+test('a room has at most two karts for each player in it', () => {
+  const { room } = kartRoom({ x: 0, y: 0, z: 0 });
+  const me = room.players[0];
+  for (let i = 0; i < 2; i++) assert.equal(typeof room.garage.drop(me, 'standard', room.playerCount), 'object');
+  assert.equal(typeof room.garage.drop(me, 'standard', room.playerCount), 'string', 'a third refused');
+});
+
 test('a kart is got into by walking into it, driven, and got out of with E, what the driver held put away meanwhile', () => {
   const { room, ids } = kartRoom({ x: 0, y: 0, z: 0 });
   const [id] = ids;
@@ -1281,7 +1288,6 @@ test('a kart is got into by walking into it, driven, and got out of with E, what
   room.receive(id, { t: 'chat', text: '/gun' });
   const kart = getIn(room, id);
   assert.equal(me.item, null, 'the gun put away');
-  assert.equal(typeof room.garage.drop(me, 'standard', room.playerCount), 'string', 'no more karts than players');
   const from = room.garage.list[0].pos.z;
   for (let i = 0; i < 2 * TICK_RATE; i++) driving(room, id, 1);
   const k = room.garage.list[0];

@@ -50,6 +50,7 @@ export interface KartBlow {
 
 const DROP_AHEAD = 7; // metres in front of whoever asks for one that a kart drops
 const DROP_HEIGHT = 2; // metres over their feet it drops from: landing under what wears it (LANDING)
+const KARTS_PER_PLAYER = 2; // a room's karts at most, for each player in it
 const IDLE_SECONDS = 120; // an empty kart is taken away after this long
 const STRUCK_SECONDS = 0.5; // a kart hurts the same player again no sooner than this
 // Steps a driven kart takes on the keys of its driver's last frame while their next is late, at
@@ -100,9 +101,10 @@ export class Garage {
 
   // Drops a kart in front of `p`, nose their way, built to seat them: DROP_AHEAD out, or short of a
   // wall in the way down to right over them, from DROP_HEIGHT over their feet or as high as the
-  // ceiling lets it. Or says why not: with `cap` karts in the room already.
-  drop(p: PlayerState, kart: KartId, cap: number): Kart | string {
-    if (this.karts.size >= cap) return 'there are as many karts as players: blow one up first';
+  // ceiling lets it. Or says why not: with KARTS_PER_PLAYER for each of the room's `players` already.
+  drop(p: PlayerState, kart: KartId, players: number): Kart | string {
+    if (this.karts.size >= KARTS_PER_PLAYER * players)
+      return `there are ${KARTS_PER_PLAYER} karts for every player: blow one up first`;
     const made = createKart(kart, sizeFor(p.avatar), p.pos, p.yaw);
     const { length, height } = bodyOf(made);
     const f = noseOf(p.yaw);
