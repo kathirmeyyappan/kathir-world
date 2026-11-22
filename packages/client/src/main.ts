@@ -2,7 +2,7 @@ import { showHome } from './app/home';
 import type { Game } from './game/Game';
 import { IS_TOUCH } from './input/touch';
 import { leaveRoom } from './net/lobby';
-import { reloadOnStaleChunks } from './staleBuild';
+import { enterWorld, reloadOnStaleChunks } from './staleBuild';
 
 declare global {
   interface Window {
@@ -31,6 +31,7 @@ async function main(): Promise<void> {
   if (import.meta.env.DEV) window.__game = game;
   document.getElementById('disconnected-home')!.addEventListener('click', leaveRoom);
   game.start();
+  enterWorld();
   requestAnimationFrame(() => loading.classList.add('hidden'));
   showStart(canvas);
 }

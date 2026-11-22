@@ -2,15 +2,22 @@
 // named by content hash, and the new deploy has taken those names away. When one fails to load,
 // this asks the server for the page again: if it now points at a different bundle the tab is stale
 // and is reloaded; if it's the same one the failure was the network's, and the chunk is left to
-// be asked for again by the next thing that wants it (fetchOnce.ts).
+// be asked for again by the next thing that wants it (fetchOnce.ts). Once the player is in a world
+// it never reloads: that would drop them out of a match, so a stale tab there goes without the
+// chunks it can't fetch until they rejoin.
 let checking = false;
+let inWorld = false;
+
+export function enterWorld(): void {
+  inWorld = true;
+}
 
 function bundleOf(page: ParentNode): string | null {
   return page.querySelector<HTMLScriptElement>('script[type="module"][src]')?.getAttribute('src') ?? null;
 }
 
 export async function reloadIfStale(): Promise<void> {
-  if (checking) return;
+  if (checking || inWorld) return;
   checking = true;
   try {
     const response = await fetch(location.href, { cache: 'no-store' });
