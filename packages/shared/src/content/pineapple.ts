@@ -275,7 +275,9 @@ const face: Box[] = SHAPE.faceWalls.map(([x1, z1, x2, z2, y0, y1]) => ({
 const shell: Structure[] = edges.slice(1).flatMap((y1, i): Structure[] => {
   const y0 = edges[i];
   const outer = Math.max(skin(y0), skin(y1));
-  if (y0 >= levels.top) return ring(outer - SEAL, outer, y0, y1);
+  // The crown narrows by more than SEAL a band, so its seal runs in from the band's narrowest skin,
+  // or the band would stand wholly outside the skin at its top and leave a crack to the next.
+  if (y0 >= levels.top) return ring(Math.min(skin(y0), skin(y1)) - SEAL, outer, y0, y1);
   if (y0 < levels.hall) return ring(GROUND_CORE, outer, y0, y1);
   if (y0 < levels.library) return ring(outer - SEAL, outer, y0, y1);
   const [, inner] = SHAPE.library.reduce((band, next) => (next[0] <= y0 ? next : band), SHAPE.library[0]);
