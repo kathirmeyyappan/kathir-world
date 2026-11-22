@@ -51,7 +51,15 @@ import { ITEMS, createItem, itemHelp, type Element, type ItemAction, type ItemId
 import { createCubes, stepCubes } from './sim/cubes';
 import { onOutsideGround } from './sim/ground';
 import { randomPointInDisc, randomPointInRegion } from './sim/regions';
-import { createPickups, dropPickup, stepPickups, takePickups, type PickupArea, type PickupField } from './sim/pickups';
+import {
+  clearDrops,
+  createPickups,
+  dropPickup,
+  stepPickups,
+  takePickups,
+  type PickupArea,
+  type PickupField,
+} from './sim/pickups';
 import { becomeAvatar, createPlayer, stepPlayer } from './sim/player';
 import { placeWalker, throwWalker } from './sim/walker';
 import { createRng, type Rng } from './sim/rng';
@@ -146,8 +154,17 @@ export class Room {
   constructor(id: string, opts: RoomOptions = {}) {
     this.id = id;
     this.mode = makeMode(opts.mode ?? FREEPLAY, {
+      tick: () => this.tick,
       publish: () => this.broadcast({ t: 'game', game: this.mode.state }),
       close: (reason) => this.end(reason),
+      people: () => this.players.filter((p) => !p.bot),
+      embody: (player, areas) => {
+        const seat = this.seats.get(player.id)!;
+        this.rebody(seat, this.spawnPoint(areas));
+        return seat.state;
+      },
+      dropBots: () => this.dropBots(),
+      clear: () => this.clear(),
     });
     this.structures = opts.structures ?? new Structures(STRUCTURES); // its own: doors swing per room
     this.garage = new Garage(this.structures);
@@ -223,6 +240,11 @@ export class Room {
     }
     if (opts.bot && opts.avatar && !classOf(opts.avatar).bots) {
       link.send({ t: 'error', message: `bots can't be ${opts.avatar}` });
+      return null;
+    }
+    const away = this.mode.turnsAway(!!opts.bot);
+    if (away !== null) {
+      link.send({ t: 'error', message: away });
       return null;
     }
     const id = `p${this.nextPlayerId++}`;
@@ -309,23 +331,47 @@ export class Room {
       dropPickup(this.pickups, CORPSE_DROP, at, this.rng, from);
   }
 
-  // A dead person comes back: the same seat, name, colour and score in a new body, as whoever comes
-  // in is given (a full life, nothing held or worn), somewhere in RESPAWN_AREAS, in the look they
-  // died in if it's one on foot. The frames still queued were the dead body's.
+  // A dead person comes back, in a new body somewhere in RESPAWN_AREAS, the one they left buried.
   private respawn(seat: Seat): void {
+    this.buryBody(seat.state);
+    this.rebody(seat, this.spawnPoint(RESPAWN_AREAS));
+  }
+
+  // A new body for a seat's person at `at` (its eye point): the same seat, name, colour and score,
+  // and otherwise as whoever comes in is given (a full life, nothing held or worn, out of any kart),
+  // in the look they had if it's one on foot. The frames still queued were the old body's, and
+  // where that was is forgotten: nothing is judged against it.
+  private rebody(seat: Seat, at: Vec3): void {
     const was = seat.state;
-    this.buryBody(was);
-    const body = this.newBody(was.id, was.name, was.color, this.spawnPoint(RESPAWN_AREAS), false);
+    this.garage.getOut(was);
+    const body = this.newBody(was.id, was.name, was.color, at, false);
     if (classOf(was.avatar).id === 'walker') becomeAvatar(body, was.avatar);
     body.kills = was.kills;
     body.deaths = was.deaths;
     body.lastSeq = was.lastSeq;
+    body.body = was.body + 1;
     seat.state = body;
     seat.diedTick = null;
     seat.outSteps = 0;
     seat.held = [];
     seat.queue = [];
     this.history.forget(was.id);
+  }
+
+  // The world as a room starts with it: no karts, no frost, no hearts left lying, and no bots, the
+  // dead ones' seats going at once.
+  private clear(): void {
+    for (const [id, seat] of [...this.seats]) {
+      if (!seat.state.bot) continue;
+      this.leave(id);
+      seat.link.close?.('dead');
+    }
+    for (const seat of this.seats.values()) this.garage.getOut(seat.state);
+    this.garage.clear();
+    const frost = this.structures.frost.list();
+    for (const cell of frost) this.structures.frost.set(cell, false);
+    if (frost.length) this.broadcast({ t: 'frost', on: [], off: frost });
+    clearDrops(this.pickups);
   }
 
   // A body new to the world at `at`, facing any way, so no landmark greets every spawn.
@@ -363,6 +409,9 @@ export class Room {
         return;
       case 'respawn':
         if (seat.state.dead && !seat.state.bot) this.respawn(seat);
+        return;
+      case 'game':
+        this.mode.asked(seat.state, msg.do);
         return;
       case 'ping':
         seat.link.send({ t: 'pong', at: msg.at });
@@ -590,6 +639,7 @@ export class Room {
   }
 
   step(): void {
+    this.mode.step();
     for (const [id, seat] of this.seats) {
       const me = seat.state;
       const lain = seat.diedTick === null ? 0 : this.tick - seat.diedTick;
@@ -816,19 +866,25 @@ export class Room {
     });
   }
 
-  // "/kill-bots": every living bot drops dead where it stands, as if shot, so each lies as a corpse
-  // until its seat is dropped; a bot's run ends when the room closes its connection. People only.
+  // "/kill-bots": every living bot drops dead. People only.
   private killBots(seat: Seat): void {
     if (seat.state.bot) return this.refuse(seat, "bots can't kill bots");
-    const bots = [...this.seats.values()].filter((s) => s.state.bot && !s.state.dead);
+    const bots = this.dropBots();
     if (bots.length === 0) return this.refuse(seat, 'no bots here');
+    this.broadcast({ t: 'system', text: `${seat.state.name} killed ${botRollCall(bots.map((b) => b.name))}` });
+  }
+
+  // Every living bot drops dead where it stands, as if shot, so each lies as a corpse until its seat
+  // is dropped; a bot's run ends when the room closes its connection. Returns them.
+  private dropBots(): PlayerState[] {
+    const bots = [...this.seats.values()].filter((s) => s.state.bot && !s.state.dead);
     for (const bot of bots) {
       bot.state.hearts = 0;
       bot.state.dead = true;
       bot.state.deaths++;
       bot.diedTick = this.tick;
     }
-    this.broadcast({ t: 'system', text: `${seat.state.name} killed ${botRollCall(bots.map((b) => b.state.name))}` });
+    return bots.map((b) => b.state);
   }
 
   // Gear goes on beside whatever weapon they hold; wearing it again restarts its timer and tank.

@@ -55,37 +55,50 @@ roster's (`Hud.setMaster`), and the warning is `Game.leaving`, given to the menu
 
 ### The flow
 
-Every game goes through the same phases, written once.
+Every game goes through the same phases, written once (`Game`, `modes/game.ts`; `GameState.phase`,
+which is null in freeplay, where there's no game to be anywhere in).
 
 1. **Lobby.** Freeplay in every way, with three differences. A banner keeps flashing over the
-   view: "Waiting for room master to organize and start the game..." for everyone but the master,
-   whose own says "Go to the menu (press M) to start the game." A body at no hearts lies three
-   seconds, so its player sees they died, and is then back at full hearts in `RESPAWN_AREAS`, with
-   no death screen and no death sound. And whoever joins is a player. The room's default bots come
-   as they do in freeplay, and bots can be called.
-2. **Starting.** The master presses START, which is there to press once the mode's own condition
-   to start holds. Everyone is told "game is starting in 5", counted down, still in the lobby. The
-   lobby's bots are killed (as `/kill-bots` does), and bot commands are refused from here until the
-   lobby is back.
-3. **Playing.** The world is cleared (karts, frost, hearts left lying) and every player gets a new
-   body: full hearts, nothing held or worn, in the look they had if it's one on foot and the
-   standard body if it isn't. The roster's kills and deaths start from nothing. The mode puts
-   everyone where they start, and its rules hold until it ends, by its own rule or by the master's
-   END GAME, which goes straight back to the lobby with no results: "room master ended the game!"
-   stands over the lobby's banner for a moment, and goes.
-4. **Results.** Who won, on one screen every mode fills in, for ten seconds.
+   view (`ui/GameBanner.ts`): "Waiting for room master to organize and start the game..." for
+   everyone but the master, whose own says "Go to the menu (press M) to start the game." A body at
+   no hearts lies three seconds, so its player sees they died, and is then back at full hearts in
+   `RESPAWN_AREAS`, with no death screen and no death sound (to build). And whoever joins is a
+   player. The room's default bots come as they do in freeplay, and bots can be called.
+2. **Starting.** The master presses START GAME, which is there to press once the mode's own
+   condition to start holds. Everyone is told "Game is starting in 5", counted down
+   (`START_SECONDS`, against `GameState.until`), still in the lobby. The lobby's bots are killed
+   (as `/kill-bots` does), no bot is seated from here until the lobby is back, and bot commands are
+   to be refused through it.
+3. **Playing.** The world is cleared (karts, frost, hearts left lying, the bots' seats) and every
+   player gets a new body: full hearts, nothing held or worn, in the look they had if it's one on
+   foot and the standard body if it isn't. The roster's kills and deaths start from nothing. The
+   mode puts everyone where they start, and its rules hold until it ends, by its own rule or by the
+   master's END GAME, which goes straight back to the lobby with no results: "room master ended the
+   game!" stands over the lobby's banner for a moment, and goes.
+4. **Results.** Who won, on one screen every mode fills in, for ten seconds (to build, with the
+   first game that has any).
 5. Back to the **lobby**: everyone gets a new body in `RESPAWN_AREAS`, as after a death, ghosts are
    players again, the world is cleared, and the lobby's bots don't come back.
 
-Someone who joins once a game is playing is a ghost (below) until the lobby is back.
+Someone who joins once a game is playing is a ghost (below) until the lobby is back; until ghosts
+are built, they're a player like any.
+
+What a game does to its room it does through `ModeRoom` (`modes/mode.ts`): a new body for a player
+somewhere (`embody`, the Room's `rebody`, which is also what brings the dead back, and counts
+`PlayerState.body` up so every client knows the body for a new one), the world cleared (`clear`),
+the bots dropped dead (`dropBots`). The master asks for the start and the end with a `game`
+message (`GameAction`), which the Room hands its mode (`asked`); the mode is stepped with the room
+(`step`) and says whether a join is turned away (`turnsAway`).
 
 ### The GAME tab
 
-The menu's third tab, there only in a room with a game, and the one the master's menu opens on.
-Everyone sees the same settings, changing as the master changes them; only the master's are live,
-and everyone else's are greyed. START is here in the lobby and END GAME in a game. Its rows are the
-menu's own kinds (`ui/menu/rows.ts`) with the few new ones the modes need (a board of players, a
-board of teams), and it has to stay clean and easy on a phone: team drag has a tap to move.
+The menu's third tab, there only in a room with a game, and the one the master's menu opens on
+(`Tab.shown` and `Tab.first`, `ui/menu/rows.ts`; `theGame` in `ui/menu/tabs.ts`). It names the mode,
+and has START GAME in the lobby and END GAME in a game, the master's to press and greyed for
+everyone else; the menu goes as either is pressed. Each mode's settings come with the mode:
+everyone sees the same ones, changing as the master changes them, only the master's live. Its rows
+are the menu's own kinds with the few new ones the modes need (a board of players, a board of
+teams), and it has to stay clean and easy on a phone: team drag has a tap to move.
 
 ### Refused commands
 
@@ -227,10 +240,10 @@ everything else, and it will change as modes and features are added (`CLAUDE.md`
 | What is someone who joins now?                           | a player                                  | joining                                             |
 | What does this player leaving do?                        | their seat goes                           | leaving                                             |
 
-**State and the wire.** A game's state (`GameState`: the mode and the master, and to come the
-phase, the settings, the points, a race's track and order) is one object a mode owns, sent whole in
-`welcome` (`welcome.game`) and again whenever it changes (the `game` message); clocks are in it as
-the tick they run out at. The master's changes go up as one kind of
+**State and the wire.** A game's state (`GameState`: the mode, the master and the phase with its
+clock, and to come the settings, the points, a race's track and order) is one object a mode owns,
+sent whole in `welcome` (`welcome.game`) and again whenever it changes (the `game` message); clocks
+are in it as the tick they run out at, read against the tick of the client's last snapshot. The master's changes go up as one kind of
 message. A player's own part in it rides on `PlayerState` (`ghost`). The mode rides the join as
 `game=` (the join's `mode=` is already create or join). The Python mirror carries all of it, and
 bots take no ghost for a target.
@@ -266,9 +279,10 @@ outside dev until each can be played, so freeplay is run on every merge.
       lobby and the room server into the Room, and into `welcome`.
 - [x] The room master: the crown, the master's leaving closing the room, the warning on LEAVE ROOM,
       a closed room's code freed.
-- [ ] The flow: the phases, START and END GAME, the banner and the countdown, the results screen,
-      back to the lobby; the lobby's bots killed at the start and bot seats refused in a game.
-- [ ] The GAME tab: there in a room with a game, the master's to change and everyone's to see.
+- [x] The flow: the phases, START and END GAME, the banner and the countdown, back to the lobby;
+      the lobby's bots killed at the start and no bot seated in a game.
+- [x] The GAME tab: there in a room with a game, opening first for its master, with START and END
+      GAME. Each mode's settings come with the mode.
 - [ ] Refused commands, greyed where commands are offered.
 - [ ] What no hearts means, per phase: the lobby's three seconds and no screen.
 
@@ -282,7 +296,8 @@ outside dev until each can be played, so freeplay is run on every merge.
 
 - [ ] Teams in the settings: the board, adding and taking away teams, dragging, joiners dealt in,
       the condition to start; bots' rows drawn and disabled.
-- [ ] The game: colours, the sites dealt, the clock, the points, the kill lines, the end.
+- [ ] The game: colours, the sites dealt, the clock, the points, the kill lines, the end, and the
+      results screen every mode fills in.
 - [ ] Who sees whom: names, pins and maps; the HUD's points and clock; the roster by team.
 - [ ] Shootout on the home screen and in the guide.
 

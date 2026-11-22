@@ -63,6 +63,9 @@ export interface PlayerState {
   hearts: number; // a full life at spawn (classes.ts), down to 0 when shot enough
   kills: number; // players this one has finished off since joining
   deaths: number; // times they've died since joining
+  // Which body of theirs this is, from 1. A new one (back from the dead, put somewhere by a game)
+  // is never where the last was, so nothing is drawn or judged between the two.
+  body: number;
   bot: boolean; // declared by the client at join; a headless player, shown as one, and never keeps a room open
   dead: boolean; // lying where they died, until the Room brings a person back in a new body (room.ts `respawn`)
 }

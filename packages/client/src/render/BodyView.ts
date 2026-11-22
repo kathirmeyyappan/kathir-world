@@ -354,6 +354,7 @@ export class BodyView {
       climb: null,
       chilled: shown.chilled,
       dead: false,
+      body: 1,
       avatar: shown.avatar,
       dragon: body,
       riding: null,

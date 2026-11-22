@@ -32,6 +32,7 @@ def player(
         "hearts": hearts,
         "kills": 0,
         "deaths": 0,
+        "body": 1,
         "bot": False,
         "dead": dead,
     }

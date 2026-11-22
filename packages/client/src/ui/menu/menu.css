@@ -107,6 +107,9 @@
   color: #fff;
   background: rgba(100, 181, 246, 0.12);
 }
+#menu nav button[hidden] {
+  display: none;
+}
 #menu nav button.on {
   color: #05070c;
   background: var(--accent);
@@ -489,6 +492,25 @@
 #menu .buttons .danger {
   background: rgba(255, 59, 78, 0.18);
   border-color: #ff3b4e;
+}
+#menu .buttons > [hidden] {
+  display: none;
+}
+#menu .buttons button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+/* Words to read: plain, or big, for what the rows under them are about. */
+#menu .words {
+  font-size: 19px;
+  color: rgba(255, 255, 255, 0.75);
+}
+#menu .words.big {
+  font-size: 26px;
+  color: #fff;
+}
+#menu .words:empty {
+  display: none;
 }
 /* What one of them warns of before it's pressed again (pressTwice.ts), under the row. */
 #menu .asked .warning {
