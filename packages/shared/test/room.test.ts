@@ -251,18 +251,15 @@ test('players spawn at random spots in every spawn area, on its floor, and the d
   }
 });
 
-test('/speedy and /s boost the sender and tell everyone in grey', () => {
+test('/speedy boosts the sender and tell everyone in grey', () => {
   const room = new Room('cmd', { seed: 1 });
   const a = link();
   const b = link();
   const ida = room.join('alice', a)!;
   room.join('bob', b);
   const alice = room.players.find((p) => p.id === ida)!;
-  for (const command of ['/speedy', '/s']) {
-    alice.boost = 0;
-    room.receive(ida, { t: 'chat', text: command });
-    assert.equal(alice.boost, 20);
-  }
+  room.receive(ida, { t: 'chat', text: '/speedy' });
+  assert.equal(alice.boost, 20);
   const notice = b.inbox.at(-1)!;
   assert.deepEqual(notice, { t: 'system', text: 'alice increased their movement speed for 20s' });
   assert.ok(!b.inbox.some((m) => m.t === 'chat'), 'the command itself is not broadcast as chat');

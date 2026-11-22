@@ -86,10 +86,12 @@ export class CommandsMenu {
 function cardHtml(groups: Group[]): string {
   const sections = groups.map((g) => {
     const buttons = g.rows.map((r) => {
-      const label = r.label.split(', ')[0];
+      const shortcuts = r.shortcuts.length
+        ? `<span class="shortcuts" translate="no">${r.shortcuts.join(' ')}</span>`
+        : '';
       const args = r.args ? `<span class="args" translate="no">${r.args}</span>` : '';
       return `<button class="cmd-button${r.needsArgs ? ' needs-args' : ''}" data-tap="${r.tap}"${r.needsArgs ? ' data-needs-args' : ''}>
-        <span class="cmd" translate="no">${label}</span>${args}<span class="note">${r.note}</span></button>`;
+        <span class="cmd" translate="no">${r.name}${shortcuts}</span>${args}<span class="note">${r.note}</span></button>`;
     });
     return `<section><h2>${g.title}</h2><div class="buttons">${buttons.join('')}</div></section>`;
   });

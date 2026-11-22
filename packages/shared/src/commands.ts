@@ -31,12 +31,18 @@ export type Command =
   | { name: 'teleport'; feet: Vec3 | null }
   | { name: 'unknown'; raw: string };
 
-export const COMMAND_SHORTCUTS: Readonly<Partial<Record<string, ItemId | GearId | AvatarId | 'speedy'>>> = {
+export const COMMAND_SHORTCUTS: Readonly<
+  Partial<Record<string, ItemId | GearId | AvatarId | `${BotId}-bot` | 'unequip' | 'teleport'>>
+> = {
   g: 'gun',
+  s: 'sniper',
   ft: 'flamethrower',
   ib: 'ice-blower',
   j: 'jetpack',
-  s: 'speedy',
+  u: 'unequip',
+  t: 'teleport',
+  cb: 'circle-bot',
+  sb: 'sniper-bot',
   wazowski: 'mike',
 };
 
