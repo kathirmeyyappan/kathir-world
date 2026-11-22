@@ -94,11 +94,15 @@ function row(name: string, shortcuts: string[]): Pick<Row, 'name' | 'shortcuts' 
   return { name, shortcuts, label: [name, ...shortcuts].join(', '), note: '', tap: name };
 }
 
-function command(name: string, note: string): Row {
-  const shortcuts = Object.entries(COMMAND_SHORTCUTS)
+// What else types `name` (no slash), with slashes.
+export function shortcutsOf(name: string): string[] {
+  return Object.entries(COMMAND_SHORTCUTS)
     .filter(([, c]) => c === name)
     .map(([shortcut]) => `/${shortcut}`);
-  return { ...row(`/${name}`, shortcuts), note };
+}
+
+function command(name: string, note: string): Row {
+  return { ...row(`/${name}`, shortcutsOf(name)), note };
 }
 
 // Flags and their values unbreakable, so a line wraps only between "-t [seconds]" and the next,
