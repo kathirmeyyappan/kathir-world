@@ -878,8 +878,8 @@ page. A body at no hearts is `dead` and lies where it fell. A person's lies `RES
 which their death screen (`ui/Death.ts`) counts down, or until its RESPAWN button sends the
 `respawn` message; then the Room (`room.ts` `respawn`) buries the body (`buryBody`: it leaves
 `CORPSE_DROP`, see Regions and pickups) and gives the seat a new one, as whoever comes in is given
-(a full life, nothing held or worn), somewhere in `RESPAWN_AREAS`, in the look on foot they last
-wore (`Seat.onFoot`, so a dragon's rider comes back on foot). A bot is never brought back: its
+(a full life, nothing held or worn), somewhere in `RESPAWN_AREAS`, in the look they died in
+if it's one on foot (a dragon's rider comes back as the standard body). A bot is never brought back: its
 corpse lies five seconds and its seat is dropped. Nothing on the wire says a respawn happened:
 clients read it off the snapshots, a body that was `dead` and isn't. One drawn dead poofs away
 where it lay and is made afresh (`Game.dropAvatar`), nothing is drawn between the old body and the
