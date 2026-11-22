@@ -6,7 +6,9 @@ mark in its middle.
     python packages/client/scripts/emblems.py
 
 It writes public/assets/textures/emblems/<emblem>.png for every row of EMBLEMS: the disc's colour
-and the mark on it, a picture (`picture`) or one drawn here (`kw_mark`).
+and the mark on it, a picture (`picture`) or one drawn here (`kw_mark`). A character's mark is a
+picture of them or of something of theirs, cut out of its background and kept in scripts/marks/ at a few
+times the size it's drawn; one is drawn only where there's nothing to go off.
 
 The default emblem's letters are in INK, a red the client paints over with a livery's primary
 (liveries.ts `emblemPixels`), so the one picture serves every colour.
@@ -22,6 +24,7 @@ from PIL import Image, ImageDraw, ImageFilter
 
 CLIENT = Path(__file__).resolve().parents[1]
 OUT = CLIENT / "public" / "assets" / "textures" / "emblems"
+MARKS = Path(__file__).resolve().parent / "marks"
 
 SIZE = 64  # px: an emblem's picture, each side
 FINE = 8  # times that size it's drawn at, then brought down, so its edges come out smooth
@@ -79,6 +82,14 @@ def kw_mark() -> Image.Image:
 EMBLEMS: dict[str, Emblem] = {
     "kw": Emblem(WHITE, kw_mark),  # the default: every look with no emblem of its own
     "elizabeth": Emblem(DARK, picture(CLIENT / "public" / "assets" / "elizabeth.ico", 0.74)),  # the site's logo
+    "spongebob": Emblem(WHITE, picture(MARKS / "krabby-patty.png", 0.8)),  # a Krabby Patty, as the show draws it
+    "krabs": Emblem(WHITE, picture(MARKS / "dollar.png", 0.86)),  # a Bikini Bottom dollar
+    "squidward": Emblem(WHITE, picture(MARKS / "clarinet.png", 0.78)),  # his clarinet
+    "puff": Emblem(WHITE, picture(MARKS / "puff.png", 0.84)),  # herself, cross, out of a frame of the show
+    "larry": Emblem(WHITE, picture(MARKS / "dumbbell.png", 0.84)),  # a dumbbell, a stock icon's, in his red
+    "plankton": Emblem(WHITE, picture(MARKS / "chum-bucket.png", 0.9)),  # the Chum Bucket, out of a painting of it
+    "patrick": Emblem(WHITE, picture(MARKS / "star.png", 0.88)),  # himself from behind, a star
+    "sandy": Emblem(WHITE, picture(MARKS / "glove.png", 0.8)),  # her karate glove, out of a frame of the show
 }
 
 
