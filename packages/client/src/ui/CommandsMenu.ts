@@ -33,6 +33,12 @@ export class CommandsMenu {
         if (e.pointerType === 'touch') e.preventDefault();
       });
     } else {
+      // Under the menu's button, as it is (on touch, CMDS stands with CHAT instead).
+      const opener = document.createElement('button');
+      opener.className = 'corner-button';
+      opener.innerHTML = '<span class="slash">/</span><span>COMMANDS</span><kbd translate="no">C</kbd>';
+      opener.addEventListener('click', () => this.set(true));
+      document.getElementById('room-panel')!.before(opener);
       this.el.addEventListener('click', (e) => {
         const button = e.target instanceof Element ? e.target.closest<HTMLElement>('.cmd-button') : null;
         if (button) this.press(button);

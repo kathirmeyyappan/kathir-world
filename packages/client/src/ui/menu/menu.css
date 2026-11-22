@@ -1,5 +1,6 @@
-/* The menu (Menu.ts): its button in the top-left corner, and the card of tabs it opens. */
-#menu-button {
+/* The buttons in the top-left corner (the menu's, and on a mouse device the commands', CommandsMenu.ts),
+   and the card of tabs the menu opens (Menu.ts). */
+.corner-button {
   pointer-events: auto;
   cursor: pointer;
   display: flex;
@@ -13,16 +14,21 @@
   letter-spacing: 2px;
   text-align: left;
 }
-#menu-button:hover {
+.corner-button:hover {
   background: rgba(100, 181, 246, 0.2);
   border-color: var(--accent);
 }
-#menu-button .gear {
+.corner-button .gear,
+.corner-button .slash {
   width: 24px;
   height: 24px;
   flex: none;
 }
-#menu-button kbd {
+.corner-button .slash {
+  font: 24px/24px var(--mono);
+  text-align: center;
+}
+.corner-button kbd {
   margin-left: auto;
   padding: 0 6px;
   font: 20px/22px var(--mono);
