@@ -877,8 +877,6 @@ export class Game {
     this.input.pitch = me.pitch;
     this.ownAvatar?.dispose();
     this.ownAvatar = null;
-    this.look = null;
-    this.introduced = false;
     this.syncBlocked();
     if (!IS_TOUCH) Promise.resolve(this.canvasEl.requestPointerLock?.()).catch(() => this.startGate.show());
   }
@@ -1215,7 +1213,7 @@ export class Game {
     // A look's own moves get their hint as the look is taken, once the start press
     // (ui/StartGate.ts) has let the player in to read it.
     // None while driving: a kart's keys are its own.
-    const moves = this.dead || self.riding || this.startGate.up ? [] : movesHelp(self.avatar, IS_TOUCH);
+    const moves = self.riding || this.startGate.up ? [] : movesHelp(self.avatar, IS_TOUCH);
     this.hud.setMoveHint(self.avatar.toUpperCase(), moves);
     const fuelMax = held && ITEMS[held.id].fuelSeconds;
     this.fuel.set(
