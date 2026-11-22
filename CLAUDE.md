@@ -1491,10 +1491,11 @@ the player is (`Condition`) are not warnings and keep their own.
 
 L is the bare view (`ui/bareView.ts`, on a mouse device): everything laid over the world put away,
 so the picture is the world alone, and brought back by the same key, the game playing on under it.
-It's one rule (`#app.bare`, styles.css) that hides whatever stands in `#app` but the view and what
-the player opens themselves (the menu, the commands, a cube's card, the death screen, and the chat
-while it's typed in), so a new overlay is put away with the rest, and one the player opens goes in
-that rule's list.
+It's one rule (`#app.bare`, styles.css) that hides whatever stands in `#app` but the view, what's
+part of seeing it (the crosshair, the sniper's scope, the view frosted over, the iris, a hit's or
+a heal's flash at the edges) and what the player opens themselves (the menu, the commands, a cube's
+card, the death screen, and the chat while it's typed in), so a new overlay is put away with the
+rest, and one that's part of seeing or that the player opens goes in that rule's list.
 
 Anything that scrolls (the menu's and the commands' bodies, the cube card's body under its
 bar) stands in a `.scroller` beside the rail of `ui/scrollRail.ts`, in place of the browser's
