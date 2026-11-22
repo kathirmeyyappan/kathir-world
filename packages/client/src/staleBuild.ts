@@ -23,8 +23,6 @@ async function reloadIfStale(): Promise<void> {
   }
 }
 
-// Reloads a stale tab when a chunk fails to load, until the returned function is called. A page
-// stops it once the player is in a world: a reload there would drop them out of a match.
 export function reloadOnStaleChunks(): () => void {
   const check = () => void reloadIfStale();
   window.addEventListener('vite:preloadError', check);
