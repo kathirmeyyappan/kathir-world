@@ -1462,6 +1462,11 @@ body {
 #game-banner .line {
   animation: game-banner-flash 1.6s steps(4) infinite alternate;
 }
+/* The nudge to the commands and the menu (CommandHint.ts) lies across the same part of the view for
+   the seconds it's up: the banner waits under it. */
+#app:has(#command-hint.on) #game-banner {
+  visibility: hidden;
+}
 @keyframes game-banner-flash {
   from {
     opacity: 0.45;
