@@ -147,6 +147,7 @@ export const GALLERY: Photo[] = [
   { file: 'pineapple', caption: 'Outside SpongeBob’s house' },
   { file: 'dragons-standoff', caption: 'Colgera and the light dragon before Tung Tung Tower' },
   { file: 'dragons-clash', caption: 'Frost against fire before Tung Tung Tower' },
+  { file: 'anime-building', caption: 'Mike and Tung Tung Tung Sahur in the Anime Building' },
 ];
 
 export interface Place extends Entry {
