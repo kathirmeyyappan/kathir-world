@@ -162,7 +162,7 @@ export class InputManager {
 
   // Once per sim tick: everything the server needs to move us, plus the item actions in play.
   // The tick's frame. The movement keys are one direction, no faster on a diagonal, unless `apart`:
-  // a kart's gas and its wheel, each flat out at once.
+  // each a control of its own (a kart's gas and its wheel, a dragon's throttle), flat out at once.
   sampleFrame(seq: number, reading: string | null, actions: ItemAction[], view?: number, apart = false): InputFrame {
     let mx = this.joystick.x;
     let my = this.joystick.y;

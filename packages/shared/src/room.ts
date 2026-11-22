@@ -116,12 +116,6 @@ export interface RoomOptions {
   pickupAreas?: PickupArea[]; // where pickups float; the world's own (content/pickups.ts) by default
 }
 
-// The class of `avatar` with its article, for a message: "a walker", "an asian-dragon".
-function aClass(avatar: AvatarId): string {
-  const id = classOf(avatar).id;
-  return `${/^[aeiou]/.test(id) ? 'an' : 'a'} ${id}`;
-}
-
 export class Room {
   readonly id: string;
   readonly structures: Structures;
@@ -202,7 +196,7 @@ export class Room {
       return null;
     }
     if (opts.bot && opts.avatar && !classOf(opts.avatar).bots) {
-      link.send({ t: 'error', message: `bots can't be ${aClass(opts.avatar)}` });
+      link.send({ t: 'error', message: `bots can't be ${opts.avatar}` });
       return null;
     }
     const id = `p${this.nextPlayerId++}`;
@@ -661,7 +655,7 @@ export class Room {
       return this.refuse(seat, "you're driving: get out first (E)");
     switch (command.name) {
       case 'speedy':
-        if (!classOf(me.avatar).kit) return this.refuse(seat, `not as ${aClass(me.avatar)}`);
+        if (!classOf(me.avatar).kit) return this.refuse(seat, `not as ${me.avatar}`);
         me.boost = SPEEDY_SECONDS;
         this.broadcast({ t: 'system', text: `${me.name} increased their movement speed for ${SPEEDY_SECONDS}s` });
         return;
@@ -669,7 +663,7 @@ export class Room {
         this.equip(seat, command.item);
         return;
       case 'wear':
-        if (!classOf(me.avatar).kit) return this.refuse(seat, `not as ${aClass(me.avatar)}`);
+        if (!classOf(me.avatar).kit) return this.refuse(seat, `not as ${me.avatar}`);
         this.wear(seat, command.gear);
         return;
       case 'unequip':
@@ -692,14 +686,14 @@ export class Room {
         this.killBots(seat);
         return;
       case 'kart': {
-        if (classOf(me.avatar).id !== 'walker') return this.refuse(seat, `not as ${aClass(me.avatar)}`);
+        if (classOf(me.avatar).id !== 'walker') return this.refuse(seat, `not as ${me.avatar}`);
         const kart = this.garage.drop(me, command.kart, this.seats.size);
         if (typeof kart === 'string') return this.refuse(seat, kart);
         this.broadcast({ t: 'system', text: `${me.name} dropped a ${KARTS[command.kart].name}` });
         return;
       }
       case 'teleport':
-        if (classOf(me.avatar).id !== 'walker') return this.refuse(seat, `not as ${aClass(me.avatar)}`);
+        if (classOf(me.avatar).id !== 'walker') return this.refuse(seat, `not as ${me.avatar}`);
         if (!command.feet) return this.refuse(seat, TELEPORT_USAGE);
         placeWalker(me, { ...command.feet, y: command.feet.y + EYE_HEIGHT });
         return;
@@ -777,7 +771,7 @@ export class Room {
     if (!this.spawnBot || !this.publicName) return this.refuse(seat, "bots can't be called in this room");
     if (this.seats.size >= MAX_PLAYERS) return this.refuse(seat, 'this room is full');
     if (this.botCount >= MAX_BOTS) return this.refuse(seat, 'this room has enough bots');
-    if (call.avatar && !classOf(call.avatar).bots) return this.refuse(seat, `bots can't be ${aClass(call.avatar)}`);
+    if (call.avatar && !classOf(call.avatar).bots) return this.refuse(seat, `bots can't be ${call.avatar}`);
 
     const who = name === undefined ? bot.playerName : `${name} (${bot.playerName})`;
     const after = targets.length > 0 ? ` after ${targets.join(', ')}` : '';

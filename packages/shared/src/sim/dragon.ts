@@ -140,6 +140,7 @@ export const DRAGON: ClassSpec = {
     'roar-3': { key: 'KeyD', mode: 'tap' },
   },
   actionTicks: ROAR_SECONDS * TICK_RATE,
+  keysApart: true,
   fits,
   enter(p) {
     p.dragon = createDragon(p.pos, dragonShape(p.avatar));

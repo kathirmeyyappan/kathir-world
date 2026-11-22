@@ -46,6 +46,9 @@ export interface ClassSpec {
   // time: none for `actionTicks` after the last.
   actions: Partial<Record<ItemAction, ActionSpec>>;
   actionTicks: number;
+  // Whether its movement keys are each a control of its own (a dragon's W its throttle, A and D
+  // roars) rather than together one direction, so one held beside another isn't cut short.
+  keysApart: boolean;
   // Whether a body of this class, in the look `avatar`, can be where `pos` (an eye point) is, for
   // a switch into it.
   fits(avatar: AvatarId, pos: Vec3, structures: Structures): boolean;
