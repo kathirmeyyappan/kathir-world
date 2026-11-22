@@ -19,7 +19,6 @@ import {
 export interface Row {
   name: string; // the command, with its slash
   shortcuts: string[]; // what else types it, with slashes
-  label: string; // the command and its shortcuts, as the chat lists them
   note: string;
   args?: string; // dimmed after the command
   tap: string; // what choosing it puts in chat
@@ -65,7 +64,7 @@ export function commandGroups(): Group[] {
       title: 'wear skin',
       rows: [
         ...skins.map((id) => command(AVATARS[id].command ?? id, AVATARS[id].blurb)),
-        { ...row('/[color]', []), note: 'change your color', tap: '/', needsArgs: true },
+        { name: '/[color]', shortcuts: [], note: 'change your color', tap: '/', needsArgs: true },
       ],
     },
     {
@@ -90,10 +89,6 @@ export function completionsOf(rows: Row[], text: string): Row[] {
   return [...byName, ...byShortcut].slice(0, COMPLETIONS);
 }
 
-function row(name: string, shortcuts: string[]): Pick<Row, 'name' | 'shortcuts' | 'label' | 'note' | 'tap'> {
-  return { name, shortcuts, label: [name, ...shortcuts].join(', '), note: '', tap: name };
-}
-
 // What else types `name` (no slash), with slashes.
 export function shortcutsOf(name: string): string[] {
   return Object.entries(COMMAND_SHORTCUTS)
@@ -102,7 +97,7 @@ export function shortcutsOf(name: string): string[] {
 }
 
 function command(name: string, note: string): Row {
-  return { ...row(`/${name}`, shortcutsOf(name)), note };
+  return { name: `/${name}`, shortcuts: shortcutsOf(name), note, tap: `/${name}` };
 }
 
 // Flags and their values unbreakable, so a line wraps only between "-t [seconds]" and the next,
