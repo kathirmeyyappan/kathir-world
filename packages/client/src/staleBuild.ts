@@ -9,7 +9,7 @@ function bundleOf(page: ParentNode): string | null {
   return page.querySelector<HTMLScriptElement>('script[type="module"][src]')?.getAttribute('src') ?? null;
 }
 
-export async function reloadIfStale(): Promise<void> {
+async function reloadIfStale(): Promise<void> {
   if (checking) return;
   checking = true;
   try {
@@ -23,6 +23,8 @@ export async function reloadIfStale(): Promise<void> {
   }
 }
 
-export function reloadOnStaleChunks(): void {
-  window.addEventListener('vite:preloadError', () => void reloadIfStale());
+export function reloadOnStaleChunks(): () => void {
+  const check = () => void reloadIfStale();
+  window.addEventListener('vite:preloadError', check);
+  return () => window.removeEventListener('vite:preloadError', check);
 }
