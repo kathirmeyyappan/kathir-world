@@ -27,7 +27,7 @@ const INK = [255, 0, 0];
 // (scripts/emblems.py draws it, the default's, and every mark made here). Every other look's are
 // two colours off its own model, what most of it is and what it wears or is marked with, and
 // where it has one a mark of its own: SpongeBob's is a Krabby Patty, Mr. Krabs's a dollar,
-// Squidward's his clarinet and Mrs. Puff's herself.
+// Squidward's his clarinet, Mrs. Puff's herself and Larry's a dumbbell.
 const LIVERIES: Partial<Record<AvatarId, Partial<Livery>>> = {
   mario: { primary: '#aa0f10', secondary: '#183ab9', emblem: 'mario' },
   luigi: { primary: '#156d05', secondary: '#10287e', emblem: 'luigi' },
@@ -44,7 +44,7 @@ const LIVERIES: Partial<Record<AvatarId, Partial<Livery>>> = {
   plankton: { primary: '#4f8068', secondary: '#74787c' },
   sandy: { primary: '#c8935f', secondary: '#f6f6f2' },
   puff: { primary: '#d9a84a', secondary: '#246cb4', emblem: 'puff' },
-  larry: { primary: '#f05048', secondary: '#2a5fc8' },
+  larry: { primary: '#f05048', secondary: '#2a5fc8', emblem: 'larry' },
   sahur: { primary: '#b8834a', secondary: '#6b4423' },
   mike: { primary: '#8cc832', secondary: '#2f9c8f' },
   sulley: { primary: '#19a9b4', secondary: '#7a4fb0' },

@@ -1048,7 +1048,7 @@ own model, what most of it is and what it wears or is marked with, under the def
 until it has a mark of its own: a picture of them or of something of theirs, cut out of its background
 (`scripts/marks/`, with where it's from beside its row in `scripts/emblems.py`), and drawn there
 only where there's no picture to go off. SpongeBob's is a Krabby Patty, Mr. Krabs's a dollar,
-Squidward's his clarinet and Mrs. Puff's herself. A new
+Squidward's his clarinet, Mrs. Puff's herself and Larry's a dumbbell. A new
 one is a row in `LIVERIES` and, with a mark of its own, its emblem's picture; nothing that wears a livery has to know the look.
 
 ## Player classes
