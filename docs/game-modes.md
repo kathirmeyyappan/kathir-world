@@ -25,12 +25,14 @@ room master, no GAME tab and no banner: it is the game as it stands, and stays s
 
 ### The room master
 
-- Whoever created a room with a game is its master, for as long as the room lasts, with a crown by
-  their name on the roster. Free play has none.
+- Whoever created a room with a game is its room master, for as long as the room lasts, with a
+  crown by their name on the roster. Free play has none. "Room master" is the name, in what players
+  read and in the code: never "game master".
 - Only the master changes the game's settings, starts it and ends it.
 - When the master leaves, the room closes for everyone, who get the disconnected page saying the
   room master ended the room. Any way of leaving counts: the LEAVE ROOM button (which warns the
-  master first that it closes the room), a closed tab, a lost connection, a reloaded page.
+  master first that it closes the room), a closed tab, a lost connection, a reloaded page. A
+  master whose page comes back after one of those is told the same as everyone.
 - A closed room's code is free to be created again.
 
 ### The flow
@@ -51,7 +53,8 @@ Every game goes through the same phases, written once.
    body: full hearts, nothing held or worn, in the look they had if it's one on foot and the
    standard body if it isn't. The roster's kills and deaths start from nothing. The mode puts
    everyone where they start, and its rules hold until it ends, by its own rule or by the master's
-   END GAME, which goes straight back to the lobby with no results.
+   END GAME, which goes straight back to the lobby with no results: "room master ended the game!"
+   stands over the lobby's banner for a moment, and goes.
 4. **Results.** Who won, on one screen every mode fills in, for ten seconds.
 5. Back to the **lobby**: everyone gets a new body in `RESPAWN_AREAS`, as after a death, ghosts are
    players again, the world is cleared, and the lobby's bots don't come back.
@@ -85,6 +88,7 @@ playing, or a racer who is out.
   touches nothing: it can't hurt or be hurt, its shots and sprays do nothing (no frost, nothing
   melted), it takes no pickup, opens no door (it walks through a shut one), scores nothing, and has
   nothing to do with karts (it can't drop one, get in one or be hit by one).
+- A ghost sees everyone, whatever a mode hides from its players: every name, pin and mark.
 
 ### Leaving mid-game
 
@@ -144,17 +148,20 @@ A series of races, each on a track of its own, in karts, for points.
 
 - The racers are whoever is in the room at the start, and their number, N, holds for the whole
   game. The track of every race is worked out then.
-- A track runs along the roads from an island, for 1.2 to 2.4 km (one to two minutes flat out in
-  the Standard Kart), never across the floor the buildings stand on, and ends at a dead-end island
-  or where a road reaches that floor. Each race has a new one, found at random. A checkered line is
-  drawn across the floor where it ends.
+- A track is a strip a road wide, run along the roads from an island for 1.2 to 2.4 km (one to
+  two minutes flat out in the Standard Kart). It ends at a dead-end island or on the floor the
+  buildings stand on, which it may run onto but never through. Each race has a new one, found at
+  random. A checkered line is drawn across the floor where it ends.
 - Every race begins with each racer sat in a kart in their livery, lined up at the start, engines
-  idling, held there through a countdown. The kart is the look's they have going in, and stays so
-  through the race whatever look they change to.
+  idling, held there for five seconds: "follow the green to the end as fast as you can!" for two,
+  then a count of three. The kart is the look's they have going in, and stays so through the race
+  whatever look they change to.
 - Driving is driving. Nobody gets out (E does nothing), and the only commands are looks on foot.
 - Off the track is out of bounds: the red box says so, and after two seconds Lakitu sets the kart
   back on the track where it left, as he does at the world's edge. The floor off the track is drawn
-  grey, and the maps dull everything but the track and mark the other racers boldly.
+  grey, and where the track crosses open floor (an island, the buildings' floor at its end) its
+  sides get the bold green border the floor's edge has, since what's beyond them is grey. The maps
+  dull everything but the track and mark the other racers boldly.
 - The HUD's top right says, hugely, what place the racer is in.
 - Crossing the line brings a kart to a stop and tells its racer their place. When the first one
   crosses, everyone is told, and the rest have 45 seconds; the last ten flash on their screens, and
@@ -224,7 +231,7 @@ nothing else, and `Game.ts` asks the questions rather than growing a branch per 
 alone. It becomes the sim's own: a race's track is a way through it, the bots' roads map is the
 same graph written out, and the client draws a track (on the maps, on the floor) from it, so
 there's one account of the roads for all three. Ways across the buildings' floor join it for the
-bots' laps in free play; a track never takes one.
+bots' laps in free play; a track takes one only to end on it.
 
 ## The stack
 
@@ -282,9 +289,5 @@ a game is people alone.
 
 ## To settle
 
-- Whether the master's page reloading (the game does it itself when the GPU drops its context)
-  should close the room like any other leaving. As written, it does.
-- Whether a spectator in shootout sees every player's name and mark. As written, they do.
-- Whether a race's countdown on the grid is the game's own five seconds or follows them. As
-  written, the five seconds are counted in the lobby, and every race then has a countdown of its
-  own on the grid.
+- Whether the first race's five seconds on the grid follow the game's own "game is starting in 5",
+  counted in the lobby as every mode's is, or stand in for it. As written, they follow it.
