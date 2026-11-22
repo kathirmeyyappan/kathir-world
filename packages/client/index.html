@@ -208,7 +208,13 @@
             <div id="home-status"></div>
           </div>
           <div class="home-player">
-            <div id="home-view"><span class="hint">drag to turn</span></div>
+            <div id="home-view">
+              <div class="home-seat" role="group">
+                <button data-seated="false" class="on">ON FOOT</button>
+                <button data-seated="true">IN KART</button>
+              </div>
+              <span class="hint">drag to turn</span>
+            </div>
             <label>
               <span>NAME</span>
               <input
