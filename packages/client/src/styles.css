@@ -433,6 +433,31 @@ body {
 #home-view canvas:active {
   cursor: grabbing;
 }
+/* ON FOOT / IN KART, the one shown lit, as the guide's toggle is: in the bottom corner, clear of the
+   name over the head. */
+#home-view .home-seat {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  display: flex;
+}
+.card #home-view .home-seat button {
+  padding: 7px 10px;
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.6);
+  background: var(--panel);
+  border: 2px solid rgba(var(--accent-rgb), 0.5);
+  box-shadow: none;
+}
+.card #home-view .home-seat button + button {
+  border-left: 0;
+}
+.card #home-view .home-seat button.on,
+.card #home-view .home-seat button:hover {
+  color: var(--panel);
+  background: var(--accent);
+  border-color: var(--accent);
+}
 #home-view .hint {
   position: absolute;
   right: 8px;

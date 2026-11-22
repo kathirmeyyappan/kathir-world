@@ -1,10 +1,10 @@
 // Home screen: the room on the left, under two tabs: JOIN one that's running (the global room, or
 // one by code) or CREATE a room under a code no one is using, the player on the right (their
 // name, and a skin from a dropdown shown on a turning stage with the name over its head, as the
-// guide and the menu show bodies). Resolves with a live Connection. Also honours
+// guide and the menu show bodies, on foot or sat in a kart). Resolves with a live Connection. Also honours
 // ?room=&name=&avatar=&color= for invite links (a join) and tests, and ?error=&tab=&code= for a join
 // the lobby turned away, which it sends back here.
-import { NAMED_COLORS, isAvatarId, isValidRoomId, sanitizeName, type AvatarId } from '@world/shared';
+import { NAMED_COLORS, isAvatarId, isValidRoomId, sanitizeName, type AvatarId, type KartId } from '@world/shared';
 import { audition } from '../audio/Sfx';
 import { VOICES, take } from '../audio/voices';
 import { LocalConnection, type Connection } from '../net/Connection';
@@ -41,6 +41,7 @@ export interface HomeResult {
 const STANDARD = 'standard';
 const ROLLED = Object.keys(NAMED_COLORS)[Math.floor(Math.random() * Object.keys(NAMED_COLORS).length)];
 const UNPAINTED = '#ffffff'; // what the stage paints a skin of its own, which takes no paint
+const SEATS_IN: KartId = 'standard'; // the kart the stage's body is shown sat in, in its own paint
 const TAG_PX = 16; // the least the name over the stage's body is drawn at: the view is small and close
 
 // What each tab's button says, and the line under its code, if any.
@@ -254,6 +255,7 @@ class Stage {
   private disposed = false; // the chunk can arrive after a quick join has already left the form
   private frame = 0;
   private readonly tag = document.createElement('div');
+  private seated = false;
 
   constructor(
     private readonly box: HTMLElement,
@@ -262,6 +264,12 @@ class Stage {
   ) {
     this.tag.className = 'name-tag';
     box.append(this.tag);
+    const seats = [...box.querySelectorAll<HTMLButtonElement>('.home-seat button')];
+    for (const button of seats)
+      button.addEventListener('click', () => {
+        this.seated = button.dataset.seated === 'true';
+        for (const b of seats) b.classList.toggle('on', b === button);
+      });
   }
 
   start(): void {
@@ -311,7 +319,7 @@ class Stage {
       gear: null,
       chilled: false,
       shattered: [],
-      kart: null,
+      kart: this.seated ? SEATS_IN : null,
     };
   }
 
