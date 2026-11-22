@@ -67,6 +67,7 @@ import { Structures } from './sim/collision';
 import { STRUCTURES } from './content/structures';
 import { DOOR_DEBOUNCE_SECONDS, DOOR_REACH, lookVector } from './sim/doors';
 import { Garage } from './sim/vehicles/garage';
+import { courseOf, type Track } from './sim/tracks';
 import { KARTS } from './sim/vehicles/karts';
 import { CAPSULE_TOP } from './sim/health';
 
@@ -341,6 +342,17 @@ export class Room {
     const from = { avatar: body.avatar, color: body.color };
     for (const at of classOf(body.avatar).lies(body, this.structures))
       dropPickup(this.pickups, CORPSE_DROP, at, this.rng, from);
+  }
+
+  // Karts are held to the track in play, where the room's game has one: the garage is handed it as
+  // a course whenever it changes.
+  private track: Track | null = null;
+  private holdToTrack(): void {
+    const game = this.mode.state;
+    const track = rulesOf(game).track(game);
+    if (track === this.track) return;
+    this.track = track;
+    this.garage.course = track && courseOf(track);
   }
 
   // What no hearts means for a person as the room's game stands.
@@ -667,6 +679,7 @@ export class Room {
 
   step(): void {
     this.mode.step();
+    this.holdToTrack();
     const lies = Math.round(this.dying.seconds * TICK_RATE); // ticks a dead person's body lies
     for (const [id, seat] of this.seats) {
       const me = seat.state;

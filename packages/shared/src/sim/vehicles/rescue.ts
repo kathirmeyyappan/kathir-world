@@ -64,6 +64,14 @@ export function carried(k: KartState, rescue: Rescue, dt: number): KartStep {
   return { impact: 0, landing: 0 };
 }
 
+// The floor karts are held to where it's less than the world's (a race's track, sim/tracks.ts):
+// whether a kart standing at a spot has left it, and where one that last stood on it at `safe` is
+// set down again, with the way its nose points there.
+export interface Course {
+  left(pos: Vec3): boolean;
+  back(safe: Vec3): { to: Vec3; yaw: number };
+}
+
 // What the Room keeps of a driven kart to rescue it by: where it last stood on the world and the
 // way its nose pointed there, and the seconds it has now been stranded.
 export interface Watch {
@@ -88,11 +96,12 @@ export function watchFrom(feet: Vec3, yaw: number, structures: Structures): Watc
 }
 
 // One tick of the watch over driven kart `k`: where it stands is kept while it's on the world, and
-// once it has been stranded RESCUE.wait in all since (a hop off the ground past the edge is no way
-// off it) its rescue begins, whatever it was doing stopped.
-export function watch(w: Watch, k: KartState, dt: number, structures: Structures): void {
+// on the `course` it's held to where there's one, and once it has been off either RESCUE.wait in
+// all since (a hop off the ground past the edge is no way off it) its rescue begins, whatever it
+// was doing stopped: back onto the course, or with none, onto the road it left.
+export function watch(w: Watch, k: KartState, dt: number, structures: Structures, course: Course | null = null): void {
   if (k.rescue || !k.grounded) return;
-  if (!stranded(k)) {
+  if (!stranded(k) && !course?.left(k.pos)) {
     w.stranded = 0;
     w.safe.x = k.pos.x;
     w.safe.y = k.pos.y;
@@ -105,7 +114,7 @@ export function watch(w: Watch, k: KartState, dt: number, structures: Structures
   k.wheel = k.gas = k.reel = 0;
   k.grounded = k.pad = false;
   k.hop = k.drift = k.trick = k.turbo = k.press = k.down = null;
-  k.rescue = { t: 0, from: { ...k.pos }, ...backOnTrack(w, structures) };
+  k.rescue = { t: 0, from: { ...k.pos }, ...(course ? course.back(w.safe) : backOnTrack(w, structures)) };
 }
 
 interface Flat {

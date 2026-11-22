@@ -42,6 +42,11 @@ import {
   PINEAPPLE_PLACEMENT,
   botRequest,
   defaultBotsFor,
+  courseOf,
+  layTrack,
+  onTrack,
+  routes,
+  spotAt,
   INDOOR_ROOMS,
   TEAMS,
   isShootout,
@@ -60,6 +65,8 @@ import {
   type ServerMessage,
   type Vec3,
 } from '@world/shared';
+
+const SPACING_SLACK = 5; // metres a spot along a track is found within: its middle is kept every few
 
 function link() {
   const inbox: ServerMessage[] = [];
@@ -1760,6 +1767,24 @@ test('a kart driven off the world is fished back onto the middle of the road it 
   assert.ok(Math.abs(Math.sin(k.yaw)) > 0.99, `turned along it: ${k.yaw}`);
   assert.equal(me.riding, k.id, 'its driver still in it');
   assert.deepEqual([k.wrenches, me.hearts], [wrenches, hearts], 'neither the worse for it');
+});
+
+test("a kart held to a course (a race's track) that leaves it is fished back onto its middle, nose along it", () => {
+  const track = layTrack(routes()[0]);
+  // On the island the track starts from, 10 m along it and 15 m off its middle: floor, and off it.
+  const s = spotAt(track, 10);
+  const { room, ids } = kartRoom({ x: s.x, y: 0, z: s.z });
+  room.garage.course = courseOf(track);
+  getIn(room, ids[0]);
+  const k = room.garage.list[0];
+  Object.assign(k.pos, { x: s.x + Math.cos(s.yaw) * 15, z: s.z - Math.sin(s.yaw) * 15 });
+  k.yaw = s.yaw + 1;
+  for (let i = 0; i < RESCUE.wait * TICK_RATE + 2; i++) driving(room, ids[0], 0);
+  assert.ok(k.rescue, 'Lakitu has it, though it never left the floor');
+  for (let i = 0; i < 10 * TICK_RATE && k.rescue; i++) driving(room, ids[0], 0);
+  const on = onTrack(track, k.pos);
+  assert.ok(on.off < 0.5 && Math.abs(on.at - 10) < SPACING_SLACK, `on its middle where it left: ${on.at}, ${on.off}`);
+  assert.ok(Math.abs(Math.sin(k.yaw - s.yaw)) < 0.01 && Math.cos(k.yaw - s.yaw) > 0, `the way it runs: ${k.yaw}`);
 });
 
 test('a kart dropped from out of bounds is fished back onto the road, not set down out there again', () => {

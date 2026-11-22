@@ -28,7 +28,7 @@ import {
   type KartStep,
 } from './kart';
 import { KARTS, sizeFor, type KartId } from './karts';
-import { watch, watchFrom, type Watch } from './rescue';
+import { watch, watchFrom, type Course, type Watch } from './rescue';
 
 // A kart in the room, as every client is sent it: its body, how whoever dropped it appeared then
 // (whose livery it's painted in), its wrenches left, and who's driving it.
@@ -92,6 +92,8 @@ export class Garage {
   private readonly keeps = new Map<string, Keep>();
   private next = 1;
   private tick = 0;
+  // The floor its karts are held to, where the room's game narrows it; null: the whole world's.
+  course: Course | null = null;
 
   constructor(private readonly structures: Structures) {}
 
@@ -209,7 +211,7 @@ export class Garage {
     else keep.frame = null;
     k.size = sizeFor(p.avatar);
     this.worn(k, ride(p, k, keep.frame, dt, this.structures));
-    watch(keep.watch, k, dt, this.structures);
+    watch(keep.watch, k, dt, this.structures, this.course);
   }
 
   // Whether the kart `p` drives is in Lakitu's hands (rescue.ts), which there's no getting out of.

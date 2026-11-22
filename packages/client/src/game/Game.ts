@@ -45,6 +45,7 @@ import {
   lookDirection,
   resolveFire,
   rulesOf,
+  courseOf,
   FREEPLAY,
   type AvatarId,
   type FrostCell,
@@ -1326,7 +1327,13 @@ export class Game {
     this.kartGauge.set(driving ? this.prediction.kartPace() : null);
     // Driving a kart that's down past the world's edge, there's nothing to do but wait for Lakitu
     // (sim/vehicles/rescue.ts). On foot there, the Room bleeds hearts.
-    const lost = !this.dead && !!self.riding && !!this.prediction.kart && stranded(this.prediction.kart);
+    const track = rulesOf(this.game).track(this.game);
+    const lost =
+      !this.dead &&
+      !!self.riding &&
+      !!this.prediction.kart &&
+      (stranded(this.prediction.kart) ||
+        (!!track && this.prediction.kart.grounded && courseOf(track).left(this.prediction.kart.pos)));
     const out =
       !this.dead && !self.ghost && !self.riding && cls === 'walker' && onOutsideGround(self.pos.y - EYE_HEIGHT);
     // A pickup touched at full health is left where it is (sim/pickups.ts), as a ghost leaves any.

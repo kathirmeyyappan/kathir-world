@@ -319,7 +319,7 @@ everything else, and it will change as modes and features are added (`CLAUDE.md`
 | May this player do this (a command, getting out)? | yes                                    | `runCommand`, a kart's exit; the commands card      | `Rules.refuses`, of a command   |
 | What does no hearts mean here?                    | lie 10 s, the death screen, a new body | the Room's respawn; `ui/Death.ts`                   | `Rules.dying`                   |
 | Where is this body put?                           | `SPAWN_AREAS`, `RESPAWN_AREAS`         | joining, a game's start, coming back, a spectator   | `Game.startsAt`, at a start     |
-| What floor is in play?                            | the whole world's                      | a kart's rescue, the red box, the maps, the floor   | to build                        |
+| What floor is in play?                            | the whole world's                      | a kart's rescue, the red box, the maps, the floor   | `Rules.track`                   |
 | What did this kill or death score?                | nothing                                | the Room's `damage`                                 | `GameMode.died`                 |
 | Whose side is this player on?                     | nobody's                               | friendly fire's kill line; names and marks (to come)| `Rules.side`                    |
 | How does the game stand?                          | it doesn't                             | the results screen; the HUD's points (to come)      | `Rules.standings`               |
@@ -365,6 +365,12 @@ under it are apart), which is what the floor in play, a racer's place and the fi
 of. The bots' roads map (`sim/botMap/roads.ts`) is built from the same `Road.middle` and stays its
 own file until the racing bots are built, when the two graphs become one.
 
+**The floor in play.** A mode narrows it with a track (`Rules.track`). The Room hands the garage
+the track as the course its karts are held to (`Course`, `sim/vehicles/rescue.ts`; `courseOf`),
+and a driven kart's watch counts it stranded off the course as it does on the ground past the
+world's edge: two seconds on, Lakitu sets it down on the track's middle where it left, nose along
+it. The client asks the same of the kart it predicts, for the red box.
+
 ## The stack
 
 Merged a PR at a time, in these batches. Shootout and Racing stay out of the home screen's dropdown
@@ -401,7 +407,7 @@ outside dev until each can be played, so freeplay is run on every merge.
 **4. Racing**
 
 - [x] The roads' graph in the sim, and tracks found through it.
-- [ ] The floor in play: a kart off the track rescued onto it, the red box.
+- [x] The floor in play: a kart off the track rescued onto it, the red box.
 - [ ] A race: the grid, the countdown, no getting out, places, the line, the 45 seconds,
       elimination, points, the leaderboard, the series.
 - [ ] Its HUD: the place, the track on the maps, the grey floor, the checkered line.
