@@ -1,6 +1,6 @@
 # Game modes
 
-A room has a game mode, chosen as it's created (issue 493). Free play is what every room was and
+A room has a game mode, chosen as it's created (issue 493). Freeplay is what every room was and
 what `global` always is. The others are games with rules of their own, shootout and racing first.
 This is what each is to do, how the code is to be laid out for them, and how far it has got.
 `CLAUDE.md` ("Game modes") has the two rules every change is held to; everything else is here.
@@ -13,12 +13,12 @@ tense. **Nothing here is built yet.**
 
 | Mode      | What the home screen says of it                                                            |
 | --------- | ------------------------------------------------------------------------------------------ |
-| Free play | No rules. Do whatever you want with friends!                                               |
+| Freeplay | No rules. Do whatever you want with friends!                                               |
 | Racing    | Race against other players in a 3 round competition.                                       |
 | Shootout  | Split up into even teams and get as many kills as you can. Team with the most kills wins. |
 
-The home screen's CREATE tab has a GAME MODE dropdown, free play unless another is picked, with the
-mode's line under it. `global` is always free play, and so is an offline room. Free play has no
+The home screen's CREATE tab has a GAME MODE dropdown, freeplay unless another is picked, with the
+mode's line under it. `global` is always freeplay, and so is an offline room. Freeplay has no
 room master, no GAME tab and no banner: it is the game as it stands, and stays so.
 
 ## What every game has
@@ -26,7 +26,7 @@ room master, no GAME tab and no banner: it is the game as it stands, and stays s
 ### The room master
 
 - Whoever created a room with a game is its room master, for as long as the room lasts, with a
-  crown by their name on the roster. Free play has none. "Room master" is the name, in what players
+  crown by their name on the roster. Freeplay has none. "Room master" is the name, in what players
   read and in the code: never "game master".
 - Only the master changes the game's settings, starts it and ends it.
 - When the master leaves, the room closes for everyone, who get the disconnected page saying the
@@ -39,12 +39,12 @@ room master, no GAME tab and no banner: it is the game as it stands, and stays s
 
 Every game goes through the same phases, written once.
 
-1. **Lobby.** Free play in every way, with three differences. A banner keeps flashing over the
+1. **Lobby.** Freeplay in every way, with three differences. A banner keeps flashing over the
    view: "Waiting for room master to organize and start the game..." for everyone but the master,
    whose own says "Go to the menu (press M) to start the game." A body at no hearts lies three
    seconds, so its player sees they died, and is then back at full hearts in `RESPAWN_AREAS`, with
    no death screen and no death sound. And whoever joins is a player. The room's default bots come
-   as they do in free play, and bots can be called.
+   as they do in freeplay, and bots can be called.
 2. **Starting.** The master presses START, which is there to press once the mode's own condition
    to start holds. Everyone is told "game is starting in 5", counted down, still in the lobby. The
    lobby's bots are killed (as `/kill-bots` does), and bot commands are refused from here until the
@@ -125,7 +125,7 @@ Teams, a clock, and the most points when it runs out.
   player's team, however it came (a fall, out of bounds, a crash, a teammate), and a team's points
   never go below nothing. A teammate can be killed, which scores nothing for the kill, and the chat
   says "x killed y with friendly fire". Names in the kill lines are in their teams' colours.
-- Death is free play's: ten seconds, the RESPAWN button, back in `RESPAWN_AREAS`.
+- Death is freeplay's: ten seconds, the RESPAWN button, back in `RESPAWN_AREAS`.
 - Allowed: weapons, gear, `/speedy`, `/unequip`, looks on foot and karts. Refused: dragons,
   teleporting, colours and bot commands.
 - The HUD's top right has every team's points and the clock.
@@ -179,7 +179,7 @@ A series of races, each on a track of its own, in karts, for points.
 ```
 packages/shared/src/modes/
   index.ts      the registry: each mode's id, name and line, and what makes its game
-  mode.ts       GameMode: the questions the Room and the client ask a mode, with free play's answers
+  mode.ts       GameMode: the questions the Room and the client ask a mode, with freeplay's answers
   game.ts       what every mode with a game shares: the master, settings, the phases, start and end
   shootout/     teams, spawn sites, points, and its answers
   racing/       tracks, the grid, places, elimination, points, and its answers
@@ -198,7 +198,7 @@ clock, the end.
 **The questions**, as the two modes need them. This list is the interface between a mode and
 everything else, and it will change as modes and features are added (`CLAUDE.md` says how).
 
-| The Room or the client asks                              | Free play answers                         | For                                                 |
+| The Room or the client asks                              | Freeplay answers                         | For                                                 |
 | -------------------------------------------------------- | ----------------------------------------- | --------------------------------------------------- |
 | May this player do this (a command, getting out)?        | yes                                       | `runCommand`, a kart's exit; the commands card      |
 | What does no hearts mean here?                           | lie 10 s, the death screen, a new body    | the Room's respawn; `ui/Death.ts`                   |
@@ -231,12 +231,12 @@ nothing else, and `Game.ts` asks the questions rather than growing a branch per 
 alone. It becomes the sim's own: a race's track is a way through it, the bots' roads map is the
 same graph written out, and the client draws a track (on the maps, on the floor) from it, so
 there's one account of the roads for all three. Ways across the buildings' floor join it for the
-bots' laps in free play; a track takes one only to end on it.
+bots' laps in freeplay; a track takes one only to end on it.
 
 ## The stack
 
 Merged a PR at a time, in these batches. Shootout and Racing stay out of the home screen's dropdown
-outside dev until each can be played, so free play is run on every merge.
+outside dev until each can be played, so freeplay is run on every merge.
 
 **1. What every game has**
 
@@ -280,7 +280,7 @@ a game is people alone.
 
 - **Racing bots**, two levels: one that keeps to the road's middle and drifts or tricks only to
   get back to it, and one that drifts, tricks and holds its line like the best racer there is. They
-  drive by the roads' graph (above), corrected for how far off the middle they are. In free play
+  drive by the roads' graph (above), corrected for how far off the middle they are. In freeplay
   they lap the whole of the roads, the ways across the buildings' floor included.
 - **Combat bots**, three levels, with a better reading of the map than the bots have today: the
   gun and the flamethrower, swapped between as the fight asks; a jetpack used sparingly; a kart
