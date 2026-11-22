@@ -2,6 +2,7 @@ import { showHome } from './app/home';
 import type { Game } from './game/Game';
 import { IS_TOUCH } from './input/touch';
 import { leaveRoom } from './net/lobby';
+import { reloadOnStaleChunks } from './staleBuild';
 
 declare global {
   interface Window {
@@ -11,6 +12,7 @@ declare global {
 }
 
 async function main(): Promise<void> {
+  reloadOnStaleChunks();
   // The game (Babylon and all) is most of the download, so it comes in its own chunk, fetched while
   // the home screen or a join is under way.
   const gameModule = import('./game/Game');

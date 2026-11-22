@@ -3,6 +3,7 @@
 // player view: a character standing, an item floating on its own) beside what it is and its numbers; the numbers come from stats.ts, read off the
 // game's registries, and the words from content.ts. The tab and the pick are in the URL's hash
 // (#characters/gary), so a link goes straight to one.
+import { reloadOnStaleChunks } from '../staleBuild';
 import {
   AVATARS,
   AVATAR_IDS,
@@ -731,4 +732,5 @@ function main(): void {
   requestAnimationFrame(frame);
 }
 
+reloadOnStaleChunks();
 main();
