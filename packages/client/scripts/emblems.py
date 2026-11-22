@@ -88,6 +88,8 @@ EMBLEMS: dict[str, Emblem] = {
     "puff": Emblem(WHITE, picture(MARKS / "puff.png", 0.84)),  # herself, cross, out of a frame of the show
     "larry": Emblem(WHITE, picture(MARKS / "dumbbell.png", 0.84)),  # a dumbbell, a stock icon's, in his red
     "plankton": Emblem(WHITE, picture(MARKS / "chum-bucket.png", 0.9)),  # the Chum Bucket, out of a painting of it
+    "patrick": Emblem(WHITE, picture(MARKS / "star.png", 0.88)),  # himself from behind, a star
+    "sandy": Emblem(WHITE, picture(MARKS / "glove.png", 0.8)),  # her karate glove, out of a frame of the show
 }
 
 
