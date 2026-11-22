@@ -34,7 +34,8 @@ def test_healthz_warms_a_room_without_waiting_for_it() -> None:
 
 def test_join_starts_a_room_only_when_asked(monkeypatch: pytest.MonkeyPatch) -> None:
     """A person creating a room with no live session gets a fresh one; a bot, or a person joining it,
-    gets turned away, and a create on a running room is too. A person goes back where they came from."""
+    gets turned away, and a create on a running room is too. The global room is there to join whether
+    or not it's running, and never to create. A person goes back where they came from."""
     from infra import lobby
 
     started: list[str] = []
@@ -82,5 +83,10 @@ def test_join_starts_a_room_only_when_asked(monkeypatch: pytest.MonkeyPatch) -> 
             assert person.status_code == 302 and "modal_session_token=tok" in person.headers["location"]
             assert parse_qs(urlparse(person.headers["location"]).query)["home"] == [LAUNCHER_URL]
             assert started == ["late-night"]
+            taken = await client.get("/join/global", params={"mode": "create"}, headers=room_host)
+            assert taken.headers["location"].startswith("https://room.test/?error=room+global+already+exists")
+            everyone = await client.get("/join/global", params={"mode": "join"})
+            assert "modal_session_token=tok" in everyone.headers["location"]
+            assert started == ["late-night", "global"]
 
     asyncio.run(run())

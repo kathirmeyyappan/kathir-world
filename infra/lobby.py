@@ -125,8 +125,9 @@ def build_api(warm: Callable[[], Coroutine[Any, Any, None]] = warm_room) -> "Fas
         mode: str = "",
     ) -> RedirectResponse:
         """Into a room as `mode` asks: `create` one no one is in, `join` one that's running, or
-        with no mode (an older page) either. A refused join is sent back to the page it came from
-        with the reason as `?error=`. A bot (`bot=1`, what the bot framework sends) only joins a
+        with no mode (an older page) either. The global room is always there to join, started if
+        it isn't running, and so never anyone's to create. A refused join is sent back to the page
+        it came from with the reason as `?error=`. A bot (`bot=1`, what the bot framework sends) only joins a
         room that is already running: bots don't keep rooms open, so one must never start a room
         either."""
         print(f"Attempting to join room {room_id} with name {name}")
@@ -134,8 +135,7 @@ def build_api(warm: Callable[[], Coroutine[Any, Any, None]] = warm_room) -> "Fas
         room_id = room_id.lower()
         if not ROOM_ID.match(room_id):
             raise HTTPException(400, "invalid room id")
-        if room_id == GLOBAL_ROOM:
-            mode = ""
+        always_open = room_id == GLOBAL_ROOM
         # get_url() is typed Optional; a deployed Server always has one. cast() is a no-op at runtime.
         room_url = cast(str, await room_server().get_url.aio()).rstrip("/")
 
@@ -145,14 +145,14 @@ def build_api(warm: Callable[[], Coroutine[Any, Any, None]] = warm_room) -> "Fas
             return RedirectResponse(f"{target}/?{back}", status_code=302)
 
         entry_info = await live_session(room_id, room_url)
+        if mode == "create" and (always_open or entry_info is not None):
+            return refuse(f"room {room_id} already exists")
         if entry_info is None:
             if bot == "1":
                 raise HTTPException(409, "no one here")
-            if mode == "join":
+            if mode == "join" and not always_open:
                 return refuse(f"room {room_id} doesn't exist")
             entry_info = await start_session(room_id)
-        elif mode == "create":
-            return refuse(f"room {room_id} already exists")
         lobby_url = (await lobby.get_web_url.aio() or "").rstrip("/")
         params = {
             "modal_session_token": entry_info["token"],

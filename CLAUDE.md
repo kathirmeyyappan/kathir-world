@@ -1544,7 +1544,7 @@ skin on it.
 
 The home screen (`app/home.ts`) is the room on the left (a JOIN tab, the default, with JOIN GLOBAL over a code, and a CREATE tab;
 the lobby, or Node in dev, turns away a create on a running room and a join on none, back to home
-with `?error=`; global is always open)
+with `?error=`; global is always there to join, and so never anyone's to create)
 and the player on the right: a `BodyView` of the chosen skin with the typed name over its head, the name, and a dropdown of every look
 on foot (no dragons) a person can switch to by command (the first, the standard body in a named
 color drawn afresh each load, so the choice is kept but not the color; last, the standard body in each
