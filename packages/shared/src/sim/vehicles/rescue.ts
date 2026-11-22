@@ -72,13 +72,11 @@ export interface Watch {
   stranded: number;
 }
 
-// How far in from the edge a kart dropped from out of bounds is first kept as standing: a road's
-// width and a half in, so the rescue that follows finds a track to set it down in the middle of.
+// Metres in from the edge that a watch starting out of bounds keeps as its safe spot.
 const INLAND = 10;
 
 // A watch over a kart that has yet to stand anywhere, dropped by someone standing at `feet` and
-// facing `yaw`. Where they stand is out of bounds (they walked off the edge), it keeps the nearest
-// spot INLAND in from the floor's edge instead, since a rescue sets a kart down on what it keeps.
+// facing `yaw`; out of bounds, the nearest spot INLAND in from the floor's edge.
 export function watchFrom(feet: Vec3, yaw: number, ground: Ground): Watch {
   const safe = { ...feet };
   if (onOutsideGround(feet.y)) {
