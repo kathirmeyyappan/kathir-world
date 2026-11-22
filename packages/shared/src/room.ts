@@ -4,7 +4,7 @@
 import { CUBE_IDS } from './content/cubes';
 import { CORPSE_DROP, PICKUP_AREAS } from './content/pickups';
 import { RESPAWN_AREAS, SPAWN_AREAS, type SpawnArea } from './content/regions';
-import { FREEPLAY, makeMode, rulesOf, type GameMode, type GameModeId } from './modes';
+import { FREEPLAY, makeMode, rulesOf, type Dying, type GameMode, type GameModeId } from './modes';
 import {
   isClientMessage,
   type ClientMessage,
@@ -24,7 +24,6 @@ import {
   RENAME_SECONDS,
   CHILL_SECONDS,
   NAMED_COLORS,
-  RESPAWN_SECONDS,
   SPEEDY_SECONDS,
   STEP_UP,
   TICK_DT,
@@ -77,9 +76,8 @@ declare function clearInterval(handle: unknown): void;
 
 const SPAWN_WALL_MARGIN = 3;
 const SPAWN_MARGIN = 1; // metres a spawn keeps inside its area: more than a body's radius
-// How long the dead lie where they fell: a person until they're brought back, a bot, which never
-// is, until its seat is dropped.
-const RESPAWN_TICKS = RESPAWN_SECONDS * TICK_RATE;
+// How long a dead bot lies where it fell before its seat is dropped: a bot is never brought back.
+// A person is, when the room's game says (modes/rules.ts `Dying`).
 const BOT_CORPSE_TICKS = 5 * TICK_RATE;
 const OUT_OF_BOUNDS_STEPS = Math.round(OUT_OF_BOUNDS_SECONDS * TICK_RATE);
 const SPAWN_CUBE_MARGIN = 4;
@@ -331,6 +329,12 @@ export class Room {
       dropPickup(this.pickups, CORPSE_DROP, at, this.rng, from);
   }
 
+  // What no hearts means for a person as the room's game stands.
+  private get dying(): Dying {
+    const game = this.mode.state;
+    return rulesOf(game).dying(game);
+  }
+
   // A dead person comes back, in a new body somewhere in RESPAWN_AREAS, the one they left buried.
   private respawn(seat: Seat): void {
     this.buryBody(seat.state);
@@ -408,7 +412,7 @@ export class Room {
         this.rename(seat, msg.name);
         return;
       case 'respawn':
-        if (seat.state.dead && !seat.state.bot) this.respawn(seat);
+        if (seat.state.dead && !seat.state.bot && this.dying.screen) this.respawn(seat);
         return;
       case 'game':
         this.mode.asked(seat.state, msg.do);
@@ -640,6 +644,7 @@ export class Room {
 
   step(): void {
     this.mode.step();
+    const lies = Math.round(this.dying.seconds * TICK_RATE); // ticks a dead person's body lies
     for (const [id, seat] of this.seats) {
       const me = seat.state;
       const lain = seat.diedTick === null ? 0 : this.tick - seat.diedTick;
@@ -648,7 +653,7 @@ export class Room {
         seat.link.close?.('dead');
         continue;
       }
-      if (!me.bot && lain >= RESPAWN_TICKS) {
+      if (!me.bot && lain >= lies) {
         this.respawn(seat);
         continue;
       }

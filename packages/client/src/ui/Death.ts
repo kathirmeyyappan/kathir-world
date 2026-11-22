@@ -1,7 +1,8 @@
 // The "you died" screen: a red wash over everything, who got you, and a countdown to the respawn.
 // Coming back is the Room's to do (room.ts `respawn`): the count runs beside the Room's own clock,
 // the button asks to come back now, and the Game takes the screen down once the player is alive.
-import { RESPAWN_SECONDS } from '@world/shared';
+// Whether a death has the screen over it at all is the room's game's to say (the shared package's
+// modes/rules.ts `Dying`).
 import { leaveRoom } from '../net/lobby';
 import { pressTwice } from './pressTwice';
 
@@ -19,13 +20,17 @@ export class Death {
     pressTwice(document.getElementById('death-exit')!, leaving, (text) => (warning.textContent = text), leaveRoom);
   }
 
-  // `how`: "shot by kathir", "you fell".
-  show(how: string): void {
+  get up(): boolean {
+    return !this.root.classList.contains('hidden');
+  }
+
+  // `how`: "shot by kathir", "you fell". `seconds`: until the Room brings the player back.
+  show(how: string, seconds: number): void {
     this.hide();
     this.by.textContent = how;
     this.root.classList.remove('hidden');
     document.exitPointerLock?.();
-    let left = RESPAWN_SECONDS;
+    let left = seconds;
     const tick = () => (this.count.textContent = `respawning in ${Math.max(0, left--)}`);
     tick();
     this.timer = window.setInterval(tick, 1000);

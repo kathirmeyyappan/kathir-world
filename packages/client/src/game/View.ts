@@ -116,6 +116,9 @@ const STORAGE_KEY = 'world.view'; // the choice, kept for next time
 
 export class View {
   mode: ViewMode = 'third';
+  // The body is watched from the boom whatever the mode: its player lies dead with nothing over the
+  // view to say so, and sees it for themselves.
+  watching = false;
   private reach = 0; // how far along its way out the boom is, 0 at the eyes to 1 at its length
 
   constructor() {
@@ -164,7 +167,7 @@ export class View {
     structures: Structures,
     dt: number,
   ): void {
-    const target = this.mode === 'third' && !scoped ? 1 : 0;
+    const target = (this.mode === 'third' || this.watching) && !scoped ? 1 : 0;
     const step = Math.min(dt / EASE, Math.abs(target - this.reach));
     this.reach = scoped ? 0 : this.reach + (target > this.reach ? step : -step);
     if (this.reach === 0) {
