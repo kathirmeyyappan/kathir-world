@@ -1441,18 +1441,19 @@ body {
 }
 
 /* How a game stands while it's played (ui/Scores.ts), in the top right: each side's points in its
-   colour, and the clock. */
+   colour, and the clock. With a mouse it's the biggest thing on the HUD, since it's what a player
+   in a game looks up for. */
 #scores {
   position: fixed;
   top: 14px;
   right: 14px;
   z-index: 50;
   pointer-events: none;
-  min-width: 150px;
-  padding: 8px 12px;
+  min-width: 250px;
+  padding: 12px 18px;
   background: rgba(11, 13, 20, 0.6);
-  border: 2px solid rgba(var(--accent-rgb), 0.5);
-  font: 20px var(--mono);
+  border: 3px solid rgba(var(--accent-rgb), 0.5);
+  font: 30px var(--mono);
 }
 #scores ul {
   list-style: none;
@@ -1460,27 +1461,45 @@ body {
 #scores li {
   display: flex;
   justify-content: space-between;
-  gap: 18px;
-  text-shadow: 2px 2px 0 #000;
+  align-items: baseline;
+  gap: 28px;
+  text-shadow: 3px 3px 0 #000;
+}
+#scores .points {
+  font-size: 44px;
+  line-height: 1.1;
 }
 #scores .clock {
-  margin-top: 4px;
-  padding-top: 4px;
-  border-top: 2px solid rgba(var(--accent-rgb), 0.3);
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 3px solid rgba(var(--accent-rgb), 0.3);
   text-align: center;
-  font-size: 24px;
+  font-size: 48px;
+  line-height: 1.1;
   color: #fff;
+  text-shadow: 3px 3px 0 #000;
 }
-/* On touch the top right is CHAT's and CMDS', so it stands under them. */
+/* On touch the top right is CHAT's and CMDS', so it stands under them, small. */
 @media (pointer: coarse) {
   #scores {
     top: 78px;
     right: 8px;
     min-width: 0;
     padding: 4px 8px;
+    border-width: 2px;
+    font-size: 15px;
+  }
+  #scores li {
+    gap: 14px;
+    text-shadow: 2px 2px 0 #000;
+  }
+  #scores .points {
     font-size: 15px;
   }
   #scores .clock {
+    margin-top: 4px;
+    padding-top: 4px;
+    border-top-width: 2px;
     font-size: 17px;
   }
 }
