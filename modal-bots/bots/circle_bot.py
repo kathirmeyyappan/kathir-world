@@ -3,8 +3,9 @@ tightens where a wall stops it or the ground drops away ahead, and eases back ou
 once there's room, so it keeps circling someone on a bridge or a road narrower than the ring. From
 far off it walks straight at them. Where no ring has ground ahead it turns back the other way, and
 where neither way has it slides along the edge; held at the tightest ring by a wall, it turns back.
-It reads the solids and the bodies, not the ground map, which is most of the memory a bot's maps
-take."""
+A turn back lasts a few seconds at the least, and then it goes clockwise again once that way has
+ground ahead, so two circling each other find their orbit again. It reads the solids and the
+bodies, not the ground map, which is most of the memory a bot's maps take."""
 
 from __future__ import annotations
 
@@ -50,6 +51,10 @@ EDGE_REACTION = 0.8
 EDGE_LOOKAHEAD = 1.5  # metres it looks ahead at the least
 EDGE_SAMPLE = 0.5
 EDGE_DROP = 1.0
+# Seconds a turn back lasts at the least before it goes clockwise again, as soon as that way has
+# ground ahead: every circle bot goes round clockwise, so two circling each other orbit their
+# middle, and one left going the other way would walk alongside the other instead.
+DETOUR_SECONDS = 3.0
 # Degrees its heading is swung off to either side, nearest first, to slide along an edge where no
 # ring has ground ahead either way round.
 SWINGS = (30, 60, 90, 120, 150)
@@ -171,6 +176,7 @@ class Circler:
         self.radius: float = ORBIT_RADIUS
         self.turns = 0
         self._tick: int | None = None  # the snapshot it last stepped on
+        self._turned = 0  # the snapshot it last turned back on
 
     def step(self, tick: int, me: Player, center: Vec3, controls: Controls) -> bool:
         """Set the controls for this snapshot; True when it turned back."""
@@ -184,6 +190,9 @@ class Circler:
                 self.radius = max(MIN_RADIUS, self.radius - SHRINK)
             else:
                 turned = self._turn(tick)
+        detoured = tick - self._turned >= DETOUR_SECONDS * TICK_RATE
+        if self.way != CLOCKWISE and detoured and self._clear(me, controls, _heading(distance, self.radius, CLOCKWISE)):
+            turned = self._turn(tick)
         wider = min(ORBIT_RADIUS, self.radius + GROW * dt)
         if wider > self.radius and self._clear(me, controls, _heading(distance, wider, self.way)):
             self.radius = wider
@@ -207,6 +216,7 @@ class Circler:
         """Go round the other way."""
         self.way = -self.way
         self.turns += 1
+        self._turned = tick
         self.stall.reset(tick)
         return True
 
