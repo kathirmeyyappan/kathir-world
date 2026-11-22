@@ -82,9 +82,7 @@ def kw_mark() -> Image.Image:
 EMBLEMS: dict[str, Emblem] = {
     "kw": Emblem(WHITE, kw_mark),  # the default: every look with no emblem of its own
     "elizabeth": Emblem(DARK, picture(CLIENT / "public" / "assets" / "elizabeth.ico", 0.74)),  # the site's logo
-    # A Krabby Patty: The Cosmic Shake's, from the picture of "Krabby Patty - Sb Cosmic Shake" by
-    # romyblox1234 (CC BY 4.0: https://sketchfab.com/3d-models/none-a5067de1a00e4d29bb399db305c06ee4).
-    "spongebob": Emblem(WHITE, picture(MARKS / "krabby-patty.png", 0.78)),
+    "spongebob": Emblem(WHITE, picture(MARKS / "krabby-patty.png", 0.8)),  # a Krabby Patty, as the show draws it
 }
 
 
