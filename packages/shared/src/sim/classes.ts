@@ -41,9 +41,6 @@ export interface ClassSpec {
   life: LifeSpec; // for a look of the class with none of its own
   kit: boolean; // may draw weapons, wear gear and take /speedy; false: its look's own item is all it has
   bots: boolean; // whether a bot may wear one of its looks
-  // Seconds a dead one lies in the room before its seat goes, whether or not its client stays; null:
-  // while the client stays (a browser's death screen, a bot's few seconds).
-  corpseSeconds: number | null;
   // Taps a body of this class can do beside its item (a dragon's roars), on keys of their own and
   // reported in InputFrame.actions like an item's. The Room announces each as it's pressed, one at a
   // time: none for `actionTicks` after the last.

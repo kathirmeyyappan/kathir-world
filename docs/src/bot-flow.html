@@ -77,7 +77,7 @@ text{fill:#e6e8ef;font-size:13px}
 <rect x="40" y="790" width="1480" height="172" class="panel"/>
 <text x="56" y="814" class="h">How it ends</text>
 <text x="56" y="838" class="lbl">• Time's up (default 300 s, max 3500): the bot closes its socket; Node removes the seat.</text>
-<text x="56" y="860" class="lbl">• Killed: no respawn. The seat is kept (no 13 s corpse cleanup for bots), so it lies there until its time is up; a browser's corpse is dropped after the death screen.</text>
+<text x="56" y="860" class="lbl">• Killed: no respawn. Its corpse lies 5 s, then the Room drops the seat and closes the socket with reason "dead"; the function returns its report. A person is brought back in their own seat.</text>
 <text x="56" y="882" class="lbl">• Last person leaves: bots don't keep a room open. 30 s later Node closes the room and closes every bot socket with reason "room closed"; the function returns its report.</text>
 <text x="56" y="904" class="lbl">• No bot cap: the room's 32 seats are the only limit. A full room answers the caller "this room is full"; a bot that finds it full by the time it arrives fails in Modal logs.</text>
 <text x="56" y="926" class="lbl">• No people there: a bot can't join a room with no one in it (lobby 409, Node "no one here"), so a bot that spawns after everyone left never starts a room nothing would close.</text>

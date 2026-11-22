@@ -88,7 +88,7 @@ browser: it joins through the lobby, receives snapshots at 30 Hz, and sends inpu
 with `bot=1`, so `PlayerState.bot` is true, the roster shows a robot icon, a bot can't join a room with no
 people in it (the lobby and Node both refuse), and a room with only bots
 left closes like an empty one. Bots are named `<key>-bot` and never respawn; a killed bot's corpse
-stays until its run ends.
+lies five seconds, then the Room drops its seat, which ends its run.
 
 Two ways to start one:
 

@@ -288,7 +288,7 @@ wire: server and client both build the world from that file.
   anything meant to stop a jump 2.1 m or taller; Sulley's 1.2 rises 1.92 m, and may get over it). Doorways at least 1.2 m wide and 2.2 m tall; ramps no steeper than about 30°;
   walls at least 0.3 m thick.
 - A person first comes in in `SPAWN_AREAS` (`content/regions.ts`: the middle of the main disc and
-  its side facing the tower), and back from the death screen (its reload joins with `?respawn=1`) in
+  its side facing the tower), and back from the dead (see Death and respawn) in
   `RESPAWN_AREAS` (half the time the main disc, otherwise the ground floor inside a building), each
   area by its `weight`, standing on its floor (or anything within a step of it) with headroom, so a
   building's ground floor can be a spawn point and roofs, decks and wall tops never are. Info cubes wander the main disc at about 3 m and
@@ -697,7 +697,7 @@ the canvas can't become the frame's texture from afar.
   kind, how many, and how often one comes back. What's where is that list alone, plus drops:
   `dropPickup` leaves one at a spot, in no area, where it stays until taken and never comes back. A
   dead player's body leaves `CORPSE_DROP` (a big heart, two and a half times the size, back to full health) on
-  whatever it was lying on when its seat is dropped, each kept as theirs (`from`, how they
+  whatever it was lying on as it goes (its player brought back, or its seat dropped), each kept as theirs (`from`, how they
   appeared), which the client draws in their livery (see Liveries).
 - A new kind is a row in `PICKUPS` (float height, reach, and `heals`, the hearts it gives back, a
   full life at `Infinity`; one at full health leaves it where it is, and the red box, `ui/Alert.ts`,
@@ -799,6 +799,26 @@ itself (a `PineappleMark`: the fruit hatched, its leaves in the middle, on the s
 Krusty Krab as itself (a `KrustyKrabMark`: its plinth, the barrel of its roof, its arches), and
 with your feet past `HIGH_UP` (35 m) `HIGH_LANDMARKS` too: the terrace, the sky bridge and the
 staircases. List a landmark's there when it's worth navigating by.
+
+## Death and respawn
+
+A player is one seat in the Room from joining to leaving: their id, name, colour, `kills` and
+`deaths` (`PlayerState`, both on the roster) last the whole visit, and nothing about dying loads a
+page. A body at no hearts is `dead` and lies where it fell. A person's lies `RESPAWN_SECONDS` (10),
+which their death screen (`ui/Death.ts`) counts down, or until its RESPAWN button sends the
+`respawn` message; then the Room (`room.ts` `respawn`) buries the body (`buryBody`: it leaves
+`CORPSE_DROP`, see Regions and pickups) and gives the seat a new one, as whoever comes in is given
+(a full life, nothing held or worn), somewhere in `RESPAWN_AREAS`, in the look on foot they last
+wore (`Seat.onFoot`, so a dragon's rider comes back on foot). A bot is never brought back: its
+corpse lies five seconds and its seat is dropped. Nothing on the wire says a respawn happened:
+clients read it off the snapshots, a body that was `dead` and isn't. One drawn dead poofs away
+where it lay and is made afresh (`Game.dropAvatar`), nothing is drawn between the old body and the
+new (`Interpolation`), the player's own client takes the death screen down and its look from the
+new body (`Game.revive`), back in the world at once where the browser gives the mouse back (the
+RESPAWN button's press, or any key pressed in the last few seconds) and behind the start press
+(`ui/StartGate.ts`) where it won't, and the Room forgets where the old body was for lag compensation
+(`PositionHistory.forget`). Whatever decides when or whether the dead come back (a game mode's
+rules) is a change to when the Room calls `respawn`, and nothing else.
 
 ## Avatars
 
@@ -970,7 +990,7 @@ pad's), heard by everyone near and held off like a hit's cry while its last cry 
 so two boosts a moment apart are one cry): takes borrowed from its other lines (none unless given), each
 played at the one volume (`BOOST_CRY`) whichever line it's from, since the lines' recordings are level and it's only their volumes that differ (an
 intro's is over twice a jump's), and sent for as the look is first seen driving; and its `death`,
-which its own player alone hears over the death screen (cut to its ten seconds; the reload ends
+which its own player alone hears over the death screen (cut to its ten seconds; the respawn ends
 it), `DEATH_SOUND_DELAY` after dying so the hit that killed them sounds first, as any hit does,
 and over that hit's cry rather than cutting it as a look's other lines cut its last. While it
 plays it's the player's only music: the theme they were hearing is gone by the time it starts
@@ -983,7 +1003,7 @@ front, which is right for what anyone near can hear at any moment and wrong for 
 or rarely heard. A clip cut from something longer gets a `swell` and a `fade` in `SOUNDS` to suit
 how its cut begins and ends (a one-shot's `fade` dies away into its end): listen to both ends of
 every new recording, a death's above all, since one shorter than the death screen ends in silence,
-where a hard stop is plain. A death as long as the death screen takes no `fade`: the reload ends it.
+where a hard stop is plain. A death as long as the death screen takes no `fade`: the respawn ends it.
 
 Every sound is level with the rest of its set, so no clip stands out from its neighbours: a set
 is the sounds a player hears as one kind of thing and compares (one character's hit cry beside
@@ -1056,8 +1076,7 @@ A class is what kind of body a player has (`packages/shared/src/sim/classes.ts`)
 one (`AVATARS[id].class`), and `stepPlayer` applies the look and the held item every class shares,
 then the class's own `step`. A `ClassSpec` carries everything the Room, the client and the bots need
 to treat the class on its own terms: a full life and its HUD rows, whether it takes the kit (weapons
-by command, gear, `/speedy`), whether bots may wear it, how long its dead body stays in the room
-(outliving the socket), its own tap actions on keys of their own (reported in `InputFrame.actions`
+by command, gear, `/speedy`), whether bots may wear it, its own tap actions on keys of their own (reported in `InputFrame.actions`
 like an item's and announced by the Room as `action` messages), whether it `fits` where a player is
 switching into it, `enter`/`exit` for its own state on `PlayerState`, its `hitShape` for shots (a
 capsule or spheres, `combat.ts`; a hit lands on a `HitPart`, the head, the body or one of the
@@ -1506,7 +1525,7 @@ tries never stop, and one that fails costs the player a few seconds of dropped f
 seconds settling after the resize, then a second of frames to judge) before auto backs off: the
 price of finding the finest size the machine holds, paid only by a machine that can't go finer.
 The world's first seconds and the hitch of a resize don't count, nor does a sleeping tab. A size
-the page dies at (the GPU dropping the context, which reloads the page as a death does; or the
+the page dies at (the GPU dropping the context, which reloads the page; or the
 tab killed in the trial of a step finer, which a marker written before the step and cleared on a
 clean unload tells the next load) is pinned off for the device in localStorage, a step coarser
 than it being the finest auto tries from then on, since memory gives out at the resize, before
@@ -1759,10 +1778,10 @@ finally:
 ```
 
 The observer is intentionally simpler because it never sends input. Use `circle_bot.py` as the
-reference for an active receive loop plus 30 Hz input task. Browser clients respawn by reloading
-after ten seconds and the server drops their seat after roughly thirteen; a dead bot's seat is
-kept, so its corpse lies there until its run ends (stop the input task and keep receiving, as
-`circle_bot.py` does). A death from `/kill-bots` has no kill event, so react to `state.me.dead`,
+reference for an active receive loop plus 30 Hz input task. A dead person is brought back in their
+own seat after ten seconds (see Death and respawn); a dead bot never is: its corpse lies five
+seconds, then the Room drops its seat and closes its connection with the reason `dead`, which ends
+its run (stop the input task and keep receiving, as `circle_bot.py` does). A death from `/kill-bots` has no kill event, so react to `state.me.dead`,
 not to the event. A bot that should respawn instead must close, wait for the chosen respawn
 delay, and call `connect` again. Reconnection creates a fresh player ID; there is no resume
 protocol.
@@ -1779,8 +1798,8 @@ protocol.
   looks down, and `look_at` aims in 3D. An avatar's own eyes (`AVATARS[id].eye`;
   `bodies.eye_of(player)`) may sit higher or lower, and its wearer looks and shoots from there, so aim
   from `bodies.eye_of(me)`.
-- `Player.hearts` and `Player.kills` are the scoreboard; `Player.dead` stays true until the
-  server drops the seat.
+- `Player.hearts`, `Player.kills` and `Player.deaths` are the scoreboard; a person's `Player.dead`
+  is true until the Room brings them back, a bot's until its seat is dropped.
 - Snapshots carry the floating pickups (`state.pickups`); walking into a heart below full health
   gives back 3 hearts, up to 10, and a `big-heart` (left where someone died) all 10.
 - Falls hurt by landing speed: slower than a 15 m drop from rest is free, as fast as an 80 m drop

@@ -31,6 +31,7 @@ def player(
         "avatarLocked": False,
         "hearts": hearts,
         "kills": 0,
+        "deaths": 0,
         "bot": False,
         "dead": dead,
     }

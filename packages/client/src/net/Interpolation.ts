@@ -127,7 +127,9 @@ export class Interpolation {
     const players: RemotePlayer[] = [];
     for (const [id, b] of newer.players) {
       if (id === exclude) continue;
-      const a = older.players.get(id) ?? b;
+      // Back from the dead they're in a new body somewhere else: nothing is drawn between the two.
+      const was = older.players.get(id);
+      const a = was && (b.dead || !was.dead) ? was : b;
       players.push({
         id,
         name: b.name,

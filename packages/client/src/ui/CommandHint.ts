@@ -40,13 +40,13 @@ export class CommandHint {
     this.el.classList.remove('on');
   }
 
-  // `busy` (dead, a card up) holds it back once its delay is over, until the player is free.
-  update(busy: boolean): void {
+  // Its delay runs from the start press the world is `waiting` behind (ui/StartGate.ts), and `busy`
+  // (dead, a card up) holds it back once the delay is over, until the player is free.
+  update(waiting: boolean, busy: boolean): void {
     if (this.done) return;
     const now = performance.now();
     if (this.until === null) {
-      // The world waits behind the start press (main.ts showStart), which takes #start away.
-      if (document.getElementById('start')) this.from = now;
+      if (waiting) this.from = now;
       else if (!busy && now - this.from >= DELAY_MS) {
         this.until = now + SHOW_MS;
         this.el.classList.add('on');

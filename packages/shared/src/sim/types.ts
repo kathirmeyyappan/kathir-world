@@ -61,9 +61,10 @@ export interface PlayerState {
   avatarLocked: boolean; // a bot's look, fixed for its run; commands can't change it
   riding: string | null; // the kart they're driving (vehicles/garage.ts), sat in its seat; null on foot
   hearts: number; // a full life at spawn (classes.ts), down to 0 when shot enough
-  kills: number; // players this one has finished off this life
+  kills: number; // players this one has finished off since joining
+  deaths: number; // times they've died since joining
   bot: boolean; // declared by the client at join; a headless player, shown as one, and never keeps a room open
-  dead: boolean; // stays dead until they leave; a rejoin is a new player
+  dead: boolean; // lying where they died, until the Room brings a person back in a new body (room.ts `respawn`)
 }
 
 // One tick of intent from a client. Look is client-authoritative; movement is not.

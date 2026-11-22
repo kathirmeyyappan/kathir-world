@@ -55,6 +55,7 @@ class Player:
     avatar_locked: bool
     hearts: float
     kills: int
+    deaths: int
     bot: bool
     dead: bool
 
@@ -175,6 +176,7 @@ def player(data: Mapping[str, Any]) -> Player:
         avatar_locked=data["avatarLocked"],
         hearts=data["hearts"],
         kills=data["kills"],
+        deaths=data["deaths"],
         bot=data["bot"],
         dead=data["dead"],
     )

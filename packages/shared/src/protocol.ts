@@ -34,6 +34,7 @@ export type ClientMessage =
   | { t: 'input'; f: InputFrame }
   | { t: 'chat'; text: string }
   | { t: 'rename'; name: string } // what to be called from now on; everyone sees it in the next snapshot
+  | { t: 'respawn' } // dead, and back now rather than when the Room would bring them (RESPAWN_SECONDS)
   | { t: 'ping'; at: number };
 
 export type ServerMessage =
@@ -103,6 +104,8 @@ export function isClientMessage(v: unknown): v is ClientMessage {
       return typeof m.text === 'string';
     case 'rename':
       return typeof m.name === 'string';
+    case 'respawn':
+      return true;
     case 'ping':
       return isNum(m.at);
     default:
