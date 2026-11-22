@@ -88,7 +88,6 @@ interface Seat {
   lastRenameTick: number;
   held: ItemAction[]; // last frame's actions, for the press edge of tap ones
   diedTick: number | null;
-  onFoot: AvatarId; // the look on foot they last wore, which they come back from the dead in
   outSteps: number; // steps taken stood on the ground past the edge, one heart lost every OUT_OF_BOUNDS_STEPS
   state: PlayerState;
   link: ClientLink;
@@ -223,7 +222,6 @@ export class Room {
       lastRenameTick: -Infinity,
       held: [],
       diedTick: null,
-      onFoot: state.avatar,
       outSteps: 0,
     });
     link.send({
@@ -282,13 +280,13 @@ export class Room {
   }
 
   // A dead person comes back: the same seat, name, colour and score in a new body, as whoever comes
-  // in is given (a full life, nothing held or worn), somewhere in RESPAWN_AREAS, in the look on
-  // foot they last wore. The frames still queued were the dead body's.
+  // in is given (a full life, nothing held or worn), somewhere in RESPAWN_AREAS, in the look they
+  // died in if it's one on foot. The frames still queued were the dead body's.
   private respawn(seat: Seat): void {
     const was = seat.state;
     this.buryBody(was);
     const body = this.newBody(was.id, was.name, was.color, this.spawnPoint(RESPAWN_AREAS), false);
-    becomeAvatar(body, seat.onFoot);
+    if (classOf(was.avatar).id === 'walker') becomeAvatar(body, was.avatar);
     body.kills = was.kills;
     body.deaths = was.deaths;
     body.lastSeq = was.lastSeq;
@@ -712,7 +710,6 @@ export class Room {
       return false;
     }
     becomeAvatar(seat.state, avatar);
-    if (classOf(avatar).id === 'walker') seat.onFoot = avatar;
     this.storm(seat);
     return true;
   }
