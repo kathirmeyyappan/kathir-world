@@ -26,7 +26,7 @@ const INK = [255, 0, 0];
 // colours are her white and the orange of her feet, and her emblem the site's logo, which is her
 // (scripts/emblems.py draws it, the default's, and every mark made here). Every other look's are
 // two colours off its own model, what most of it is and what it wears or is marked with, and
-// where it has one a mark of its own: SpongeBob's is his spatula.
+// where it has one a mark of its own: SpongeBob's is a Krabby Patty.
 const LIVERIES: Partial<Record<AvatarId, Partial<Livery>>> = {
   mario: { primary: '#aa0f10', secondary: '#183ab9', emblem: 'mario' },
   luigi: { primary: '#156d05', secondary: '#10287e', emblem: 'luigi' },

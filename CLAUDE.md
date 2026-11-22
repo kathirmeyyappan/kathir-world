@@ -1045,9 +1045,9 @@ it's drawn (`emblemPixels`, with a dark line round the letters so a pale primary
 as drawn keeps it by `emblemKey`. Elizabeth's row is her white over the orange of her feet, and
 the site's logo, which is her, on a dark disc. Every other look's row is two colours off its
 own model, what most of it is and what it wears or is marked with, under the default emblem
-until it has a mark of its own, drawn in `scripts/emblems.py` as a few flat shapes with a dark
-line round them (`outlined`), which is all that reads at an emblem's size: SpongeBob's is his
-spatula. A new
+until it has a mark of its own: a picture of something of theirs, cut out of its background
+(`scripts/marks/`, with where it's from beside its row in `scripts/emblems.py`), and drawn there
+only where there's no picture to go off. SpongeBob's is a Krabby Patty. A new
 one is a row in `LIVERIES` and, with a mark of its own, its emblem's picture; nothing that wears a livery has to know the look.
 
 ## Player classes
