@@ -9,6 +9,7 @@ import type { Engine } from '../Engine';
 import type { Seat } from '../vehicles/Seat';
 import { bodyBuilder, type BodySpec } from './Body';
 import { begin, type Fetch } from '../fetchOnce';
+import { reloadIfStale } from '../../staleBuild';
 import { DragonAvatar } from './Dragon';
 import { DRAGONS, type DragonAvatarId } from './dragons';
 import { buildElizabeth } from './Elizabeth';
@@ -175,7 +176,10 @@ class Pending implements Avatar {
         this.body = body;
         this.arrived = true;
       })
-      .catch((e: unknown) => console.error(`loading ${p.avatar}`, e));
+      .catch((e: unknown) => {
+        console.error(`loading ${p.avatar}`, e);
+        void reloadIfStale();
+      });
   }
 
   // The stand-in's colour isn't the look's: a change of colour while it's on its way is the same look.

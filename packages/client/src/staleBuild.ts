@@ -1,0 +1,28 @@
+// A tab left open across a deploy holds a bundle whose lazy chunks (a look's files, the game) are
+// named by content hash, and the new deploy has taken those names away. When one fails to load,
+// this asks the server for the page again: if it now points at a different bundle the tab is stale
+// and is reloaded; if it's the same one the failure was the network's, and the chunk is left to
+// be asked for again by the next thing that wants it (fetchOnce.ts).
+let checking = false;
+
+function bundleOf(page: ParentNode): string | null {
+  return page.querySelector<HTMLScriptElement>('script[type="module"][src]')?.getAttribute('src') ?? null;
+}
+
+export async function reloadIfStale(): Promise<void> {
+  if (checking) return;
+  checking = true;
+  try {
+    const response = await fetch(location.href, { cache: 'no-store' });
+    const latest = bundleOf(new DOMParser().parseFromString(await response.text(), 'text/html'));
+    if (latest !== null && latest !== bundleOf(document)) location.reload();
+  } catch {
+    // Offline: nothing to compare against.
+  } finally {
+    checking = false;
+  }
+}
+
+export function reloadOnStaleChunks(): void {
+  window.addEventListener('vite:preloadError', () => void reloadIfStale());
+}
