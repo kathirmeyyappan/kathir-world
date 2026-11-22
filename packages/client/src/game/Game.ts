@@ -871,6 +871,7 @@ export class Game {
   private revive(me: PlayerState): void {
     this.dead = false;
     this.death.hide();
+    this.view.set('third');
     this.sfx.hush(DIRGE);
     this.mourningUntil = 0;
     this.input.yaw = me.yaw;
