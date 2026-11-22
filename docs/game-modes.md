@@ -112,11 +112,11 @@ its lobby is back. A command is of a kind (`CommandKind`, `kindOf`: a weapon, ge
 foot, a dragon, a bot's), and a game says of every kind whether it allows it (`Allowed`, a table,
 made rules by `gameRules` in `modes/game.ts`), so a new kind is a compile error until each game
 has said. Until a mode has a table of its own it has every game's (`GAME_ALLOWS`): everything but
-the bots' commands. The Room asks before anything else about a command (`runCommand`, through
-`GameMode.refuses`), and the client asks the same function of the state it was sent (`rulesOf`;
-`refusedBy` in `ui/commands.ts`): a refused command's button on the commands card is greyed, and
-at a press says why in the red box, the card staying up, and its line in the chat's completions is
-greyed too. One sent anyway is refused by the Room like any.
+the bots' commands. The Room asks before anything else about a command (`runCommand`), and the
+client asks the same function of the state it was sent (`rulesOf` for both; `refusedBy` in
+`ui/commands.ts`): a refused command's button on the commands card is greyed, and at a press says
+why in the red box, the card staying up, and its line in the chat's completions is greyed too. One
+sent anyway is refused by the Room like any.
 
 ### Ghosts
 
@@ -235,9 +235,9 @@ A mode has two halves. Its **rules** (`Rules`, `modes/rules.ts`; a mode's are `r
 are pure functions of the game's state, in `shared`, which the Room and the client both call, so
 what the server enforces and what the client shows can't disagree and nothing worked out from the
 state is sent beside it: what's refused, what no hearts means, what floor is in play, who sees
-whom. Its **referee** (`GameMode`, `modes/mode.ts`, which holds the mode's rules for the Room to
-ask) runs in the Room alone and moves the game on: the master's changes to the settings, the start,
-where everyone is put, the points, the clock, the end.
+whom. Its **referee** (`GameMode`, `modes/mode.ts`) runs in the Room alone and moves the game on:
+the master's changes to the settings, the start, where everyone is put, the points, the clock, the
+end. A rule is never the referee's to answer: the Room asks the rules as the client does.
 
 **The questions**, as the two modes need them. This list is the interface between a mode and
 everything else, and it will change as modes and features are added (`CLAUDE.md` says how).

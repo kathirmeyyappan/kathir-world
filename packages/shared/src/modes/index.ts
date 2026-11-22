@@ -47,7 +47,7 @@ export function isGameModeId(v: unknown): v is GameModeId {
 
 // What makes each mode's game, and its rules. Racing and Shootout are what every game shares and no
 // more, until their own are built.
-const GAMES: Record<GameModeId, new (id: GameModeId, rules: Rules, room: ModeRoom) => GameMode> = {
+const GAMES: Record<GameModeId, new (id: GameModeId, room: ModeRoom) => GameMode> = {
   freeplay: GameMode,
   racing: Game,
   shootout: Game,
@@ -60,10 +60,11 @@ const RULES: Record<GameModeId, Rules> = {
 
 // A room's game in mode `id`.
 export function makeMode(id: GameModeId, room: ModeRoom): GameMode {
-  return new GAMES[id](id, RULES[id], room);
+  return new GAMES[id](id, room);
 }
 
-// The rules of the mode a game is in: what the Room enforces of it, for the client to show.
+// The rules of the mode a game is in, which the Room enforces and the client shows: each is asked
+// of the game as it stands, `rulesOf(game).refuses(game, command)`.
 export function rulesOf(game: GameState): Rules {
   return RULES[game.mode];
 }

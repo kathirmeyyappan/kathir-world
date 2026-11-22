@@ -1,12 +1,11 @@
 // A room's game mode as its Room knows it (docs/game-modes.md): what the Room tells it of and asks
 // it, with freeplay's answers. Freeplay is this class as it stands, the game with no rules of its
 // own, and every other mode is it with some of these answered its own way. The Room never asks
-// which mode it's in: it tells its mode what happened and takes its answers.
-import type { Command } from '../commands';
+// which mode it's in: it tells its mode what happened and takes its answers. What the client has
+// to agree with isn't asked here: that's the mode's rules (rules.ts), read off the state it gives.
 import type { SpawnArea } from '../content/regions';
 import type { PlayerState } from '../sim/types';
 import type { GameAction, GameModeId, GameState } from './index';
-import type { Rules } from './rules';
 
 // What a mode can do to the room it's the game of.
 export interface ModeRoom {
@@ -26,18 +25,12 @@ export interface ModeRoom {
 export class GameMode {
   constructor(
     readonly id: GameModeId,
-    private readonly rules: Rules, // the mode's own, which the client reads the same (rules.ts)
     protected readonly room: ModeRoom,
   ) {}
 
   // The game as everyone in the room is told of it.
   get state(): GameState {
     return { mode: this.id, master: null, phase: null, until: null };
-  }
-
-  // Why a command is refused as the game stands, or null.
-  refuses(command: Command): string | null {
-    return this.rules.refuses(this.state, command);
   }
 
   // Why a join is turned away right now, or null. `bot`: it's a bot's.
