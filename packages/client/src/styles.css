@@ -1817,6 +1817,45 @@ body {
   background: currentColor;
   animation: blink 1s steps(1) infinite;
 }
+/* A game's results (ui/Results.ts): over the view while they stand, nothing on them to press, the
+   world going on under them. */
+#results {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: rgba(5, 7, 12, 0.5);
+  z-index: 1400;
+  pointer-events: none;
+}
+#results .card {
+  text-align: center;
+}
+#results ul {
+  list-style: none;
+  display: grid;
+  gap: 6px;
+  margin: 14px 0;
+}
+#results li {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 14px;
+  font: 24px var(--mono);
+  color: var(--side);
+  border: 2px solid var(--side);
+  opacity: 0.6;
+}
+#results li.won {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.08);
+}
+#results .count {
+  font: 18px var(--mono);
+  color: rgba(255, 255, 255, 0.7);
+}
+
 #death {
   position: fixed;
   inset: 0;

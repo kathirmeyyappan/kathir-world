@@ -10,6 +10,7 @@ import type { GameAction, GameModeId, GameState } from './index';
 // What a mode can do to the room it's the game of.
 export interface ModeRoom {
   tick(): number; // the room's tick as it stands
+  random(): number; // the room's own dice, from 0 up to 1: a seeded room plays out the same
   publish(): void; // tells everyone in the room the game's state as it stands
   close(reason: string): void; // ends the room for everyone in it, who are told why
   people(): PlayerState[]; // everyone seated who isn't a bot
@@ -50,6 +51,10 @@ export class GameMode {
 
   // A player asked something of the game (a `game` message).
   asked(_player: PlayerState, _action: GameAction): void {}
+
+  // A person or a bot died: by `killer`'s doing, or with null by their own or nobody's (a fall, the
+  // ground past the edge, a crash).
+  died(_victim: PlayerState, _killer: PlayerState | null): void {}
 
   // A player asked for a change to the game's settings (a `settings` message), which are its
   // mode's own to read.

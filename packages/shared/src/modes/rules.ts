@@ -14,6 +14,23 @@ export interface Rules {
   dying(game: GameState): Dying;
   // Why its game can't be started as it's set up, or null.
   starts(game: GameState): string | null;
+  // The side a player (by id) is on in the game as it stands, or null: none, as everyone is where
+  // there are no sides to be on.
+  side(game: GameState, player: string): Side | null;
+  // How the game stands, the best first: who has what, and who's winning, or once it's over, won.
+  standings(game: GameState): Standing[];
+}
+
+// A side in a game (a team): what it's called, and the colour its players go by.
+export interface Side {
+  name: string;
+  colour: string;
+}
+
+export interface Standing {
+  side: Side;
+  points: number;
+  won: boolean; // no side has more
 }
 
 // What no hearts means for a person: their body lies `seconds` where it fell, and they're then
@@ -32,6 +49,8 @@ export const FREEPLAY_RULES: Rules = {
   refuses: () => null,
   dying: () => FREEPLAY_DYING,
   starts: () => null,
+  side: () => null,
+  standings: () => [],
 };
 
 // What a command is to a game's rules. A game says of every kind whether it allows it (`Allowed`),

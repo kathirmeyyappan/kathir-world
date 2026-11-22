@@ -460,11 +460,13 @@ export class Hud {
 
   // A kill, worded and coloured like an announcement: "ann killed bob with a sniper headshot", "ann
   // ran over bob and killed them".
-  announceKill(shooter: string, victim: string, item: KillItem, headshot: boolean): void {
+  // `friendly`: the two are on one side of a game (the shared package's `Rules.side`).
+  announceKill(shooter: string, victim: string, item: KillItem, headshot: boolean, friendly: boolean): void {
     const li = document.createElement('li');
     li.className = 'kill';
     const [a, b] = [this.playerName(shooter), this.playerName(victim)];
-    if (item === 'kart') li.textContent = `${a} ran over ${b} and killed them`;
+    if (friendly) li.textContent = `${a} killed ${b} with friendly fire`;
+    else if (item === 'kart') li.textContent = `${a} ran over ${b} and killed them`;
     else if (item === 'explosion') li.textContent = `${a} blew up ${b}`;
     else {
       const how = item === 'pound' || item === 'strike' ? MOVE_KILLS[item] : item;

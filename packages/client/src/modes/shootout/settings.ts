@@ -29,8 +29,7 @@ export function shootoutSettings(hooks: ModeHooks): Row[] {
       kind: 'board',
       columns: () =>
         game().teams.map((team, i) => ({
-          name: `TEAM ${TEAMS[i].name}`,
-          colour: TEAMS[i].colour,
+          ...TEAMS[i],
           players: team.map((id) => ({ id, name: hooks.nameOf(id) })),
         })),
       can: mine,
