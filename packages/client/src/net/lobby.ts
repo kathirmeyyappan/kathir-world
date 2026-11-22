@@ -21,6 +21,9 @@ if (startParams.get('lobby')) sessionStorage.setItem('world.lobby', startParams.
 const home = startParams.get('home');
 if (home && home !== location.origin) sessionStorage.setItem('world.home', home);
 export const SERVED_BY_ROOM_HOST = sessionStorage.getItem('world.direct') === '1';
+// What the lobby says of the room it sent this page to, on the address it sent it to: the game
+// mode the room was created in. The page hands each on to the room server as it joins, as given.
+const LOBBY_SAYS = ['game'];
 // Home when it's another page: on the room host, the launcher (or dev page) the lobby named, else the
 // launcher the room host puts in the page. Null on home itself.
 export const HOME = sessionStorage.getItem('world.home') || pageMeta('world-home');
@@ -185,8 +188,7 @@ export function warmLobby(): void {
 
 // Into a room as `mode` asks, or with no mode, into the room host's own room (the one the lobby sent
 // this page to, or this tab's on a reload), which the lobby has already admitted it to. `game` is
-// the game mode the room is in: a create's own pick, and on the room host what the lobby says the
-// room was created in, for the room server to make it in.
+// the game mode a create makes its room in.
 export async function joinRoom(
   roomId: string,
   you: Joiner,
@@ -210,7 +212,9 @@ export async function joinRoom(
   // The room host serves one session's room; any other goes through the lobby.
   const lobby = lobbyUrl();
   if (SERVED_BY_ROOM_HOST && (!mode || !lobby)) {
-    return WsConnection.connect(`${wsScheme}://${location.host}/ws?${ws()}`);
+    const query = ws();
+    for (const key of LOBBY_SAYS) if (startParams.has(key)) query.set(key, startParams.get(key)!);
+    return WsConnection.connect(`${wsScheme}://${location.host}/ws?${query}`);
   }
 
   if (!lobby) throw new LobbyUnavailableError('no lobby configured');

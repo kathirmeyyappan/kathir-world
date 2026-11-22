@@ -166,7 +166,7 @@ export function showHome(): Promise<HomeResult> {
       finish(result);
     };
     // `mode` null: the room host's own room, which the lobby has already let this page into.
-    // `game`: the mode a create makes the room in, or on the room host the one the lobby says it's in.
+    // `game`: the mode a create makes the room in.
     const attempt = async (roomId: string, mode: JoinMode | null, game: GameModeId = FREEPLAY) => {
       if (busy) return;
       const you = joiner();
@@ -232,11 +232,8 @@ export function showHome(): Promise<HomeResult> {
       history.replaceState(null, '', location.pathname);
       showForm(refused);
       roomInput.focus();
-    } else if (params.get('room')) {
-      const said = params.get('game');
-      if (SERVED_BY_ROOM_HOST) attempt(params.get('room')!, null, isGameModeId(said) ? said : FREEPLAY);
-      else attempt(params.get('room')!, 'join');
-    } else if (remembered) {
+    } else if (params.get('room')) attempt(params.get('room')!, SERVED_BY_ROOM_HOST ? null : 'join');
+    else if (remembered) {
       nameInput.value = remembered.name || nameInput.value;
       skin.choose(choiceOf(remembered.avatar, remembered.color));
       attempt(remembered.roomId, null);
