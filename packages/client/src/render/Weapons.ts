@@ -13,6 +13,7 @@ import {
   type Camera,
 } from '@babylonjs/core';
 import { ITEMS, ITEM_IDS, type AvatarId, type Element, type ItemId, type Strike } from '@world/shared';
+import { seeThrough } from './avatars/common';
 import type { Engine } from './Engine';
 import { coneAngle, createJet, type Jet } from './Jet';
 
@@ -180,6 +181,7 @@ export class Viewmodel {
   private current: ItemId | null = null;
   private recoil = 0;
   private flashLeft = 0;
+  private ghost = false;
 
   constructor(engine: Engine, camera: Camera) {
     const scene = engine.scene;
@@ -275,6 +277,13 @@ export class Viewmodel {
   // Hold weapons: the held one's jet is on while the sim says we're firing.
   setFiring(on: boolean): void {
     for (const [id, s] of this.shapes) s.jet?.set(on && id === this.current);
+  }
+
+  // What a ghost holds is seen through, from its own eyes as from anyone's.
+  setGhost(ghost: boolean): void {
+    if (ghost === this.ghost) return;
+    this.ghost = ghost;
+    for (const node of [this.root, this.bat]) seeThrough(node, ghost);
   }
 
   fire(): void {

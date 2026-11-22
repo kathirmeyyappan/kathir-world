@@ -38,6 +38,14 @@ export interface Avatar {
 }
 
 const GAIT_EASE = 0.1; // seconds the stride takes to follow a change of speed
+const GHOST_VISIBILITY = 0.35; // how much of a ghost is there to see (sim/types.ts `ghost`)
+
+// Draws every mesh under `root` seen through, as a ghost's body and whatever it carries are, or
+// solid again.
+export function seeThrough(root: TransformNode, ghost: boolean): void {
+  const visibility = ghost ? GHOST_VISIBILITY : 1;
+  for (const mesh of root.getChildMeshes()) mesh.visibility = visibility;
+}
 
 // A walk cycle from how fast a player's feet are walking, frame to frame: `pace`, PlayerState.walk
 // as a share of the look's own full walk (walkSpeedOf). `phase` (radians) is the stride's, paced by

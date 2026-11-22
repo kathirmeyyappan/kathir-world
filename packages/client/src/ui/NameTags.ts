@@ -14,14 +14,15 @@ const TAG_EM = 0.23; // metres: the font size in the world, about 20 px at 6 m
 const MIN_PX = 9; // far off, small but still sharp
 const MAX_PX = 28;
 
-// The element, and the name, font size, stacking and colour last written to it (writes only on
-// change; a name changes with a rename).
+// The element, and the name, font size, stacking, colour and ghostliness last written to it
+// (writes only on change; a name changes with a rename).
 interface Tag {
   el: HTMLDivElement;
   name: string;
   px: number;
   z: number;
   color: string;
+  ghost: boolean;
 }
 
 // Where a tag for a name at `at` stands on a canvas `w` by `h` CSS pixels (from its top left) and its
@@ -61,6 +62,7 @@ export class NameTags {
       if (p.name !== tag.name) tag.el.textContent = tag.name = p.name;
       const colour = nameColour(p);
       if (colour !== tag.color) tag.el.style.color = tag.color = colour;
+      if (p.ghost !== tag.ghost) tag.el.classList.toggle('ghost', (tag.ghost = p.ghost));
       // Sat in a kart, its feet are on the seat and only SEATED of its body stands over them.
       const top = AVATARS[p.avatar].hitbox.top * (p.riding ? SEATED : 1);
       const at = new Vector3(p.x, p.y - EYE_HEIGHT + top + ABOVE_BODY, p.z);
@@ -94,7 +96,7 @@ export class NameTags {
     const el = document.createElement('div');
     el.className = 'name-tag';
     this.root.appendChild(el);
-    const tag = { el, name: '', px: 0, z: -1, color: '' };
+    const tag = { el, name: '', px: 0, z: -1, color: '', ghost: false };
     this.tags.set(p.id, tag);
     return tag;
   }

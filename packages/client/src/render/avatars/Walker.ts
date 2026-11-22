@@ -13,7 +13,7 @@ import { AVATARS, EYE_HEIGHT, GRAVITY, WORLD_STRUCTURES, walkSpeedOf, type Avata
 import type { RemotePlayer } from '../../net/Interpolation';
 import type { Engine } from '../Engine';
 import type { Seat } from '../vehicles/Seat';
-import { centreOf, createShadowBlob, Gait, placeShadow, type Avatar } from './common';
+import { centreOf, createShadowBlob, Gait, placeShadow, seeThrough, type Avatar } from './common';
 import { HeldItems } from './HeldItems';
 import { HitFlash } from './HitFlash';
 import { smooth } from './motion';
@@ -153,6 +153,7 @@ export class WalkerAvatar implements Avatar {
   private drawn: number | null = null; // when it was last drawn, seconds
   private last: { x: number; y: number; z: number; at: number } | null = null; // where it last moved to, and when
   private dead = false;
+  private ghost = false; // drawn as a ghost last frame
   protected gone = Infinity; // seconds since it was seen to die: forever for one first seen dead
   private readonly leap: number; // metres its dying leap rises
   private readonly height: number; // metres it stands
@@ -217,6 +218,9 @@ export class WalkerAvatar implements Avatar {
     this.items.update(p);
     this.shadow.setEnabled(pose.on !== 'kart');
     placeShadow(this.shadow, p, feetY);
+    // Every frame it's a ghost, since what it carries comes and goes; and once more as it stops.
+    if (p.ghost || this.ghost) seeThrough(this.root, p.ghost);
+    this.ghost = p.ghost;
     this.root.setEnabled(true);
   }
 

@@ -99,7 +99,17 @@ interface Section {
 }
 
 function shown(avatar: AvatarId): Shown {
-  return { name: '', avatar, color: COLOR, item: null, gear: null, chilled: false, shattered: [], kart: null };
+  return {
+    name: '',
+    avatar,
+    color: COLOR,
+    item: null,
+    gear: null,
+    chilled: false,
+    ghost: false,
+    shattered: [],
+    kart: null,
+  };
 }
 
 // The skins anyone can wear, the ones only bots can wear left out.

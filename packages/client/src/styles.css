@@ -689,6 +689,10 @@ body {
     0 0.1em 0 #000,
     0.1em 0.1em 0 #000;
 }
+/* A ghost's name is seen through, as the rest of it is. */
+.name-tag.ghost {
+  opacity: 0.55;
+}
 .pin {
   position: absolute;
   left: 0;
@@ -819,6 +823,9 @@ body {
 }
 #player-list li.dead {
   opacity: 0.45;
+}
+#player-list li.ghost {
+  opacity: 0.7;
 }
 .ping-line {
   display: flex;
@@ -1076,6 +1083,7 @@ body {
   grid-template-columns: repeat(var(--heart-row, 5), 32px);
   gap: 3px 2px;
 }
+#hearts[hidden],
 #wrenches[hidden] {
   display: none;
 }
@@ -1749,6 +1757,9 @@ body {
 }
 #player-list .stats .skull rect {
   fill: #e8e8ee;
+}
+#player-list .stats .ghost rect {
+  fill: #b9d7ff;
 }
 #player-list .robot,
 #player-list .crown {

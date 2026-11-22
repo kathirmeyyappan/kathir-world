@@ -34,6 +34,7 @@ export class Menu {
     item: null,
     gear: null,
     chilled: false,
+    ghost: false,
     shattered: [],
     kart: null,
   };

@@ -3,7 +3,7 @@
 // the best nearest it: Up picks from the bottom, Down comes back, Enter or Tab (or a click) puts
 // the pick in the box, where Enter sends it as anything else.
 import { MAX_CHAT_LENGTH, MAX_HEARTS, heartsOf, type AvatarId, type Element, type KillItem } from '@world/shared';
-import { CROWN, HEART, KNIFE, ROBOT, SKULL, pixelSvg } from './pixelIcons';
+import { CROWN, GHOST, HEART, KNIFE, ROBOT, SKULL, pixelSvg } from './pixelIcons';
 
 import { IS_TOUCH } from '../input/touch';
 import { roomLink } from '../net/lobby';
@@ -283,6 +283,7 @@ export class Hud {
       kills: number;
       deaths: number;
       dead: boolean;
+      ghost: boolean;
       avatar: AvatarId;
     }[],
   ): void {
@@ -299,7 +300,8 @@ export class Hud {
         e.life !== life ||
         e.kills !== p.kills ||
         e.deaths !== p.deaths ||
-        e.dead !== p.dead
+        e.dead !== p.dead ||
+        e.ghost !== p.ghost
       ) {
         e.name = p.name;
         e.color = colour;
@@ -308,6 +310,7 @@ export class Hud {
         e.kills = p.kills;
         e.deaths = p.deaths;
         e.dead = p.dead;
+        e.ghost = p.ghost;
         changed = true;
       }
     }
@@ -523,6 +526,7 @@ function rosterRow(p: RosterEntry, mine: boolean, master: boolean): HTMLLIElemen
   const li = document.createElement('li');
   li.classList.toggle('me', mine);
   li.classList.toggle('dead', p.dead); // dimmed, with no hearts to show
+  li.classList.toggle('ghost', p.ghost); // a ghost's mark where its hearts would be: it has none
   const dot = document.createElement('span');
   dot.className = 'dot';
   dot.style.background = p.color;
@@ -532,7 +536,8 @@ function rosterRow(p: RosterEntry, mine: boolean, master: boolean): HTMLLIElemen
   li.append(document.createTextNode(p.name + (mine ? ' (you)' : '')));
   const stats = document.createElement('span');
   stats.className = 'stats';
-  if (!p.dead) stats.append(pixelSvg(HEART, 'heart', { '+': 'hi' }), text(`${fmt(p.hearts)}/${p.life}`));
+  if (p.ghost) stats.append(pixelSvg(GHOST, 'ghost'));
+  else if (!p.dead) stats.append(pixelSvg(HEART, 'heart', { '+': 'hi' }), text(`${fmt(p.hearts)}/${p.life}`));
   stats.append(pixelSvg(KNIFE, 'knife', { G: 'guard', H: 'hilt' }), text(String(p.kills)));
   stats.append(pixelSvg(SKULL, 'skull'), text(String(p.deaths)));
   li.append(stats);
@@ -549,6 +554,7 @@ interface RosterPlayer {
   kills?: number;
   deaths?: number;
   dead?: boolean;
+  ghost?: boolean;
 }
 
 interface RosterEntry {
@@ -560,6 +566,7 @@ interface RosterEntry {
   kills: number;
   deaths: number;
   dead: boolean;
+  ghost: boolean; // in the room and not in its game (the shared package's sim/types.ts)
 }
 
 function entry(p: RosterPlayer): RosterEntry {
@@ -572,6 +579,7 @@ function entry(p: RosterPlayer): RosterEntry {
     kills: p.kills ?? 0,
     deaths: p.deaths ?? 0,
     dead: !!p.dead,
+    ghost: !!p.ghost,
   };
 }
 

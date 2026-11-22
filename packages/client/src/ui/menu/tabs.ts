@@ -59,6 +59,7 @@ export interface Me {
   item: ItemId | null;
   gear: GearId | null;
   chilled: boolean; // frosted over by an ice hit
+  ghost: boolean; // in the room and not in its game: seen through
   shattered: number[]; // a dragon's weak points shot out (sim/dragon.ts DragonState)
   kart: KartId | null; // the kart they drive, or none
 }

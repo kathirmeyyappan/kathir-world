@@ -157,7 +157,17 @@ table of its own (`GHOST_ALLOWS`: no kart, no dragon), checked before the game's
 (`refusal`, which the Room enforces and the client greys by). What a join is made is the mode's to
 say (`GameMode.joining`: a player, a ghost, or turned away): a game being played makes a person a
 ghost, who comes in 10 m across the floor from someone in it (`Room.besideSomeone`), and every new
-body the lobby hands out is a player's. How a ghost is drawn and heard is to build.
+body the lobby hands out is a player's.
+
+On the client a ghost is seen through, by everyone and by itself: its body, what it holds and
+wears (`seeThrough`, `render/avatars/common.ts`: every mesh under the avatar at a share of its
+visibility, each frame it's a ghost, since what it carries comes and goes), its name over its head,
+its own hands in first person and its body in the menu's preview. Nobody else hears one: the
+frame's `heard` players (`Game.ts`) leave ghosts out of the footsteps, the moves' sounds and the
+loops, a ghost's lines aren't said (`Game.line`), and its shot is seen and not heard (`hearShots`).
+The roster shows a ghost's mark where its hearts would be. Its own HUD has no hearts, a banner
+that says it's spectating, no word about being out of bounds or at full health, and no prompt at a
+door.
 
 ### Leaving mid-game
 
@@ -330,7 +340,7 @@ outside dev until each can be played, so freeplay is run on every merge.
 
 - [x] `PlayerState.ghost`: nothing a ghost does touches the world, and nothing touches it.
 - [x] Joining a game that's playing: a spectator, 10 m from someone, a player again in the lobby.
-- [ ] A ghost drawn translucent, to itself too, and unheard by others; its icon on the roster.
+- [x] A ghost drawn translucent, to itself too, and unheard by others; its icon on the roster.
 
 **3. Shootout**
 

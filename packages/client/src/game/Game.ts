@@ -745,6 +745,7 @@ export class Game {
         this.interp.push(m, now);
         const me = m.players.find((p) => p.id === this.myId);
         if (me) {
+          this.hearts.show(!me.ghost); // a ghost has no life to lose
           this.hearts.setLife(lifeOf(me.avatar), me.hearts);
           // A pickup's worth of hearts flashes; a regen's trickle each tick doesn't.
           if (me.hearts - this.hearts.count >= 1 && !this.dead) this.healFlash.flash();
@@ -867,7 +868,7 @@ export class Game {
   }
 
   // What the game has standing over the view right now (ui/GameBanner.ts): in its lobby, what
-  // everyone is waiting on, and through its start, the count down to it.
+  // everyone is waiting on, through its start, the count down to it, and for a ghost, what they are.
   private standing(): string | null {
     const { phase, until } = this.game;
     if (phase === 'lobby') {
@@ -876,6 +877,7 @@ export class Game {
     }
     if (phase === 'starting' && until !== null)
       return `Game is starting in ${Math.max(1, Math.ceil((until - this.tick) / TICK_RATE))}`;
+    if (this.prediction?.state.ghost) return 'Spectating as a ghost until this game ends.';
     return null;
   }
 
@@ -887,10 +889,15 @@ export class Game {
     }
   }
 
+  // Anyone else as they're drawn right now, or null.
+  private drawn(id: string): RemotePlayer | null {
+    return this.interp.sample(performance.now(), this.myId).players.find((rp) => rp.id === id) ?? null;
+  }
+
   // Where a player's head is right now: the local player's by prediction, anyone else's as drawn.
   private headOf(id: string): Vec3 | null {
     if (id === this.myId) return this.prediction?.state.pos ?? null;
-    const p = this.interp.sample(performance.now(), this.myId).players.find((rp) => rp.id === id);
+    const p = this.drawn(id);
     return p ? { x: p.x, y: p.y, z: p.z } : null;
   }
 
@@ -1036,12 +1043,15 @@ export class Game {
   }
 
   // The take a player would say a line with and where from (null: the local player's own, from
-  // nowhere), or null if their look has no such line or they can't be placed.
+  // nowhere), or null if their look has no such line, they can't be placed, or they're a ghost,
+  // whom nobody else hears.
   private line(id: string, line: Line): { sound: SoundId; at: Vec3 | null } | null {
     const mine = id === this.myId;
+    const them = mine ? null : this.drawn(id);
+    if (them?.ghost) return null;
     const avatar = mine ? this.prediction?.state.avatar : this.avatars.get(id)?.kind;
     const sound = avatar && take(VOICES[avatar][line]);
-    const at = mine ? null : this.headOf(id);
+    const at = them && { x: them.x, y: them.y, z: them.z };
     return sound && (mine || at) ? { sound, at } : null;
   }
 
@@ -1096,6 +1106,7 @@ export class Game {
       const sounds = p?.item && ITEM_SOUNDS[p.item.id];
       if (!p || !sounds) continue;
       this.avatars.get(p.id)?.fire();
+      if (p.ghost) continue; // seen to fire, and not heard
       if (sounds.shot) this.sfx.play(sounds.shot, p.pos);
       const whiz = s.hitMe ? undefined : sounds.nearMiss;
       const miss = whiz && this.closestPass(p);
@@ -1264,6 +1275,7 @@ export class Game {
     if (!held) this.setScoped(false);
     this.viewmodel.show(held && !this.scoped && !this.dead && this.view.atEyes ? held.id : null, self.avatar);
     this.viewmodel.setFiring(self.firing);
+    this.viewmodel.setGhost(self.ghost);
     this.viewmodel.swing(this.view.atEyes && !this.dead ? self.strike : null, strikeOf(self.avatar), dt);
     this.viewmodel.update(dt);
     const showHint = held && !this.dead;
@@ -1294,10 +1306,12 @@ export class Game {
     // Driving a kart that's down past the world's edge, there's nothing to do but wait for Lakitu
     // (sim/vehicles/rescue.ts). On foot there, the Room bleeds hearts.
     const lost = !this.dead && !!self.riding && !!this.prediction.kart && stranded(this.prediction.kart);
-    const out = !this.dead && !self.riding && cls === 'walker' && onOutsideGround(self.pos.y - EYE_HEIGHT);
-    // A pickup touched at full health is left where it is (sim/pickups.ts).
+    const out =
+      !this.dead && !self.ghost && !self.riding && cls === 'walker' && onOutsideGround(self.pos.y - EYE_HEIGHT);
+    // A pickup touched at full health is left where it is (sim/pickups.ts), as a ghost leaves any.
     const full =
       !this.dead &&
+      !self.ghost &&
       atFullHealth(self) &&
       sampled.pickups.some((pickup) => touchesPickup(pickup.kind, pickup, self.pos, EYE_HEIGHT));
     this.alert.hold(
@@ -1323,10 +1337,13 @@ export class Game {
       item: held?.id ?? null,
       gear: self.gear?.id ?? null,
       chilled: self.chilled > 0,
+      ghost: self.ghost,
       shattered: self.dragon?.shattered ?? [],
       kart: self.riding ? (this.prediction.kart?.kart ?? null) : null,
     });
 
+    // Everyone else there is to hear: a ghost is seen and makes no sound but to itself.
+    const heard = sampled.players.filter((rp) => !rp.ghost);
     const stepLoops = this.footsteps.update(
       [
         {
@@ -1345,7 +1362,7 @@ export class Game {
           falling: -self.vy,
           self: true,
         },
-        ...sampled.players.map((rp) => ({
+        ...heard.map((rp) => ({
           id: rp.id,
           pos: { x: rp.x, y: rp.y, z: rp.z },
           walk: rp.walk,
@@ -1371,7 +1388,7 @@ export class Game {
       self.pound ? self.pound.from - self.pos.y : 0,
     );
     this.striking(this.myId, self.avatar, self.strike, self.pos);
-    for (const rp of sampled.players) {
+    for (const rp of heard) {
       this.pounding(rp.id, rp.avatar, rp.pound, { x: rp.x, y: rp.y, z: rp.z }, rp.poundHeight);
       this.striking(rp.id, rp.avatar, rp.strike, { x: rp.x, y: rp.y, z: rp.z });
     }
@@ -1475,7 +1492,7 @@ export class Game {
         id,
         at: null,
       })),
-      ...sampled.players.flatMap((rp) => loopsOf(rp).map((id) => ({ key: rp.id, id, at: rp }))),
+      ...heard.flatMap((rp) => loopsOf(rp).map((id) => ({ key: rp.id, id, at: rp }))),
       ...karts.flatMap((k) => this.kartLoops(k)),
       ...stepLoops,
       ...(music ? [music] : []),
@@ -1670,7 +1687,7 @@ export class Game {
     // A door in reach of the look is used by a click; say so while the crosshair is on one.
     const me = this.prediction?.state;
     const look = lookVector(this.aim.yaw, this.aim.pitch);
-    const door = me && !this.dead ? WORLD_STRUCTURES.doorAt(me.pos, look, DOOR_REACH) : null;
+    const door = me && !this.dead && !me.ghost ? WORLD_STRUCTURES.doorAt(me.pos, look, DOOR_REACH) : null;
     const tap = IS_TOUCH ? 'tap' : 'click';
     this.hitNotice.prompt(door ? `${tap} to ${WORLD_STRUCTURES.isOpen(door) ? 'shut' : 'open'} the door` : null);
     this.hoveredUse = door;

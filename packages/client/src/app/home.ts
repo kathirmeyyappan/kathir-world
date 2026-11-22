@@ -346,6 +346,7 @@ class Stage {
       item: null,
       gear: null,
       chilled: false,
+      ghost: false,
       shattered: [],
       kart: this.seated ? SEATS_IN : null,
     };
