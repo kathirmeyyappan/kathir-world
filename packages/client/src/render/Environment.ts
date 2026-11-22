@@ -176,9 +176,18 @@ export class Environment {
   // The floor's look for a patch of it bent into ripples (render/GroundRipple.ts), kept in step
   // with the floor's own until it's released: the same pixels where the patch lies level and
   // unlit, shaded by its slope, and glowing `glow` as a pool round (x, z) out to `radius` (at the
-  // strength its owner sets as `reliefStrength`) and on its crests, `height` over `base`.
-  rippleGround(x: number, z: number, radius: number, base: number, height: number, glow: Color3): ShaderMaterial {
-    const mat = this.groundMaterial('ripple', 0);
+  // strength its owner sets as `reliefStrength`) and on its crests, `height` over `base`; the
+  // ground past the edge's look where it's `outside`.
+  rippleGround(
+    x: number,
+    z: number,
+    radius: number,
+    base: number,
+    height: number,
+    glow: Color3,
+    outside: boolean,
+  ): ShaderMaterial {
+    const mat = this.groundMaterial('ripple', outside ? 1 : 0);
     mat.setFloat('relief', 1);
     mat.setFloat('reliefBase', base);
     mat.setFloat('reliefHeight', height);

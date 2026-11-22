@@ -1094,7 +1094,7 @@ export class Game {
         this.overlay.reading,
         this.itemActions(),
         this.interp.viewTick,
-        !!this.prediction.state.riding,
+        !!this.prediction.state.riding || classOf(this.prediction.state.avatar).keysApart,
       );
       frame.yaw = this.aim.yaw;
       frame.pitch = this.aim.pitch;

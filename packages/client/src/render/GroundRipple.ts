@@ -6,7 +6,7 @@
 // shows. Built when it opens, over just the stretch of that one surface round the body (not past
 // a deck's edge, up a wall or onto another look), and dropped once it has settled shut.
 import { Color3, Mesh, Vector3, VertexBuffer, VertexData, type Material, type ShaderMaterial } from '@babylonjs/core';
-import { WORLD_STRUCTURES, type Structure } from '@world/shared';
+import { OUTSIDE_HEIGHT, WORLD_STRUCTURES, type Structure } from '@world/shared';
 import type { Rise } from './avatars/dragons';
 import type { Engine } from './Engine';
 import { environmentOf } from './Environment';
@@ -159,7 +159,8 @@ class Patch {
     );
     let material: Material;
     let release: () => void;
-    const ground = env && env.rippleGround(x, z, radius, y + LIFT, look.height, look.glow);
+    const ground =
+      env && env.rippleGround(x, z, radius, y + LIFT, look.height, look.glow, Math.abs(y - OUTSIDE_HEIGHT) <= SAME);
     if (env && ground) {
       material = ground;
       release = () => env.releaseGround(ground);

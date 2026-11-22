@@ -45,6 +45,7 @@ export const WALKER: ClassSpec = {
   bots: true,
   actions: {},
   actionTicks: 0,
+  keysApart: false,
   fits: () => true,
   enter() {},
   exit: endMoves,

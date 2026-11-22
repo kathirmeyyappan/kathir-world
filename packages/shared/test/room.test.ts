@@ -1069,9 +1069,9 @@ test('/light-dragon: 40 hearts, full, breath for good and no kit, 1.5 hearts bac
   room.receive(ida, { t: 'chat', text: '/gun' });
   assert.deepEqual(a.inbox.at(-1), { t: 'refused', text: "you can't put down your firebreath" });
   room.receive(ida, { t: 'chat', text: '/jetpack' });
-  assert.deepEqual(a.inbox.at(-1), { t: 'refused', text: 'not as an asian-dragon' });
+  assert.deepEqual(a.inbox.at(-1), { t: 'refused', text: 'not as light-dragon' });
   room.receive(ida, { t: 'chat', text: '/speedy' });
-  assert.deepEqual(a.inbox.at(-1), { t: 'refused', text: 'not as an asian-dragon' });
+  assert.deepEqual(a.inbox.at(-1), { t: 'refused', text: 'not as light-dragon' });
   room.receive(ida, { t: 'chat', text: '/light-dragon' });
   assert.deepEqual(a.inbox.at(-1), { t: 'refused', text: "you're already light-dragon" });
 
@@ -1117,9 +1117,9 @@ test('/light-dragon: 40 hearts, full, breath for good and no kit, 1.5 hearts bac
 
   const bot = link();
   assert.equal(room.join('circle-bot', bot, { bot: true, avatar: 'light-dragon' }), null);
-  assert.deepEqual(bot.inbox.at(-1), { t: 'error', message: "bots can't be an asian-dragon" });
+  assert.deepEqual(bot.inbox.at(-1), { t: 'error', message: "bots can't be light-dragon" });
   room.receive(ida, { t: 'chat', text: '/circle-bot -s light-dragon' });
-  assert.deepEqual(a.inbox.at(-1), { t: 'refused', text: "bots can't be an asian-dragon" });
+  assert.deepEqual(a.inbox.at(-1), { t: 'refused', text: "bots can't be light-dragon" });
 
   // Shot dead by a sniper at its head, level with it (the body hangs under the head, in the way of
   // a shot from the ground): it drops to the ground and lies there until alice goes, then poofs with
