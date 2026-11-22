@@ -40,7 +40,7 @@ const LIVERIES: Partial<Record<AvatarId, Partial<Livery>>> = {
   patrick: { primary: '#e98a8a', secondary: '#7fae3c', emblem: 'patrick' },
   krabs: { primary: '#e0142a', secondary: '#6c84cc', emblem: 'krabs' },
   squidward: { primary: '#c4e0de', secondary: '#e09a14', emblem: 'squidward' },
-  gary: { primary: '#e4b8c4', secondary: '#6ccccc' },
+  gary: { primary: '#e4b8c4', secondary: '#6ccccc', emblem: 'gary' },
   plankton: { primary: '#4f8068', secondary: '#74787c', emblem: 'plankton' },
   sandy: { primary: '#c8935f', secondary: '#f6f6f2', emblem: 'sandy' },
   puff: { primary: '#d9a84a', secondary: '#246cb4', emblem: 'puff' },
