@@ -84,6 +84,7 @@ EMBLEMS: dict[str, Emblem] = {
     "elizabeth": Emblem(DARK, picture(CLIENT / "public" / "assets" / "elizabeth.ico", 0.74)),  # the site's logo
     "spongebob": Emblem(WHITE, picture(MARKS / "krabby-patty.png", 0.8)),  # a Krabby Patty, as the show draws it
     "krabs": Emblem(WHITE, picture(MARKS / "dollar.png", 0.86)),  # a Bikini Bottom dollar
+    "squidward": Emblem(WHITE, picture(MARKS / "clarinet.png", 0.78)),  # his clarinet
 }
 
 

@@ -1047,7 +1047,8 @@ the site's logo, which is her, on a dark disc. Every other look's row is two col
 own model, what most of it is and what it wears or is marked with, under the default emblem
 until it has a mark of its own: a picture of something of theirs, cut out of its background
 (`scripts/marks/`, with where it's from beside its row in `scripts/emblems.py`), and drawn there
-only where there's no picture to go off. SpongeBob's is a Krabby Patty and Mr. Krabs's a dollar. A new
+only where there's no picture to go off. SpongeBob's is a Krabby Patty, Mr. Krabs's a dollar and
+Squidward's his clarinet. A new
 one is a row in `LIVERIES` and, with a mark of its own, its emblem's picture; nothing that wears a livery has to know the look.
 
 ## Player classes
