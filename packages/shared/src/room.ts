@@ -723,6 +723,8 @@ export class Room {
 
   private runCommand(seat: Seat, command: Command): void {
     const me = seat.state;
+    const refused = this.mode.refuses(command);
+    if (refused !== null) return this.refuse(seat, refused);
     // A driver holds the wheel: no kit, no body that can't sit in a kart and no leaving their seat
     // for somewhere else, till they get out.
     const kit =

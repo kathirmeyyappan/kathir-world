@@ -81,6 +81,8 @@ export class Hud {
   private myId = '';
   private master: string | null = null; // the room master's id, if the room has one
   onChat: ((text: string) => void) | null = null;
+  // Why the room's game refuses a row's command right now, or null (commands.ts `refusedBy`).
+  refused: ((row: Row) => string | null) | null = null;
   onChatOpenChange: ((open: boolean) => void) | null = null;
 
   constructor(roomId: string) {
@@ -197,6 +199,7 @@ export class Hud {
       ...this.completions.map((row, n) => {
         const li = document.createElement('li');
         li.dataset.n = String(n);
+        li.classList.toggle('refused', !!this.refused?.(row));
         li.append(
           Object.assign(document.createElement('span'), {
             className: 'cmd',

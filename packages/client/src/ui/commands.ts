@@ -14,6 +14,9 @@ import {
   KARTS,
   KART_IDS,
   botArguments,
+  parseCommand,
+  rulesOf,
+  type GameState,
 } from '@world/shared';
 
 export interface Row {
@@ -23,6 +26,7 @@ export interface Row {
   args?: string; // dimmed after the command
   tap: string; // what choosing it puts in chat
   needsArgs?: boolean; // left in chat to finish rather than sent
+  like?: string; // a command of the kind it stands for, where what it puts in chat isn't one yet
 }
 
 export interface Group {
@@ -64,7 +68,7 @@ export function commandGroups(): Group[] {
       title: 'wear skin',
       rows: [
         ...skins.map((id) => command(AVATARS[id].command ?? id, AVATARS[id].blurb)),
-        { name: '/[color]', shortcuts: [], note: 'change your color', tap: '/', needsArgs: true },
+        { name: '/[color]', shortcuts: [], note: 'change your color', tap: '/', needsArgs: true, like: '/red' },
       ],
     },
     {
@@ -75,6 +79,13 @@ export function commandGroups(): Group[] {
       ],
     },
   ];
+}
+
+// Why the room's game refuses a row's command as it stands (the shared package's modes/rules.ts,
+// which the Room enforces the same), or null: what's offered greyed.
+export function refusedBy(game: GameState, row: Row): string | null {
+  const command = parseCommand(row.like ?? row.tap.trim());
+  return command && rulesOf(game).refuses(game, command);
 }
 
 // The commands `text` could be the start of, where it's a command being typed (from the slash, no

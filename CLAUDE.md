@@ -43,7 +43,8 @@ results screen and by a ghost, and has to be right in all of them. So before the
 for whatever the change adds or touches, and put the answers in it:
 
 - **When:** what it does in a lobby, in each mode's game and over its results, and whether a mode
-  refuses it. A new command doesn't build until every mode says whether its game allows it.
+  refuses it. A new command doesn't build until every mode says whether its game allows it (its
+  `CommandKind` and each game's `Allowed`, `modes/rules.ts`).
 - **Ghosts:** what a ghost (a spectator, a racer who's out) can do with it, and that a ghost doing
   it changes nothing in the world and isn't heard doing it.
 - **Points:** if it can hurt or kill, that it goes through the Room's one `damage`, so every mode
@@ -60,9 +61,9 @@ for whatever the change adds or touches, and put the answers in it:
   seen) is one pure function in `shared` that the Room and the client both call, never written
   twice.
 
-Until the part of the modes a question names is built (the doc's last section says how far it has
-got), answer it against what stands in its place today: `runCommand`, `damage`, `spawnPoint` and
-`respawn`, `Structures.ground`.
+Until the part of the modes a question names is built (the doc's stack says how far it has got),
+answer it against what stands in its place today: `damage`, `spawnPoint` and `respawn`,
+`Structures.ground`.
 
 **Neither a pile of special cases nor a framework.** The modes share most of what they are (the
 lobby, the room master, the settings tab, the countdown, results, the way back to the lobby,
@@ -1553,7 +1554,9 @@ every device, grouped as `ui/commands.ts` lists them. Opening it frees the mouse
 and closing it (Q, C, a click beside the card, or on touch any tap) takes the mouse back; a click
 on a button sends its command and closes the card, so what the command did is in view, and a
 button whose command takes options (the bots') is greyed and opens the chat with it typed, to
-finish there. The chat completes what's typed itself: the commands the text could be the start
+finish there. One the room's game refuses (`refusedBy` in `ui/commands.ts`, which asks the mode's
+rules as the Room does, see Game modes) is greyed further, there and in the chat's completions, and
+at a press says why in the red box, the card staying up. The chat completes what's typed itself: the commands the text could be the start
 of (`completionsOf`, by name then by shortcut) stand up from the box's top over the log, the best
 nearest the box, Up picks from the bottom, Down goes back toward the text, Enter or Tab fills the
 box with the pick; with no completions the arrows recall what was sent, as ever. Nothing else
