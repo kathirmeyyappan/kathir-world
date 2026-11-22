@@ -24,8 +24,9 @@ const INK = [255, 0, 0];
 // What of each look's livery is its own. The Mario family's are Mario Kart 8's: the colours
 // scripts/kart-model.py prints from the Standard Kart's rip, and that game's emblems. Elizabeth's
 // colours are her white and the orange of her feet, and her emblem the site's logo, which is her
-// (scripts/emblems.py draws it, and the default's). Every other look's are two colours off its own
-// model: what most of it is, and what it wears or is marked with.
+// (scripts/emblems.py draws it, the default's, and every mark made here). Every other look's are
+// two colours off its own model, what most of it is and what it wears or is marked with, and
+// where it has one a mark of its own: SpongeBob's is his spatula.
 const LIVERIES: Partial<Record<AvatarId, Partial<Livery>>> = {
   mario: { primary: '#aa0f10', secondary: '#183ab9', emblem: 'mario' },
   luigi: { primary: '#156d05', secondary: '#10287e', emblem: 'luigi' },
@@ -34,7 +35,7 @@ const LIVERIES: Partial<Record<AvatarId, Partial<Livery>>> = {
   peach: { primary: '#e15660', secondary: '#c0a20b', emblem: 'peach' },
   daisy: { primary: '#eba800', secondary: '#cb6a00', emblem: 'daisy' },
   elizabeth: { primary: '#fefef2', secondary: '#fbce70', emblem: 'elizabeth' },
-  spongebob: { primary: '#f5e653', secondary: '#a87424' },
+  spongebob: { primary: '#f5e653', secondary: '#a87424', emblem: 'spongebob' },
   patrick: { primary: '#e98a8a', secondary: '#7fae3c' },
   krabs: { primary: '#e0142a', secondary: '#6c84cc' },
   squidward: { primary: '#c4e0de', secondary: '#e09a14' },
