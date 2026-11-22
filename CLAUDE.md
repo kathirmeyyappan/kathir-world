@@ -260,7 +260,7 @@ wire: server and client both build the world from that file.
   face as a wall, and stops shots and sprays on it). Nothing keeps a walker on the floor: one walks
   off the edge, falls down the drop, and for every half second (`OUT_OF_BOUNDS_SECONDS`) it stands
   on the grey ground past it (`onOutsideGround`) loses a heart, time to jetpack out, or dies there
-  (an `out`, `room.ts` `outOfBounds`), with nothing dropped where it lies; the red box
+  (an `out`, `room.ts` `outOfBounds`), its heart dropped where it lies as anywhere; the red box
   (`ui/Alert.ts`) tells a walker stood there they're out of bounds. Nothing bounds the world
   past that: a dragon or a jetpack can go as far out as it likes, over ground past the edge that
   follows the camera (`render/Environment.ts`), and a kart is fished back by Lakitu. Keep

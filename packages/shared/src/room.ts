@@ -293,9 +293,8 @@ export class Room {
     this.garage.getOut(seat.state);
     if (seat.state.dead) {
       const from = { avatar: seat.state.avatar, color: seat.state.color };
-      // Not past the edge: nobody walks down to the ground there and back.
       for (const at of classOf(seat.state.avatar).lies(seat.state, this.structures))
-        if (this.structures.ground.inside(at.x, at.z)) dropPickup(this.pickups, CORPSE_DROP, at, this.rng, from);
+        dropPickup(this.pickups, CORPSE_DROP, at, this.rng, from);
     }
     this.broadcast({ t: 'leave', id, name: seat.state.name });
     this.log(`${seat.state.name} (${id}) left ${this.id}, ${this.seats.size} online`);
