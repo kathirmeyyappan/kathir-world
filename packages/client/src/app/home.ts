@@ -1,10 +1,23 @@
 // Home screen: the room on the left, under two tabs: JOIN one that's running (the global room, or
-// one by code) or CREATE a room under a code no one is using, the player on the right (their
+// one by code) or CREATE a room under a code no one is using, in a game mode picked from a
+// dropdown with its line under it, the player on the right (their
 // name, and a skin from a dropdown shown on a turning stage with the name over its head, as the
 // guide and the menu show bodies, on foot or sat in a kart). Resolves with a live Connection. Also honours
 // ?room=&name=&avatar=&color= for invite links (a join) and tests, and ?error=&tab=&code= for a join
 // the lobby turned away, which it sends back here.
-import { NAMED_COLORS, isAvatarId, isValidRoomId, sanitizeName, type AvatarId, type KartId } from '@world/shared';
+import {
+  FREEPLAY,
+  GAME_MODES,
+  GAME_MODE_IDS,
+  NAMED_COLORS,
+  isAvatarId,
+  isGameModeId,
+  isValidRoomId,
+  sanitizeName,
+  type AvatarId,
+  type GameModeId,
+  type KartId,
+} from '@world/shared';
 import { audition } from '../audio/Sfx';
 import { VOICES, take } from '../audio/voices';
 import { LocalConnection, type Connection } from '../net/Connection';
@@ -64,11 +77,26 @@ export function showHome(): Promise<HomeResult> {
   document.getElementById('home-guide')!.prepend(pixelSvg(BOOK, 'home-icon', { o: 'ink' }));
   document.getElementById('home-source')!.prepend(pixelSvg(GITHUB, 'home-icon'));
 
+  const params = new URLSearchParams(location.search);
+  // The game mode a create makes its room in: every mode that can be played, and in dev, or with
+  // ?modes on the page, the ones that can't yet. With one to pick from, there's nothing to ask.
+  const games = GAME_MODE_IDS.filter((id) => GAME_MODES[id].playable || import.meta.env.DEV || params.has('modes'));
+  const gameRow = document.getElementById('home-game-row')!;
+  const gameBlurb = document.getElementById('home-game-blurb')!;
+  const describe = (id: string) => (gameBlurb.textContent = isGameModeId(id) ? GAME_MODES[id].blurb : '');
+  const game = new Picker(
+    document.getElementById('home-game')!,
+    games.map((id) => ({ value: id, label: GAME_MODES[id].name, note: '' })),
+    describe,
+  );
+  describe(game.value);
+
   const globalRow = document.getElementById('home-global-row')!;
   let mode: JoinMode = 'join';
   const pick = (to: JoinMode) => {
     mode = to;
     globalRow.classList.toggle('hidden', to !== 'join');
+    gameRow.classList.toggle('hidden', to !== 'create' || games.length < 2);
     for (const tab of tabs) tab.setAttribute('aria-selected', String(tab.dataset.mode === to));
     joinBtn.textContent = TABS[to].action;
     modeHint.textContent = TABS[to].hint;
@@ -76,7 +104,6 @@ export function showHome(): Promise<HomeResult> {
   for (const tab of tabs) tab.addEventListener('click', () => pick(tab.dataset.mode === 'join' ? 'join' : 'create'));
 
   const loading = document.getElementById('loading')!;
-  const params = new URLSearchParams(location.search);
   nameInput.value = params.get('name') ?? stored(NAME_KEY) ?? '';
   roomInput.value = params.get('room') ?? params.get('code') ?? '';
   pick(params.get('tab') === 'create' ? 'create' : 'join');
@@ -139,7 +166,8 @@ export function showHome(): Promise<HomeResult> {
       finish(result);
     };
     // `mode` null: the room host's own room, which the lobby has already let this page into.
-    const attempt = async (roomId: string, mode: JoinMode | null) => {
+    // `game`: the mode a create makes the room in, or on the room host the one the lobby says it's in.
+    const attempt = async (roomId: string, mode: JoinMode | null, game: GameModeId = FREEPLAY) => {
       if (busy) return;
       const you = joiner();
       roomId = roomId.trim().toLowerCase();
@@ -157,7 +185,7 @@ export function showHome(): Promise<HomeResult> {
       hideForm();
       loading.classList.remove('hidden');
       try {
-        const connection = await joinRoom(roomId, you, mode);
+        const connection = await joinRoom(roomId, you, mode, game);
         if (SERVED_BY_ROOM_HOST) {
           rememberRoom(roomId, you);
           history.replaceState(null, '', location.pathname);
@@ -179,7 +207,7 @@ export function showHome(): Promise<HomeResult> {
         roomInput.focus();
         return;
       }
-      attempt(roomInput.value, mode);
+      attempt(roomInput.value, mode, mode === 'create' && isGameModeId(game.value) ? game.value : FREEPLAY);
     };
     joinBtn.addEventListener('click', joinTyped);
     roomInput.addEventListener('keydown', (e) => {
@@ -204,8 +232,11 @@ export function showHome(): Promise<HomeResult> {
       history.replaceState(null, '', location.pathname);
       showForm(refused);
       roomInput.focus();
-    } else if (params.get('room')) attempt(params.get('room')!, SERVED_BY_ROOM_HOST ? null : 'join');
-    else if (remembered) {
+    } else if (params.get('room')) {
+      const said = params.get('game');
+      if (SERVED_BY_ROOM_HOST) attempt(params.get('room')!, null, isGameModeId(said) ? said : FREEPLAY);
+      else attempt(params.get('room')!, 'join');
+    } else if (remembered) {
       nameInput.value = remembered.name || nameInput.value;
       skin.choose(choiceOf(remembered.avatar, remembered.color));
       attempt(remembered.roomId, null);

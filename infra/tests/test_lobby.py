@@ -35,7 +35,8 @@ def test_healthz_warms_a_room_without_waiting_for_it() -> None:
 def test_join_starts_a_room_only_when_asked(monkeypatch: pytest.MonkeyPatch) -> None:
     """A person creating a room with no live session gets a fresh one; a bot, or a person joining it,
     gets turned away, and a create on a running room is too. The global room is there to join whether
-    or not it's running, and never to create. A person goes back where they came from."""
+    or not it's running, and never to create. A person goes back where they came from. A room is in
+    its creator's game mode, which every join is handed, and the global room in none."""
     from infra import lobby
 
     started: list[str] = []
@@ -50,12 +51,15 @@ def test_join_starts_a_room_only_when_asked(monkeypatch: pytest.MonkeyPatch) -> 
     class Server:
         get_url = Aio("https://room.test")
 
-    async def live_session(room_id: str, room_url: str) -> dict[str, str] | None:
-        return {"session_id": "sd-0", "token": "old"} if room_id == "taken" else None
+    sessions: dict[str, dict[str, str]] = {"taken": {"session_id": "sd-0", "token": "old"}}
 
-    async def start_session(room_id: str) -> dict[str, str]:
+    async def live_session(room_id: str, room_url: str) -> dict[str, str] | None:
+        return sessions.get(room_id)
+
+    async def start_session(room_id: str, game: str) -> dict[str, str]:
         started.append(room_id)
-        return {"session_id": "sd-1", "token": "tok"}
+        sessions[room_id] = {"session_id": "sd-1", "token": "tok", "game": game}
+        return sessions[room_id]
 
     monkeypatch.setattr(lobby, "room_server", lambda: Server())
     monkeypatch.setattr(lobby, "live_session", live_session)
@@ -85,8 +89,13 @@ def test_join_starts_a_room_only_when_asked(monkeypatch: pytest.MonkeyPatch) -> 
             assert started == ["late-night"]
             taken = await client.get("/join/global", params={"mode": "create"}, headers=room_host)
             assert taken.headers["location"].startswith("https://room.test/?error=room+global+already+exists")
-            everyone = await client.get("/join/global", params={"mode": "join"})
+            everyone = await client.get("/join/global", params={"mode": "join", "game": "racing"})
             assert "modal_session_token=tok" in everyone.headers["location"]
+            assert "game" not in parse_qs(urlparse(everyone.headers["location"]).query)
             assert started == ["late-night", "global"]
+            made = await client.get("/join/derby", params={"mode": "create", "game": "racing"})
+            joined = await client.get("/join/derby", params={"mode": "join", "game": "shootout"})
+            for seated in (made, joined):
+                assert parse_qs(urlparse(seated.headers["location"]).query)["game"] == ["racing"]
 
     asyncio.run(run())

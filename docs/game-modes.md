@@ -1,32 +1,34 @@
 # Game modes
 
-A room has a game mode, chosen as it's created (issue 493). Free play is what every room was and
+A room has a game mode, chosen as it's created (issue 493). Freeplay is what every room was and
 what `global` always is. The others are games with rules of their own, shootout and racing first.
 This is what each is to do, how the code is to be laid out for them, and how far it has got.
 `CLAUDE.md` ("Game modes") has the two rules every change is held to; everything else is here.
 
-Keep it true as the work lands: a part that's built is struck off the stack at the end, and its
+Keep it true as the work lands: a part that's built is ticked off the stack at the end, and its
 description here (or in `CLAUDE.md`, where it's something every agent needs) is put in the present
-tense. **Nothing here is built yet.**
+tense. **Only what's ticked there is built.**
 
 ## The modes
 
 | Mode      | What the home screen says of it                                                            |
 | --------- | ------------------------------------------------------------------------------------------ |
-| Free play | No rules. Do whatever you want with friends!                                               |
+| Freeplay | No rules. Do whatever you want with friends!                                               |
 | Racing    | Race against other players in a 3 round competition.                                       |
 | Shootout  | Split up into even teams and get as many kills as you can. Team with the most kills wins. |
 
-The home screen's CREATE tab has a GAME MODE dropdown, free play unless another is picked, with the
-mode's line under it. `global` is always free play, and so is an offline room. Free play has no
-room master, no GAME tab and no banner: it is the game as it stands, and stays so.
+The home screen's CREATE tab has a GAME MODE dropdown, freeplay unless another is picked, with the
+mode's line under it. The modes are `GAME_MODES` (`packages/shared/src/modes/index.ts`: each one's
+id, name and line), and one that can't be played yet (`playable`) is offered only in dev, or with
+`?modes` on the home page. `global` is always freeplay, and so is an offline room. Freeplay has
+no room master, no GAME tab and no banner: it is the game as it stands, and stays so.
 
 ## What every game has
 
 ### The room master
 
 - Whoever created a room with a game is its room master, for as long as the room lasts, with a
-  crown by their name on the roster. Free play has none. "Room master" is the name, in what players
+  crown by their name on the roster. Freeplay has none. "Room master" is the name, in what players
   read and in the code: never "game master".
 - Only the master changes the game's settings, starts it and ends it.
 - When the master leaves, the room closes for everyone, who get the disconnected page saying the
@@ -39,12 +41,12 @@ room master, no GAME tab and no banner: it is the game as it stands, and stays s
 
 Every game goes through the same phases, written once.
 
-1. **Lobby.** Free play in every way, with three differences. A banner keeps flashing over the
+1. **Lobby.** Freeplay in every way, with three differences. A banner keeps flashing over the
    view: "Waiting for room master to organize and start the game..." for everyone but the master,
    whose own says "Go to the menu (press M) to start the game." A body at no hearts lies three
    seconds, so its player sees they died, and is then back at full hearts in `RESPAWN_AREAS`, with
    no death screen and no death sound. And whoever joins is a player. The room's default bots come
-   as they do in free play, and bots can be called.
+   as they do in freeplay, and bots can be called.
 2. **Starting.** The master presses START, which is there to press once the mode's own condition
    to start holds. Everyone is told "game is starting in 5", counted down, still in the lobby. The
    lobby's bots are killed (as `/kill-bots` does), and bot commands are refused from here until the
@@ -125,7 +127,7 @@ Teams, a clock, and the most points when it runs out.
   player's team, however it came (a fall, out of bounds, a crash, a teammate), and a team's points
   never go below nothing. A teammate can be killed, which scores nothing for the kill, and the chat
   says "x killed y with friendly fire". Names in the kill lines are in their teams' colours.
-- Death is free play's: ten seconds, the RESPAWN button, back in `RESPAWN_AREAS`.
+- Death is freeplay's: ten seconds, the RESPAWN button, back in `RESPAWN_AREAS`.
 - Allowed: weapons, gear, `/speedy`, `/unequip`, looks on foot and karts. Refused: dragons,
   teleporting, colours and bot commands.
 - The HUD's top right has every team's points and the clock.
@@ -179,7 +181,7 @@ A series of races, each on a track of its own, in karts, for points.
 ```
 packages/shared/src/modes/
   index.ts      the registry: each mode's id, name and line, and what makes its game
-  mode.ts       GameMode: the questions the Room and the client ask a mode, with free play's answers
+  mode.ts       GameMode: the questions the Room and the client ask a mode, with freeplay's answers
   game.ts       what every mode with a game shares: the master, settings, the phases, start and end
   shootout/     teams, spawn sites, points, and its answers
   racing/       tracks, the grid, places, elimination, points, and its answers
@@ -198,7 +200,7 @@ clock, the end.
 **The questions**, as the two modes need them. This list is the interface between a mode and
 everything else, and it will change as modes and features are added (`CLAUDE.md` says how).
 
-| The Room or the client asks                              | Free play answers                         | For                                                 |
+| The Room or the client asks                              | Freeplay answers                         | For                                                 |
 | -------------------------------------------------------- | ----------------------------------------- | --------------------------------------------------- |
 | May this player do this (a command, getting out)?        | yes                                       | `runCommand`, a kart's exit; the commands card      |
 | What does no hearts mean here?                           | lie 10 s, the death screen, a new body    | the Room's respawn; `ui/Death.ts`                   |
@@ -209,17 +211,20 @@ everything else, and it will change as modes and features are added (`CLAUDE.md`
 | What is someone who joins now?                           | a player                                  | joining                                             |
 | What does this player leaving do?                        | their seat goes                           | leaving                                             |
 
-**State and the wire.** A game's state (the mode, the master, the phase, the settings, the points,
-a race's track and order) is one object a mode owns, sent whole in `welcome` and again whenever it
-changes; clocks are in it as the tick they run out at. The master's changes go up as one kind of
+**State and the wire.** A game's state (`GameState`: the mode, and to come the master, the phase,
+the settings, the points, a race's track and order) is one object a mode owns, sent whole in
+`welcome` (`welcome.game`) and again whenever it changes; clocks are in it as the tick they run out
+at. The master's changes go up as one kind of
 message. A player's own part in it rides on `PlayerState` (`ghost`). The mode rides the join as
 `game=` (the join's `mode=` is already create or join). The Python mirror carries all of it, and
 bots take no ghost for a target.
 
-**The hosts.** The lobby keeps a room's mode with its session and hands it on with every join, so
-whichever join makes the Room makes it in the right mode; in dev the room server takes it from the
-create. A room its master closed refuses every join from then on, and its session reads as dead to
-the lobby, which frees its code.
+**The hosts.** A create's pick rides it as `?game=`. The lobby keeps it with the room's session
+(checking only its shape: which modes there are is the shared package's to know) and hands it on
+with every join, whatever that join asks for, so whichever join makes the Room makes it in the
+right mode (`RoomOptions.mode`); in dev the room server takes it from the create. A room its master
+closed is to refuse every join from then on, and its session to read as dead to the lobby, which
+frees its code.
 
 **The client.** What every mode shares is written once: the banner (the lobby's lines, the
 countdown, a race's last seconds), the results screen, the GAME tab, refused commands greyed, the
@@ -231,16 +236,16 @@ nothing else, and `Game.ts` asks the questions rather than growing a branch per 
 alone. It becomes the sim's own: a race's track is a way through it, the bots' roads map is the
 same graph written out, and the client draws a track (on the maps, on the floor) from it, so
 there's one account of the roads for all three. Ways across the buildings' floor join it for the
-bots' laps in free play; a track takes one only to end on it.
+bots' laps in freeplay; a track takes one only to end on it.
 
 ## The stack
 
 Merged a PR at a time, in these batches. Shootout and Racing stay out of the home screen's dropdown
-outside dev until each can be played, so free play is run on every merge.
+outside dev until each can be played, so freeplay is run on every merge.
 
 **1. What every game has**
 
-- [ ] The mode at create: the registry, the home screen's dropdown and line, the mode through the
+- [x] The mode at create: the registry, the home screen's dropdown and line, the mode through the
       lobby and the room server into the Room, and into `welcome`.
 - [ ] The room master: the crown, the master's leaving closing the room, the warning on LEAVE ROOM,
       a closed room's code freed.
@@ -280,7 +285,7 @@ a game is people alone.
 
 - **Racing bots**, two levels: one that keeps to the road's middle and drifts or tricks only to
   get back to it, and one that drifts, tricks and holds its line like the best racer there is. They
-  drive by the roads' graph (above), corrected for how far off the middle they are. In free play
+  drive by the roads' graph (above), corrected for how far off the middle they are. In freeplay
   they lap the whole of the roads, the ways across the buildings' floor included.
 - **Combat bots**, three levels, with a better reading of the map than the bots have today: the
   gun and the flamethrower, swapped between as the fight asks; a jetpack used sparingly; a kart

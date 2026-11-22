@@ -2,11 +2,12 @@
 // under it a list like the chat's completions (each choice's name with a note dimmed beside it) on a
 // scroll rail. Up and Down move along the list, Enter or a click picks, and Esc or a press anywhere
 // else closes it. The list drops under the button, or stands over it where the window has more room
-// above, and shrinks to what room there is, so it never runs off the window.
+// above, as tall as its choices up to a height of its own, and shrinks to what room there is, so it
+// never runs off the window.
 import { railScroll } from '../ui/scrollRail';
 
-const LIST_HEIGHT = 264; // px, the list at full height
-const MIN_LIST_HEIGHT = 120; // px, the least it shrinks to (a few rows)
+const LIST_HEIGHT = 264; // px, the list at its tallest: more choices than fit are scrolled to
+const MIN_LIST_HEIGHT = 120; // px, the least a list that tall or taller shrinks to (a few rows)
 const EDGE = 8; // px kept clear between the list and the window's edge
 
 export interface Choice {
@@ -88,9 +89,11 @@ export class Picker {
     const { top, bottom } = this.button.getBoundingClientRect();
     const below = window.innerHeight - bottom - EDGE;
     const above = top - EDGE;
-    const up = below < LIST_HEIGHT && above > below;
+    const frame = this.box.offsetHeight - this.list.clientHeight; // the box's own padding and border, over and under the list
+    const full = Math.min(LIST_HEIGHT, this.list.scrollHeight + frame);
+    const up = below < full && above > below;
     this.box.classList.toggle('up', up);
-    this.box.style.height = `${Math.max(MIN_LIST_HEIGHT, Math.min(LIST_HEIGHT, up ? above : below))}px`;
+    this.box.style.height = `${Math.max(Math.min(MIN_LIST_HEIGHT, full), Math.min(full, up ? above : below))}px`;
   }
 
   private close(): void {

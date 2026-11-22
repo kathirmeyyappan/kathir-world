@@ -1,7 +1,6 @@
 // Spins up the real server on a random port and drives it with two ws clients.
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { once } from 'node:events';
 import { createServer } from 'node:http';
 import { test } from 'node:test';
 import WebSocket from 'ws';
@@ -20,8 +19,9 @@ async function startServer(port: number, env: Record<string, string> = {}) {
   return proc;
 }
 
-function connect(port: number, room: string, name: string) {
-  const ws = new WebSocket(`ws://127.0.0.1:${port}/ws?room=${room}&name=${name}`);
+// `asks`: more of the join's query ("&game=racing").
+function connect(port: number, room: string, name: string, asks = '') {
+  const ws = new WebSocket(`ws://127.0.0.1:${port}/ws?room=${room}&name=${name}${asks}`);
   const inbox: ServerMessage[] = [];
   ws.on('message', (d) => inbox.push(JSON.parse(d.toString())));
   const next = (pred: (m: ServerMessage) => boolean, timeoutMs = 3000) =>
@@ -38,20 +38,19 @@ function connect(port: number, room: string, name: string) {
   return { ws, next, send: (m: unknown) => ws.send(JSON.stringify(m)) };
 }
 
-test('two clients in one room see each other move', async () => {
+test('two clients in one room, in the game its first join asked for, see each other move', async () => {
   const port = 18000 + Math.floor(Math.random() * 1000);
   const proc = await startServer(port);
   try {
-    const a = connect(port, 'e2e', 'alice');
-    const b = connect(port, 'e2e', 'bob');
-    await Promise.all([once(a.ws, 'open'), once(b.ws, 'open')]);
-
+    const a = connect(port, 'e2e', 'alice', '&game=racing');
     const wa = await a.next((m) => m.t === 'welcome');
+    const b = connect(port, 'e2e', 'bob', '&game=shootout');
     const wb = await b.next((m) => m.t === 'welcome');
     assert.equal(wa.t, 'welcome');
     assert.equal(wb.t, 'welcome');
     if (wa.t !== 'welcome' || wb.t !== 'welcome') return;
     assert.equal(wb.players.length, 2);
+    assert.deepEqual([wa.game.mode, wb.game.mode], ['racing', 'racing'], "the room's game is its first join's");
 
     for (let seq = 1; seq <= 30; seq++) {
       a.send({ t: 'input', f: { seq, mx: 0, my: 1, yaw: 0, pitch: 0, jump: false, reading: null, actions: [] } });

@@ -28,7 +28,7 @@ bigger than what was asked, do the targeted change and say what the proper one w
 
 ## Game modes
 
-A room has a game mode, chosen as it's created: free play, which is what every room was and what
+A room has a game mode, chosen as it's created: freeplay, which is what every room was and what
 `global` always is, or a game with rules of its own (shootout and racing first; issue 493).
 `docs/game-modes.md` is what each mode does, how the code is laid out for them and how much of it
 is built. Read it before changing a room's rules, a command, a spawn, death and respawn, a kart's
@@ -36,7 +36,7 @@ rescue, the menu, the roster, a map or a bot, and keep it true as the modes land
 before everything in it, and they hold for every change to the game from here on, whichever part
 of it the change is in.
 
-**Every change is weighed in every mode.** Nothing in the game is free play's alone any more. A
+**Every change is weighed in every mode.** Nothing in the game is freeplay's alone any more. A
 command, an item, a pickup, a kart, a look, a move, a bot, a thing on the HUD or a map, a sound, a
 way to be hurt or to be put somewhere: each is met in a lobby, in a game of every mode, over a
 results screen and by a ghost, and has to be right in all of them. So before the PR, answer these
@@ -72,8 +72,8 @@ the client, or a framework so general that a mode is pages of answers to questio
 Holding the middle comes first in any change here, ahead of getting it working, and a change that
 only works by leaning one way isn't done:
 
-- Free play is the Room as it stands. A mode changes the game only by answering one of the
-  questions the Room and the client ask it (the mode's interface, `modes/mode.ts`), and free play
+- Freeplay is the Room as it stands. A mode changes the game only by answering one of the
+  questions the Room and the client ask it (the mode's interface, `modes/mode.ts`), and freeplay
   answers none of them, so `global` behaves as it does whatever is added.
 - Shared code never names a mode. Nothing outside `modes/<mode>/` asks whether this is racing: it
   asks the question and takes the answer. Inside its own directory a mode is plain code, as much as
@@ -1614,7 +1614,12 @@ skin on it.
 
 The home screen (`app/home.ts`) is the room on the left (a JOIN tab, the default, with JOIN GLOBAL over a code, and a CREATE tab;
 the lobby, or Node in dev, turns away a create on a running room and a join on none, back to home
-with `?error=`; global is always there to join, and so never anyone's to create)
+with `?error=`; global is always there to join, and so never anyone's to create; the CREATE tab
+picks the room's game mode from a dropdown with the mode's line under it, `GAME_MODES` in the shared
+package's `modes/index.ts`, the ones that can't be played yet offered only in dev or with `?modes` on
+the page, and the pick rides the create as `?game=`: the lobby keeps it with the room's session and
+hands it to every join, the room server makes the Room in it (`RoomOptions.mode`), and `welcome.game`
+tells everyone)
 and the player on the right: a `BodyView` of the chosen skin with the typed name over its head, the name, and a dropdown of every look
 on foot (no dragons) a person can switch to by command (the first, the standard body in a named
 color drawn afresh each load, so the choice is kept but not the color; last, the standard body in each

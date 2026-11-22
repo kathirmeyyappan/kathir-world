@@ -4,6 +4,7 @@
 import { CUBE_IDS } from './content/cubes';
 import { CORPSE_DROP, PICKUP_AREAS } from './content/pickups';
 import { RESPAWN_AREAS, SPAWN_AREAS, type SpawnArea } from './content/regions';
+import { FREEPLAY, type GameModeId } from './modes';
 import {
   isClientMessage,
   type ClientMessage,
@@ -107,6 +108,7 @@ export interface JoinOptions extends BotPlacement {
 export type BotSpawner = (request: BotRequest) => Promise<void>;
 
 export interface RoomOptions {
+  mode?: GameModeId; // the game it's created in (modes/); freeplay unless given
   seed?: number;
   structures?: Structures;
   onEmpty?: () => void;
@@ -117,6 +119,7 @@ export interface RoomOptions {
 
 export class Room {
   readonly id: string;
+  readonly mode: GameModeId;
   readonly structures: Structures;
   readonly garage: Garage; // its karts
   tick = 0;
@@ -136,6 +139,7 @@ export class Room {
 
   constructor(id: string, opts: RoomOptions = {}) {
     this.id = id;
+    this.mode = opts.mode ?? FREEPLAY;
     this.structures = opts.structures ?? new Structures(STRUCTURES); // its own: doors swing per room
     this.garage = new Garage(this.structures);
     this.rng = createRng(opts.seed ?? (Math.random() * 2 ** 32) >>> 0);
@@ -228,6 +232,7 @@ export class Room {
       t: 'welcome',
       id,
       room: this.id,
+      game: { mode: this.mode },
       tick: this.tick,
       players: this.players,
       cubes: this.cubeSnapshot(),

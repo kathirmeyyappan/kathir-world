@@ -24,11 +24,15 @@ from .config import APP_NAME, LAUNCHER_URL, SESSION_IDLE_TIMEOUT, WARMUP_SESSION
 if TYPE_CHECKING:
     from fastapi import FastAPI
 
-# What the rooms Dict holds per room code: the live session's id and its proxy token.
+# What the rooms Dict holds per room code: the live session's id, its proxy token, and the game mode
+# the room was created in (empty for freeplay).
 Session = dict[str, str]
 
 ROOM_ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,23}$")
-# The room everyone shares: always open, whichever mode a join asks for.
+# A game mode's id as it's passed on. Which ones there are is the Room's to know (the shared
+# package's modes/), so only its shape is checked here.
+GAME_MODE = re.compile(r"^[a-z][a-z-]{0,23}$")
+# The room everyone shares: always there to join, never anyone's to create, and always freeplay.
 GLOBAL_ROOM = "global"
 
 
@@ -71,10 +75,10 @@ async def live_session(room_id: str, room_url: str) -> Session | None:
     return None
 
 
-async def start_session(room_id: str) -> Session:
-    """Start a fresh session for the room and cache it."""
+async def start_session(room_id: str, game: str) -> Session:
+    """Start a fresh session for the room and cache it, with the game the room is in."""
     session = await room_server().sessions.start.aio(idle_timeout=SESSION_IDLE_TIMEOUT)
-    entry_info: Session = {"session_id": session.session_id, "token": session.token}
+    entry_info: Session = {"session_id": session.session_id, "token": session.token, "game": game}
     await rooms.put.aio(room_id, entry_info)
     return entry_info
 
@@ -123,11 +127,14 @@ def build_api(warm: Callable[[], Coroutine[Any, Any, None]] = warm_room) -> "Fas
         avatar: str = "",
         color: str = "",
         mode: str = "",
+        game: str = "",
     ) -> RedirectResponse:
         """Into a room as `mode` asks: `create` one no one is in, `join` one that's running, or
         with no mode (an older page) either. The global room is always there to join, started if
         it isn't running, and so never anyone's to create. A refused join is sent back to the page
-        it came from with the reason as `?error=`. A bot (`bot=1`, what the bot framework sends) only joins a
+        it came from with the reason as `?error=`. A room is in the game mode (`game`, freeplay
+        when empty) of the join that starts it, kept with its session and handed to every join
+        from then on, whatever that join asks for; the global room is freeplay. A bot (`bot=1`, what the bot framework sends) only joins a
         room that is already running: bots don't keep rooms open, so one must never start a room
         either."""
         print(f"Attempting to join room {room_id} with name {name}")
@@ -135,6 +142,8 @@ def build_api(warm: Callable[[], Coroutine[Any, Any, None]] = warm_room) -> "Fas
         room_id = room_id.lower()
         if not ROOM_ID.match(room_id):
             raise HTTPException(400, "invalid room id")
+        if game and not GAME_MODE.match(game):
+            raise HTTPException(400, "invalid game mode")
         always_open = room_id == GLOBAL_ROOM
         # get_url() is typed Optional; a deployed Server always has one. cast() is a no-op at runtime.
         room_url = cast(str, await room_server().get_url.aio()).rstrip("/")
@@ -152,7 +161,7 @@ def build_api(warm: Callable[[], Coroutine[Any, Any, None]] = warm_room) -> "Fas
                 raise HTTPException(409, "no one here")
             if mode == "join" and not always_open:
                 return refuse(f"room {room_id} doesn't exist")
-            entry_info = await start_session(room_id)
+            entry_info = await start_session(room_id, "" if always_open else game)
         lobby_url = (await lobby.get_web_url.aio() or "").rstrip("/")
         params = {
             "modal_session_token": entry_info["token"],
@@ -165,6 +174,8 @@ def build_api(warm: Callable[[], Coroutine[Any, Any, None]] = warm_room) -> "Fas
             params["avatar"] = avatar
         if color:
             params["color"] = color
+        if entry_info.get("game"):
+            params["game"] = entry_info["game"]
         # Where the room page sends the player to pick a room. From the room host itself that's its
         # own address, which the page ignores, keeping the home it was given on the way in.
         params["home"] = home_page(request.headers.get("referer", ""), room_url)
