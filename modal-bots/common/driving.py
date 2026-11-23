@@ -48,6 +48,10 @@ TOO_LATE = 0.5  # of its full turn the line already takes, from which a hop woul
 NEARLY = 0.45  # seconds short of a spark that a drift is held on for, the bend over or not
 SPARE = 0.1  # seconds over a spark's that a bend has to last for a drift to be begun for it
 AT_SPEED = 11.0  # m/s the least a drift is begun at
+# Ticks on the ground before a drift is begun: just down from a flight, a press of the key is a
+# trick late (a boost at once) and no hop, and the drift would begin at that speed, wheel hard over.
+SETTLED = 12
+EVEN = 0.25  # of the wheel, the most it's held over as a trick is pressed: under what gives a drift a way
 MOOD_PACE = 0.04  # of its pace that a driver's mood adds or takes at its most
 MOOD_SHARE = 0.25  # and of the drifts and tricks it could do
 LAPSE = (0.3, 0.9)  # seconds a lapse lasts, the least and the most: off the gas
@@ -119,6 +123,7 @@ class Driver:
         self._key = 0
         self._since = 99
         self._air = 0  # ticks it has been seen in a flight
+        self._down = 99  # ticks it has been seen on the ground since
         self._tricks = False  # whether it tricks in the flight it's in
 
     def keys(self, kart: Kart, late: int, mood: float = 0) -> Keys:
@@ -176,6 +181,7 @@ class Driver:
             return Keys(gas=-1, steer=_unit(-lock * 3))
         steer = _unit(lock)
         flying = not kart.grounded and not kart.hopping
+        self._down = self._down + 1 if kart.grounded else 0
         pacing = max(forward, 12.0)
 
         def turns(d: float) -> float:
@@ -230,6 +236,7 @@ class Driver:
             and kart.reel == 0
             and forward > AT_SPEED
             and self._since > late + 3
+            and self._down > late + SETTLED
         ):
             way = self._bend(turns, flight, pacing, s, mood)
             if way != 0:
@@ -241,7 +248,8 @@ class Driver:
         if self._air == 2:
             self._tricks = self._takes(self.skill.tricks, mood)
         if self._tricks and self._key == 0 and self._air in (2, 3):
-            drift = True
+            # The wheel all but straight, so the key, still down as it lands, begins no drift.
+            drift, steer = True, max(-EVEN, min(EVEN, steer))
         return Keys(gas=gas, steer=steer, drift=drift)
 
     def _takes(self, share: float, mood: float) -> bool:
