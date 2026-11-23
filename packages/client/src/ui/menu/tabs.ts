@@ -25,6 +25,7 @@ import type { View } from '../../game/View';
 import { MODE_SETTINGS } from '../../modes';
 import { GLOBAL_ROOM, SERVED_BY_ROOM_HOST, colorName, leaveRoom, roomLink, switchRoom } from '../../net/lobby';
 import type { Picture } from '../../render/Picture';
+import type { Listed } from '../emblem';
 import type { Minimap } from '../Minimap';
 import { BOOK, GITHUB } from '../pixelIcons';
 import type { Field, Note, Row, Section, Select, Tab } from './rows';
@@ -50,7 +51,7 @@ export interface MenuHooks {
   master: () => boolean; // whether the player is its room master
   act: (action: GameAction) => void; // asks something of the game: the room master's to ask
   set: (change: unknown) => void; // asks for a change to the game's settings: the room master's too
-  nameOf: (id: string) => string; // what a player in the room is called
+  listed: (id: string) => Listed; // a player in the room as a board lists them
   commands: () => void; // opens the commands menu, which C does from the menu as from the world
   command: (word: string) => void; // sends a chat command, by its word ("mario" for /mario)
 }

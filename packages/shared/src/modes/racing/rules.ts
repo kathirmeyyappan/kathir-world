@@ -34,7 +34,7 @@ export const RACING_RULES: Rules = {
     const most = Math.max(...game.points);
     return game.racers
       .map((racer, i) => ({
-        side: { name: racer.name, colour: racer.colour },
+        side: { name: racer.name, colour: racer.colour, avatar: racer.avatar },
         points: game.points[i],
         won: game.points[i] === most,
       }))

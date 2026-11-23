@@ -1151,7 +1151,10 @@ its player's (`render/Pickups.ts`: the heart in the primary, the emblem on a dis
 face, sent for as the body is seen dead and left off until it's here). Its primary is also the
 colour a player goes by wherever they're named or marked: the roster's dot, the name over their
 head, their pin at the screen's edge, their mark on the maps and their name in the chat all read
-`nameColour`, which lightens one too dark to read on the dark those are drawn over. The Mario family's are Mario Kart 8's,
+`nameColour`, which lightens one too dark to read on the dark those are drawn over. And its emblem
+stands before their name, a tiny round badge, wherever players are listed to be picked from or
+ranked: a menu's board of them (a game's teams, its racers) and a leaderboard whose lines are
+players (`ui/emblem.ts`, from `emblemAddress`). The Mario family's are Mario Kart 8's,
 the colours and the emblems `scripts/kart-model.py` takes from the Standard Kart's rip. The rest
 are made here, their emblems drawn by `scripts/emblems.py` (a row each in its `EMBLEMS`: the
 disc's colour and its mark, a picture or one drawn there). Every look has one (`liveryOf`): a
@@ -1555,7 +1558,8 @@ screen is up, and M, Esc or a click beside the card goes back into the world; `t
 other parts keep (the connection, `Sfx`'s channels, `View`, the browser's fullscreen, the `Picture`),
 handed in as `MenuHooks`; `rows.ts` is the kinds of row (a toggle, a stepper with < and > and maybe
 an AUTO button, a field, buttons, a link to share, words to read, a board of players in columns
-whose players are dragged or tapped from one to another) and how each draws, a button able
+whose players, each with their emblem, are dragged or tapped from one to another) and how each
+draws, a button able
 to come and go, to be greyed, and to warn of what it does and go at a second press
 (`ui/pressTwice.ts`, as every way out of a room warns its room master that leaving closes it); and
 `menu.css` is its look. A tab can come and go (`Tab.shown`) and be the one the menu opens on

@@ -2,31 +2,38 @@
 // side with its points, the best first, until the lobby; or what a mode puts up while its game is
 // played (a race's, between one race and the next: the client's `MODE_HUD`). Nothing on it is
 // pressed: the world goes on under it.
-import type { Standing } from '@world/shared';
+import type { Appearance, Standing } from '@world/shared';
+import { nameColour } from '../render/liveries';
+import { named } from './emblem';
 
 export interface Leaderboard {
   title: string;
   colour: string | null; // the title's; null: the card's own
-  // Each side with its points and what's noted beside them (what the last race gave it; '': nothing).
-  lines: { name: string; colour: string; note: string; points: number; won: boolean }[];
+  // Each side with its points and what's noted beside them (what the last race gave it; '': nothing),
+  // and where the side is one player, how they appear, for their emblem before their name.
+  lines: { name: string; colour: string; emblem: Appearance | null; note: string; points: number; won: boolean }[];
   footer: string;
 }
 
 // A game's results as its standings give them (the shared package's `Rules.standings`), with
 // `seconds` to go before the lobby.
 export function resultsOf(standings: Standing[], seconds: number): Leaderboard {
-  const winners = standings.filter((s) => s.won);
-  return {
-    title:
-      winners.length === 1 ? `${winners[0].side.name} WINS!` : `A TIE: ${winners.map((s) => s.side.name).join(', ')}`,
-    colour: winners.length === 1 ? winners[0].side.colour : null,
-    lines: standings.map((s) => ({
+  const lines = standings.map((s) => {
+    const who = s.side.avatar ? { avatar: s.side.avatar, color: s.side.colour } : null;
+    return {
       name: s.side.name,
-      colour: s.side.colour,
+      colour: who ? nameColour(who) : s.side.colour,
+      emblem: who,
       note: '',
       points: s.points,
       won: s.won,
-    })),
+    };
+  });
+  const winners = lines.filter((line) => line.won);
+  return {
+    title: winners.length === 1 ? `${winners[0].name} WINS!` : `A TIE: ${winners.map((line) => line.name).join(', ')}`,
+    colour: winners.length === 1 ? winners[0].colour : null,
+    lines,
     footer: `back to the lobby in ${seconds}`,
   };
 }
@@ -54,7 +61,9 @@ export class Results {
         li.style.setProperty('--side', line.colour);
         const span = (className: string, textContent: string) =>
           Object.assign(document.createElement('span'), { className, textContent });
-        li.append(span('name', line.name), span('note', line.note), span('points', String(line.points)));
+        const name = span('name', '');
+        name.append(...named(line.name, line.emblem));
+        li.append(name, span('note', line.note), span('points', String(line.points)));
         return li;
       }),
     );

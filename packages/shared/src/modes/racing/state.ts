@@ -1,5 +1,6 @@
 // Racing's own part of a game's state (docs/game-modes.md): how many races a game is, who races,
 // and the race being run: its track, its clocks, and who has finished it or is out of it.
+import type { AvatarId } from '../../sim/avatars';
 import type { GameState } from '../index';
 
 export const MIN_RACERS = 2; // how many it takes to start a game
@@ -10,13 +11,14 @@ export const RACES = { count: 3, min: 1, max: 9 };
 // long one that nobody finishes runs; and how long its leaderboard stands before the next begins.
 export const RACE = { grid: 5, countdown: 3, close: 45, hurry: 10, limit: 300, board: 6 };
 
-// Someone racing: who they are, what they were called and the colour they went by as the game
-// began, and whether they've left the room since: someone who has is out of every race from then
-// on, and stays on the board.
+// Someone racing: who they are, what they were called and how they appeared as the game began
+// (their colour and the look they wore), and whether they've left the room since: someone who has
+// is out of every race from then on, and stays on the board.
 export interface Racer {
   id: string;
   name: string;
   colour: string;
+  avatar: AvatarId;
   gone: boolean;
 }
 
