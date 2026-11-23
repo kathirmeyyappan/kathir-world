@@ -16,6 +16,7 @@ import {
   NAMED_COLORS,
   MAX_BOTS,
   MAX_PITCH,
+  MASTER_LEFT,
   MAX_REWIND_TICKS,
   RESPAWN_SECONDS,
   MOVE_SPEED,
@@ -213,6 +214,45 @@ test('a rename is announced, shows in the next snapshot, and waits RENAME_SECOND
   assert.equal(alice().name, 'ali', 'nothing left of it');
   room.receive(ida, { t: 'rename', name: 'al' });
   assert.equal(alice().name, 'al');
+});
+
+test('a room with a game has a room master: whoever made it, told to everyone, whose leaving ends the room; freeplay has none', () => {
+  const ends: string[] = [];
+  const room = new Room('derby', { seed: 1, mode: 'racing', onEnd: (why) => ends.push(why) });
+  const closed: string[] = [];
+  const seat = (name: string) => ({ ...link(), close: (why: string) => closed.push(`${name}: ${why}`) });
+  const [a, b, c] = [seat('alice'), seat('bob'), seat('carol')];
+  const told = (l: { inbox: ServerMessage[] }) => {
+    const last = [...l.inbox].reverse().find((m) => m.t === 'game' || m.t === 'welcome');
+    return last && (last.t === 'game' || last.t === 'welcome') ? last.game : null;
+  };
+  // Bob, told the code, is seated before the room's maker, and isn't its master for that.
+  const idb = room.join('bob', b)!;
+  assert.deepEqual(told(b), { mode: 'racing', master: null });
+  const ida = room.join('alice', a, { made: true })!;
+  assert.deepEqual(
+    [told(a), told(b)],
+    [
+      { mode: 'racing', master: ida },
+      { mode: 'racing', master: ida },
+    ],
+  );
+  room.join('carol', c, { made: true });
+  assert.deepEqual(told(c), { mode: 'racing', master: ida }, 'the room has its master: nobody takes it over');
+
+  room.leave(idb);
+  assert.deepEqual([closed, ends], [[], []], 'anyone else leaving is one seat gone');
+  room.leave(ida);
+  assert.deepEqual(closed, [`carol: ${MASTER_LEFT}`], 'everyone left in it is told why it closed');
+  assert.deepEqual(ends, [MASTER_LEFT], 'and its host that it ended');
+  assert.equal(room.join('dave', link()), null, 'nobody is seated in it again');
+
+  const free = new Room('free', { seed: 1, onEnd: (why) => ends.push(why) });
+  const d = link();
+  const idd = free.join('dave', d, { made: true })!;
+  assert.deepEqual(told(d), { mode: 'freeplay', master: null });
+  free.leave(idd);
+  assert.equal(ends.length, 1, "a freeplay room is nobody's to end");
 });
 
 test('room calls onEmpty when the last player leaves', () => {

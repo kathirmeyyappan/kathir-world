@@ -22,8 +22,9 @@ const home = startParams.get('home');
 if (home && home !== location.origin) sessionStorage.setItem('world.home', home);
 export const SERVED_BY_ROOM_HOST = sessionStorage.getItem('world.direct') === '1';
 // What the lobby says of the room it sent this page to, on the address it sent it to: the game
-// mode the room was created in. The page hands each on to the room server as it joins, as given.
-const LOBBY_SAYS = ['game'];
+// mode the room was created in, and whether this is the join that made it. The page hands each on
+// to the room server as it joins, as given.
+const LOBBY_SAYS = ['game', 'made'];
 // Home when it's another page: on the room host, the launcher (or dev page) the lobby named, else the
 // launcher the room host puts in the page. Null on home itself.
 export const HOME = sessionStorage.getItem('world.home') || pageMeta('world-home');

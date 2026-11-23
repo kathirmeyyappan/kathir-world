@@ -4,6 +4,7 @@
 import { Picker, type Choice } from '../../app/Picker';
 import { IS_TOUCH } from '../../input/touch';
 import { pixelSvg } from '../pixelIcons';
+import { pressTwice } from '../pressTwice';
 
 export interface Tab {
   title: string;
@@ -75,6 +76,9 @@ export interface Buttons {
 export interface Button {
   label: string;
   press: () => void;
+  // What a press has to be warned of first, right now, if anything: said under the buttons, the
+  // press then to be made again (pressTwice.ts).
+  warning?: () => string | null;
   danger?: boolean; // red: a way out of the room
 }
 
@@ -267,13 +271,21 @@ function select(row: Select): Drawn {
 }
 
 function buttons(row: Buttons): Drawn {
-  const el = element('div', 'buttons');
+  const el = element('div', 'asked');
+  const line = element('div', 'buttons');
+  const warning = element('div', 'warning');
+  // Said under the buttons, where the menu's body may end: brought into view as it's said.
+  const say = (text: string) => {
+    warning.textContent = text;
+    if (text) warning.scrollIntoView({ block: 'nearest' });
+  };
   for (const b of row.buttons) {
     const button = element('button', '', b.label);
     if (b.danger) button.classList.add('danger');
-    button.addEventListener('click', b.press);
-    el.append(button);
+    pressTwice(button, b.warning ?? (() => null), say, b.press);
+    line.append(button);
   }
+  el.append(line, warning);
   return { el };
 }
 

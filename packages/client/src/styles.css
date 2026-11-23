@@ -1702,7 +1702,8 @@ body {
 #player-list .stats .skull rect {
   fill: #e8e8ee;
 }
-#player-list .robot {
+#player-list .robot,
+#player-list .crown {
   width: 12px;
   height: 12px;
   shape-rendering: crispEdges;
@@ -1710,6 +1711,9 @@ body {
 }
 #player-list .robot rect {
   fill: var(--accent);
+}
+#player-list .crown rect {
+  fill: #ffd24a;
 }
 
 /* Over the world until the start press (ui/StartGate.ts): the button pushes in while held. */
@@ -1780,6 +1784,14 @@ body {
   grid-template-columns: 1fr 1fr;
   gap: 10px;
   margin-top: 12px;
+}
+#death #death-warning {
+  margin: 10px 0 0;
+  font-size: 18px;
+  color: #ffb74d;
+}
+#death #death-warning:empty {
+  display: none;
 }
 #death #death-respawn {
   border-color: #ff3b4e;

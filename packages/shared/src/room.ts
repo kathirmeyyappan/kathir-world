@@ -4,7 +4,7 @@
 import { CUBE_IDS } from './content/cubes';
 import { CORPSE_DROP, PICKUP_AREAS } from './content/pickups';
 import { RESPAWN_AREAS, SPAWN_AREAS, type SpawnArea } from './content/regions';
-import { FREEPLAY, type GameModeId } from './modes';
+import { FREEPLAY, makeMode, type GameMode, type GameModeId } from './modes';
 import {
   isClientMessage,
   type ClientMessage,
@@ -102,6 +102,7 @@ export interface JoinOptions extends BotPlacement {
   // A bot's spawn and avatar are honoured as given, its look fixed for the run. A person always
   // spawns at random, in the avatar if it's one on foot they could switch to by command.
   color?: string; // one of NAMED_COLORS' names, for the standard body; else one of them at random
+  made?: boolean; // theirs is the join that made the room, as its host knows it
 }
 
 // Starts a bot for this room; the host wires it to Modal. Rejects with a message on failure.
@@ -112,6 +113,9 @@ export interface RoomOptions {
   seed?: number;
   structures?: Structures;
   onEmpty?: () => void;
+  // The room ended itself (its game's doing: its master left), everyone in it told why. Its host
+  // seats nobody in it again.
+  onEnd?: (reason: string) => void;
   log?: (msg: string) => void;
   spawnBot?: BotSpawner; // absent: bots can't be called from this room
   pickupAreas?: PickupArea[]; // where pickups float; the world's own (content/pickups.ts) by default
@@ -119,7 +123,6 @@ export interface RoomOptions {
 
 export class Room {
   readonly id: string;
-  readonly mode: GameModeId;
   readonly structures: Structures;
   readonly garage: Garage; // its karts
   tick = 0;
@@ -129,7 +132,10 @@ export class Room {
   private readonly cubes: CubeState[];
   private readonly pickups: PickupField;
   private readonly rng: Rng;
+  private readonly mode: GameMode; // its game (modes/)
+  private ended: string | null = null; // why it ended itself, once it has
   private readonly onEmpty?: () => void;
+  private readonly onEnd?: (reason: string) => void;
   private readonly log: (msg: string) => void;
   private readonly spawnBot?: BotSpawner;
   private publicName: string | null = null; // the room code clients asked for, learnt at the first join
@@ -139,13 +145,17 @@ export class Room {
 
   constructor(id: string, opts: RoomOptions = {}) {
     this.id = id;
-    this.mode = opts.mode ?? FREEPLAY;
+    this.mode = makeMode(opts.mode ?? FREEPLAY, {
+      publish: () => this.broadcast({ t: 'game', game: this.mode.state }),
+      close: (reason) => this.end(reason),
+    });
     this.structures = opts.structures ?? new Structures(STRUCTURES); // its own: doors swing per room
     this.garage = new Garage(this.structures);
     this.rng = createRng(opts.seed ?? (Math.random() * 2 ** 32) >>> 0);
     this.cubes = createCubes(CUBE_IDS, this.rng);
     this.pickups = createPickups(opts.pickupAreas ?? PICKUP_AREAS, this.rng);
     this.onEmpty = opts.onEmpty;
+    this.onEnd = opts.onEnd;
     this.log = opts.log ?? (() => {});
     this.spawnBot = opts.spawnBot;
   }
@@ -174,18 +184,31 @@ export class Room {
     this.timer = setInterval(() => this.step(), 1000 / TICK_RATE);
   }
 
-  // Stops ticking and disconnects whoever is still seated (bots, when the last person left).
-  stop(): void {
+  // Stops ticking and disconnects whoever is still seated, telling them why (bots, when the last
+  // person left).
+  stop(reason = 'room closed'): void {
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
-    for (const seat of this.seats.values()) seat.link.close?.('room closed');
+    for (const seat of this.seats.values()) seat.link.close?.(reason);
     this.seats.clear();
+  }
+
+  // The room is over, by its own game's doing: everyone in it is told why and its host that it's
+  // done with, and nobody is seated in it again.
+  private end(reason: string): void {
+    this.ended = reason;
+    this.stop(reason);
+    this.onEnd?.(reason);
   }
 
   // Seats a new player and sends them the world. Returns null (after an error message) when
   // the room is full, or when a bot would be alone: bots don't keep a room open, so one that
   // arrives after everyone left (a slow spawn) must not start a room that nothing would close.
   join(rawName: string, link: ClientLink, opts: JoinOptions = {}): string | null {
+    if (this.ended !== null) {
+      link.send({ t: 'error', message: this.ended });
+      return null;
+    }
     if (this.seats.size >= MAX_PLAYERS) {
       link.send({ t: 'error', message: 'room is full' });
       return null;
@@ -232,7 +255,7 @@ export class Room {
       t: 'welcome',
       id,
       room: this.id,
-      game: { mode: this.mode },
+      game: this.mode.state,
       tick: this.tick,
       players: this.players,
       cubes: this.cubeSnapshot(),
@@ -243,6 +266,7 @@ export class Room {
     });
     this.broadcast({ t: 'join', p: state }, id);
     this.log(`${state.name} (${id}) joined ${this.id}${state.bot ? ' as a bot' : ''}, ${this.seats.size} online`);
+    this.mode.joined(state, !!opts.made);
     if (!state.bot && this.humanCount === 1) this.addDefaultBots();
     return id;
   }
@@ -273,7 +297,8 @@ export class Room {
     if (seat.state.dead) this.buryBody(seat.state);
     this.broadcast({ t: 'leave', id, name: seat.state.name });
     this.log(`${seat.state.name} (${id}) left ${this.id}, ${this.seats.size} online`);
-    if (this.humanCount === 0) this.onEmpty?.(); // bots alone don't keep a room open
+    this.mode.left(seat.state);
+    if (this.ended === null && this.humanCount === 0) this.onEmpty?.(); // bots alone don't keep a room open
   }
 
   // A dead body goes, which every client sees as a poof, and leaves CORPSE_DROP on whatever it was

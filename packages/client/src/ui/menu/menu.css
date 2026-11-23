@@ -474,6 +474,15 @@
   background: rgba(255, 59, 78, 0.18);
   border-color: #ff3b4e;
 }
+/* What one of them warns of before it's pressed again (pressTwice.ts), under the row. */
+#menu .asked .warning {
+  margin-top: 6px;
+  font-size: 17px;
+  color: #ffb74d;
+}
+#menu .asked .warning:empty {
+  display: none;
+}
 #menu .buttons .danger:hover {
   background: rgba(255, 59, 78, 0.35);
 }

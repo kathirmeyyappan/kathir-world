@@ -37,6 +37,9 @@ export interface MenuHooks {
   picture: Picture;
   minimap: Minimap; // the HUD's, whose view the PLAY tab's map shares
   rename: (name: string) => void; // asks the room to call this player `name` from now on
+  // What leaving the room does besides, to warn of before any way out of it: closing it for
+  // everyone, when it's the room master leaving (the shared package's modes/game.ts). Null: nothing.
+  leaving: () => string | null;
   commands: () => void; // opens the commands menu, which C does from the menu as from the world
   command: (word: string) => void; // sends a chat command, by its word ("mario" for /mario)
 }
@@ -89,9 +92,12 @@ function thisRoom(hooks: MenuHooks): Section {
 
 // Other rooms, and the way out. Offline there's no other room to go to, only home.
 function switching(hooks: MenuHooks, me: Me): Section {
-  const leave = { label: 'LEAVE ROOM', press: leaveRoom, danger: true };
+  const leave = { label: 'LEAVE ROOM', press: leaveRoom, warning: hooks.leaving, danger: true };
   if (!hooks.online) return { title: 'SWITCH ROOM', rows: [{ kind: 'buttons', buttons: [leave] }] };
-  const global = hooks.roomId === GLOBAL_ROOM ? [] : [{ label: 'JOIN GLOBAL', press: () => go(GLOBAL_ROOM, me) }];
+  const global =
+    hooks.roomId === GLOBAL_ROOM
+      ? []
+      : [{ label: 'JOIN GLOBAL', press: () => go(GLOBAL_ROOM, me), warning: hooks.leaving }];
   return { title: 'SWITCH ROOM', rows: [roomField(hooks, me), { kind: 'buttons', buttons: [...global, leave] }] };
 }
 
@@ -148,9 +154,11 @@ function nameField(hooks: MenuHooks, me: Me): Field {
 }
 
 // Another running room by its code, under the name you have now. A new room is made on the home
-// screen; a code no one is in sends you there with the lobby's error.
+// screen; a code no one is in sends you there with the lobby's error. Where leaving this room is to
+// be warned of (`hooks.leaving`), the first GO for a code says so and the second goes.
 function roomField(hooks: MenuHooks, me: Me): Field {
   let note: Note | null = null;
+  let warned: string | null = null; // the code the warning was given for
   return {
     kind: 'field',
     label: 'ROOM CODE',
@@ -162,7 +170,10 @@ function roomField(hooks: MenuHooks, me: Me): Field {
       const code = text.trim().toLowerCase();
       if (!isValidRoomId(code)) note = { text: 'room codes are 1-24 letters, digits or dashes', tone: 'bad' };
       else if (code === hooks.roomId) note = { text: `you're in ${code} already`, tone: 'bad' };
-      else {
+      else if (hooks.leaving() !== null && warned !== code) {
+        warned = code;
+        note = { text: `${hooks.leaving()} GO again to leave.`, tone: 'bad' };
+      } else {
         note = { text: `joining ${code}...`, tone: 'busy' };
         go(code, me);
       }

@@ -60,6 +60,7 @@ export type ServerMessage =
       pickups: PickupSnapshot[];
       karts: Kart[];
     }
+  | { t: 'game'; game: GameState } // the room's game changed (modes/): all of it, as it stands
   | { t: 'join'; p: PlayerState }
   | { t: 'leave'; id: string; name: string }
   | { t: 'chat'; id: string; name: string; text: string }
