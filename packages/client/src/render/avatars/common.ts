@@ -37,10 +37,14 @@ const GAIT_EASE = 0.1; // seconds the stride takes to follow a change of speed
 const GHOST_VISIBILITY = 0.35; // how much of a ghost is there to see (sim/types.ts `ghost`)
 
 // Draws every mesh under `root` seen through, as a ghost's body and whatever it carries are, or
-// solid again.
+// solid again. A ghost's depth is drawn before its colour, so only its nearest surface shows,
+// never its own insides or far side.
 export function seeThrough(root: TransformNode, ghost: boolean): void {
   const visibility = ghost ? GHOST_VISIBILITY : 1;
-  for (const mesh of root.getChildMeshes()) mesh.visibility = visibility;
+  for (const mesh of root.getChildMeshes()) {
+    mesh.visibility = visibility;
+    if (mesh.material) mesh.material.needDepthPrePass = ghost;
+  }
 }
 
 // A walk cycle from how fast a player's feet are walking, frame to frame: `pace`, PlayerState.walk
