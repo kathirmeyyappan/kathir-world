@@ -17,9 +17,11 @@ from dataclasses import dataclass
 from .map.karts import Driven
 from .map.roads import Middle
 
-FINE = 6.0  # metres between the points of the middle the line is held against, and of the line
-# Each spacing the line is worked out at, the coarsest first, and the sweeps over it there.
-LEVELS = ((4 * FINE, 150), (2 * FINE, 80), (FINE, 40))
+FINE = 6.0  # metres between the points of the middle the line is held against
+# Each spacing the line is worked out at, the coarsest first, and the sweeps over it there. Its
+# points are held to the road one by one, so the last is close enough that no stretch between two
+# of them cuts across the gap between two roads that meet, inside a corner of the middle.
+LEVELS = ((4 * FINE, 150), (2 * FINE, 80), (FINE, 40), (FINE / 2, 20))
 TAUT = 0.98  # of the bend its neighbours give it that a point takes: under 1, the line is drawn a little tight
 CORNER = 0.5  # radians the middle turns by at one of its points, from which that's a corner
 KERB = 0.15  # metres wider the line may go for each metre from what narrows it
