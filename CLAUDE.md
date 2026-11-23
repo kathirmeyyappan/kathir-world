@@ -1567,8 +1567,8 @@ to come and go, to be greyed, and to warn of what it does and go at a second pre
 (see Game modes). A section can come and go too (`Section.shown`): each mode's settings are a
 section of the GAME tab (`modes/index.ts` `MODE_SETTINGS`, the mode's own rows), there in a room of
 that mode. What a mode's game has on the HUD while it's played is its to say the same way
-(`MODE_HUD`: the line over the view, the top right, a leaderboard), drawn by the shared
-`ui/GameBanner.ts`, `ui/Scores.ts` and `ui/Results.ts`. A
+(`MODE_HUD`: the line over the view, the top right, a leaderboard, the track's map before a race),
+drawn by the shared `ui/GameBanner.ts`, `ui/Scores.ts`, `ui/Results.ts` and `ui/TrackPreview.ts`. A
 new setting is a row in `tabs.ts`, and a new kind of row a type and a case in `rows.ts`. The PLAY
 tab opens on a window (`Preview.ts`) with the player's own body in it and the map in a square in
 its corner (on touch, the other way round), the two swapping places at a click on the small one, and under it the hint to press C

@@ -134,6 +134,7 @@ import { secondsUntil } from '../ui/clock';
 import { GameBanner, type BannerLine } from '../ui/GameBanner';
 import { Results, resultsOf } from '../ui/Results';
 import { Scores } from '../ui/Scores';
+import { TrackPreview } from '../ui/TrackPreview';
 import { colourOf, shownTo } from '../ui/sight';
 import { StartGate } from '../ui/StartGate';
 import { Fuel } from '../ui/Fuel';
@@ -308,6 +309,7 @@ export class Game {
   private readonly banner = new GameBanner();
   private readonly results = new Results();
   private readonly scores = new Scores();
+  private readonly trackPreview = new TrackPreview();
   private readonly master = (): boolean => this.game.master === this.myId;
   // What leaving the room does besides, which every way out warns of first: closing it for
   // everyone, when it's the room master leaving.
@@ -1401,12 +1403,9 @@ export class Game {
     this.scores.set(showing.scores);
     // Everyone else the player is shown, as the game has it: a mode hides the other side.
     const shown = shownTo(this.game, self, sampled.players);
-    this.minimap.update({
-      me: { x: p.x, y: p.y, z: p.z, yaw: this.input.yaw },
-      players: shown,
-      cubes: sampled.cubes,
-      track,
-    });
+    const map = { me: { x: p.x, y: p.y, z: p.z, yaw: this.input.yaw }, players: shown, cubes: sampled.cubes, track };
+    this.minimap.update(map);
+    this.trackPreview.set(showing.preview === null || this.startGate.up ? null : map, showing.preview ?? '');
     this.menu.sync({
       name: self.name,
       avatar: self.avatar,

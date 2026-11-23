@@ -265,10 +265,11 @@ A series of races, each on a track of its own, in karts, for points.
   random. A checkered line is drawn across the floor where it ends.
 - Every race begins with each racer sat in a kart in their livery, lined up at the start, engines
   idling, held there for five seconds: "follow the green to the end as fast as you can!" for two,
-  then a count of three. Lakitu hangs the starting lights over the road ahead of them: a lamp
-  lights red with each second of the count, with a beep, and all three turn green as the grid is
-  let go. The kart is the look's they have going in, and stays so through the race whatever look
-  they change to.
+  then a count of three. For those two seconds the new track's map stands over the view, the
+  track lit on it, with which race it is and how long the track is. Lakitu hangs the starting
+  lights over the road ahead of them: a lamp lights red with each second of the count, with a
+  beep, and all three turn green as the grid is let go. The kart is the look's they have going
+  in, and stays so through the race whatever look they change to.
 - Driving is driving. Nobody gets out (E does nothing), and the only commands are looks on foot.
 - Off the track is out of bounds: the red box says so, and after two seconds Lakitu sets the kart
   back on the track where it left, as he does at the world's edge. The floor off the track is drawn
@@ -384,8 +385,9 @@ roster's marks (crown, ghost, team), a ghost's drawing, and the mode's say in `u
 `ui/Pins.ts`, `ui/MapCanvas.ts` and `ui/Death.ts`. A mode's client directory adds its settings'
 rows (`MODE_SETTINGS`) and what its game has on the HUD while it's played (`MODE_HUD`, a
 `Showing`: the line standing over the view, what's in the top right, a leaderboard over the view,
-and Lakitu starting a race), which the shared `ui/GameBanner.ts`, `ui/Scores.ts`, `ui/Results.ts`
-and `render/lakitu/Starter.ts` draw; `Game.ts` asks rather than growing a branch per mode.
+the track's map shown whole, and Lakitu starting a race), which the shared `ui/GameBanner.ts`,
+`ui/Scores.ts`, `ui/Results.ts`, `ui/TrackPreview.ts` and `render/lakitu/Starter.ts` draw;
+`Game.ts` asks rather than growing a branch per mode.
 
 **The roads' graph.** `sim/tracks.ts` reads the roads as a graph off the road layer's own account
 of each (`Road.middle`): a road is a leg between the two discs it's laid from and to, and a route

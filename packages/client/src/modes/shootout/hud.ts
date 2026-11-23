@@ -8,6 +8,7 @@ export function shootoutHud(game: GameState, at: Moment): Showing {
   return {
     line: null,
     board: null,
+    preview: null,
     starter: null,
     scores: {
       headline: null,
