@@ -108,10 +108,19 @@ test('stepPlayer is deterministic: same inputs give identical state', () => {
   assert.deepEqual(a, b);
 });
 
-test('movement is yaw-relative, and walking off the edge falls to the ground past it', () => {
+test('movement is yaw-relative, the body faces the way it went, and walking off the edge falls to the ground past it', () => {
   const p = createPlayer('a', 'a', '#fff', { x: 0, y: EYE_HEIGHT, z: 0 });
   stepPlayer(p, frame(1, { my: 1, yaw: Math.PI / 2 }), 1);
   assert.ok(p.pos.x > 7.9 && Math.abs(p.pos.z) < 1e-9, 'yaw of pi/2 walks along +x');
+  // Backing away from a look along +z faces -z, and standing keeps it whatever the look does;
+  // something to aim turns it to the look.
+  stepPlayer(p, frame(2, { my: -1 }), TICK_DT);
+  assert.ok(Math.abs(Math.abs(p.facing) - Math.PI) < 1e-9, 'faces the way it backed');
+  stepPlayer(p, frame(3, { yaw: 1 }), TICK_DT);
+  assert.ok(Math.abs(Math.abs(p.facing) - Math.PI) < 1e-9, 'kept, standing');
+  p.item = createItem('gun', false);
+  stepPlayer(p, frame(4, { yaw: 1 }), TICK_DT);
+  assert.equal(p.facing, 1, 'to the look, armed');
   // Straight out across the fan, through the gap between the Krusty Krab's grounds and Building 2's
   // (the fan's round side at r 100): off its edge, down the drop, onto the ground past it.
   const out = (152.5 * Math.PI) / 180;

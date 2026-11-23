@@ -6,7 +6,7 @@
 // moves as whoever animated the clips moved it, and a new character is a model and its clips. The
 // walker still places and turns the body, counts its stride, aims what it holds and lays it down dead.
 import { Matrix, Quaternion, TransformNode, Vector3 } from '@babylonjs/core';
-import { GRAVITY, chainOf, crouchOf, jumpVelocityOf, poundOf, walkSpeedOf, type AvatarId } from '@world/shared';
+import { GOING, GRAVITY, chainOf, crouchOf, jumpVelocityOf, poundOf, walkSpeedOf, type AvatarId } from '@world/shared';
 import type { RemotePlayer } from '../../net/Interpolation';
 import type { Engine } from '../Engine';
 import { Sparkles } from '../Sparkles';
@@ -57,17 +57,7 @@ import {
 } from './motion';
 import { bytes, SkinnedBody, type SkinnedModel } from './skinned';
 import { bellOf, Skirt, Tail } from './soft';
-import {
-  fresh,
-  HEAD_LIMIT,
-  headShare,
-  limbLead,
-  MOVING,
-  rungHeld,
-  WalkerAvatar,
-  type Figure,
-  type Pose,
-} from './Walker';
+import { fresh, HEAD_LIMIT, headShare, limbLead, rungHeld, WalkerAvatar, type Figure, type Pose } from './Walker';
 
 export type JointedBone =
   | 'hips'
@@ -412,7 +402,7 @@ export class JointedAvatar extends WalkerAvatar {
     const armed = p.item !== null;
     const banking = dt > 0 && !armed ? (this.turn / dt) * style.bank * Math.min(1, pace) : 0;
     this.bank = eased(this.bank, Math.max(-MAX_BANK, Math.min(MAX_BANK, banking)), dt, EASE_BANK);
-    if (speed > MOVING) {
+    if (speed > GOING) {
       const sin = Math.sin(this.facing);
       const cos = Math.cos(this.facing);
       this.dirX = eased(this.dirX, (this.velX * cos - this.velZ * sin) / speed, dt, EASE_DIRECTION);

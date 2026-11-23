@@ -47,6 +47,10 @@ export interface PlayerState {
   walk: number;
   yaw: number;
   pitch: number;
+  // The way the body faces, radians as a yaw (walker.ts `turnBody`): its look while it holds
+  // something to aim, else the way it last went, kept while it stands; the ladder's way on a
+  // ladder. Every client draws it so, whoever saw the body move.
+  facing: number;
   lastSeq: number;
   reading: string | null;
   boost: number; // seconds of /speedy left, 0 when normal

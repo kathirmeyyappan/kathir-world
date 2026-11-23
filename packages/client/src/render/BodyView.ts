@@ -338,6 +338,7 @@ export class BodyView {
       z: at.z,
       yaw: 0,
       pitch: 0,
+      facing: 0,
       reading: null,
       item: shown.item,
       firing: false,

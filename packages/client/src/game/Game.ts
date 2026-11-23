@@ -1721,6 +1721,7 @@ export class Game {
         z: at.z,
         yaw: this.aim.yaw,
         pitch: this.aim.pitch,
+        facing: self.facing,
         reading: self.reading,
         item: held?.id ?? null,
         firing: self.firing,

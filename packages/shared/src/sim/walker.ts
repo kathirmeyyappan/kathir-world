@@ -49,7 +49,12 @@ export const WALKER: ClassSpec = {
   fits: () => true,
   enter() {},
   exit: endMoves,
-  step: stepWalker,
+  step(p, input, dt, structures) {
+    const from = { x: p.pos.x, z: p.pos.z };
+    const landing = stepWalker(p, input, dt, structures);
+    turnBody(p, from, dt, structures);
+    return landing;
+  },
   aim: (p) => lookDirection(p.yaw, p.pitch),
   // Sat in a kart, from the seat up.
   hitShape: (p) => {
@@ -68,6 +73,23 @@ export function placeWalker(p: PlayerState, eye: Vec3): void {
   p.pos = { ...eye };
   p.vx = p.vy = p.vz = 0;
   p.thrown = null;
+}
+
+// M/s across the floor that is going somewhere: under it the body keeps the way it faced.
+export const GOING = 0.4;
+
+// Turns the body for this tick (PlayerState.facing), having moved from `from`: to its look with
+// something to aim, to the ladder on one, the way it went when it went somewhere, and as it was
+// when dead or standing.
+function turnBody(p: PlayerState, from: { x: number; z: number }, dt: number, structures: Structures): void {
+  if (p.dead) return;
+  if (p.climb) p.facing = structures.ladderFacing(p.climb.piece, p.climb.side);
+  else if (p.item) p.facing = p.yaw;
+  else {
+    const dx = p.pos.x - from.x;
+    const dz = p.pos.z - from.z;
+    if (Math.hypot(dx, dz) > GOING * dt) p.facing = Math.atan2(dx, dz);
+  }
 }
 
 // Out of whatever move the body was in: off a ladder, out of a jump's chain, a pound, a crouch, a
