@@ -4,6 +4,7 @@
 // which mode it's in: it tells its mode what happened and takes its answers. What the client has
 // to agree with isn't asked here: that's the mode's rules (rules.ts), read off the state it gives.
 import type { SpawnArea } from '../content/regions';
+import type { AvatarId } from '../sim/avatars';
 import type { PlayerState, Vec3 } from '../sim/types';
 import type { GameAction, GameModeId, GameState } from './index';
 
@@ -16,9 +17,9 @@ export interface ModeRoom {
   people(): PlayerState[]; // everyone seated who isn't a bot
   everyone(): PlayerState[]; // the people, and the bots alive: once a game has begun, its own
   // Asks the host for one of the bots app's bots (by its name there, modal-bots/bots/) to join
-  // as `name`: a bot of the game's own, apart from the ones a player calls. False where the host
-  // can start none.
-  call(bot: string, name: string): boolean;
+  // as `name`, wearing `avatar`: a bot of the game's own, apart from the ones a player calls.
+  // False where the host can start none.
+  call(bot: string, name: string, avatar: AvatarId): boolean;
   // A new body for `player` somewhere in `areas`, as whoever comes in is given: a full life, nothing
   // held or worn, in the look they had if it's one on foot. Returns them in it.
   embody(player: PlayerState, areas: SpawnArea[]): PlayerState;

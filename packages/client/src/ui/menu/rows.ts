@@ -21,7 +21,7 @@ export interface Section {
   wide?: boolean; // takes the room of two where a tab's sections stand side by side (a phone on its side)
 }
 
-export type Row = Toggle | Toggles | Stepper | Field | Select | Buttons | Links | Share | Words | Board;
+export type Row = Toggle | Stepper | Field | Select | Buttons | Links | Share | Words | Board;
 
 // A setting with a few values: its button reads the one it's on and moves it to the next.
 export interface Toggle {
@@ -30,15 +30,6 @@ export interface Toggle {
   key?: string; // its key in play, shown with a keyboard
   value: () => string;
   press: () => void;
-}
-
-// A setting to each of a list of things that come and go (a game's bots, each with its level): a
-// button to each, its name beside the value it's on, which a press moves to the next.
-export interface Toggles {
-  kind: 'toggles';
-  items: () => { label: string; value: string }[];
-  press: (index: number) => void;
-  can: () => boolean; // whether they're the player's to change
 }
 
 // A setting stepped through its values, < and > either side of the one it's on. With `auto`, a
@@ -108,7 +99,21 @@ export interface Board {
 export interface Column {
   name: string;
   colour: string;
-  players: Listed[]; // each with their emblem before their name
+  players: Entry[];
+}
+
+// Someone on a board: their emblem before their name, and after it, for one with something of
+// their own that's set (a bot's level), what it's on.
+export interface Entry extends Listed {
+  set?: Setting;
+}
+
+// What something is set to, and where it's the player's to change, how: - and + either side of
+// whose it is `step` it, each while it `can` go that way.
+export interface Setting {
+  value: string;
+  step?: (by: 1 | -1) => void;
+  can?: (by: 1 | -1) => boolean;
 }
 
 export interface Button {
@@ -156,8 +161,6 @@ export function draw(row: Row): Drawn {
   switch (row.kind) {
     case 'toggle':
       return toggle(row);
-    case 'toggles':
-      return toggles(row);
     case 'stepper':
       return stepper(row);
     case 'field':
@@ -195,8 +198,26 @@ function board(row: Board): Drawn {
         column.append(head);
         for (const p of col.players) {
           const player = element('div', p.id === picked ? 'player picked' : 'player');
-          player.append(...named(p.name, p.appearance));
+          const who = element('span', 'who');
+          who.append(...named(p.name, p.appearance));
+          player.append(who);
           player.translate = false;
+          if (p.set) {
+            const { value, step, can: goes } = p.set;
+            player.append(element('span', 'value', value));
+            // - before them and + after, where it's the player's to step either way.
+            if (step && goes && (goes(-1) || goes(1)))
+              for (const by of [-1, 1] as const) {
+                const button = element('button', 'step', by < 0 ? '-' : '+');
+                button.disabled = !goes(by);
+                button.addEventListener('click', (e) => {
+                  e.stopPropagation(); // a press of its own, not one on the column it's in
+                  step(by);
+                });
+                if (by < 0) player.prepend(button);
+                else player.append(button);
+              }
+          }
           if (can) {
             player.draggable = true;
             player.addEventListener('dragstart', (e) => e.dataTransfer?.setData('text/plain', p.id));
@@ -229,7 +250,9 @@ function board(row: Board): Drawn {
     const cols = row.columns();
     const can = row.can();
     if (!can || !cols.some((col) => col.players.some((p) => p.id === picked))) picked = null;
-    const now = JSON.stringify([cols, can, picked]);
+    // Which way each setting on it can be stepped is part of what it shows.
+    const steps = cols.map((col) => col.players.map((p) => [p.set?.can?.(-1), p.set?.can?.(1)]));
+    const now = JSON.stringify([cols, steps, can, picked]);
     if (now !== shown) {
       shown = now;
       fill(cols, can);
@@ -266,31 +289,6 @@ function toggle(row: Toggle): Drawn {
     button.classList.toggle('off', value === 'OFF');
   };
   el.append(name, button);
-  return { el, refresh };
-}
-
-// Drawn afresh whenever what it lists changes, and gone while it lists nothing.
-function toggles(row: Toggles): Drawn {
-  const el = element('div', 'toggles');
-  let shown = '';
-  const refresh = () => {
-    const items = row.items();
-    const can = row.can();
-    const now = JSON.stringify([items, can]);
-    if (now === shown) return;
-    shown = now;
-    el.hidden = items.length === 0;
-    el.replaceChildren(
-      ...items.map((item, i) => {
-        const button = element('button', 'toggle');
-        button.translate = false;
-        button.disabled = !can;
-        button.append(element('span', 'name', item.label), element('span', 'value', item.value));
-        button.addEventListener('click', () => row.press(i));
-        return button;
-      }),
-    );
-  };
   return { el, refresh };
 }
 

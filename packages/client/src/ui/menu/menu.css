@@ -328,7 +328,7 @@
 }
 /* A game's settings (a section with a board of its players in it) give each row more room than a
    list of toggles has. */
-#menu section:has(.board) > :is(.row, .stepper, .board, .toggles) + :is(.row, .stepper, .board) {
+#menu section:has(.board) > :is(.row, .stepper, .board) + :is(.row, .stepper, .board) {
   margin-top: 20px;
 }
 
@@ -360,32 +360,6 @@
   color: rgba(255, 255, 255, 0.5);
   border-color: rgba(255, 255, 255, 0.3);
   background: rgba(255, 255, 255, 0.05);
-}
-
-/* Toggles: a button to each thing listed, its name beside what it's on, as many to a line as fit,
-   close under the row that says how many there are. Not the player's to press, they read the same. */
-#menu .toggles {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 8px;
-  margin-top: 8px;
-}
-#menu .toggles[hidden] {
-  display: none;
-}
-#menu .toggles .toggle {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-#menu .toggles .toggle .name {
-  font: 9px var(--pixel);
-  color: var(--accent-soft);
-}
-#menu .toggles .toggle:disabled {
-  opacity: 1;
-  cursor: default;
 }
 
 /* A stepper: its name, then an AUTO button (lit while the game has the choice) and the value
@@ -561,14 +535,42 @@
 #menu .board .head .count {
   font-size: 17px;
 }
+/* Someone on it: their emblem and name, what's set of theirs after it, and where that's the
+   player's to step, - and + at either end, each a fair target for a thumb. */
 #menu .board .player {
-  padding: 3px 8px;
-  font-size: 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  padding: 0 10px;
+  font-size: 20px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+}
+#menu .board .player .who {
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.22);
+}
+#menu .board .player .value {
+  color: var(--accent-soft);
+  white-space: nowrap;
+}
+#menu .board .player:has(.step) {
+  padding: 0;
+}
+#menu .board .player .step {
+  align-self: stretch;
+  min-width: 42px;
+  padding: 0;
+  border: 0;
+  box-shadow: none;
+  background: rgba(100, 181, 246, 0.18);
+}
+#menu .board .player .step:disabled {
+  opacity: 0.3;
 }
 #menu .board .column.open .player {
   cursor: grab;

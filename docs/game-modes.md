@@ -258,10 +258,11 @@ A series of races, each on a track of its own, in karts, for points.
 **Settings.**
 
 - The number of races, 3 unless changed.
-- A board of the racers: everyone in the room.
-- Bots: + and - add and take away one, up to eight, each with its level beside it, 1 to 5
-  (`BOT_LEVELS`), stepped by a press. Apart from the lobby's bots: they're asked for as the game
-  starts, called bot 1, bot 2 and on, and gone when it's over.
+- Bots: + and - add and take away one, up to eight. Apart from the lobby's bots: they're asked
+  for as the game starts, called bot 1, bot 2 and on, and gone when it's over.
+- A board of the racers: everyone in the room, and under them its bots, each in the look the room
+  drew for it as it was added (`BOT_LOOKS`: one nobody there wears, while there's one), with its
+  level after its name, 1 to 5 (`BOT_LEVELS`), stepped by the - and + either side of it.
 - START with two racers or more, bots counted.
 
 **The game.**
@@ -478,8 +479,9 @@ be played.
 
 ## The modes' bots
 
-**Racing bots** are built. A game's are set in its settings, each by its level (above); the
-referee asks the host for them as the game starts, keeps the level of each by the name it comes
+**Racing bots** are built. A game's are set in its settings, each by its level and in a look of
+its own (above); the referee asks the host for them as the game starts, each in its look, keeps
+the level of each by the name it comes
 as, and lists a bot racer with how good it's asked to be (`Racer.rating`, `ratingOf` its level:
 from 0, the middle of the road short of flat out, to 1, all of the road and every drift and trick
 there is; the best of them cut the corner where two of a track's roads meet, across the floor of

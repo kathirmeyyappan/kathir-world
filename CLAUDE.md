@@ -1568,7 +1568,9 @@ screen is up, and M, Esc or a click beside the card goes back into the world; `t
 other parts keep (the connection, `Sfx`'s channels, `View`, the browser's fullscreen, the `Picture`),
 handed in as `MenuHooks`; `rows.ts` is the kinds of row (a toggle, a stepper with < and > and maybe
 an AUTO button, a field, buttons, a link to share, words to read, a board of players in columns
-whose players, each with their emblem, are dragged or tapped from one to another) and how each
+whose players, each with their emblem, are dragged or tapped from one to another, one with
+something of its own that's set, a bot's level, having it after its name and - and + either side
+to step it) and how each
 draws, a button able
 to come and go, to be greyed, and to warn of what it does and go at a second press
 (`ui/pressTwice.ts`, as every way out of a room warns its room master that leaving closes it); and
