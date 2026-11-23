@@ -304,7 +304,7 @@ export class Game {
   private readonly minimap = new Minimap();
   // The room's game, as the Room last told of it, and the Room's tick as of its last snapshot, which
   // the game's clocks are read against.
-  private game: GameState = { mode: FREEPLAY, master: null, phase: null, until: null };
+  private game: GameState = { mode: FREEPLAY, master: null, phase: null, until: null, bots: [] };
   private tick = 0;
   private readonly banner = new GameBanner();
   private readonly results = new Results();

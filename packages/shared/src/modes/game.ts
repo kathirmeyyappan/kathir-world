@@ -1,10 +1,22 @@
 // What every mode with a game shares (docs/game-modes.md), which freeplay has none of: its room
-// master, the player who made the room, whose it is for as long as it lasts, and the flow the
-// master runs it through. A lobby, which is freeplay but for the game waiting to be started; the
-// start, counted down; the game; and the lobby again.
+// master, the player who made the room, whose it is for as long as it lasts, the flow the master
+// runs it through, and the bots it brings. A lobby, which is freeplay but for the game waiting to
+// be started; the start, counted down; the game; and the lobby again.
 import { RESPAWN_AREAS, SPAWN_AREAS } from '../content/regions';
+import type { AvatarId } from '../sim/avatars';
 import { TICK_RATE } from '../sim/constants';
 import type { PlayerState } from '../sim/types';
+import {
+  BOT_LEVELS,
+  BOT_LOOKS,
+  BOT_WAIT,
+  MOST_BOTS,
+  botName,
+  isBotsChange,
+  type BotsChange,
+  type GameBot,
+  type Plays,
+} from './bots';
 import type { GameAction, GameState } from './index';
 import { GameMode, type Joiner, type Joining } from './mode';
 import { kindOf, type Allowed, type Dying, type Rules } from './rules';
@@ -52,15 +64,30 @@ export function gameRules(own: Playing): Rules {
   };
 }
 
-export class Game extends GameMode {
+export abstract class Game extends GameMode {
   // The room master's id. Null until the player who made the room is in it: someone they told the
   // code to can be seated first, and isn't its master for that.
   private master: string | null = null;
   private phase: Phase = 'lobby';
   private until: number | null = null; // the tick the phase runs out at, where it's on a clock
+  // The bots it brings (bots.ts), as set: the first is bot 1. And through a start, the ones asked
+  // for and still to come, each by the name it's to come as.
+  protected bots: GameBot[] = [];
+  private readonly awaited = new Map<string, GameBot>();
+  private givenUp = 0; // the tick from which the start no longer waits for them
+  private keys = 0; // how many bots it has ever had, for the next one's key
+
+  // The bot that plays its game.
+  protected abstract readonly plays: Plays;
 
   override get state(): GameState {
-    return { ...super.state, master: this.master, phase: this.phase, until: this.until };
+    return {
+      ...super.state,
+      master: this.master,
+      phase: this.phase,
+      until: this.until,
+      bots: this.bots.map((bot) => ({ ...bot })),
+    };
   }
 
   // A game is those who were there as it began, and the bots it asked for itself: the lobby's
@@ -72,15 +99,32 @@ export class Game extends GameMode {
     return this.phase === 'starting' ? 'player' : 'ghost';
   }
 
+  // Whoever made the room is its master, and a bot the game asked for has come.
   override joined(player: PlayerState, made: boolean): void {
-    if (!made || this.master !== null || player.bot) return;
-    this.master = player.id;
+    const bot = player.bot ? this.awaited.get(player.name) : undefined;
+    if (bot) {
+      this.awaited.delete(player.name);
+      bot.id = player.id;
+    } else if (made && this.master === null && !player.bot) this.master = player.id;
+    else return;
     this.room.publish();
   }
 
-  // The room is its master's: it goes when they do, however they went.
+  // The room is its master's: it goes when they do, however they went. A bot of the game's that
+  // goes is still one of its bots, to come again with the next game.
   override left(player: PlayerState): void {
+    const bot = this.botOf(player.id);
+    if (bot) {
+      bot.id = null;
+      this.room.publish();
+    }
     if (player.id === this.master) this.room.close(MASTER_LEFT);
+  }
+
+  // A person always comes back from the dead, and so does a bot of the game's own from its start
+  // until the lobby is back: it's in the game as anyone is.
+  override revives(player: PlayerState): boolean {
+    return super.revives(player) || (this.phase !== 'lobby' && this.botOf(player.id) !== undefined);
   }
 
   // The game is the master's to start, from its lobby once it's set up to, and to end, from
@@ -91,10 +135,11 @@ export class Game extends GameMode {
     else if (action === 'end' && this.phase !== 'lobby') this.toLobby();
   }
 
-  // Its settings are the master's to change, in the lobby.
+  // Its settings are the master's to change, in the lobby: its bots, as every game's are, and
+  // its mode's own.
   override changed(player: PlayerState, change: unknown): void {
     if (player.id !== this.master || this.phase !== 'lobby') return;
-    if (this.set(change)) this.room.publish();
+    if (isBotsChange(change) ? this.setBots(change) : this.set(change)) this.room.publish();
   }
 
   // Why the game can't be started as it's set up, or null: its mode's rule (rules.ts `starts`).
@@ -107,17 +152,75 @@ export class Game extends GameMode {
     return false;
   }
 
-  // Asks for the bots the game brings of its own (`ModeRoom.call`), as its start is counted down.
-  protected gather(): void {}
+  // One of its bots is added, at the level of the last there is and in a look of its own, or
+  // taken away, or set to a level. False: nothing came of it.
+  private setBots(change: BotsChange): boolean {
+    if ('level' in change) {
+      const bot = this.bots.at(change.bot);
+      if (!bot || change.bot < 0) return false;
+      bot.level = change.level;
+    } else if (change.bots === 'more') {
+      if (this.bots.length >= MOST_BOTS) return false;
+      const bot = {
+        key: `bot:${this.keys++}`,
+        level: this.bots.at(-1)?.level ?? BOT_LEVELS.first,
+        avatar: this.look(),
+        id: null,
+      };
+      this.bots.push(bot);
+      this.added(bot);
+    } else {
+      const bot = this.goes();
+      if (!bot) return false;
+      this.bots = this.bots.filter((other) => other !== bot);
+      this.dropped(bot);
+    }
+    return true;
+  }
+
+  // A look for a bot joining the others: one that none of them wears and nobody here does, while
+  // there's one, by the room's dice.
+  private look(): AvatarId {
+    const worn = new Set([...this.room.people(), ...this.bots].map((player) => player.avatar));
+    const free = BOT_LOOKS.filter((look) => !worn.has(look));
+    const from = free.length > 0 ? free : BOT_LOOKS;
+    return from[Math.floor(this.room.random() * from.length)];
+  }
+
+  // A bot was added to those the game brings, or taken from them: its mode's to follow, where it
+  // lists its bots among its players.
+  protected added(_bot: GameBot): void {}
+  protected dropped(_bot: GameBot): void {}
+
+  // The bot that goes as one is taken away: the last added, unless its mode says another.
+  protected goes(): GameBot | undefined {
+    return this.bots.at(-1);
+  }
+
+  // The game's bot that the player `id` is, if they're one.
+  protected botOf(id: string): GameBot | undefined {
+    return this.bots.find((bot) => bot.id === id);
+  }
+
+  // Its bots are asked for as its start is counted down, each by the name it's to come as and in
+  // its look; one still here from somewhere else isn't asked for again.
+  private gather(): void {
+    this.awaited.clear();
+    this.bots.forEach((bot, i) => {
+      bot.id = null;
+      if (this.room.call(this.plays, botName(i), bot.avatar)) this.awaited.set(botName(i), bot);
+    });
+    this.givenUp = this.room.tick() + (START_SECONDS + BOT_WAIT) * TICK_RATE;
+  }
 
   // Whether a bot called `name` is one the game asked for that hasn't come yet.
-  protected awaits(_name: string): boolean {
-    return false;
+  private awaits(name: string): boolean {
+    return this.awaited.has(name);
   }
 
   // Whether every bot the game asked for has come, or been given up on: its start waits for them.
-  protected gathered(): boolean {
-    return true;
+  private gathered(): boolean {
+    return this.awaited.size === 0 || this.room.tick() >= this.givenUp;
   }
 
   // The clock a phase is on runs out: the countdown into the game, once whoever it waits for is
@@ -161,8 +264,10 @@ export class Game extends GameMode {
   }
 
   // The game begins: on a world with nothing left on it from the lobby, everyone in a new body
-  // where its mode starts them, their kills and deaths counted from nothing.
+  // where its mode starts them, their kills and deaths counted from nothing. A bot that hasn't
+  // come by now isn't in it.
   protected begin(): void {
+    this.awaited.clear();
     this.room.clear();
     for (const player of this.room.everyone()) {
       const body = this.place(player);
@@ -175,6 +280,8 @@ export class Game extends GameMode {
   // Back to the lobby, as everyone comes back from the dead: a new body each, on a world with
   // nothing left on it from the game, its own bots gone with it.
   protected toLobby(): void {
+    this.awaited.clear();
+    for (const bot of this.bots) bot.id = null;
     this.room.dropBots();
     this.room.clear();
     for (const player of this.room.people()) this.room.embody(player, RESPAWN_AREAS);

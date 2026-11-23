@@ -8,6 +8,10 @@ from typing import Any
 
 from .protocol import Kart, Message, Player, Snapshot, Welcome, player, to_dict
 
+# The least and most level a game sets one of its bots to (BOT_LEVELS, the shared package's
+# modes/bots.ts).
+LEVELS = (1, 5)
+
 
 class WorldState:
     def __init__(self, welcome: Welcome, requested_room: str | None = None):
@@ -36,6 +40,23 @@ class WorldState:
         """The kart this bot is driving, or None on foot."""
         me = self.me
         return None if me is None or me.riding is None else self.karts.get(me.riding)
+
+    @property
+    def brought(self) -> dict[str, Any] | None:
+        """This bot as the room's game brought it (its ``GameBot``, the shared package's
+        modes/bots.ts): what it's set to there. None for a bot no game brought."""
+        bots = self.game.get("bots") or []
+        return next((bot for bot in bots if bot["id"] == self.self_id), None)
+
+    def rating(self, ratings: tuple[float, float], unrated: float) -> float:
+        """How good the room's game asks this bot to be: ``ratings`` are what the least level a
+        game sets its bots to and the most come to, the levels between evenly, and ``unrated``
+        what a bot no game brought is."""
+        brought = self.brought
+        if brought is None:
+            return unrated
+        share = (float(brought["level"]) - LEVELS[0]) / (LEVELS[1] - LEVELS[0])
+        return ratings[0] + (ratings[1] - ratings[0]) * share
 
     def nearest_player(self, *, people_only: bool = False) -> Player | None:
         """The closest living player to this bot in a straight line (someone a floor above isn't

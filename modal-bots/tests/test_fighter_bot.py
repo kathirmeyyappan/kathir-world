@@ -3,7 +3,7 @@ from __future__ import annotations
 import random
 from dataclasses import astuple
 
-from bots.fighter_bot import rating_of, sides_of
+from bots.fighter_bot import sides_of
 from common import Vec3
 from common.fighting import ARMS, BEST, WORST, Aim, believed, skill, temper
 
@@ -51,9 +51,10 @@ def test_its_aim_holds_someone_stood_still_and_loses_whoever_turns() -> None:
     assert believed(turned, "p", lag=0.3, lead=1).x > turned[-1]["p"].x + 1  # type: ignore[union-attr]
 
 
-def test_a_game_gives_it_its_level_and_its_side() -> None:
-    lobby = {"mode": "shootout", "phase": "lobby", "teams": [["p1"], ["p2", "p3"]], "bots": []}
-    playing = {**lobby, "phase": "playing", "bots": [{"level": 1, "id": "p2"}, {"level": 5, "id": "p3"}]}
-    assert sides_of(lobby) == {} == sides_of({"mode": "freeplay", "phase": None})
-    assert sides_of(playing) == {"p1": 0, "p2": 1, "p3": 1}
-    assert rating_of(playing, "p2") < rating_of(playing, "p1") == rating_of(lobby, "p2") < rating_of(playing, "p3")
+def test_a_game_gives_it_its_side() -> None:
+    # A team lists a person by their id and one of the game's bots by its key, come or not.
+    bots = [{"key": "bot:0", "level": 1, "id": "p2"}, {"key": "bot:1", "level": 5, "id": None}]
+    lobby = {"mode": "shootout", "phase": "lobby", "teams": [["p1", "bot:1"], ["bot:0", "p3"]], "bots": bots}
+    assert sides_of(lobby) == {} == sides_of({"mode": "freeplay", "phase": None, "bots": []})
+    assert sides_of({**lobby, "phase": "results"}) == {}, "its sides are the game's while it's played"
+    assert sides_of({**lobby, "phase": "playing"}) == {"p1": 0, "p2": 1, "p3": 1}

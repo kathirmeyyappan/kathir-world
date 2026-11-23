@@ -6,6 +6,7 @@
 import type { SpawnArea } from '../content/regions';
 import type { AvatarId } from '../sim/avatars';
 import type { PlayerState, Vec3 } from '../sim/types';
+import type { Plays } from './bots';
 import type { GameAction, GameModeId, GameState } from './index';
 
 // What a mode can do to the room it's the game of.
@@ -16,10 +17,9 @@ export interface ModeRoom {
   close(reason: string): void; // ends the room for everyone in it, who are told why
   people(): PlayerState[]; // everyone seated who isn't a bot
   everyone(): PlayerState[]; // the people, and the bots alive: once a game has begun, its own
-  // Asks the host for one of the bots app's bots (by its name there, modal-bots/bots/) to join
-  // as `name`, wearing `avatar`: a bot of the game's own, apart from the ones a player calls.
-  // False where the host can start none.
-  call(bot: string, name: string, avatar: AvatarId): boolean;
+  // Asks the host for one of the bots app's bots to join as `name`, wearing `avatar`: a bot of
+  // the game's own, apart from the ones a player calls. False where the host can start none.
+  call(bot: Plays, name: string, avatar: AvatarId): boolean;
   // A new body for `player` somewhere in `areas`, as whoever comes in is given: a full life, nothing
   // held or worn, in the look they had if it's one on foot. Returns them in it.
   embody(player: PlayerState, areas: SpawnArea[]): PlayerState;
@@ -54,7 +54,7 @@ export class GameMode {
 
   // The game as everyone in the room is told of it.
   get state(): GameState {
-    return { mode: this.id, master: null, phase: null, until: null };
+    return { mode: this.id, master: null, phase: null, until: null, bots: [] };
   }
 
   // What someone joining right now is.
@@ -67,6 +67,12 @@ export class GameMode {
 
   // Someone's seat went.
   left(_player: PlayerState): void {}
+
+  // Whether someone dead is brought back in a new body: a person, always. A bot that isn't lies a
+  // while and its seat is dropped, which ends its run.
+  revives(player: PlayerState): boolean {
+    return !player.bot;
+  }
 
   // A player asked something of the game (a `game` message).
   asked(_player: PlayerState, _action: GameAction): void {}

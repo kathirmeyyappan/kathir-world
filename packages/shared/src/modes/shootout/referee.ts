@@ -4,12 +4,15 @@
 import { INDOOR_ROOMS } from '../../content/regions';
 import type { Region } from '../../sim/regions';
 import type { PlayerState } from '../../sim/types';
+import type { GameBot } from '../bots';
 import { Game } from '../game';
 import { SHOOTOUT_RULES } from './rules';
-import { CLOCK, MIN_TEAMS, POINTS, TEAMS, isShootoutChange, type ShootoutState } from './state';
+import { CLOCK, FIGHTER_BOT, MIN_TEAMS, POINTS, TEAMS, isShootoutChange, memberOf, type ShootoutState } from './state';
 
 export class Shootout extends Game {
+  protected readonly plays = FIGHTER_BOT;
   private seconds = CLOCK.seconds;
+  // Each team's members (state.ts): a person by their id, one of its bots by its key.
   private teams: string[][] = Array.from({ length: MIN_TEAMS }, () => []);
   private points: number[] = [];
   private sites: Region[][] = []; // the rooms each team starts in, no two teams sharing one
@@ -33,11 +36,30 @@ export class Shootout extends Game {
     this.room.publish();
   }
 
-  // Someone who leaves is gone from their team.
+  // Someone who leaves is gone from their team. One of its bots that goes is still on its own, to
+  // come again with the next game.
   override left(player: PlayerState): void {
     this.teams = this.teams.map((team) => team.filter((id) => id !== player.id));
     this.room.publish();
     super.left(player);
+  }
+
+  // A bot goes on the team with the fewest as it's added, and the one that goes is the last on
+  // the team with the most.
+  protected override added(bot: GameBot): void {
+    this.fewest().push(bot.key);
+  }
+
+  protected override dropped(bot: GameBot): void {
+    this.teams = this.teams.map((team) => team.filter((member) => member !== bot.key));
+  }
+
+  protected override goes(): GameBot | undefined {
+    const keys = new Set(this.bots.map((bot) => bot.key));
+    const most = this.teams
+      .filter((team) => team.some((member) => keys.has(member)))
+      .reduce<string[]>((most, team) => (team.length >= most.length ? team : most), []);
+    return [...this.bots].reverse().find((bot) => most.includes(bot.key));
   }
 
   protected override ready(): string | null {
@@ -65,7 +87,7 @@ export class Shootout extends Game {
     this.sites = this.teams.map((_, team) => rooms.filter((_, i) => i % this.teams.length === team));
     this.points = this.teams.map(() => 0);
     super.begin();
-    for (const player of this.room.people()) {
+    for (const player of this.room.everyone()) {
       const team = this.teamOf(player.id);
       if (team < 0) continue;
       this.own.set(player.id, player.color);
@@ -77,7 +99,8 @@ export class Shootout extends Game {
     const team = this.teamOf(player.id);
     if (team < 0) return super.place(player);
     const rooms = this.sites[team];
-    return this.room.embody(player, [{ region: rooms[this.teams[team].indexOf(player.id) % rooms.length], weight: 1 }]);
+    const place = this.teams[team].indexOf(memberOf(this.bots, player.id));
+    return this.room.embody(player, [{ region: rooms[place % rooms.length], weight: 1 }]);
   }
 
   protected override runs(): number {
@@ -105,8 +128,10 @@ export class Shootout extends Game {
     this.own.clear();
   }
 
+  // The team a player is on, by their id; -1 for someone on none.
   private teamOf(id: string): number {
-    return this.teams.findIndex((team) => team.includes(id));
+    const member = memberOf(this.bots, id);
+    return this.teams.findIndex((team) => team.includes(member));
   }
 
   private fewest(): string[] {
@@ -124,9 +149,9 @@ export class Shootout extends Game {
     }
   }
 
-  private move(id: string, to: number): void {
-    if (!this.teams[to] || !this.teams.some((team) => team.includes(id))) return;
-    this.teams = this.teams.map((team) => team.filter((other) => other !== id));
-    this.teams[to].push(id);
+  private move(member: string, to: number): void {
+    if (!this.teams[to] || !this.teams.some((team) => team.includes(member))) return;
+    this.teams = this.teams.map((team) => team.filter((other) => other !== member));
+    this.teams[to].push(member);
   }
 }

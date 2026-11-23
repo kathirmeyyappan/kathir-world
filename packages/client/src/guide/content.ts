@@ -29,6 +29,7 @@ export const MODE_TEXT: Record<GameModeId, string[]> = {
   freeplay: ['A room with no game in it. Every command works, and nothing is scored.'],
   racing: [
     'The room master sets how many races in the menu and starts the game with everyone in the room.',
+    'The room master can add bots to race with everyone, and sets how good each one is.',
     'Each race is on a new track through the roads, drawn in green: the floor off it is grey, and a kart that leaves it is set back on it by Lakitu.',
     "Everyone starts in a kart on the grid, held there until Lakitu's lights turn green. Nobody gets out.",
     'The first over the checkered line starts a clock on the rest. Whoever has not finished when it runs out is out of that race, and so is a racer whose kart blows up.',
@@ -37,6 +38,7 @@ export const MODE_TEXT: Record<GameModeId, string[]> = {
   ],
   shootout: [
     'The room master splits the room into even teams in the menu and starts the game.',
+    'The room master can add bots, which go on the teams like anyone, and sets how good each one is.',
     'Each team starts indoors, apart from the others, in its own colour.',
     'A kill of someone on another team scores for your team, and every death costs your own.',
     'You see your teammates on the map and by name, and nothing of the other teams but their bodies.',

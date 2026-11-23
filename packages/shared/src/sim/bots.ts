@@ -168,6 +168,10 @@ export type BotRequest = (BotCall & { worker: 'dumb' }) | (BotCall & { worker: '
 // dressed in.
 export function botRequest(call: BotCall & { bot: BotId }, targets: readonly string[] = []): BotRequest {
   const { worker, look } = BOTS[call.bot];
-  const dressed = look === undefined ? call : { ...call, avatar: look };
-  return worker === 'combat' ? { ...dressed, worker: 'combat', targets: [...targets] } : { ...dressed, worker: 'dumb' };
+  return workerRequest(look === undefined ? call : { ...call, avatar: look }, worker, targets);
+}
+
+// The request for a bot that runs on `worker`: a combat bot's with the names it goes after.
+export function workerRequest(call: BotCall, worker: BotWorker, targets: readonly string[] = []): BotRequest {
+  return worker === 'combat' ? { ...call, worker: 'combat', targets: [...targets] } : { ...call, worker: 'dumb' };
 }

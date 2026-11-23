@@ -89,6 +89,6 @@ def welcome() -> dict[str, Any]:
         "cubes": [cube()],
         "pickups": [],
         "karts": [],
-        "game": {"mode": "freeplay", "master": None, "phase": None, "until": None},
+        "game": {"mode": "freeplay", "master": None, "phase": None, "until": None, "bots": []},
         "doors": [{"id": "front", "open": False}],
     }
