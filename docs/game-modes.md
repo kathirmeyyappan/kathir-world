@@ -278,9 +278,12 @@ A series of races, each on a track of its own, in karts, for points.
   sides get the bold green border the floor's edge has, since what's beyond them is grey. The maps
   dull everything but the track and mark the other racers boldly.
 - The HUD's top right says, hugely, what place the racer is in.
-- Crossing the line brings a kart to a stop and tells its racer their place. When the first one
-  crosses, everyone is told, and the rest have 45 seconds; the last ten flash on their screens, and
-  whoever hasn't finished at the end of them is eliminated.
+- Crossing the line brings a kart to a stop and tells its racer their place. All of the disc the
+  track ends on is in play, so a kart over the line has the whole platform to stop on, and Lakitu
+  comes only for one that falls off it. Five seconds on, the racer is let out, their kart gone
+  with them: a ghost, free to go where they like until the next race. When the first one crosses,
+  everyone is told, and the rest have 45 seconds; the last ten flash on their screens, and whoever
+  hasn't finished at the end of them is eliminated.
 - Eliminated is no points for the race: a kart blown up (its driver thrown out, as anywhere), not
   finishing in time, or leaving the room. Their screen says ELIMINATED and to wait for the race to
   end, and they are a ghost until the next race begins. Someone who leaves is eliminated in every
@@ -403,7 +406,8 @@ under it are apart), which is what the floor in play, a racer's place and the fi
 of. The bots' roads map (`sim/botMap/roads.ts`) is built from the same `Road.middle` and stays its
 own file until the racing bots are built, when the two graphs become one.
 
-**The floor in play.** A mode narrows it with a track (`Rules.track`). The Room hands the garage
+**The floor in play.** A mode narrows it with a track (`Rules.track`): its road, and all of the
+disc it ends on (`inPlay`). The Room hands the garage
 the track as the course its karts are held to (`Course`, `sim/vehicles/rescue.ts`; `courseOf`),
 and a driven kart's watch counts it stranded off the course as it does on the ground past the
 world's edge: two seconds on, Lakitu sets it down on the track's middle where it left, nose along

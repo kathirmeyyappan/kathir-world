@@ -21,8 +21,15 @@ export class TrackPreview {
     if (!frame || !track) return;
     if (this.caption.textContent !== caption) this.caption.textContent = caption;
     if (this.framed?.track !== track) {
+      // Its road, and all of the disc it ends on.
+      const { end } = track.route;
       const [xs, zs] = [track.spots.map((s) => s.x), track.spots.map((s) => s.z)];
-      const box = { minX: Math.min(...xs), maxX: Math.max(...xs), minZ: Math.min(...zs), maxZ: Math.max(...zs) };
+      const box = {
+        minX: Math.min(...xs, end.x - end.r),
+        maxX: Math.max(...xs, end.x + end.r),
+        minZ: Math.min(...zs, end.z - end.r),
+        maxZ: Math.max(...zs, end.z + end.r),
+      };
       this.framed = { track, framing: this.map.framingOf(box, MARGIN) };
     }
     this.map.draw(frame, 'world', this.framed.framing);

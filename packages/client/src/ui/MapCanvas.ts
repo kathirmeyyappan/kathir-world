@@ -92,9 +92,9 @@ const PLINTH = 'rgb(104, 78, 54)';
 const ARCH = 'rgb(150, 114, 78)';
 const ROOF = 'rgb(84, 62, 44)';
 const SEAM = 'rgba(36, 24, 14, 0.9)';
-// A track in play: what's laid over everything off it, and over the track itself.
+// A track in play: what's laid over everything off its floor, and what that floor is lit with.
 const DULL = 'rgba(9, 11, 16, 0.74)';
-const LIT = `rgba(${ACCENT}, 0.3)`;
+const LIT = { colour: `rgb(${ACCENT})`, alpha: 0.3 };
 // A track's finish line: metres along the road it's drawn, and CSS pixels at the least.
 const FINISH = { m: 3, px: 2.5 };
 const OTHERS = 0.6; // other people's arrows, as a fraction of yours
@@ -184,26 +184,38 @@ export class MapCanvas {
   // finish line across it.
   private drawTrack(t: Transform, track: Track): void {
     const [W, H] = [this.width * RES, this.height * RES];
-    const strip = trackPath(track);
-    const dull = this.dullLayer;
-    dull.setTransform(1, 0, 0, 1, 0, 0);
-    dull.globalCompositeOperation = 'source-over';
-    dull.clearRect(0, 0, W, H);
-    dull.fillStyle = DULL;
-    dull.fillRect(0, 0, W, H);
-    this.toWorld(dull, t);
-    dull.globalCompositeOperation = 'destination-out';
-    dull.lineWidth = ROAD_WIDTH;
-    dull.lineJoin = 'round';
-    dull.stroke(strip);
+    const { end } = track.route;
+    // The floor it has in play, solid on the layer in `colour`, `over` what's there: its road, and
+    // all of the disc it ends on.
+    const layer = this.dullLayer;
+    const floor = (colour: string, over: GlobalCompositeOperation) => {
+      this.toWorld(layer, t);
+      layer.globalCompositeOperation = over;
+      layer.strokeStyle = layer.fillStyle = colour;
+      layer.lineWidth = ROAD_WIDTH;
+      layer.lineJoin = 'round';
+      layer.stroke(trackPath(track));
+      layer.beginPath();
+      layer.arc(end.x, end.z, end.r, 0, 2 * Math.PI);
+      layer.fill();
+      layer.setTransform(1, 0, 0, 1, 0, 0);
+      layer.globalCompositeOperation = 'source-over';
+    };
     const ctx = this.ctx;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.drawImage(dull.canvas, 0, 0);
+    // Everything dulled but that floor, then the floor lit, each laid on whole so the road and the
+    // disc don't double up where they meet.
+    layer.clearRect(0, 0, W, H);
+    layer.fillStyle = DULL;
+    layer.fillRect(0, 0, W, H);
+    floor('#000', 'destination-out');
+    ctx.drawImage(layer.canvas, 0, 0);
+    layer.clearRect(0, 0, W, H);
+    floor(LIT.colour, 'source-over');
+    ctx.globalAlpha = LIT.alpha;
+    ctx.drawImage(layer.canvas, 0, 0);
+    ctx.globalAlpha = 1;
     this.toWorld(ctx, t);
-    ctx.lineJoin = 'round';
-    ctx.lineWidth = ROAD_WIDTH;
-    ctx.strokeStyle = LIT;
-    ctx.stroke(strip);
     // The line: white across the road, dashed black over it, so it reads as checkered at any size.
     const s = spotAt(track, track.finish);
     const [ax, az] = [Math.cos(s.yaw) * (ROAD_WIDTH / 2), -Math.sin(s.yaw) * (ROAD_WIDTH / 2)];

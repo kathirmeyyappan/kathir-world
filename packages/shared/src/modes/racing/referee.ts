@@ -12,6 +12,7 @@ export class Racing extends Game {
   private racers: Racer[] = [];
   private points: number[] = [];
   private tracks: number[] = []; // each race's track, dealt as the game begins
+  private crossed = new Map<string, number>(); // the tick each racer still sat in their kart crossed the line
   private round: Round | null = null;
 
   override get state(): RacingState {
@@ -102,7 +103,16 @@ export class Racing extends Game {
       const on = onTrack(track, kart.pos);
       if (!withinTrack(on) || on.at < track.finish) continue;
       round.finished.push(racer.id);
+      this.crossed.set(racer.id, tick);
       round.closes ??= tick + RACE.close * TICK_RATE;
+    }
+    // Someone over the line is let out of their kart a while on: a ghost, free to go where they
+    // like until the next race.
+    for (const [id, at] of this.crossed) {
+      if (tick < at + RACE.free * TICK_RATE) continue;
+      this.crossed.delete(id);
+      const player = here.get(id);
+      if (player) this.room.haunt(player);
     }
     const left = racing(round, this.racers);
     if (left.length === 0 || tick >= (round.closes ?? round.go + RACE.limit * TICK_RATE)) {
@@ -144,6 +154,7 @@ export class Racing extends Game {
 
   // Race `number` of the game, about to be run: those who've left are out of it from the start.
   private setUp(number: number): Round {
+    this.crossed.clear();
     return {
       number,
       track: this.tracks[number],

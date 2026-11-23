@@ -7,9 +7,10 @@ export const MIN_RACERS = 2; // how many it takes to start a game
 // How many races a game is: what it's set to at first, and the least and most it can be.
 export const RACES = { count: 3, min: 1, max: 9 };
 // A race's clocks, in seconds: its racers held on the grid; of that, the countdown at its end; from
-// its first finisher until it closes on whoever hasn't finished, the last of which is a hurry; how
-// long one that nobody finishes runs; and how long its leaderboard stands before the next begins.
-export const RACE = { grid: 5, countdown: 3, close: 45, hurry: 10, limit: 300, board: 6 };
+// its first finisher until it closes on whoever hasn't finished, the last of which is a hurry; from
+// a racer's crossing the line until they're let out of their kart, a ghost; how long a race that
+// nobody finishes runs; and how long its leaderboard stands before the next begins.
+export const RACE = { grid: 5, countdown: 3, close: 45, hurry: 10, free: 5, limit: 300, board: 6 };
 
 // Someone racing: who they are, what they were called and how they appeared as the game began
 // (their colour and the look they wore), and whether they've left the room since: someone who has

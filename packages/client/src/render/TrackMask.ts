@@ -1,7 +1,7 @@
 // The track in play as the floor's shader reads it (shaders.ts): a picture of the world from above,
 // a texel to every CELL metres round the track, each saying how far from the track's middle that
 // spot is, at the height the track runs at there, for up to two levels of it (a deck and the road
-// it goes over). The shader blends the four texels round a pixel, each read at the pixel's own
+// it goes over); all of the disc the track ends on reads as on it, its rim the edge. The shader blends the four texels round a pixel, each read at the pixel's own
 // height, so the track's edge comes out a clean line however coarse the picture. What's on the
 // track is the sim's to say (sim/tracks.ts `onTrack`, which a kart's rescue goes by); this draws
 // the same strip, from the same stretches of its middle.
@@ -27,10 +27,12 @@ export interface TrackMask {
 
 export function trackMask(track: Track): TrackMask {
   const spots = track.spots;
-  const x = Math.min(...spots.map((s) => s.x)) - REACH - CELL;
-  const z = Math.min(...spots.map((s) => s.z)) - REACH - CELL;
-  const width = Math.ceil((Math.max(...spots.map((s) => s.x)) + REACH + CELL - x) / CELL);
-  const depth = Math.ceil((Math.max(...spots.map((s) => s.z)) + REACH + CELL - z) / CELL);
+  const { end } = track.route;
+  const [xs, zs] = [spots.map((s) => s.x), spots.map((s) => s.z)];
+  const x = Math.min(...xs, end.x - end.r) - REACH - CELL;
+  const z = Math.min(...zs, end.z - end.r) - REACH - CELL;
+  const width = Math.ceil((Math.max(...xs, end.x + end.r) + REACH + CELL - x) / CELL);
+  const depth = Math.ceil((Math.max(...zs, end.z + end.r) + REACH + CELL - z) / CELL);
   // Each texel's nearest point of the middle, and its nearest on another level than that one: how
   // far off it is, and the track's height there.
   const off = [new Float32Array(width * depth).fill(Infinity), new Float32Array(width * depth).fill(Infinity)];
@@ -53,6 +55,21 @@ export function trackMask(track: Track): TrackMask {
           off[level][texel] = d;
           height[level][texel] = y;
         }
+    }
+  // The disc it ends on, on the level it comes in at: the edge's reading at its rim, less inside.
+  const floor = spots[spots.length - 1].y;
+  const round = end.r + REACH - TRACK_HALF;
+  for (let tj = Math.floor((end.z - round - z) / CELL); tj <= Math.floor((end.z + round - z) / CELL); tj++)
+    for (let ti = Math.floor((end.x - round - x) / CELL); ti <= Math.floor((end.x + round - x) / CELL); ti++) {
+      const texel = tj * width + ti;
+      const d = Math.max(
+        0,
+        TRACK_HALF + Math.hypot(x + (ti + 0.5) * CELL - end.x, z + (tj + 0.5) * CELL - end.z) - end.r,
+      );
+      const level = [0, 1].find((l) => off[l][texel] === Infinity || Math.abs(height[l][texel] - floor) <= LEVELS);
+      if (level === undefined || d > REACH || d >= off[level][texel]) continue;
+      off[level][texel] = d;
+      height[level][texel] = floor;
     }
   const data = new Uint8Array(width * depth * 4);
   for (let texel = 0; texel < width * depth; texel++)

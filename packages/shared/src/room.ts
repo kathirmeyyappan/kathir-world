@@ -172,7 +172,9 @@ export class Room {
       },
       haunt: (player) => {
         const seat = this.seats.get(player.id)!;
-        this.rebody(seat, { ...player.pos });
+        const at = { ...player.pos };
+        this.garage.take(seat.state);
+        this.rebody(seat, at);
         seat.state.ghost = true;
         return seat.state;
       },
