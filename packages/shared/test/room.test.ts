@@ -477,6 +477,12 @@ test("a shootout: the teams start apart indoors in their colours; a kill of the 
     `no room shared by the teams: ${rooms}`,
   );
   assert.deepEqual(rulesOf(game()).side(game(), idb), TEAMS[1]);
+  const sees = (ghost: boolean, other: string) => rulesOf(game()).sees(game(), { id: ida, ghost }, other);
+  assert.deepEqual(
+    [sees(false, idc), sees(false, idb), sees(true, idb)],
+    ['side', 'hidden', 'plain'],
+    'a team sees its own and not the others; a ghost sees everyone',
+  );
 
   // One snipes another put 5 m in front of them on the open floor, through the head, each pair on
   // a line of its own, clear of whoever shot last.
@@ -523,6 +529,7 @@ test("a shootout: the teams start apart indoors in their colours; a kill of the 
     own,
   );
   assert.equal(rulesOf(game()).side(game(), idb), null, 'and nobody is on a side');
+  assert.equal(sees(false, idb), 'plain');
 });
 
 test('room calls onEmpty when the last player leaves', () => {

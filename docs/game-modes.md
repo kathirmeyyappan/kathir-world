@@ -237,6 +237,14 @@ every death (`GameMode.died`, from its one `damage`), and the referee keeps each
 (`Rules.side`, null in the lobby), which is how the client knows a teammate's kill for friendly
 fire, and the teams by their points are its standings (`Rules.standings`).
 
+Who's shown to whom is a rule too (`Rules.sees`: `plain`, `side` or `hidden`). The client asks it
+once a frame (`ui/sight.ts` `shownTo`) and hands the name tags, the pins and the maps only those
+the player is shown, each with the colour they go by (`colourOf`: their side's, else their own
+look's) and whether their mark is a pointer as big as the player's own; the roster takes the same
+colour and keeps a side's players together, and the names in the kill lines are in it while the
+game has sides. While a game with standings is played they're in the top right with its clock
+(`ui/Scores.ts`).
+
 ## Racing
 
 A series of races, each on a track of its own, in karts, for points.
@@ -315,7 +323,7 @@ everything else, and it will change as modes and features are added (`CLAUDE.md`
 | What did this kill or death score?                | nothing                                | the Room's `damage`                                 | `GameMode.died`                 |
 | Whose side is this player on?                     | nobody's                               | friendly fire's kill line; names and marks (to come)| `Rules.side`                    |
 | How does the game stand?                          | it doesn't                             | the results screen; the HUD's points (to come)      | `Rules.standings`               |
-| How does this player see that one?                | plainly, in their own colour           | name tags, pins, maps, the roster, the chat's names | to build                        |
+| How does this player see that one?                | plainly, in their own colour           | name tags, pins, maps, the roster, the chat's names | `Rules.sees`, `Rules.side`      |
 | What is someone who joins now?                    | a player                               | joining                                             | `GameMode.joining`, `joined`    |
 | What does this player leaving do?                 | their seat goes                        | leaving                                             | `GameMode.left`                 |
 | Is the game set up to start?                      | there's none                           | the master's START; the GAME tab                    | `Rules.starts`                  |
@@ -380,7 +388,7 @@ outside dev until each can be played, so freeplay is run on every merge.
       the condition to start; bots' rows drawn and disabled.
 - [x] The game: colours, the sites dealt, the clock, the points, the kill lines, the end, and the
       results screen every mode fills in.
-- [ ] Who sees whom: names, pins and maps; the HUD's points and clock; the roster by team.
+- [x] Who sees whom: names, pins and maps; the HUD's points and clock; the roster by team.
 - [ ] Shootout on the home screen and in the guide.
 
 **4. Racing**

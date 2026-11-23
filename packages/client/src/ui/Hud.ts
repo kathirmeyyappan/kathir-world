@@ -80,6 +80,7 @@ export class Hud {
   private players = new Map<string, RosterEntry>();
   private myId = '';
   private master: string | null = null; // the room master's id, if the room has one
+  sided = false; // whether the room's game has sides right now: names in its kill lines are in theirs
   onChat: ((text: string) => void) | null = null;
   // Why the room's game refuses a row's command right now, or null (commands.ts `refusedBy`).
   refused: ((row: Row) => string | null) | null = null;
@@ -285,6 +286,8 @@ export class Hud {
       dead: boolean;
       ghost: boolean;
       avatar: AvatarId;
+      colour: string; // the one they go by as the room's game stands (sight.ts `colourOf`)
+      side: string | null; // the side they're on in it, by name, if any: the roster keeps a side together
     }[],
   ): void {
     let changed = false;
@@ -292,7 +295,7 @@ export class Hud {
       const e = this.players.get(p.id);
       if (!e) continue;
       const life = heartsOf(p.avatar);
-      const colour = nameColour(p);
+      const colour = p.colour;
       if (
         e.name !== p.name ||
         e.color !== colour ||
@@ -301,7 +304,8 @@ export class Hud {
         e.kills !== p.kills ||
         e.deaths !== p.deaths ||
         e.dead !== p.dead ||
-        e.ghost !== p.ghost
+        e.ghost !== p.ghost ||
+        e.side !== p.side
       ) {
         e.name = p.name;
         e.color = colour;
@@ -311,6 +315,7 @@ export class Hud {
         e.deaths = p.deaths;
         e.dead = p.dead;
         e.ghost = p.ghost;
+        e.side = p.side;
         changed = true;
       }
     }
@@ -462,38 +467,39 @@ export class Hud {
   // ran over bob and killed them".
   // `friendly`: the two are on one side of a game (the shared package's `Rules.side`).
   announceKill(shooter: string, victim: string, item: KillItem, headshot: boolean, friendly: boolean): void {
-    const li = document.createElement('li');
-    li.className = 'kill';
-    const [a, b] = [this.playerName(shooter), this.playerName(victim)];
-    if (friendly) li.textContent = `${a} killed ${b} with friendly fire`;
-    else if (item === 'kart') li.textContent = `${a} ran over ${b} and killed them`;
-    else if (item === 'explosion') li.textContent = `${a} blew up ${b}`;
-    else {
-      const how = item === 'pound' || item === 'strike' ? MOVE_KILLS[item] : item;
-      li.textContent = `${a} killed ${b} with a ${how}${headshot ? ' headshot' : ''}`;
-    }
-    this.pushLine(li);
+    const [a, b] = [this.who(shooter), this.who(victim)];
+    if (friendly) return this.death(a, ' killed ', b, ' with friendly fire');
+    if (item === 'kart') return this.death(a, ' ran over ', b, ' and killed them');
+    if (item === 'explosion') return this.death(a, ' blew up ', b);
+    const how = item === 'pound' || item === 'strike' ? MOVE_KILLS[item] : item;
+    this.death(a, ' killed ', b, ` with a ${how}${headshot ? ' headshot' : ''}`);
   }
 
   announceCrash(victim: string): void {
-    const li = document.createElement('li');
-    li.className = 'kill';
-    li.textContent = `${this.playerName(victim)} drove into a wall and died`;
-    this.pushLine(li);
+    this.death(this.who(victim), ' drove into a wall and died');
   }
 
   announceFall(victim: string): void {
-    const li = document.createElement('li');
-    li.className = 'kill';
-    li.textContent = `${this.playerName(victim)} fell to their death`;
-    this.pushLine(li);
+    this.death(this.who(victim), ' fell to their death');
   }
 
   announceOutOfBounds(victim: string): void {
+    this.death(this.who(victim), ' died out of bounds');
+  }
+
+  // A line of the log saying who died and how.
+  private death(...parts: (Node | string)[]): void {
     const li = document.createElement('li');
     li.className = 'kill';
-    li.textContent = `${this.playerName(victim)} died out of bounds`;
+    li.append(...parts);
     this.pushLine(li);
+  }
+
+  // A player's name for a line of the log, in the colour they go by where the game has sides.
+  private who(id: string): HTMLSpanElement {
+    const span = Object.assign(document.createElement('span'), { textContent: this.playerName(id) });
+    if (this.sided) span.style.color = this.players.get(id)?.color ?? '';
+    return span;
   }
 
   private pushLine(li: HTMLLIElement): void {
@@ -510,7 +516,10 @@ export class Hud {
 
   private renderPlayers(): void {
     const me = this.players.get(this.myId);
-    const others = [...this.players].filter(([id]) => id !== this.myId);
+    // Everyone else, a side's players together (in the sides' order, those on none after them).
+    const others = [...this.players]
+      .filter(([id]) => id !== this.myId)
+      .sort(([, a], [, b]) => (a.side ?? '~').localeCompare(b.side ?? '~'));
     const fit = this.rosterRows();
     const perPage = me ? fit - 1 : fit;
     this.rosterPages = Math.max(1, Math.ceil(others.length / perPage));
@@ -569,6 +578,7 @@ interface RosterEntry {
   deaths: number;
   dead: boolean;
   ghost: boolean; // in the room and not in its game (the shared package's sim/types.ts)
+  side: string | null; // the side they're on in the room's game, by name, if any
 }
 
 function entry(p: RosterPlayer): RosterEntry {
@@ -582,6 +592,7 @@ function entry(p: RosterPlayer): RosterEntry {
     deaths: p.deaths ?? 0,
     dead: !!p.dead,
     ghost: !!p.ghost,
+    side: null,
   };
 }
 

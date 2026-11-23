@@ -47,6 +47,14 @@ export const SHOOTOUT_RULES: Rules = {
       .map((_, team) => ({ side: TEAMS[team], points: game.points[team], won: game.points[team] === most }))
       .sort((a, b) => b.points - a.points);
   },
+
+  // A team sees its own, and nothing of the others but their bodies. A ghost sees everyone, and is
+  // seen by everyone as anyone is.
+  sees(game, viewer, other) {
+    const [mine, theirs] = [this.side(game, viewer.id), this.side(game, other)];
+    if (viewer.ghost || mine === null || theirs === null) return 'plain';
+    return mine === theirs ? 'side' : 'hidden';
+  },
 };
 
 // Whether its game is being fought, or has just been: the teams are sides only then.

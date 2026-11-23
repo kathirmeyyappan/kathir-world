@@ -7,7 +7,7 @@
 import { Matrix, Vector3, type Camera, type Scene } from '@babylonjs/core';
 import { AVATARS, EYE_HEIGHT, SEATED, WORLD_STRUCTURES } from '@world/shared';
 import type { RemotePlayer } from '../net/Interpolation';
-import { nameColour } from '../render/liveries';
+import type { Sighted } from './sight';
 
 export const ABOVE_BODY = 0.3; // metres from the top of the body to the middle of the name
 const TAG_EM = 0.23; // metres: the font size in the world, about 20 px at 6 m
@@ -50,7 +50,7 @@ export class NameTags {
   private readonly root = document.getElementById('name-tags')!;
   private readonly tags = new Map<string, Tag>();
 
-  update(players: RemotePlayer[], scene: Scene, camera: Camera, canvas: HTMLCanvasElement): void {
+  update(players: (RemotePlayer & Sighted)[], scene: Scene, camera: Camera, canvas: HTMLCanvasElement): void {
     const w = canvas.clientWidth;
     const h = canvas.clientHeight;
     const eye = camera.globalPosition;
@@ -60,7 +60,7 @@ export class NameTags {
       seen.add(p.id);
       const tag = this.tags.get(p.id) ?? this.create(p);
       if (p.name !== tag.name) tag.el.textContent = tag.name = p.name;
-      const colour = nameColour(p);
+      const colour = p.colour;
       if (colour !== tag.color) tag.el.style.color = tag.color = colour;
       if (p.ghost !== tag.ghost) tag.el.classList.toggle('ghost', (tag.ghost = p.ghost));
       // Sat in a kart, its feet are on the seat and only SEATED of its body stands over them.

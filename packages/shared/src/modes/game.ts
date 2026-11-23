@@ -64,6 +64,7 @@ export function gameRules(own: Playing): Rules {
     starts: () => null,
     side: () => null,
     standings: () => [],
+    sees: () => 'plain',
   };
 }
 

@@ -17,7 +17,6 @@ import {
   HIGH_UP,
   LANDMARKS,
   WORLD_GROUND,
-  type Appearance,
   type KrustyKrabMark,
   type Landmark,
   type Pad,
@@ -30,12 +29,12 @@ import {
   type WorldPart,
 } from '@world/shared';
 import { BOOST_RAINBOW } from '../render/BoostPads';
-import { nameColour } from '../render/liveries';
+import type { Sighted } from './sight';
 import type { Elevation } from './Elevation';
 
 export interface MinimapFrame {
   me: { x: number; y: number; z: number; yaw: number };
-  players: (Appearance & { x: number; y: number; z: number; yaw: number; bot: boolean })[];
+  players: (Sighted & { x: number; y: number; z: number; yaw: number; bot: boolean })[];
   cubes: { x: number; z: number }[];
 }
 
@@ -137,9 +136,9 @@ export class MapCanvas {
     for (const c of frame.cubes) this.square(t, c.x, c.z, 2);
     for (const p of frame.players) {
       ctx.globalAlpha = Math.abs(p.y - y) < LEVEL ? 1 : 0.45;
-      ctx.fillStyle = nameColour(p);
+      ctx.fillStyle = p.colour;
       if (p.bot) this.bot(t, p.x, p.z);
-      else this.arrow(t, p.x, p.z, p.yaw - (view === 'world' ? 0 : frame.me.yaw), OTHERS);
+      else this.arrow(t, p.x, p.z, p.yaw - (view === 'world' ? 0 : frame.me.yaw), p.pointer ? 1 : OTHERS);
     }
     ctx.globalAlpha = 1;
     ctx.fillStyle = '#fff';

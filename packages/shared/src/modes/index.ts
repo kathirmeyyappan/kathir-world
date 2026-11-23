@@ -10,7 +10,7 @@ import { SHOOTOUT_RULES } from './shootout/rules';
 
 export { MASTER_LEFT, RESULTS_SECONDS, START_SECONDS, type Phase } from './game';
 export type { GameMode, Joining, ModeRoom } from './mode';
-export type { Dying, Rules, Side, Standing } from './rules';
+export type { Dying, Rules, Side, Sight, Standing } from './rules';
 export * from './shootout/state';
 
 export const GAME_MODE_IDS = ['freeplay', 'racing', 'shootout'] as const;
