@@ -328,7 +328,7 @@
 }
 /* A game's settings (a section with a board of its players in it) give each row more room than a
    list of toggles has. */
-#menu section:has(.board) > :is(.row, .stepper, .board) + :is(.row, .stepper, .board) {
+#menu section:has(.board) > :is(.row, .stepper, .board, .toggles) + :is(.row, .stepper, .board) {
   margin-top: 20px;
 }
 
@@ -360,6 +360,32 @@
   color: rgba(255, 255, 255, 0.5);
   border-color: rgba(255, 255, 255, 0.3);
   background: rgba(255, 255, 255, 0.05);
+}
+
+/* Toggles: a button to each thing listed, its name beside what it's on, as many to a line as fit,
+   close under the row that says how many there are. Not the player's to press, they read the same. */
+#menu .toggles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+#menu .toggles[hidden] {
+  display: none;
+}
+#menu .toggles .toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+#menu .toggles .toggle .name {
+  font: 9px var(--pixel);
+  color: var(--accent-soft);
+}
+#menu .toggles .toggle:disabled {
+  opacity: 1;
+  cursor: default;
 }
 
 /* A stepper: its name, then an AUTO button (lit while the game has the choice) and the value

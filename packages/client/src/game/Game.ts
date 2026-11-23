@@ -922,8 +922,13 @@ export class Game {
       if (!this.master()) return { text: 'Waiting for room master to organize and start the game...' };
       return { text: IS_TOUCH ? 'Go to the menu to start the game.' : 'Go to the menu (press M) to start the game.' };
     }
-    if (phase === 'starting' && until !== null)
-      return { text: `Game is starting in ${Math.max(1, secondsUntil(until, this.tick))}` };
+    if (phase === 'starting')
+      return {
+        text:
+          until === null
+            ? "Waiting for the game's bots to join..."
+            : `Game is starting in ${Math.max(1, secondsUntil(until, this.tick))}`,
+      };
     if (showing.line || showing.board) return showing.line;
     return this.prediction?.state.ghost ? { text: 'Spectating as a ghost until this game ends.' } : null;
   }

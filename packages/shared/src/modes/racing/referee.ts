@@ -3,12 +3,31 @@
 import { TICK_RATE } from '../../sim/constants';
 import { gridOf, onTrack, routes, trackOf, withinTrack } from '../../sim/tracks';
 import type { PlayerState } from '../../sim/types';
-import { Game } from '../game';
+import { Game, START_SECONDS } from '../game';
 import { RACING_RULES } from './rules';
-import { RACE, RACES, isRacingChange, pointsFor, racing, type Racer, type RacingState, type Round } from './state';
+import {
+  BOT_WAIT,
+  RACE,
+  RACER_BOT,
+  RACES,
+  botName,
+  isRacingChange,
+  pointsFor,
+  racing,
+  ratingOf,
+  type Racer,
+  type RacingState,
+  type Round,
+} from './state';
 
 export class Racing extends Game {
   private races = RACES.count;
+  private bots: number[] = []; // each bot's level
+  // The bots asked for as the game started and still to come: the level of each, by the name it's
+  // to come as. And how good a racer each that has come is asked to be, by its id.
+  private awaited = new Map<string, number>();
+  private ratings = new Map<string, number>();
+  private givenUp = 0; // the tick from which the start no longer waits for them
   private racers: Racer[] = [];
   private points: number[] = [];
   private tracks: number[] = []; // each race's track, dealt as the game begins
@@ -21,17 +40,24 @@ export class Racing extends Game {
       ...super.state,
       mode: 'racing',
       races: this.races,
+      bots: [...this.bots],
       racers: this.racers.map((racer) => ({ ...racer })),
       points: [...this.points],
       round,
     };
   }
 
-  // Whoever is in the lobby is to race. Someone who comes once a game has begun watches it.
+  // Whoever is in the lobby is to race, and a bot the game asked for has come. Someone who comes
+  // once a game has begun watches it.
   override joined(player: PlayerState, made: boolean): void {
     super.joined(player, made);
+    const level = player.bot ? this.awaited.get(player.name) : undefined;
+    if (level !== undefined) {
+      this.awaited.delete(player.name);
+      this.ratings.set(player.id, ratingOf(level));
+    }
     if (player.bot || player.ghost) return;
-    this.racers.push(racerOf(player));
+    this.racers.push(this.racerOf(player));
     this.room.publish();
   }
 
@@ -53,14 +79,34 @@ export class Racing extends Game {
 
   protected override set(change: unknown): boolean {
     if (!isRacingChange(change)) return false;
-    this.races = Math.max(RACES.min, Math.min(RACES.max, change.races));
+    if ('bots' in change) this.bots = [...change.bots];
+    else this.races = Math.max(RACES.min, Math.min(RACES.max, change.races));
     return true;
   }
 
-  // The game begins: whoever is here is who races, under the name they have now, each race is
-  // dealt a track of its own, and the first is set up for everyone to be put on its grid.
+  // Its bots are asked for as its start is counted down, each by the name it's to come as.
+  protected override gather(): void {
+    this.awaited.clear();
+    this.bots.forEach((level, i) => {
+      if (this.room.call(RACER_BOT, botName(i))) this.awaited.set(botName(i), level);
+    });
+    this.givenUp = this.room.tick() + (START_SECONDS + BOT_WAIT) * TICK_RATE;
+  }
+
+  protected override awaits(name: string): boolean {
+    return this.awaited.has(name);
+  }
+
+  protected override gathered(): boolean {
+    return this.awaited.size === 0 || this.room.tick() >= this.givenUp;
+  }
+
+  // The game begins: whoever is here is who races, its bots among them, under the name they have
+  // now, each race is dealt a track of its own, and the first is set up for everyone to be put on
+  // its grid. A bot that hasn't come by now isn't in it.
   protected override begin(): void {
-    this.racers = this.room.people().map(racerOf);
+    this.awaited.clear();
+    this.racers = this.room.everyone().map((player) => this.racerOf(player));
     this.points = this.racers.map(() => 0);
     const dealt = new Set<number>();
     while (dealt.size < this.races) dealt.add(Math.floor(this.room.random() * routes().length));
@@ -92,7 +138,7 @@ export class Racing extends Game {
     if (tick < round.go) return;
     const was = round.finished.length + round.out.length;
     const track = trackOf(round.track);
-    const here = new Map(this.room.people().map((p) => [p.id, p]));
+    const here = new Map(this.room.everyone().map((p) => [p.id, p]));
     for (const racer of racing(round, this.racers)) {
       const player = here.get(racer.id);
       const kart = player && this.room.kartOf(player);
@@ -127,8 +173,10 @@ export class Racing extends Game {
 
   // Back in the lobby everyone there is to race the next game, those who watched the last included.
   protected override toLobby(): void {
+    this.awaited.clear();
+    this.ratings.clear();
     this.round = null;
-    this.racers = this.room.people().map(racerOf);
+    this.racers = this.room.people().map((player) => this.racerOf(player));
     super.toLobby();
   }
 
@@ -144,12 +192,23 @@ export class Racing extends Game {
     if (round.number + 1 >= this.races) return this.finish();
     this.room.clear();
     this.round = this.setUp(round.number + 1);
-    const here = new Map(this.room.people().map((p) => [p.id, p]));
+    const here = new Map(this.room.everyone().map((p) => [p.id, p]));
     for (const racer of this.racers) {
       const player = here.get(racer.id);
       if (player) this.place(player);
     }
     this.room.publish();
+  }
+
+  private racerOf(player: PlayerState): Racer {
+    return {
+      id: player.id,
+      name: player.name,
+      colour: player.color,
+      avatar: player.avatar,
+      rating: this.ratings.get(player.id) ?? null,
+      gone: false,
+    };
   }
 
   // Race `number` of the game, about to be run: those who've left are out of it from the start.
@@ -165,8 +224,4 @@ export class Racing extends Game {
       over: null,
     };
   }
-}
-
-function racerOf(player: PlayerState): Racer {
-  return { id: player.id, name: player.name, colour: player.color, avatar: player.avatar, gone: false };
 }

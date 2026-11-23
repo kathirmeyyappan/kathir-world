@@ -21,7 +21,7 @@ export interface Section {
   wide?: boolean; // takes the room of two where a tab's sections stand side by side (a phone on its side)
 }
 
-export type Row = Toggle | Stepper | Field | Select | Buttons | Links | Share | Words | Board;
+export type Row = Toggle | Toggles | Stepper | Field | Select | Buttons | Links | Share | Words | Board;
 
 // A setting with a few values: its button reads the one it's on and moves it to the next.
 export interface Toggle {
@@ -30,6 +30,15 @@ export interface Toggle {
   key?: string; // its key in play, shown with a keyboard
   value: () => string;
   press: () => void;
+}
+
+// A setting to each of a list of things that come and go (a game's bots, each with its level): a
+// button to each, its name beside the value it's on, which a press moves to the next.
+export interface Toggles {
+  kind: 'toggles';
+  items: () => { label: string; value: string }[];
+  press: (index: number) => void;
+  can: () => boolean; // whether they're the player's to change
 }
 
 // A setting stepped through its values, < and > either side of the one it's on. With `auto`, a
@@ -147,6 +156,8 @@ export function draw(row: Row): Drawn {
   switch (row.kind) {
     case 'toggle':
       return toggle(row);
+    case 'toggles':
+      return toggles(row);
     case 'stepper':
       return stepper(row);
     case 'field':
@@ -255,6 +266,31 @@ function toggle(row: Toggle): Drawn {
     button.classList.toggle('off', value === 'OFF');
   };
   el.append(name, button);
+  return { el, refresh };
+}
+
+// Drawn afresh whenever what it lists changes, and gone while it lists nothing.
+function toggles(row: Toggles): Drawn {
+  const el = element('div', 'toggles');
+  let shown = '';
+  const refresh = () => {
+    const items = row.items();
+    const can = row.can();
+    const now = JSON.stringify([items, can]);
+    if (now === shown) return;
+    shown = now;
+    el.hidden = items.length === 0;
+    el.replaceChildren(
+      ...items.map((item, i) => {
+        const button = element('button', 'toggle');
+        button.translate = false;
+        button.disabled = !can;
+        button.append(element('span', 'name', item.label), element('span', 'value', item.value));
+        button.addEventListener('click', () => row.press(i));
+        return button;
+      }),
+    );
+  };
   return { el, refresh };
 }
 

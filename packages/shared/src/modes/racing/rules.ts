@@ -25,7 +25,8 @@ export const RACING_RULES: Rules = {
   }),
 
   starts(game) {
-    return isRacing(game) && game.racers.length < MIN_RACERS ? `a race needs ${MIN_RACERS} racers` : null;
+    if (!isRacing(game) || game.racers.length + game.bots.length >= MIN_RACERS) return null;
+    return `a race needs ${MIN_RACERS} racers`;
   },
 
   // The racers by their points, the most first: everyone level on the most is winning, or has won.
