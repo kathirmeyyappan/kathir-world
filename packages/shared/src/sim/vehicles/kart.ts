@@ -162,7 +162,7 @@ const COAST = 1.5; // times its acceleration: slowing with no key held, so it st
 const WHEEL_RATE = 8; // per second: how fast the wheel follows the keys, full over in an eighth of a second
 // Metres: a kerb or a ramp's lip a kart at its model's size rolls up onto rather than running into.
 // One built bigger rolls up as much more (`kerbOf`): its circles reach as much further up a slope.
-const STEP = 0.4;
+export const STEP = 0.4;
 const ROLL = 0.25; // of its width: the most it moves between looks at the ground under it
 // m/s: over a crest, how much faster upward it's going than the ground it comes onto would carry
 // it, past which it leaves the ground: at its speed, a slope's top a sixth steeper than what follows.
