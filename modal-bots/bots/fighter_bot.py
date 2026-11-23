@@ -15,13 +15,16 @@ hurt it. How well it does all of it is its ``Skill``, and what it's like is its 
    called from chat it's of the middle level. Its own form sets it a little either side of that.
 
 3. Its weapons. It carries the ones its temper names and holds the one it likes best, asking for
-   it by command until it has it. With the wits to, it draws its other where the first doesn't
-   suit: a rifle with someone right on top of it, a spray whose tank has run dry.
+   it by command until it has it, and its other while a spray's tank that ran dry fills. With the
+   wits to, it holds whichever of them suits (``Arm.suits``): a gun for someone a rifle is too
+   near for or a spray can't reach, a spray for someone right on top of a gun, and once its ice
+   has chilled someone, the gun to finish them with.
 
 4. Seeing. Someone is in its sight when nothing stands between its eyes and their chest. It
    checks the nearest few of those it's against every few ticks and goes for the nearest in
    sight, staying on whoever it's already fighting unless another is much nearer, and turning on
-   whoever just hurt it. Someone newly in its sight it takes its reaction to go for.
+   whoever just hurt it. Someone newly in its sight it takes its reaction to go for. In a game
+   with sides, one with the wits goes for whoever in its reach is nearest dead.
 
 5. Aiming and firing. Its aim swings toward where it believes its target is (``Aim``), and it
    fires when that's on them and they're in its weapon's reach: a shot as often as the weapon
@@ -39,7 +42,8 @@ hurt it. How well it does all of it is its ``Skill``, and what it's like is its 
    bolder the nearer: along a way over the ground (``Route``), found off its event loop and found
    again as they move, or straight across open floor. Hurt enough, by its nerve and its wits, it
    breaks off for the nearest heart. In a game with sides and nobody to fight near, it keeps with
-   its own.
+   its own. With nobody to go for at all it wanders: the shy from one lookout to another, the
+   bold anywhere, staying a while at each.
 
 8. Dying. Where its game brings the dead back, it asks to be after a few seconds and takes up its
    weapon again; anywhere else it lies there until the room drops its seat, which ends its run.
@@ -103,8 +107,14 @@ JOLT = 3.0  # m/s of change in how someone is moving that is them changing their
 SCOPED_LEAD = 0.5  # the least of the lead its aim gives someone down a scope, for the least skilled
 BURST_SECONDS = (0.6, 2.0)  # how long it holds a spray at a go
 DRY = 0.4  # seconds of fuel under which a spray's tank is as good as empty
-REFILLED_SECONDS = 9.0  # how long it leaves a spray put away before taking it up again
-CROWDED = 9.0  # metres within which someone is right on top of a rifle
+REFILLED_SECONDS = 9.0  # how long it leaves a spray that ran dry put away
+KEEP_SECONDS = 2.0  # how long it keeps to a weapon it has just drawn, whatever would suit better
+TO_DRAW = 1.4  # the room to spare a weapon has to suit with for it to be drawn in another's place
+# How much further than its weapon reaches the one with no wits takes it to: it fires from there,
+# and a spray's tank is half gone by the time it's any use.
+MISJUDGED = 0.4
+CHILL_LEFT = 1.0  # seconds of chill left on someone, under which they're as good as thawed
+FINISH = 3.0  # hearts fewer than the nearest that someone in reach has, to be gone for first
 SWAP_SECONDS = (1.2, 0.4)  # how long drawing another weapon keeps it from firing, least skill to most
 ASK_EVERY = TICK_RATE  # ticks between askings for a weapon it isn't holding yet
 THINK_EVERY = 6  # ticks between its thoughts about where to go
@@ -119,20 +129,23 @@ REPLAN = 4.0  # metres its goal has to move for it to find its way again
 REPLAN_EVERY = TICK_RATE // 2  # ticks, at the least, between findings of a way
 ARRIVED = 1.5  # metres from where it was going that count as there
 HEART_REACH = 70.0  # metres it will go for a heart
-HEARTS_FULL = 10.0
 NEARBY_HEART = 8.0  # metres: a heart this close is worth a detour for anyone not at full health
-# The hearts under which the one with the most wits breaks off for one: the boldest, and the shyest.
-# With fewer wits, fewer hearts, down to never thinking of it.
-HURT = (2.0, 5.0)
+# The share of a full life under which the one with the most wits breaks off for a heart: the
+# boldest, and the shyest. With fewer wits, less of one, down to never thinking of it.
+HURT = (0.2, 0.5)
 NO_WAY_SECONDS = 4.0  # how long it leaves alone somewhere it found no way to
 KEEP_WITH = 18.0  # metres from the nearest of its side past which it goes back to them
 FAR_FIGHT = 45.0  # metres within which someone it's against is a fight to go to before its own side
 RUN_FROM = 12.0  # metres of way left from which it runs
 RESPAWN_SECONDS = (2.0, 5.0)  # how long it lies dead before asking to be brought back
+ROAM = (25.0, 90.0)  # metres across the floor, the least and the most, to somewhere it wanders to
+ROAM_PICKS = 12  # how many spots it thinks of before it settles on one
+LINGER_SECONDS = (2.0, 7.0)  # how long it stays where it wandered to
 # Seconds after letting go of a ladder that it walks with its look turned aside, so the walk that
 # took hold of it (straight in, facing it) doesn't take hold again.
 ASIDE_SECONDS = 1.2
 HISTORY = 16  # ticks of where everyone was that it keeps
+FOREVER = 10**9  # ticks: longer than any run
 
 
 async def run_fighter_bot(
@@ -242,7 +255,9 @@ class Fighter:
         self.arm = self.temper.arms[0]  # the weapon it means to hold
         self._asked = -ASK_EVERY  # the tick it last asked for it
         self._fumbling = 0  # the tick until which a weapon just drawn isn't ready
-        self._put_away = -(10**9)  # the tick it last put its best weapon away
+        self._dried: dict[str, int] = {}  # the tick each of its sprays last ran dry
+        self._kept_until = 0  # the tick until which it keeps to the weapon it has drawn
+        self._linger = 0  # the tick until which it stays where it wandered to
         self._seen: deque[dict[str, Vec3]] = deque(maxlen=HISTORY)
         self._bodies: dict[str, tuple[int, int]] = {}  # each player's body, and the tick it was first seen in it
         self._sighted: dict[str, bool] = {}  # whether each of those it checked last was in sight
@@ -256,6 +271,7 @@ class Fighter:
             None  # who it's watching move, since when they've gone on as they were, and how they were moving
         )
         self._burst_until = 0  # the tick a spray's burst runs to
+        self._next_burst = 0  # and the tick its next begins
         self._head = False  # whether its mark on this target is their head
         self._sway = 0  # which way it's circling: 1, -1, or 0 stood
         self._sway_until = 0
@@ -318,11 +334,11 @@ class Fighter:
             for p in state.players.values()
             if p.id != me.id and not p.dead and sides.get(p.id, -1) == sides.get(me.id, -2)
         ]
-        target = self._watch(state, me, foes, tick)
+        target = self._watch(state, me, foes, me.id in sides, tick)
         asks = self._hold(me, target, tick)
         if tick >= self._next_think:
             self._next_think = tick + THINK_EVERY
-            self._think(state, me, foes, allies, target, tick)
+            self._think(state, me, foes, allies, target, idle, tick)
         eye = self.bodies.eye_of(me)
         mark = self._mark(me, target)
         if mark is not None:
@@ -381,9 +397,10 @@ class Fighter:
 
         return sorted(filter(against, state.players.values()), key=lambda p: _apart(me.pos, p.pos))
 
-    def _watch(self, state: WorldState, me: Player, foes: list[Player], tick: int) -> Player | None:
+    def _watch(self, state: WorldState, me: Player, foes: list[Player], sided: bool, tick: int) -> Player | None:
         """Who it's fighting this tick: the nearest of those it's against in its sight, once it has
-        had its reaction to them."""
+        had its reaction to them. In a game with sides (``sided``), whoever its side would rather
+        it went for."""
         if tick >= self._next_sight:
             self._next_sight = tick + SIGHT_EVERY
             eye = self.bodies.eye_of(me)
@@ -402,9 +419,11 @@ class Fighter:
         nearest = in_sight[0]
         current = next((p for p in in_sight if p.id == self.target), None)
         hurt = next((p for p in in_sight if p.id == self._hurt_by), None)
-        if current is not None and _apart(me.pos, nearest.pos) >= STICK * _apart(me.pos, current.pos):
+        weak = self._weakest(me, in_sight) if sided else None
+        stays = weak is None or weak is current
+        if current is not None and stays and _apart(me.pos, nearest.pos) >= STICK * _apart(me.pos, current.pos):
             return current
-        chosen = hurt or nearest
+        chosen = hurt or weak or nearest
         self._hurt_by = None
         if self._noticed is None or self._noticed[0] != chosen.id:
             known = self.target == chosen.id
@@ -419,36 +438,58 @@ class Fighter:
     def _hold(self, me: Player, target: Player | None, tick: int) -> list[str]:
         """The weapon it means to hold as things stand, and the command for it while it isn't
         holding it."""
-        best = self.temper.arms[0]
-        spare = self.temper.arms[1] if len(self.temper.arms) > 1 else None
-        wanted = self.arm
         held = me.item.id if me.item is not None else None
-        if spare is not None and self.arm == best:
-            dry = held == best and me.item is not None and me.item.fuel is not None and me.item.fuel < DRY
-            crowded = ARMS[best].scoped and target is not None and _apart(me.pos, target.pos) < CROWDED
-            if dry or (crowded and self._nous < self.skill.wits):
-                wanted = spare
-                self._put_away = tick
-        elif spare is not None and self.arm == spare:
-            rested = tick - self._put_away > REFILLED_SECONDS * TICK_RATE
-            clear = target is None or _apart(me.pos, target.pos) > 2 * CROWDED
-            if rested and (clear or not ARMS[best].scoped):
-                wanted = best
-        if wanted != self.arm:
+        if me.item is not None and held == self.arm and me.item.fuel is not None and me.item.fuel < DRY:
+            self._dried[self.arm] = tick
+        # The ones with a tank to fire: one that ran dry is left to fill.
+        filled = [
+            arm for arm in self.temper.arms if tick - self._dried.get(arm, -FOREVER) > REFILLED_SECONDS * TICK_RATE
+        ]
+        arms = filled or list(self.temper.arms)
+        wanted = arms[0]
+        if target is not None and self._sharp:
+            apart, chilled = _apart(me.pos, target.pos), target.chilled > CHILL_LEFT
+            # The one in its hand as far as it goes, and another only where that one is well suited.
+            suited = (arm for arm in arms if ARMS[arm].suits(apart, chilled, 1 if arm == self.arm else TO_DRAW))
+            wanted = next(suited, wanted)
+        if wanted != self.arm and (tick >= self._kept_until or self.arm not in arms):
             self.arm = wanted
             worst, quickest = SWAP_SECONDS
             self._fumbling = tick + round((worst + (quickest - worst) * self.skill.wits) * TICK_RATE)
+            self._kept_until = tick + round(KEEP_SECONDS * TICK_RATE)
             self._asked = -ASK_EVERY
         if held != self.arm and tick - self._asked >= ASK_EVERY:
             self._asked = tick
             return [self.arm]
         return []
 
+    @property
+    def _sharp(self) -> bool:
+        """Whether it has the wits to weigh things: which weapon suits, who's nearest dead."""
+        return self._nous < self.skill.wits
+
+    def _weakest(self, me: Player, in_sight: list[Player]) -> Player | None:
+        """Who its side would rather it went for than the nearest in its sight: someone in its
+        weapon's reach a good deal nearer dead, for a fighter with the wits to pick them out."""
+        reached = [p for p in in_sight if self._in_reach(me, p)]
+        if not self._sharp or not reached:
+            return None
+        weak = min(reached, key=lambda p: p.hearts)
+        return weak if weak.hearts <= in_sight[0].hearts - FINISH else None
+
     def _think(
-        self, state: WorldState, me: Player, foes: list[Player], allies: list[Player], target: Player | None, tick: int
+        self,
+        state: WorldState,
+        me: Player,
+        foes: list[Player],
+        allies: list[Player],
+        target: Player | None,
+        idle: bool,
+        tick: int,
     ) -> None:
         """Where it's going, with nobody to fight where it stands: a heart when it's hurt, whoever
-        it's against, or its own side."""
+        it's against, its own side, or with nobody to go for, wherever it wanders. Nowhere while
+        it stands by (``idle``)."""
         feet = _feet(me)
         heart = self._heart(state, me, target is not None)
         if heart is not None:
@@ -465,7 +506,10 @@ class Fighter:
                 self._go(me, _feet(buddy), tick)
                 return
         if quarry is None:
-            self._goal = self._route = None
+            if idle:
+                self._goal = self._route = None
+            else:
+                self._wander(me, tick)
             return
         # The shy stop where they can see whoever it is from as far as their weapon likes; the
         # bold go right up.
@@ -479,7 +523,8 @@ class Fighter:
     def _heart(self, state: WorldState, me: Player, fighting: bool) -> Vec3 | None:
         """The heart to break off for, if it's hurt enough to: by its nerve, the shy sooner, and
         only with the wits to think of it. One right beside it is worth taking whoever it is."""
-        if me.hearts >= HEARTS_FULL:
+        full = self.bodies.life_of(me.avatar)
+        if me.hearts >= full:
             return None
         hearts = [p for p in state.pickups.values() if p.kind in ("heart", "big-heart")]
         if not hearts:
@@ -487,12 +532,29 @@ class Fighter:
         nearest = min(hearts, key=lambda p: math.dist((p.x, p.y, p.z), (me.pos.x, me.pos.y, me.pos.z)))
         away = math.dist((nearest.x, nearest.y, nearest.z), (me.pos.x, me.pos.y, me.pos.z))
         boldest, shyest = HURT
-        under = (boldest + (shyest - boldest) * (1 - self.temper.nerve)) * self.skill.wits
+        under = full * (boldest + (shyest - boldest) * (1 - self.temper.nerve)) * self.skill.wits
         wanted = me.hearts <= under and away <= HEART_REACH
         handy = away <= NEARBY_HEART and not fighting and self.skill.wits > 0.2
         if not (wanted or handy):
             return None
         return Vec3(nearest.x, self.solids.ground_at(nearest.x, nearest.z, nearest.y), nearest.z)
+
+    def _wander(self, me: Player, tick: int) -> None:
+        """Somewhere to be with nobody to go for: once it has stayed a while where it is, a spot
+        some way off, a lookout for the shy and anywhere for the bold."""
+        if self._goal is not None:
+            self._linger = tick + round(self.dice.uniform(*LINGER_SECONDS) * TICK_RATE)
+            self._go(me, self._goal, tick)
+            return
+        if tick < self._linger:
+            return
+        feet = _feet(me)
+        nearest, furthest = ROAM
+        spots = self.ground.lookouts if self.temper.nerve < 0.5 else range(len(self.ground.nodes))
+        picks = [self.ground.nodes[self.dice.choice(spots)] for _ in range(ROAM_PICKS)]
+        within = [spot for spot in picks if nearest <= _across(feet, spot) <= furthest]
+        if within:
+            self._go(me, self.dice.choice(within), tick)
 
     def _go(self, me: Player, goal: Vec3, tick: int) -> None:
         """Make for ``goal`` (feet): along the way it has while that still leads there, and
@@ -638,8 +700,9 @@ class Fighter:
             return
         if arm.cone is not None:
             # A burst, and then as long a wait as any of its shots gets.
-            if tick >= self._burst_until + round(self.dice.uniform(0, 2 * self.skill.idle) * TICK_RATE):
+            if tick >= self._next_burst:
                 self._burst_until = tick + round(self.dice.uniform(*BURST_SECONDS) * TICK_RATE)
+                self._next_burst = self._burst_until + round(self.dice.uniform(0, 2 * self.skill.idle) * TICK_RATE)
             controls.shoot(tick < self._burst_until)
             return
         slowest, quickest = SETTLE_SECONDS
@@ -676,7 +739,8 @@ class Fighter:
         return False
 
     def _in_reach(self, me: Player, target: Player) -> bool:
-        return _apart(me.pos, target.pos) <= ARMS[self.arm].reach
+        """Whether ``target`` is as near as it takes its weapon to reach."""
+        return _apart(me.pos, target.pos) <= ARMS[self.arm].reach * (1 + MISJUDGED * (1 - self.skill.wits))
 
     def _near(self, arm: Arm) -> float:
         """The nearest it likes to use a weapon from, the bolder the nearer."""

@@ -37,13 +37,23 @@ class Arm:
     scoped: bool  # fires only down its scope, which all but stops whoever looks down it
     near: float  # metres: nearer than this a fighter backs off with it
     far: float  # and further than this it closes in
+    chills: bool = False  # leaves whoever it touches chilled a while, at half their walk
+
+    def suits(self, apart: float, chilled: bool, spare: float = 1) -> bool:
+        """Whether it's the weapon for someone ``apart`` metres off: they're in its reach, a
+        bullet isn't fired from right on top of them, where a spray can't miss and an aim can't
+        keep up, and what chills is for someone who isn't chilled yet. With ``spare`` over 1,
+        whether it is with that much room to spare, either end."""
+        if apart * spare > self.reach or (self.chills and chilled):
+            return False
+        return self.cone is not None or apart >= self.near / 2 * spare
 
 
 ARMS: Mapping[str, Arm] = {
     "gun": Arm(reach=20, every=7, cone=None, scoped=False, near=6, far=14),
     "sniper": Arm(reach=1000, every=30, cone=None, scoped=True, near=25, far=70),
     "flamethrower": Arm(reach=20, every=5, cone=math.pi / 8, scoped=False, near=4, far=11),
-    "ice-blower": Arm(reach=20, every=5, cone=math.pi / 8, scoped=False, near=5, far=12),
+    "ice-blower": Arm(reach=20, every=5, cone=math.pi / 8, scoped=False, near=5, far=12, chills=True),
 }
 
 

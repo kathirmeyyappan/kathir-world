@@ -1,5 +1,5 @@
-"""The bodies there are: every avatar's hitbox, for aiming, its eyes, its walk and the way it moves
-(``packages/shared/src/sim/botMap/bodies.ts``)."""
+"""The bodies there are: every avatar's hitbox, for aiming, its eyes, its walk, the way it moves
+and its life (``packages/shared/src/sim/botMap/bodies.ts``)."""
 
 from __future__ import annotations
 
@@ -36,6 +36,8 @@ class Bodies:
         # The way each avatar moves on foot (its walk and jump power): the key to its jumps over
         # the ground.
         self.moves = {str(avatar): str(move) for avatar, move in bodies["moves"].items()}
+        # The hearts of each avatar's full life.
+        self.lives = {str(avatar): float(hearts) for avatar, hearts in bodies["lives"].items()}
 
     def hitbox(self, avatar: str) -> Hitbox:
         """An avatar's hitbox, the standard one's for an avatar the map doesn't know."""
@@ -49,6 +51,11 @@ class Bodies:
     def move_of(self, avatar: str) -> str:
         """The way an avatar moves; the standard body's for an avatar the map doesn't know."""
         return self.moves.get(avatar, self.moves["standard"])
+
+    def life_of(self, avatar: str) -> float:
+        """The hearts of an avatar's full life; the standard one's for an avatar the map doesn't
+        know."""
+        return self.lives.get(avatar, self.lives["standard"])
 
     def eye_of(self, p: Player) -> Vec3:
         """Where a player's avatar has its eyes, and so where its shots leave: ``pos`` is the body's

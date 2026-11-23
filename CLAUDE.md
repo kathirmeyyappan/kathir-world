@@ -868,8 +868,8 @@ built from, so a change rebuilds only the maps it touches:
   to, the road's width, and how far from the middle of any place a track turns at its floor
   reaches (`junction`, the least of them: what a line that cuts a corner there has to cut
   across). Built at once, and it throws where the sim's ground isn't the road's top under a node.
-- **The bodies** (`bodies.ts`, `bodies.py`): every avatar's hitbox, eyes, walk and way of moving.
-  Built at once.
+- **The bodies** (`bodies.ts`, `bodies.py`): every avatar's hitbox, eyes, walk, way of moving and
+  full life. Built at once.
 - **The karts** (`karts.ts`, `karts.py`): how each kart drives, as much of it as a driver plans
   by (its speed, plain and boosted, its turn, what its tires hold, what lifts it off a crest, a
   drift's turns and the seconds to its sparks), from its row and `kart.ts`. Built at once.
@@ -1884,8 +1884,8 @@ Bots must use the modules under `modal-bots/common/`:
     the tower's and the keeps' walls and `ground.indoors` every spot within those walls (the
     stairs too).
   - `load_bodies()`: `bodies.hitbox(avatar)` is what a shot at that avatar has to land in (head
-    band included), `bodies.eye_of(player)` where it shoots from and `bodies.walk_speed(avatar)`
-    how fast it walks.
+    band included), `bodies.eye_of(player)` where it shoots from, `bodies.walk_speed(avatar)`
+    how fast it walks and `bodies.life_of(avatar)` the hearts of its full life.
   - `load_roads()`: `roads.nearest(spot)` and `roads.path(start, goal, gaps=False)` find a way
     along the roads' middles, across a gap only for a kart (`gaps=True`). `roads.track(index)` is
     the middle of the race track a race names by that index (a `Middle`: its points in the order
@@ -1901,7 +1901,9 @@ Bots must use the modules under `modal-bots/common/`:
   is (`believed`: a read a moment old, carried on by how they were moving), only so fast and
   never quite still, so someone stood still is hit and someone who keeps changing their mind
   isn't. What it knows of each weapon is a row of `ARMS` there, which mirrors the weapon's
-  `ItemSpec`: a new weapon, or a change to one's range or cooldown, goes in both.
+  `ItemSpec`: a new weapon, or a change to one's range, its cooldown or what it does to whoever
+  it touches, goes in both. `Arm.suits` is which weapon is for which range and target, which a
+  fighter with the wits holds to.
 - A kart is driven by a `Driver(line, skill, kart, dice)` (`common/driving.py`) along the
   `racing_line(middle, shape, kart)` of a way along the roads (`common/racing_line.py`):
   `driver.keys(kart, late, mood, others)` is the gas, the wheel and the drift key to hold next,

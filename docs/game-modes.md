@@ -526,11 +526,15 @@ that keeps its distance and waits to one that goes and finds whoever it's after.
 on purpose: its aim follows where it believes its target is, a read a moment old carried on by how
 they were moving, with a hand that comes round only so fast and never holds quite still, so a
 level is how soon it notices someone, how well it stays on them, how often its weapon fires, how
-much it moves in a fight, and how far it thinks past its aim (the other weapon when the first
-doesn't suit, a heart when it's hurt). A rifle is fired only at someone who has gone on as they
+much it moves in a fight, and how far it thinks past its aim: the weapon that suits (`Arm.suits`:
+the gun for someone a rifle is too near for, a spray for someone right on top of a gun, and the
+gun to finish someone its ice has chilled), a heart when it's hurt, and how far its weapon really
+reaches, where the least of them fire from too far off and empty a spray's tank on nothing. A
+rifle is fired only at someone who has gone on as they
 were for a while, so whoever keeps moving isn't shot from across the map. In a game with sides it
-leaves its own side alone, holds its fire while one of them is in the way, and keeps with them
-when there's nobody near to fight.
+leaves its own side alone, holds its fire while one of them is in the way, keeps with them
+when there's nobody near to fight, and with the wits goes for whoever in reach is nearest dead.
+With nobody to go for it wanders, the shy from lookout to lookout and the bold anywhere.
 
 Still to come for them: a jetpack used sparingly; a kart taken to cover a long way and then blown
 up with the gun.
