@@ -41,6 +41,7 @@ import {
   PINEAPPLE_DOOR,
   PINEAPPLE_PLACEMENT,
   botRequest,
+  BOT_LOOKS,
   BOT_WAIT,
   ratingOf,
   defaultBotsFor,
@@ -623,7 +624,7 @@ test("a race: racers start held on the grid in karts there's no getting out of; 
   );
 });
 
-test("a race's bots: asked of the host as it starts, each by the name it's to come as; the start waits for them, taking them in and no other bot, and gives up on one that doesn't come; they race beside everyone, and go with the game", () => {
+test("a race's bots: each given a look of its own as it's added, and asked of the host as the game starts by the name it's to come as, in that look; the start waits for them, taking them in and no other bot, and gives up on one that doesn't come; they race beside everyone, and go with the game", () => {
   const asked: BotRequest[] = [];
   const room = new Room('derby', {
     seed: 5,
@@ -642,14 +643,25 @@ test("a race's bots: asked of the host as it starts, each by the name it's to co
   assert.equal(game().phase, 'lobby', 'one racer is no race');
   room.receive(ida, { t: 'settings', change: { bots: [5, 9] } });
   assert.deepEqual(game().bots, [], 'no level past the most');
+  room.receive(ida, { t: 'settings', change: { bots: [4, 1] } });
+  const looks = game().bots.map((bot) => bot.avatar);
+  assert.ok(looks.every((look) => BOT_LOOKS.includes(look)) && looks[0] !== looks[1], 'no two alike');
   room.receive(ida, { t: 'settings', change: { bots: [5, 1] } });
+  assert.deepEqual(
+    game().bots,
+    [
+      { level: 5, avatar: looks[0] },
+      { level: 1, avatar: looks[1] },
+    ],
+    'a level stepped, and the bot who it was',
+  );
   asked.length = 0;
   room.receive(ida, { t: 'game', do: 'start' });
   assert.deepEqual(
-    asked.map((req) => [req.bot, req.name]),
+    asked.map((req) => [req.bot, req.name, req.avatar]),
     [
-      ['racer', 'bot 1'],
-      ['racer', 'bot 2'],
+      ['racer', 'bot 1', looks[0]],
+      ['racer', 'bot 2', looks[1]],
     ],
   );
   for (let i = 0; i <= START_SECONDS * TICK_RATE; i++) room.step();

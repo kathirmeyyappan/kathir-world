@@ -1,6 +1,6 @@
 // Racing's own part of a game's state (docs/game-modes.md): how many races a game is, who races,
 // and the race being run: its track, its clocks, and who has finished it or is out of it.
-import type { AvatarId } from '../../sim/avatars';
+import { AVATARS, AVATAR_IDS, type AvatarId } from '../../sim/avatars';
 import type { GameState } from '../index';
 
 export const MIN_RACERS = 2; // how many it takes to start a game
@@ -21,6 +21,11 @@ export const BOT_LEVELS = { least: 1, most: 5, first: 3 };
 const RATINGS = { least: 0.1, most: 0.88 };
 export const RACER_BOT = 'racer'; // the bots app's name for a racer
 export const MOST_BOTS = 8; // how many bots a game can be set to bring
+// The looks a game's bots race in, one drawn for each as it's added: every look on foot a person
+// can take but the standard body, which is nobody's.
+export const BOT_LOOKS: readonly AvatarId[] = AVATAR_IDS.filter(
+  (id) => id !== 'standard' && AVATARS[id].class === 'walker' && AVATARS[id].command !== null && !AVATARS[id].hidden,
+);
 // Seconds past its countdown that a game's start waits for the bots it asked for, before it begins
 // without the ones that haven't come.
 export const BOT_WAIT = 30;
@@ -34,6 +39,13 @@ export function botName(index: number): string {
 export function ratingOf(level: number): number {
   const share = (level - BOT_LEVELS.least) / (BOT_LEVELS.most - BOT_LEVELS.least);
   return RATINGS.least + (RATINGS.most - RATINGS.least) * share;
+}
+
+// One of the bots a game brings to race, as set: its level, and the look it races in, which the
+// room draws for it as it's added.
+export interface RaceBot {
+  level: number;
+  avatar: AvatarId;
 }
 
 // Someone racing: who they are, what they were called and how they appeared as the game began
@@ -62,7 +74,7 @@ export interface Round {
 export interface RacingState extends GameState {
   mode: 'racing';
   races: number; // how many races a game is, as set
-  bots: number[]; // the bots a game brings to race, each by its level, as set: the first is bot 1
+  bots: RaceBot[]; // the bots a game brings to race, as set: the first is bot 1
   racers: Racer[]; // in the lobby, everyone there; in a game, whoever was as it began, its bots too
   points: number[]; // each racer's points in the game being played, or last played, in `racers`' order
   round: Round | null; // the race being run or just run; null in the lobby
@@ -72,8 +84,8 @@ export function isRacing(game: GameState): game is RacingState {
   return game.mode === 'racing';
 }
 
-// A change its room master makes to its settings: how many races, or its bots, all of them as
-// they're then to be.
+// A change its room master makes to its settings: how many races, or its bots' levels, all of
+// them as they're then to be: one more than there are is a bot added, and one fewer the last gone.
 export type RacingChange = { races: number } | { bots: number[] };
 
 export function isRacingChange(v: unknown): v is RacingChange {

@@ -429,16 +429,20 @@ def test_a_race_calls_its_bot_seats_it_and_it_drives_the_track(
             while (call := await asyncio.to_thread(asked.get, timeout=RECEIVE_TIMEOUT))["bot"] != "racer":
                 pass  # the room's own starting bots, which nothing here starts
             assert (call["room"], call["name"]) == ("py-race", "bot 1")
-            bot = asyncio.create_task(run_racer_bot(call["room"], call["name"], 120, direct_ws_url=room_server))
+            bot = asyncio.create_task(
+                run_racer_bot(call["room"], call["name"], 120, direct_ws_url=room_server, avatar=call["avatar"])
+            )
 
             # Let go, it's down the road it was put on: 100 m from its grid, and still on the track.
             race: dict[str, Any] | None = None
+            looks: dict[str, str] = {}
             start: tuple[float, float] | None = None
             async with asyncio.timeout(60):
                 while True:
                     message = json.loads(await master.recv())
                     if message["t"] == "game":
                         race = message["game"]["round"]
+                        looks = {racer["name"]: racer["avatar"] for racer in message["game"]["racers"]}
                     if message["t"] != "snap" or race is None:
                         continue
                     kart = next((k for k in message["karts"] if k["driver"] not in (None, "p1")), None)
@@ -450,6 +454,7 @@ def test_a_race_calls_its_bot_seats_it_and_it_drives_the_track(
                         break
             middle = load_roads().track(race["track"]).points
             assert min(math.dist(at, (p.x, p.z)) for p in middle) < 12, "on its track"
+            assert looks["bot 1"] == call["avatar"] != "standard", "in the look the room drew for it"
         # The master gone, the room ends, and the bot's run with it.
         assert (await bot)["races"] == 1
 

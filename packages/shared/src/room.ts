@@ -168,7 +168,7 @@ export class Room {
       close: (reason) => this.end(reason),
       people: () => this.players.filter((p) => !p.bot),
       everyone: () => this.players.filter((p) => !p.bot || !p.dead),
-      call: (bot, name) => {
+      call: (bot, name, avatar) => {
         if (!this.spawnBot || !this.publicName) return false;
         const req: BotRequest = {
           bot,
@@ -177,6 +177,7 @@ export class Room {
           seconds: BOT_MAX_SECONDS,
           caller: 'room',
           name,
+          avatar,
         };
         this.spawnBot(req).catch((err: unknown) => {
           this.log(`the game's bot ${bot} for ${this.id}: ${err instanceof Error ? err.message : String(err)}`);
