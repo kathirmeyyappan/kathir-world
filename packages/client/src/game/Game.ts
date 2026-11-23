@@ -1345,11 +1345,6 @@ export class Game {
       free ? 'kart' : showHint ? held.id : '',
       held ? ITEMS[held.id].element : null,
     );
-    // A look's own moves get their hint as the look is taken, once the start press
-    // (ui/StartGate.ts) has let the player in to read it.
-    // None while driving: a kart's keys are its own.
-    const moves = self.riding || this.startGate.up ? [] : movesHelp(self.avatar, IS_TOUCH);
-    this.hud.setMoveHint(self.avatar.toUpperCase(), moves);
     const fuelMax = held && ITEMS[held.id].fuelSeconds;
     this.fuel.set(
       held && fuelMax && held.fuel !== null && !this.dead ? held.fuel / fuelMax : null,
@@ -1399,7 +1394,14 @@ export class Game {
       for (const id of Object.values(START_SOUNDS)) this.sfx.want(id);
     }
     this.starter.update(showing.starter, dt);
-    this.banner.set(this.startGate.up ? null : this.standing(showing));
+    const line = this.startGate.up ? null : this.standing(showing);
+    this.banner.set(line);
+    // A look's own moves get their hint as the look is taken, once the start press
+    // (ui/StartGate.ts) has let the player in to read it.
+    // None while driving: a kart's keys are its own. And none on a touch screen while the game
+    // has a line standing over the view: between them the two cover a small screen.
+    const moves = self.riding || this.startGate.up || (IS_TOUCH && line) ? [] : movesHelp(self.avatar, IS_TOUCH);
+    this.hud.setMoveHint(self.avatar.toUpperCase(), moves);
     this.results.set(
       this.game.phase === 'results' && this.game.until !== null
         ? resultsOf(rulesOf(this.game).standings(this.game), secondsUntil(this.game.until, this.tick))
