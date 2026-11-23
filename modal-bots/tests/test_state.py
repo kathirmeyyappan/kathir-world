@@ -41,7 +41,7 @@ def test_reduces_snapshots_and_roster_events() -> None:
     assert state.game["mode"] == "racing"
     # A bot no game brought is as good as it says itself; one a game brought, as its level there.
     assert state.rating((0.2, 0.8), 0.5) == 0.5
-    bots = [{"key": "bot:0", "level": 5, "id": "p9"}, {"key": "bot:1", "level": 2, "id": "p1"}]
+    bots = [{"level": 4}, {"key": "bot:0", "level": 5, "id": "p9"}, {"key": "bot:1", "level": 2, "id": "p1"}]
     state.apply(message({"t": "game", "game": {"mode": "racing", "phase": "starting", "bots": bots}}))
     assert abs(state.rating((0.2, 0.8), 0.5) - 0.35) < 1e-9
 
