@@ -141,13 +141,15 @@ export function placementFromQuery(get: (key: string) => string | null): BotPlac
   return placement;
 }
 
-// What the room asks the host to start, on the bot's worker. `room` is the public room code the
-// bot joins through the lobby, so it lands in the caller's session; `caller` is who asked ('room'
-// for its starting bots); `name`, when given, is what the bot plays as instead of its playerName.
-// A combat bot's `targets` are parts of names, any case, that it goes after; none means every
-// person (bots only when named), and never the bot itself.
+// What the room asks the host to start, on the bot's worker. `bot` is the worker's name for it
+// (modal-bots/bots/__init__.py): one a player calls (a BotId), or one a game seats itself
+// (modes/); `room` is the public room code the bot joins through the lobby, so it lands in the
+// caller's session; `caller` is who asked ('room' for its starting bots and a game's own); `name`,
+// when given, is what the bot plays as instead of its playerName. A combat bot's `targets` are
+// parts of names, any case, that it goes after; none means every person (bots only when named),
+// and never the bot itself.
 interface BotCall extends BotPlacement {
-  bot: BotId;
+  bot: string;
   room: string;
   seconds: number;
   caller: string;
@@ -156,8 +158,9 @@ interface BotCall extends BotPlacement {
 
 export type BotRequest = (BotCall & { worker: 'dumb' }) | (BotCall & { worker: 'combat'; targets: string[] });
 
-// A bot with a look of its own wears it whatever it was dressed in.
-export function botRequest(call: BotCall, targets: readonly string[] = []): BotRequest {
+// The request for a bot a player calls: one with a look of its own wears it whatever it was
+// dressed in.
+export function botRequest(call: BotCall & { bot: BotId }, targets: readonly string[] = []): BotRequest {
   const { worker, look } = BOTS[call.bot];
   const dressed = look === undefined ? call : { ...call, avatar: look };
   return worker === 'combat' ? { ...dressed, worker: 'combat', targets: [...targets] } : { ...dressed, worker: 'dumb' };

@@ -66,8 +66,12 @@ which is null in freeplay, where there's no game to be anywhere in).
 2. **Starting.** The master presses START GAME, which is there to press once the mode's own
    condition to start holds. Everyone is told "Game is starting in 5", counted down
    (`START_SECONDS`, against `GameState.until`), still in the lobby. The lobby's bots are killed
-   (as `/kill-bots` does), no bot is seated from here until the lobby is back, and the bots'
-   commands are refused until then (Refused commands, below).
+   (as `/kill-bots` does), no bot of a player's calling is seated from here until the lobby is
+   back, and the bots' commands are refused until then (Refused commands, below). A game that
+   brings bots of its own (a race's) asks the host for them now, each by the name it's to come as
+   (`Game.gather`, `ModeRoom.call`), takes in a bot that comes by one of those names (`awaits`)
+   and, once counted down, waits for the ones still to come (`gathered`: `until` is null
+   meanwhile, and the banner says the game's bots are joining) until it gives up on them.
 3. **Playing.** The world is cleared (karts, frost, hearts left lying, the bots' seats) and every
    player gets a new body: full hearts, nothing held or worn, in the look they had if it's one on
    foot and the standard body if it isn't. The roster's kills and deaths start from nothing. The
@@ -80,17 +84,20 @@ which is null in freeplay, where there's no game to be anywhere in).
    (`RESULTS_SECONDS`), the world going on under it with nothing left to score. A game whose mode gives it a length (`Game.runs`) comes here as its clock
    runs out; one without is its master's to end.
 5. Back to the **lobby**: everyone gets a new body in `RESPAWN_AREAS`, as after a death, ghosts are
-   players again, the world is cleared, and the lobby's bots don't come back.
+   players again, the world is cleared, the game's own bots go with it, and the lobby's bots don't
+   come back.
 
 Someone who joins once a game is being played is a ghost (below) until the lobby is back. Someone
 who joins through the countdown is in the game it's counting down to.
 
 What a game does to its room it does through `ModeRoom` (`modes/mode.ts`): a new body for a player
 somewhere (`embody`, the Room's `rebody`, which is also what brings the dead back, and counts
-`PlayerState.body` up so every client knows the body for a new one), the world cleared (`clear`),
-the bots dropped dead (`dropBots`). The master asks for the start and the end with a `game`
+`PlayerState.body` up so every client knows the body for a new one), the world cleared (`clear`,
+dead bots' seats with it), the bots dropped dead (`dropBots`), a bot of its own asked of the host
+(`call`), and everyone it's played with (`everyone`: the people, and the bots alive, which once a
+game has begun are its own). The master asks for the start and the end with a `game`
 message (`GameAction`), which the Room hands its mode (`asked`); the mode is stepped with the room
-(`step`) and says whether a join is turned away (`turnsAway`).
+(`step`) and says what a join is made: a player, a ghost, or turned away (`joining`).
 
 ### The GAME tab
 
@@ -252,8 +259,9 @@ A series of races, each on a track of its own, in karts, for points.
 
 - The number of races, 3 unless changed.
 - A board of the racers: everyone in the room.
-- Bots: + and - add and take away one, each with its level beside it (two levels). Apart from the
-  lobby's bots, and drawn and disabled until there are racing bots (below).
+- Bots: + and - add and take away one, up to eight, each with its level beside it, 1 to 5
+  (`BOT_LEVELS`), stepped by a press. Apart from the lobby's bots: they're asked for as the game
+  starts, called bot 1, bot 2 and on, and gone when it's over.
 - START with two racers or more, bots counted.
 
 **The game.**
@@ -465,16 +473,25 @@ be played.
 - [x] Its look: the track on the maps, the grey floor, the checkered line.
 - [x] Lakitu at the start.
 - [x] Racing on the home screen and in the guide.
+- [x] Its bots: set in its settings by level, asked for and waited on as a game starts, racing
+      beside everyone, gone with the game.
 
-## Later: the modes' bots
+## The modes' bots
 
-A separate piece of work. Until it's done the bots' rows in both modes' settings are disabled, and
-a game is people alone.
+**Racing bots** are built. A game's are set in its settings, each by its level (above); the
+referee asks the host for them as the game starts, keeps the level of each by the name it comes
+as, and lists a bot racer with how good it's asked to be (`Racer.rating`, `ratingOf` its level:
+from 0, the middle of the road short of flat out, to 1, all of the road and every drift and trick
+there is). The bot (`modal-bots/bots/racer_bot.py`) reads that off the game's state, the track off
+the bots' roads map, and drives (`common/driving.py`, along a `common/racing_line.py`). No two of
+a level race alike: each has a talent of its own for the lobby it's in, so one of them is the one
+to beat, a day it's having, a mood that warms and cools through a race, and its own line and
+start, from dice seeded by the room and its name. Still to come: in freeplay, lapping the whole of
+the roads, the ways across the buildings' floor included.
 
-- **Racing bots**, two levels: one that keeps to the road's middle and drifts or tricks only to
-  get back to it, and one that drifts, tricks and holds its line like the best racer there is. They
-  drive by the roads' graph (above), corrected for how far off the middle they are. In freeplay
-  they lap the whole of the roads, the ways across the buildings' floor included.
+Until the others are built their row in shootout's settings is disabled, and a shootout is people
+alone.
+
 - **Combat bots**, three levels, with a better reading of the map than the bots have today: the
   gun and the flamethrower, swapped between as the fight asks; a jetpack used sparingly; a kart
   taken to cover a long way and then blown up with the gun; moving smoothly rather than from node

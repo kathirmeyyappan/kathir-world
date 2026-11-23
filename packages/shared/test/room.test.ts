@@ -41,6 +41,8 @@ import {
   PINEAPPLE_DOOR,
   PINEAPPLE_PLACEMENT,
   botRequest,
+  BOT_WAIT,
+  ratingOf,
   defaultBotsFor,
   RACE,
   isRacing,
@@ -618,6 +620,60 @@ test("a race: racers start held on the grid in karts there's no getting out of; 
       ['carol', 3, false],
       ['bob', 0, false],
     ],
+  );
+});
+
+test("a race's bots: asked of the host as it starts, each by the name it's to come as; the start waits for them, taking them in and no other bot, and gives up on one that doesn't come; they race beside everyone, and go with the game", () => {
+  const asked: BotRequest[] = [];
+  const room = new Room('derby', {
+    seed: 5,
+    mode: 'racing',
+    pickupAreas: [],
+    spawnBot: (req) => Promise.resolve(void asked.push(req)),
+  });
+  const a = link();
+  const ida = room.join('alice', a, { made: true, room: 'derby' })!;
+  const game = () => {
+    const told_ = told(a);
+    assert.ok(isRacing(told_));
+    return told_;
+  };
+  room.receive(ida, { t: 'game', do: 'start' });
+  assert.equal(game().phase, 'lobby', 'one racer is no race');
+  room.receive(ida, { t: 'settings', change: { bots: [5, 9] } });
+  assert.deepEqual(game().bots, [], 'no level past the most');
+  room.receive(ida, { t: 'settings', change: { bots: [5, 1] } });
+  asked.length = 0;
+  room.receive(ida, { t: 'game', do: 'start' });
+  assert.deepEqual(
+    asked.map((req) => [req.bot, req.name]),
+    [
+      ['racer', 'bot 1'],
+      ['racer', 'bot 2'],
+    ],
+  );
+  for (let i = 0; i <= START_SECONDS * TICK_RATE; i++) room.step();
+  assert.deepEqual([game().phase, game().until], ['starting', null], 'counted down, and waiting for them');
+  assert.equal(room.join('circle-bot', link(), { bot: true }), null, 'no bot but its own');
+  const bot = room.join('bot 1', link(), { bot: true })!;
+  while (game().phase === 'starting') room.step();
+  assert.ok(room.tick >= (START_SECONDS + BOT_WAIT) * TICK_RATE, 'bot 2, which never came, was given up on');
+  assert.deepEqual(
+    game().racers.map((racer) => [racer.name, racer.rating]),
+    [
+      ['alice', null],
+      ['bot 1', ratingOf(5)],
+    ],
+    'it races, as good as its level asks',
+  );
+  const seated = room.players.find((p) => p.id === bot)!;
+  assert.ok(seated.riding && seated.bot, 'on the grid with everyone, a bot still');
+  assert.equal(room.join('bot 2', link(), { bot: true }), null, 'too late');
+  room.receive(ida, { t: 'game', do: 'end' });
+  assert.deepEqual(
+    room.players.map((p) => p.name),
+    ['alice'],
+    'gone with the game',
   );
 });
 

@@ -6,7 +6,7 @@ import { RESPAWN_AREAS, SPAWN_AREAS } from '../content/regions';
 import { TICK_RATE } from '../sim/constants';
 import type { PlayerState } from '../sim/types';
 import type { GameAction, GameState } from './index';
-import { GameMode, type Joining } from './mode';
+import { GameMode, type Joiner, type Joining } from './mode';
 import { kindOf, type Allowed, type Dying, type Rules } from './rules';
 
 // What everyone is told as the room closes behind its master.
@@ -63,12 +63,12 @@ export class Game extends GameMode {
     return { ...super.state, master: this.master, phase: this.phase, until: this.until };
   }
 
-  // A game is people alone, and those who were there as it began: the lobby's bots die as it
-  // starts and none is seated until it's over, and a person who comes once it has begun watches it
-  // as a ghost until the lobby is back.
-  override joining(bot: boolean): Joining {
+  // A game is those who were there as it began, and the bots it asked for itself: the lobby's
+  // bots die as it starts and no other is seated until it's over, and a person who comes once it
+  // has begun watches it as a ghost until the lobby is back.
+  override joining({ bot, name }: Joiner): Joining {
     if (this.phase === 'lobby') return 'player';
-    if (bot) return { away: 'a game is on' };
+    if (bot) return this.awaits(name) ? 'player' : { away: 'a game is on' };
     return this.phase === 'starting' ? 'player' : 'ghost';
   }
 
@@ -107,11 +107,28 @@ export class Game extends GameMode {
     return false;
   }
 
-  // The clock a phase is on runs out: the countdown into the game, the game (where its mode gives
-  // it one) into its results, and those back into the lobby.
+  // Asks for the bots the game brings of its own (`ModeRoom.call`), as its start is counted down.
+  protected gather(): void {}
+
+  // Whether a bot called `name` is one the game asked for that hasn't come yet.
+  protected awaits(_name: string): boolean {
+    return false;
+  }
+
+  // Whether every bot the game asked for has come, or been given up on: its start waits for them.
+  protected gathered(): boolean {
+    return true;
+  }
+
+  // The clock a phase is on runs out: the countdown into the game, once whoever it waits for is
+  // here (with no clock meanwhile); the game, where its mode gives it one, into its results; and
+  // those back into the lobby.
   override step(): void {
-    if (this.until === null || this.room.tick() < this.until) return;
-    if (this.phase === 'starting') this.begin();
+    if (this.until !== null && this.room.tick() < this.until) return;
+    if (this.phase === 'starting') {
+      if (this.gathered()) this.begin();
+      else if (this.until !== null) this.to('starting');
+    } else if (this.until === null) return;
     else if (this.phase === 'playing') this.finish();
     else if (this.phase === 'results') this.toLobby();
   }
@@ -140,13 +157,14 @@ export class Game extends GameMode {
   private start(): void {
     this.room.dropBots();
     this.to('starting', this.room.tick() + START_SECONDS * TICK_RATE);
+    this.gather();
   }
 
   // The game begins: on a world with nothing left on it from the lobby, everyone in a new body
   // where its mode starts them, their kills and deaths counted from nothing.
   protected begin(): void {
     this.room.clear();
-    for (const player of this.room.people()) {
+    for (const player of this.room.everyone()) {
       const body = this.place(player);
       body.kills = body.deaths = 0;
     }
@@ -155,8 +173,9 @@ export class Game extends GameMode {
   }
 
   // Back to the lobby, as everyone comes back from the dead: a new body each, on a world with
-  // nothing left on it from the game.
+  // nothing left on it from the game, its own bots gone with it.
   protected toLobby(): void {
+    this.room.dropBots();
     this.room.clear();
     for (const player of this.room.people()) this.room.embody(player, RESPAWN_AREAS);
     this.to('lobby');

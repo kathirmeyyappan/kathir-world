@@ -43,7 +43,15 @@ import {
   damageFor,
   fallDamage,
 } from './sim/health';
-import { BOTS, botArguments, botRequest, type BotId, type BotPlacement, type BotRequest } from './sim/bots';
+import {
+  BOTS,
+  BOT_MAX_SECONDS,
+  botArguments,
+  botRequest,
+  type BotId,
+  type BotPlacement,
+  type BotRequest,
+} from './sim/bots';
 import { defaultBotsFor } from './sim/defaultBots';
 import { GEAR, createGear, gearHelp, type GearId } from './sim/gear';
 import { ITEMS, createItem, itemHelp, type Element, type ItemAction, type ItemId, type ItemSpec } from './sim/items';
@@ -159,6 +167,22 @@ export class Room {
       publish: () => this.broadcast({ t: 'game', game: this.mode.state }),
       close: (reason) => this.end(reason),
       people: () => this.players.filter((p) => !p.bot),
+      everyone: () => this.players.filter((p) => !p.bot || !p.dead),
+      call: (bot, name) => {
+        if (!this.spawnBot || !this.publicName) return false;
+        const req: BotRequest = {
+          bot,
+          worker: 'dumb',
+          room: this.publicName,
+          seconds: BOT_MAX_SECONDS,
+          caller: 'room',
+          name,
+        };
+        this.spawnBot(req).catch((err: unknown) => {
+          this.log(`the game's bot ${bot} for ${this.id}: ${err instanceof Error ? err.message : String(err)}`);
+        });
+        return true;
+      },
       embody: (player, areas) => {
         const seat = this.seats.get(player.id)!;
         this.rebody(seat, this.spawnPoint(areas));
@@ -263,7 +287,8 @@ export class Room {
       link.send({ t: 'error', message: `bots can't be ${opts.avatar}` });
       return null;
     }
-    const joining = this.mode.joining(!!opts.bot);
+    const name = sanitizeName(rawName);
+    const joining = this.mode.joining({ bot: !!opts.bot, name });
     if (typeof joining === 'object') {
       link.send({ t: 'error', message: joining.away });
       return null;
@@ -280,7 +305,7 @@ export class Room {
     const named =
       opts.color && Object.hasOwn(NAMED_COLORS, opts.color) ? opts.color : names[Math.floor(this.rng() * names.length)];
     const color = NAMED_COLORS[named];
-    const state = this.newBody(id, sanitizeName(rawName), color, at, !!opts.bot);
+    const state = this.newBody(id, name, color, at, !!opts.bot);
     state.ghost = ghost;
     if (opts.bot && opts.avatar) {
       becomeAvatar(state, opts.avatar);
@@ -382,14 +407,14 @@ export class Room {
     this.rebody(seat, this.spawnPoint(RESPAWN_AREAS));
   }
 
-  // A new body for a seat's person at `at` (its eye point): the same seat, name, colour and score,
-  // and otherwise as whoever comes in is given (a full life, nothing held or worn, out of any kart),
+  // A new body for whoever has a seat (a person, or a bot of the game's own) at `at`, its eye
+  // point: the same seat, name, colour and score, and otherwise as whoever comes in is given (a full life, nothing held or worn, out of any kart),
   // in the look they had if it's one on foot. The frames still queued were the old body's, and
   // where that was is forgotten: nothing is judged against it.
   private rebody(seat: Seat, at: Vec3): void {
     const was = seat.state;
     this.garage.getOut(was);
-    const body = this.newBody(was.id, was.name, was.color, at, false);
+    const body = this.newBody(was.id, was.name, was.color, at, was.bot);
     if (classOf(was.avatar).id === 'walker') becomeAvatar(body, was.avatar);
     body.kills = was.kills;
     body.deaths = was.deaths;
@@ -403,11 +428,11 @@ export class Room {
     this.history.forget(was.id);
   }
 
-  // The world as a room starts with it: no karts, no frost, no hearts left lying, and no bots, the
-  // dead ones' seats going at once.
+  // The world as a room starts with it: no karts, no frost, no hearts left lying, and no dead
+  // bots, whose seats go at once.
   private clear(): void {
     for (const [id, seat] of [...this.seats]) {
-      if (!seat.state.bot) continue;
+      if (!seat.state.bot || !seat.state.dead) continue;
       this.leave(id);
       seat.link.close?.('dead');
     }

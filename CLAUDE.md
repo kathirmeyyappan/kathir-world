@@ -2063,7 +2063,9 @@ Python process runs. The sidecar spawns the worker's function (`BOTS_FUNCTIONS` 
 seconds}`, the request's `name` and placement (`spawn`, `avatar`) and, for a combat bot, `targets`,
 using the container's own Modal credentials; Node never holds a token. A bot called from chat
 therefore needs a row in `bots.ts` as well as its Python module; one without a row is started only
-with `modal run`. A row's `look` is the one look that bot always wears (the stalker is always Tung
+with `modal run`, or by a game for itself: a race's racers are asked for by its referee
+(`ModeRoom.call`, `docs/game-modes.md`), by the worker's name for them, and are no command.
+A row's `look` is the one look that bot always wears (the stalker is always Tung
 Tung Tung Sahur, the one body that shows where it looks standing still): `botRequest` dresses it so
 and it takes no `-s`, and its Python module wears that look whatever it's given.
 

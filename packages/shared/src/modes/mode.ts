@@ -14,6 +14,11 @@ export interface ModeRoom {
   publish(): void; // tells everyone in the room the game's state as it stands
   close(reason: string): void; // ends the room for everyone in it, who are told why
   people(): PlayerState[]; // everyone seated who isn't a bot
+  everyone(): PlayerState[]; // the people, and the bots alive: once a game has begun, its own
+  // Asks the host for one of the bots app's bots (by its name there, modal-bots/bots/) to join
+  // as `name`: a bot of the game's own, apart from the ones a player calls. False where the host
+  // can start none.
+  call(bot: string, name: string): boolean;
   // A new body for `player` somewhere in `areas`, as whoever comes in is given: a full life, nothing
   // held or worn, in the look they had if it's one on foot. Returns them in it.
   embody(player: PlayerState, areas: SpawnArea[]): PlayerState;
@@ -25,14 +30,20 @@ export interface ModeRoom {
   haunt(player: PlayerState): PlayerState;
   kartOf(player: PlayerState): { pos: Vec3 } | null; // the kart they drive, where it is; null on foot
   dropBots(): void; // every living bot drops dead where it stands, as /kill-bots does
-  // The world as a room starts with it: no karts, no frost, no hearts left lying, and no bots, the
-  // dead ones going at once.
+  // The world as a room starts with it: no karts, no frost, no hearts left lying, and no dead
+  // bots, whose seats go at once.
   clear(): void;
 }
 
 // What a join is made as the game stands: a player in it, a ghost (sim/types.ts `ghost`: in the
 // room and not in the game), or nothing, turned away with why.
 export type Joining = 'player' | 'ghost' | { away: string };
+
+// Who's joining: whether it's a bot, and the name it comes as.
+export interface Joiner {
+  bot: boolean;
+  name: string;
+}
 
 export class GameMode {
   constructor(
@@ -45,8 +56,8 @@ export class GameMode {
     return { mode: this.id, master: null, phase: null, until: null };
   }
 
-  // What someone joining right now is. `bot`: it's a bot.
-  joining(_bot: boolean): Joining {
+  // What someone joining right now is.
+  joining(_who: Joiner): Joining {
     return 'player';
   }
 
