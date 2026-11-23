@@ -46,8 +46,8 @@ const LIVERIES: Partial<Record<AvatarId, Partial<Livery>>> = {
   puff: { primary: '#d9a84a', secondary: '#246cb4', emblem: 'puff' },
   larry: { primary: '#f05048', secondary: '#2a5fc8', emblem: 'larry' },
   sahur: { primary: '#b8834a', secondary: '#6b4423', emblem: 'sahur' },
-  mike: { primary: '#8cc832', secondary: '#2f9c8f' },
-  sulley: { primary: '#19a9b4', secondary: '#7a4fb0' },
+  mike: { primary: '#8cc832', secondary: '#2f9c8f', emblem: 'monsters' },
+  sulley: { primary: '#19a9b4', secondary: '#7a4fb0', emblem: 'monsters' },
   'light-dragon': { primary: '#ead9bd', secondary: '#e4b43c' },
   colgera: { primary: '#9fdcf5', secondary: '#24243c' },
 };
