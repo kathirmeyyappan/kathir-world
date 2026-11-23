@@ -21,7 +21,9 @@ const FINISH_SHORT = 15;
 // of a row; and how many stand in a row, for a grid of up to `few` and for a bigger one.
 const GRID = { back: 4, rows: 6, across: 5, few: 8, columns: [2, 3] };
 const MEET = 2; // metres from a disc's middle that a road's end is at it
-const LEVELS = 4; // metres over or under a spot of the middle that a body is still on that stretch of road
+// Metres over or under the middle that a body is still on that stretch of road: a deck and the road
+// under it are further apart.
+export const LEVELS = 4;
 
 // One of the discs the roads run between, and what a track can do there: start (an island), end (an
 // island no other road leaves, or the buildings' floor), or only pass through (a crossroads).
@@ -194,24 +196,51 @@ export function layTrack(route: Route): Track {
   return { route, spots, start: route.start.r, finish: route.length - route.end.r - FINISH_SHORT };
 }
 
-// Where `pos` is against `track`, by the spot of its middle nearest it on the road `pos` is on (a
+// Whether the spot after `i` of a track's middle follows it along the track, the two the ends of
+// one stretch of it. A split's second strand is listed after its first and begins back where that
+// did: no stretch joins the end of one to the start of the other.
+export function follows(track: Track, i: number): boolean {
+  return i + 1 < track.spots.length && track.spots[i + 1].at >= track.spots[i].at;
+}
+
+// How far along the stretch of a middle from `a` to `b` its point nearest (x, z) is: 0 at `a`, 1
+// at `b`.
+export function shareNearest(a: Vec3, b: Vec3, x: number, z: number): number {
+  const ux = b.x - a.x;
+  const uz = b.z - a.z;
+  const length2 = ux * ux + uz * uz;
+  return length2 === 0 ? 0 : Math.max(0, Math.min(1, ((x - a.x) * ux + (z - a.z) * uz) / length2));
+}
+
+// Where `pos` is against `track`, by the point of its middle nearest it on the road `pos` is on (a
 // deck and the road under it are told apart by their heights): how far along the track that is, and
-// how far off its middle. Somewhere on no level of it (in the air over it, in Lakitu's hands) is as
-// far off as can be, and as far along as the spot nearest it of them all.
+// how far off its middle, which round a corner is how far from the corner. Somewhere on no level of
+// it (in the air over it, in Lakitu's hands) is as far off as can be, and as far along as the point
+// nearest it of them all.
 export function onTrack(track: Track, pos: Vec3): OnTrack {
-  let [nearest, distance] = [track.spots[0], Infinity];
-  let [nearestOfAll, straight] = [track.spots[0], Infinity];
-  for (const s of track.spots) {
-    const d = Math.hypot(pos.x - s.x, pos.z - s.z);
-    const through = Math.hypot(d, pos.y - s.y);
-    if (through < straight) [nearestOfAll, straight] = [s, through];
-    if (Math.abs(pos.y - s.y) <= LEVELS && d < distance) [nearest, distance] = [s, d];
+  const spots = track.spots;
+  let off = Infinity;
+  let at = 0;
+  let straight = Infinity; // to the nearest point of every level, and how far along that is
+  let nearest = 0;
+  for (let i = 0; i + 1 < spots.length; i++) {
+    if (!follows(track, i)) continue;
+    const a = spots[i];
+    const b = spots[i + 1];
+    const k = shareNearest(a, b, pos.x, pos.z);
+    const d = Math.hypot(pos.x - (a.x + (b.x - a.x) * k), pos.z - (a.z + (b.z - a.z) * k));
+    const rise = pos.y - (a.y + (b.y - a.y) * k);
+    const through = Math.hypot(d, rise);
+    if (through < straight) {
+      straight = through;
+      nearest = a.at + (b.at - a.at) * k;
+    }
+    if (Math.abs(rise) <= LEVELS && d < off) {
+      off = d;
+      at = a.at + (b.at - a.at) * k;
+    }
   }
-  if (distance === Infinity) return { at: nearestOfAll.at, off: Infinity };
-  // Along the way the track runs there, and across it.
-  const [fx, fz] = [Math.sin(nearest.yaw), Math.cos(nearest.yaw)];
-  const [dx, dz] = [pos.x - nearest.x, pos.z - nearest.z];
-  return { at: nearest.at + dx * fx + dz * fz, off: Math.abs(dx * fz - dz * fx) };
+  return off === Infinity ? { at: nearest, off } : { at, off };
 }
 
 // Whether somewhere `off` the middle of a track is still on it: within the road's width.
@@ -250,17 +279,13 @@ export function gridOf(track: Track, count: number): (Vec3 & { yaw: number })[] 
   });
 }
 
-// A track as the course its karts are held to (vehicles/rescue.ts): left by one off the side of its
-// road or past either end of it, which is set down again on its middle where it left, nose along
-// the way the track runs.
+// A track as the course its karts are held to (vehicles/rescue.ts): left by one off its road, which
+// is set down again on its middle where it left, nose along the way the track runs.
 export function courseOf(track: Track): Course {
   return {
-    left(pos) {
-      const on = onTrack(track, pos);
-      return !withinTrack(on) || on.at < 0 || on.at > track.route.length;
-    },
+    left: (pos) => !withinTrack(onTrack(track, pos)),
     back(safe) {
-      const s = spotAt(track, Math.max(0, Math.min(track.route.length, onTrack(track, safe).at)));
+      const s = spotAt(track, onTrack(track, safe).at);
       return { to: { x: s.x, y: s.y, z: s.z }, yaw: s.yaw };
     },
   };

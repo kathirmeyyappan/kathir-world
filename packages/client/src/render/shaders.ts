@@ -1,8 +1,8 @@
 // GLSL for the environment. Kept in one place so the ground and sky share helpers.
-import { OUTSIDE_HEIGHT } from '@world/shared';
+import { LEVELS, OUTSIDE_HEIGHT } from '@world/shared';
 import { BASE_FOG_DENSITY } from './Engine';
 import { KERB_HEIGHT, KERB_WIDTH } from './Floor';
-import { CELL, EDGE_STEP, HEIGHT_STEP, LEVELS, TRACK_HALF } from './TrackMask';
+import { CELL, EDGE_STEP, HEIGHT_STEP, TRACK_HALF } from './TrackMask';
 
 // The floor's fog: 1 - exp(-d² × GROUND_FOG × fogScale) at d metres from the camera, the scene's
 // own EXP2 fog, so the floor under anything far off fades exactly as much as it does.
@@ -198,9 +198,11 @@ void main() {
     major = gridLine(p, 10.0, 0.09);
   }
   // Off the track in play, what would be floor is as the ground past the edge, and just inside the
-  // track's edge runs a bold line of the grid.
+  // track's edge runs a bold line of the grid: on what faces up alone (the floor, the kerb's top, a
+  // risen road's), never down the drop under the track's edge.
   float offTrack = 0.0;
-  if (trackOn > 0.5 && (side < 0.5 || top || (side > 1.5 && !risen))) {
+  bool kerbTop = side > 1.5 && !risen && vWorld.y > ${(KERB_HEIGHT - 0.001).toFixed(3)};
+  if (trackOn > 0.5 && (side < 0.5 || top || kerbTop)) {
     float reading = trackReading();
     float soft = fwidth(reading);
     offTrack = smoothstep(${TRACK_HALF.toFixed(1)} - soft, ${TRACK_HALF.toFixed(1)} + soft, reading);
