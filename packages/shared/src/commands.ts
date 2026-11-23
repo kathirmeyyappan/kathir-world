@@ -42,6 +42,7 @@ export const COMMAND_SHORTCUTS: Readonly<
   u: 'unequip',
   t: 'teleport',
   cb: 'circle-bot',
+  fb: 'fighter-bot',
   sb: 'sniper-bot',
   wazowski: 'mike',
 };

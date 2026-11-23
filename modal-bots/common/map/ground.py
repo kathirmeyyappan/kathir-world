@@ -14,11 +14,10 @@ import math
 import random
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
-from functools import cache
 from typing import Any
 
 from ..protocol import Vec3
-from . import read
+from . import once, read
 from .bodies import Bodies, load_bodies
 from .solids import CELL, Piece, cells_over, piece_of
 
@@ -192,16 +191,13 @@ class Ground:
 
     def straight(self, a: Vec3, b: Vec3) -> bool:
         """Whether a walk straight from ``a`` to ``b`` (feet) keeps to open floor, but for a step
-        onto it at either end."""
+        onto it at either end: its middle is on it, however short it is."""
         if abs(a.y) > FLOOR or abs(b.y) > FLOOR:
             return False
         length = math.hypot(b.x - a.x, b.z - a.z)
         steps = math.ceil(length / OPEN_STEP)
-        return all(
-            self.area_at(Vec3(a.x + (b.x - a.x) * k / steps, 0, a.z + (b.z - a.z) * k / steps)) is not None
-            for k in range(1, steps)
-            if ONTO < length * k / steps < length - ONTO
-        )
+        along = [k / steps for k in range(1, steps) if ONTO < length * k / steps < length - ONTO] or [0.5]
+        return all(self.area_at(Vec3(a.x + (b.x - a.x) * t, 0, a.z + (b.z - a.z) * t)) is not None for t in along)
 
     def doorway(self, i: int, j: int) -> tuple[str, Piece] | None:
         """The door, and its slab, whose doorway the way from node ``i`` to node ``j`` goes
@@ -315,6 +311,6 @@ class Ground:
         return None
 
 
-@cache
+@once
 def load_ground() -> Ground:
     return Ground(read("ground"), read("moves"), load_bodies())

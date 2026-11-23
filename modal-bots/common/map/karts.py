@@ -5,10 +5,9 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from functools import cache
 from typing import Any
 
-from . import read
+from . import once, read
 
 
 @dataclass(frozen=True, slots=True)
@@ -63,6 +62,6 @@ class Karts:
         return self.karts.get(kart, self.karts["standard"])
 
 
-@cache
+@once
 def load_karts() -> Karts:
     return Karts(read("karts"))

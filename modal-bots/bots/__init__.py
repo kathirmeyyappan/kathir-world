@@ -12,6 +12,7 @@ from typing import Any, Protocol, TypeVar
 from common import Vec3
 
 from .circle_bot import run_circle_bot
+from .fighter_bot import run_fighter_bot
 from .observer_bot import run_observer_bot
 from .racer_bot import run_racer_bot
 from .sniper_bot import run_sniper_bot
@@ -55,6 +56,7 @@ DUMB_BOTS: dict[str, DumbBotInvocation] = {
 }
 
 COMBAT_BOTS: dict[str, CombatBotInvocation] = {
+    "fighter": run_fighter_bot,
     "sniper": run_sniper_bot,
 }
 

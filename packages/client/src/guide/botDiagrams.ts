@@ -55,6 +55,32 @@ function stalker(d: Diagram): void {
   d.label([other[0], other[1] + 34], ['bots never count,', 'however close'], { note: true, anchor: 'middle' });
 }
 
+// Makes for whoever it's against, keeps the range its weapon likes, and circles them as it fires.
+function fighter(d: Diagram): void {
+  const them: Pt = [372, 196];
+  const r = 104;
+  const me = polar(them, r, 172);
+  const from: Pt = [58, 300];
+  const hidden: Pt = [566, 74];
+  const block = along(them, hidden, 0.55);
+  d.ring(them, r);
+  d.line(from, along(from, me, 0.84), 'move', { arrow: true, faint: true });
+  d.subject(from, degTo(from, me), true);
+  d.arc(them, r, 180, 252, 'move', { arrow: true });
+  d.arc(them, r, 128, 164, 'move', { faint: true });
+  d.line(me, along(me, them, 0.86), 'shot', { arrow: true });
+  d.wall(block, 64, degTo(them, hidden) + 90);
+  d.person(hidden, true);
+  d.person(them);
+  d.crosshair(them);
+  d.subject(me, degTo(me, them));
+  d.label([from[0] + 34, from[1] + 22], ['nobody in sight:', 'goes to find them'], { note: true });
+  d.label([them[0] - 6, 60], ['circles them as it fires,', 'changing its mind which way'], { anchor: 'middle' });
+  d.label([them[0], them[1] + 46], ['the range its', 'weapon likes'], { note: true, anchor: 'middle' });
+  d.label([hidden[0] - 6, hidden[1] + 36], ['behind a wall:', 'not shot at'], { note: true, anchor: 'middle' });
+  d.label([452, 318], ['hurt: breaks off', 'for a heart'], { note: true });
+}
+
 // Watches whoever it can see; shoots the close ones (or anyone, once it's been hit); hides to reload.
 function sniper(d: Diagram): void {
   const me: Pt = [170, 186];
@@ -92,7 +118,7 @@ function sniper(d: Diagram): void {
 }
 
 // Each bot's diagram, or null for one with nothing to show (the observer only stands there).
-const DRAW: Record<BotId, ((d: Diagram) => void) | null> = { circle, stalker, observer: null, sniper };
+const DRAW: Record<BotId, ((d: Diagram) => void) | null> = { fighter, circle, stalker, observer: null, sniper };
 
 export function botDiagram(bot: BotId, alt: string): HTMLElement[] {
   const draw = DRAW[bot];

@@ -23,11 +23,13 @@ import pytest
 import websockets
 from bots import sniper_bot
 from bots.circle_bot import run_circle_bot
+from bots.fighter_bot import run_fighter_bot
 from bots.observer_bot import run_observer_bot
 from bots.racer_bot import run_racer_bot
 from bots.sniper_bot import run_sniper_bot
 from bots.stalker_bot import run_stalker_bot
 from common import Connection, Controls, Event, RoomConnectionError, Snapshot, Vec3, WorldState, connect, run_input_loop
+from common.fighting import ARMS
 from common.map.ground import Region, load_ground
 from common.map.roads import load_roads
 from common.map.solids import load_solids
@@ -414,6 +416,37 @@ def test_sniper_fires_at_a_person_in_sight_then_waits_out_its_cooldown(
 
     assert report["shots"] >= 2 and len(shot_ticks) == report["shots"], report
     assert all(b - a >= 90 for a, b in itertools.pairwise(shot_ticks)), f"3 s between shots: {shot_ticks}"
+
+
+def test_a_fighter_takes_up_its_weapon_finds_a_person_and_hurts_them(room_server: str) -> None:
+    async def scenario() -> tuple[str | None, float]:
+        person = await seat_person(room_server, "python-fighter")
+        me = next(p for p in person.welcome.players if p.id == person.id)
+        # Out of sight of the person, the tower's wall between them: it has them to find.
+        fighter = asyncio.create_task(
+            run_fighter_bot("python-fighter", seconds=60, direct_ws_url=room_server, spawn=Vec3(130, 0, 0))
+        )
+        held: str | None = None
+        hearts = me.hearts
+        try:
+            async with asyncio.timeout(50):
+                while hearts == me.hearts:
+                    message = await person.receive()
+                    if isinstance(message, Snapshot):
+                        bot = next((p for p in message.players if p.name == "fighter-bot"), None)
+                        held = bot.item.id if bot is not None and bot.item is not None else held
+                    elif isinstance(message, Event) and message.t == "hit" and message.data["victim"] == person.id:
+                        hearts = message.data["hearts"]
+            return held, hearts
+        finally:
+            fighter.cancel()
+            with suppress(asyncio.CancelledError):
+                await fighter
+            await person.close()
+
+    held, hearts = asyncio.run(scenario())
+    assert held in ARMS, "holding one of the weapons a fighter knows"
+    assert hearts < 10
 
 
 def test_a_race_calls_its_bot_seats_it_and_it_drives_the_track(

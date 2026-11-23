@@ -12,11 +12,10 @@ from __future__ import annotations
 import math
 from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass
-from functools import cache
 from typing import Any
 
 from ..protocol import Vec3
-from . import read
+from . import once, read
 
 CELL = 8.0  # metres per side of the grid that pieces and the floor's parts are looked up in
 RAY_STEP = 0.05  # metres between samples where a sight line crosses a sloped top (collision.ts)
@@ -128,7 +127,7 @@ class Solids:
                     yield i
 
 
-@cache
+@once
 def load_solids() -> Solids:
     return Solids(read("solids"))
 

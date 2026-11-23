@@ -20,10 +20,12 @@ LINE_UP = 2.0  # metres from a take-off where it starts slowing down to stop on 
 USE_EVERY = TICK_RATE // 2  # ticks between clicks on a shut door it's waiting at
 STUCK_SECONDS = 2.0  # this long no closer to the next node means something's in the way
 HEADWAY = 0.5  # metres closer to the next node that count as getting somewhere
-# Metres along the path it steers at. Steering at the very next node (a metre off) makes a bot
-# that sees itself a few ticks late overshoot it, turn back and circle; a point further on keeps
-# the walk smooth while staying close enough to the path to round corners and doorways.
+# Metres along the path it steers at, as far as the path runs straight on. Steering at the very
+# next node (a metre off) makes a bot that sees itself a few ticks late overshoot it, turn back
+# and circle; a point further on keeps the walk smooth. Never past a turn of the path, though: the
+# straight line to a node round a corner goes through whatever the path turned for.
 LOOKAHEAD = 2.5
+STRAIGHT_ON = 0.99  # the cosine between two steps of a path from which the second runs straight on
 
 
 class Route:
@@ -66,16 +68,17 @@ class Route:
 
     def ahead(self, eye: Vec3) -> Vec3:
         """Where the route is steering from ``eye``, at eye height: the furthest node within
-        LOOKAHEAD of the bot, short of any jump (a jump has to start from its own take-off spot),
-        or a jump's landing while it's on one."""
+        LOOKAHEAD of the bot that the path runs straight on to, short of any jump (a jump has to
+        start from its own take-off spot), or a jump's landing while it's on one."""
         feet = Vec3(eye.x, eye.y - EYE_HEIGHT, eye.z)
         i = min(self.next, len(self.path) - 1)
         while (
             not self._jumping
-            and i + 1 < len(self.path)
+            and 0 < i < len(self.path) - 1
             and self.path[i + 1] not in self.jumps[self.path[i]]
             and self._shut(i + 1) is None
             and _across(feet, self.ground.nodes[self.path[i + 1]]) <= LOOKAHEAD
+            and self._straight_on(i)
         ):
             i += 1
         node = self.ground.nodes[self.path[i]]
@@ -151,6 +154,14 @@ class Route:
         self._closest = math.inf
         self._jumped = False
         self._settled_at = None
+
+    def _straight_on(self, k: int) -> bool:
+        """Whether the path's step from its node ``k`` to the next carries straight on from the
+        step that got it to ``k``."""
+        a, b, c = (self.ground.nodes[self.path[j]] for j in (k - 1, k, k + 1))
+        ux, uz, vx, vz = b.x - a.x, b.z - a.z, c.x - b.x, c.z - b.z
+        along = math.hypot(ux, uz) * math.hypot(vx, vz)
+        return along > 1e-9 and (ux * vx + uz * vz) / along >= STRAIGHT_ON
 
     def _shut(self, k: int) -> tuple[str, Piece] | None:
         """The door shut across the way from the path's node ``k - 1`` to its node ``k``, if it's

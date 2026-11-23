@@ -10,11 +10,10 @@ import itertools
 import math
 from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass
-from functools import cache
 from typing import Any
 
 from ..protocol import Vec3
-from . import read, shortest
+from . import once, read, shortest
 
 
 @dataclass(frozen=True)
@@ -94,7 +93,7 @@ class Roads:
         )
 
 
-@cache
+@once
 def load_roads() -> Roads:
     return Roads(read("roads"))
 

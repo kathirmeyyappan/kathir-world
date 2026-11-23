@@ -114,6 +114,11 @@ class Controls:
     def read_cube(self, cube: Cube | str | None) -> None:
         self.reading = cube.id if isinstance(cube, Cube) else cube
 
+    async def respawn(self) -> None:
+        """Ask to be brought back from the dead now, as the death screen's button does: the room
+        answers only where its game gives the dead that screen."""
+        await self.connection.send({"t": "respawn"})
+
     async def chat(self, text: str) -> None:
         await self.connection.send({"t": "chat", "text": text})
 

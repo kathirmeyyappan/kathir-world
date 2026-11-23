@@ -279,6 +279,8 @@ export const BOT_FLAG_TEXT: Record<BotFlag, string> = {
 
 // What each bot's diagram shows, for a screen reader (botDiagrams.ts).
 export const BOT_DIAGRAM_TEXT: Partial<Record<BotId, string>> = {
+  fighter:
+    'A fighter seen from above: from far off it goes to find a person, then keeps the range its weapon likes and circles them as it fires; it doesn’t shoot at one behind a wall, and breaks off for a heart when it’s hurt.',
   sniper:
     'The sniper seen from above: it shoots a person close by, keeps one further off in its sights, can’t see one behind a wall, and ducks behind cover to reload.',
   circle:
@@ -288,6 +290,10 @@ export const BOT_DIAGRAM_TEXT: Partial<Record<BotId, string>> = {
 };
 
 export const BOT_EXAMPLES: Record<BotId, [string, string]> = {
+  fighter: [
+    '/fighter-bot -t 120 -s mario --target kat',
+    'spawns a fighter bot as Mario for 120s, going after players with “kat” in their username.',
+  ],
   sniper: [
     '/sniper-bot -t 500 -n snipah -s elizabeth --target circ',
     'spawns a sniper bot named snipah for 500s with the Elizabeth avatar, targeting players with “circ” in their username.',

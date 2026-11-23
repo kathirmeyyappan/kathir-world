@@ -18,11 +18,29 @@ import gzip
 import heapq
 import json
 import math
+import threading
 from collections.abc import Callable, Iterable
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeVar
 
 MAP_DIR = Path(__file__).parent
+
+T = TypeVar("T")
+
+
+def once(load: Callable[[], T]) -> Callable[[], T]:
+    """``load``, run the first time it's asked for and its answer kept, however many ask at once:
+    bots starting together each load their maps off their event loop."""
+    lock = threading.Lock()
+    kept: list[T] = []
+
+    def loaded() -> T:
+        with lock:
+            if not kept:
+                kept.append(load())
+            return kept[0]
+
+    return loaded
 
 
 def read(name: str) -> Any:
