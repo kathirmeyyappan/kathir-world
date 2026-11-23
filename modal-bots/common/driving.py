@@ -48,6 +48,7 @@ TOO_LATE = 0.5  # of its full turn the line already takes, from which a hop woul
 NEARLY = 0.45  # seconds short of a spark that a drift is held on for, the bend over or not
 SPARE = 0.1  # seconds over a spark's that a bend has to last for a drift to be begun for it
 AT_SPEED = 11.0  # m/s the least a drift is begun at
+ASTRAY = -0.15  # of its full turn, against a drift's way, that its line asks before the drift is let go
 # Ticks on the ground before a drift is begun: just down from a flight, a press of the key is a
 # trick late (a boost at once) and no hop, and the drift would begin at that speed, wheel hard over.
 SETTLED = 12
@@ -216,7 +217,9 @@ class Driver:
                 spark = next((after for after in car.sparks[: self.skill.sparks] if after > t - 0.05), None)
                 bends = turns(pacing * 0.15) * way > HOLDS or turns(pacing * 0.35) * way > HOLDS_ON
                 nearly = spark is not None and spark - t < NEARLY and want > -0.4
-                if spark is None or not (bends or nearly) or flight(pacing * 0.6) or flying:
+                # Let go as well where its line is the other way from where the drift takes it: the
+                # least a drift turns is still a turn, and too far inside a bend it only goes further in.
+                if spark is None or not (bends or nearly) or flight(pacing * 0.6) or flying or want < ASTRAY:
                     drift = False
                     # Let go on the last spark it holds for, it takes the rest of the bend as it comes.
                     if spark is None:
