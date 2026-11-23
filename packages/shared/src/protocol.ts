@@ -37,6 +37,7 @@ export type ClientMessage =
   | { t: 'rename'; name: string } // what to be called from now on; everyone sees it in the next snapshot
   | { t: 'respawn' } // dead, and back now: the death screen's button (modes/rules.ts `Dying`)
   | { t: 'game'; do: GameAction } // asks something of the room's game (modes/), which says whose it is to ask
+  | { t: 'settings'; change: unknown } // asks for a change to the game's settings, which its mode reads
   | { t: 'ping'; at: number };
 
 export type ServerMessage =
@@ -112,6 +113,8 @@ export function isClientMessage(v: unknown): v is ClientMessage {
       return true;
     case 'game':
       return isGameAction(m.do);
+    case 'settings':
+      return 'change' in m;
     case 'ping':
       return isNum(m.at);
     default:

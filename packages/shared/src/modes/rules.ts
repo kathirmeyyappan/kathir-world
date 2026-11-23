@@ -12,6 +12,8 @@ export interface Rules {
   refuses(game: GameState, command: Command): string | null;
   // What no hearts means for a person as the game stands.
   dying(game: GameState): Dying;
+  // Why its game can't be started as it's set up, or null.
+  starts(game: GameState): string | null;
 }
 
 // What no hearts means for a person: their body lies `seconds` where it fell, and they're then
@@ -29,6 +31,7 @@ export const FREEPLAY_DYING: Dying = { seconds: 10, screen: true };
 export const FREEPLAY_RULES: Rules = {
   refuses: () => null,
   dying: () => FREEPLAY_DYING,
+  starts: () => null,
 };
 
 // What a command is to a game's rules. A game says of every kind whether it allows it (`Allowed`),

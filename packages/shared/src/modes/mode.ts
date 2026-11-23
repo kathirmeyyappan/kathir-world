@@ -51,6 +51,10 @@ export class GameMode {
   // A player asked something of the game (a `game` message).
   asked(_player: PlayerState, _action: GameAction): void {}
 
+  // A player asked for a change to the game's settings (a `settings` message), which are its
+  // mode's own to read.
+  changed(_player: PlayerState, _change: unknown): void {}
+
   // A step of the room is beginning.
   step(): void {}
 }

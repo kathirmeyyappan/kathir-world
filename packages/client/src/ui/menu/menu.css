@@ -496,6 +496,69 @@
 #menu .words:empty {
   display: none;
 }
+/* A board: a column to each team, its name in its colour over who's on it, and a word under them
+   on how they're moved. A column takes a drop or a tap while players can be moved. */
+#menu .board .columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+  gap: 8px;
+}
+#menu .board .column {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 92px;
+  padding: 6px;
+  border: 2px solid var(--team);
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: 3px 3px 0 #000;
+}
+#menu .board .column.open {
+  cursor: pointer;
+}
+#menu .board .head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 2px;
+  color: var(--team);
+}
+#menu .board .head .name {
+  font: 10px var(--pixel);
+  letter-spacing: 1px;
+}
+#menu .board .head .count {
+  font-size: 17px;
+}
+#menu .board .player {
+  padding: 3px 8px;
+  font-size: 18px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+}
+#menu .board .column.open .player {
+  cursor: grab;
+}
+#menu .board .column.open .player:hover {
+  border-color: var(--accent);
+}
+#menu .board .player.picked {
+  color: #05070c;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+#menu .board .hint {
+  margin-top: 6px;
+  font-size: 15px;
+  letter-spacing: 1px;
+  color: rgba(255, 255, 255, 0.55);
+}
+#menu section[hidden] {
+  display: none;
+}
 /* What one of them warns of before it's pressed again (pressTwice.ts), under the row. */
 #menu .asked .warning {
   margin-top: 6px;
@@ -634,6 +697,9 @@
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 12px 20px;
     align-items: start;
+  }
+  #menu .panel > section.wide {
+    grid-column: span 2;
   }
   #menu .row {
     flex-wrap: wrap;

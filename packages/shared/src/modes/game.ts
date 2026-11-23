@@ -58,6 +58,7 @@ export function gameRules(own: Playing): Rules {
       return kind !== null && !own.allows[kind] ? 'not during a game' : null;
     },
     dying: (game) => (game.phase === 'playing' ? own.dying : LOBBY_DYING),
+    starts: () => null,
   };
 }
 
@@ -92,11 +93,28 @@ export class Game extends GameMode {
     if (player.id === this.master) this.room.close(MASTER_LEFT);
   }
 
-  // The game is the master's to start, from its lobby, and to end, from anywhere else.
+  // The game is the master's to start, from its lobby once it's set up to, and to end, from
+  // anywhere else.
   override asked(player: PlayerState, action: GameAction): void {
     if (player.id !== this.master) return;
-    if (action === 'start' && this.phase === 'lobby') this.start();
+    if (action === 'start' && this.phase === 'lobby' && this.ready() === null) this.start();
     else if (action === 'end' && this.phase !== 'lobby') this.toLobby();
+  }
+
+  // Its settings are the master's to change, in the lobby.
+  override changed(player: PlayerState, change: unknown): void {
+    if (player.id !== this.master || this.phase !== 'lobby') return;
+    if (this.set(change)) this.room.publish();
+  }
+
+  // Why the game can't be started as it's set up, or null: its mode's rule (rules.ts `starts`).
+  protected ready(): string | null {
+    return null;
+  }
+
+  // Takes a change to the mode's own settings. False: it isn't one.
+  protected set(_change: unknown): boolean {
+    return false;
   }
 
   override step(): void {
@@ -121,7 +139,7 @@ export class Game extends GameMode {
 
   // Back to the lobby, as everyone comes back from the dead: a new body each, on a world with
   // nothing left on it from the game.
-  private toLobby(): void {
+  protected toLobby(): void {
     this.room.clear();
     for (const player of this.room.people()) this.room.embody(player, RESPAWN_AREAS);
     this.to('lobby');

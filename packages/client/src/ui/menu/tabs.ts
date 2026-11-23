@@ -5,11 +5,13 @@
 // setting is a row here and nothing else has to know about it.
 import {
   GAME_MODES,
+  GAME_MODE_IDS,
   MAX_NAME_LENGTH,
   MAX_ROOM_ID_LENGTH,
   RENAME_SECONDS,
   cleanName,
   isValidRoomId,
+  rulesOf,
   type AvatarId,
   type GameAction,
   type GameState,
@@ -20,6 +22,7 @@ import {
 import { skinChoice, skinChoices, skinCommand } from '../../app/skins';
 import type { Channel, Sfx } from '../../audio/Sfx';
 import type { View } from '../../game/View';
+import { MODE_SETTINGS } from '../../modes';
 import { GLOBAL_ROOM, SERVED_BY_ROOM_HOST, colorName, leaveRoom, roomLink, switchRoom } from '../../net/lobby';
 import type { Picture } from '../../render/Picture';
 import type { Minimap } from '../Minimap';
@@ -46,6 +49,8 @@ export interface MenuHooks {
   game: () => GameState; // the room's game as the Room last told of it (the shared package's modes/)
   master: () => boolean; // whether the player is its room master
   act: (action: GameAction) => void; // asks something of the game: the room master's to ask
+  set: (change: unknown) => void; // asks for a change to the game's settings: the room master's too
+  nameOf: (id: string) => string; // what a player in the room is called
   commands: () => void; // opens the commands menu, which C does from the menu as from the world
   command: (word: string) => void; // sends a chat command, by its word ("mario" for /mario)
 }
@@ -69,15 +74,32 @@ export function menuTabs(hooks: MenuHooks, me: Me): Tab[] {
   return [
     { title: 'PLAY', sections: [you(hooks, me), ...(hooks.online ? [thisRoom(hooks)] : []), switching(hooks, me)] },
     { title: 'SETTINGS', sections: [sound(hooks.sfx), seeing(hooks.view), picture(hooks.picture), more()] },
-    { title: 'GAME', sections: [theGame(hooks)], shown: () => hooks.game().phase !== null, first: hooks.master },
+    {
+      title: 'GAME',
+      sections: [theGame(hooks), ...settings(hooks)],
+      shown: () => hooks.game().phase !== null,
+      first: hooks.master,
+    },
   ];
+}
+
+// Each mode's own settings (modes/), there in a room whose game is in that mode.
+function settings(hooks: MenuHooks): Section[] {
+  return GAME_MODE_IDS.map((mode) => ({
+    title: 'SETTINGS',
+    rows: MODE_SETTINGS[mode](hooks),
+    shown: () => hooks.game().mode === mode,
+    wide: true,
+  })).filter((section) => section.rows.length > 0);
 }
 
 // The room's game (docs/game-modes.md): what it is, and the START that begins it from its lobby and
 // the END GAME that takes it back there. Everyone sees them; they're the room master's to press,
-// and greyed for everyone else.
+// START once the game is set up to (the mode's rule, which the Room holds it to), and greyed for
+// everyone else.
 function theGame(hooks: MenuHooks): Section {
   const lobby = () => hooks.game().phase === 'lobby';
+  const unready = () => (lobby() ? rulesOf(hooks.game()).starts(hooks.game()) : null);
   return {
     title: 'THIS GAME',
     rows: [
@@ -86,7 +108,12 @@ function theGame(hooks: MenuHooks): Section {
       {
         kind: 'buttons',
         buttons: [
-          { label: 'START GAME', press: () => hooks.act('start'), shown: lobby, enabled: hooks.master },
+          {
+            label: 'START GAME',
+            press: () => hooks.act('start'),
+            shown: lobby,
+            enabled: () => hooks.master() && unready() === null,
+          },
           {
             label: 'END GAME',
             press: () => hooks.act('end'),
@@ -96,7 +123,15 @@ function theGame(hooks: MenuHooks): Section {
           },
         ],
       },
-      { kind: 'words', text: () => (hooks.master() ? '' : 'Only the room master can start and end the game.') },
+      {
+        kind: 'words',
+        text: () =>
+          !hooks.master()
+            ? 'Only the room master can set up, start and end the game.'
+            : unready() !== null
+              ? `To start, ${unready()}.`
+              : '',
+      },
     ],
   };
 }
