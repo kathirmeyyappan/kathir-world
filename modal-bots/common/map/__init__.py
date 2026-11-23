@@ -6,8 +6,8 @@ needs, each read once per process and shared by every bot in it:
   to stand on, anywhere in the world;
 - ``ground``: a graph of where a body walks over the floor the buildings stand on, with each way of
   moving's jumps across it, for finding a way on foot;
-- ``roads``: the roads' middles as a sparse graph, for a way along them out past that floor, on foot
-  or in a kart;
+- ``roads``: the roads' middles as a graph, for a kart to be driven by and a way along them to be
+  found in, and every race track as the roads it takes;
 - ``bodies``: every avatar's hitbox, eyes and walk.
 """
 

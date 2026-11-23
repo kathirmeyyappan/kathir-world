@@ -403,8 +403,9 @@ way it runs (both strands of a split), its start line at the rim of the island i
 grid behind it (`gridOf`), and its finish line short of where it ends. `onTrack` places a body
 against it (how far along, how far off the middle, by the road's own level, so a deck and the road
 under it are apart), which is what the floor in play, a racer's place and the finish are all asked
-of. The bots' roads map (`sim/botMap/roads.ts`) is built from the same `Road.middle` and stays its
-own file until the racing bots are built, when the two graphs become one.
+of. The bots' roads map (`sim/botMap/roads.ts`) is built from the same `Road.middle` and lists
+every track as the roads it takes, so a bot reads the middle of the track a race names
+(`roads.track`, `modal-bots/common/map/roads.py`).
 
 **The floor in play.** A mode narrows it with a track (`Rules.track`): its road, and all of the
 disc it ends on (`inPlay`). The Room hands the garage

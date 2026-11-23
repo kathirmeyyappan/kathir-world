@@ -5,8 +5,8 @@
 //   there's ground to stand on, anywhere in the world;
 // - the ground and the moves (ground.ts): a graph of where a body walks over the floor the
 //   buildings stand on, and each way of moving's jumps across it, for finding a way on foot;
-// - the roads (roads.ts): the roads' middles as a sparse graph, for a way along them past that
-//   floor, on foot or in a kart;
+// - the roads (roads.ts): the roads' middles as a graph, for a kart to be driven by and a way
+//   along them to be found in, and every race track as the roads it takes;
 // - the bodies (bodies.ts): every avatar's hitbox, eyes, walk and way of moving.
 // `npm run bot-map` (scripts/writeBotMap.ts) builds them. Each carries a fingerprint of what it was
 // built from (its `source`), so a change rebuilds only the maps it touches, and a test fails while

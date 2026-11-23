@@ -69,6 +69,10 @@ if (process.argv.includes('--keys')) {
     write('moves', moves, `${Object.keys(moves.jumps).length} ways of moving, on ${THREADS} threads`, began);
   }
   await rest();
-  instant('roads', buildRoadsMap, (m) => `${m.nodes.length} nodes, ${m.edges.length} stretches, ${m.gaps.length} gaps`);
+  instant(
+    'roads',
+    buildRoadsMap,
+    (m) => `${m.nodes.length} nodes, ${m.edges.length} stretches, ${m.gaps.length} gaps, ${m.tracks.length} tracks`,
+  );
   instant('bodies', buildBodiesMap, (m) => `${Object.keys(m.hitboxes).length} avatars`);
 }

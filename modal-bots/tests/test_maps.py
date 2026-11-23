@@ -75,3 +75,27 @@ def test_the_roads_reach_every_end_and_only_a_kart_crosses_a_gap() -> None:
     assert max(hops) <= 20.5, "a node every 20 m at the most"
     assert roads.path(crab, lookout) is None, "no way on foot"
     assert roads.path(crab, lookout, gaps=True) is not None, "but one in a kart"
+
+
+def test_a_race_track_is_read_as_the_sim_lays_it() -> None:
+    roads = load_roads()
+    assert len(roads.checks) > 0
+    middles = {track: roads.track(track) for track, _ in roads.checks}
+    for track, spot in roads.checks:
+        points = middles[track].points
+        # On a stretch of the middle at its height: a bend's is the line between two of its nodes.
+        off = min(
+            _off(spot, a, b) for a, b in itertools.pairwise(points) if min(a.y, b.y) - 1 <= spot.y <= max(a.y, b.y) + 1
+        )
+        assert off < 0.5, (track, spot)
+    middle = roads.track(roads.tracks - 1)
+    assert len(middle.gap) == len(middle.pad) == len(middle.points) - 1
+    assert any(any(roads.track(track).gap) for track in range(0, roads.tracks, 50)), "some tracks jump a gap"
+    assert any(middle.pad), "and a track has boost pads along it"
+
+
+def _off(p: Vec3, a: Vec3, b: Vec3) -> float:
+    """Metres across the floor from ``p`` to the line from ``a`` to ``b``, ends included."""
+    ux, uz = b.x - a.x, b.z - a.z
+    along = max(0.0, min(1.0, ((p.x - a.x) * ux + (p.z - a.z) * uz) / (ux * ux + uz * uz)))
+    return math.hypot(p.x - a.x - ux * along, p.z - a.z - uz * along)
