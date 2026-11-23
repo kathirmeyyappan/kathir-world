@@ -53,7 +53,8 @@ export class Rescuers {
       };
       let f = this.fishing.get(k.id);
       if (f) Object.assign(f, { eye, yaw: k.yaw, holds: true, gone: 0 });
-      else this.fishing.set(k.id, (f = { lakitu: new Lakitu(this.scene), eye, yaw: k.yaw, holds: true, gone: 0 }));
+      else
+        this.fishing.set(k.id, (f = { lakitu: new Lakitu(this.scene, true), eye, yaw: k.yaw, holds: true, gone: 0 }));
       this.place(f, 1 - eased(k.rescue.t / RESCUE.come), 1);
     }
     for (const [id, f] of this.fishing) {

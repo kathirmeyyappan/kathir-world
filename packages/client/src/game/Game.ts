@@ -75,9 +75,11 @@ import {
 import { Footsteps } from '../audio/Footsteps';
 import { Driving } from './Driving';
 import { Rescuers } from '../render/lakitu/Rescuers';
+import { Starter } from '../render/lakitu/Starter';
 import {
   ITEM_SOUNDS,
   KART_SOUNDS,
+  START_SOUNDS,
   SPARK_RATE,
   heard,
   kartLoops,
@@ -256,6 +258,7 @@ export class Game {
   private use: string | null = null; // a door clicked since the last input frame
   private readonly driving: Driving;
   private readonly rescuers: Rescuers;
+  private readonly starter: Starter;
   private readonly camera: UniversalCamera;
   private readonly input: InputManager;
   private readonly mobile: MobileControls;
@@ -343,6 +346,7 @@ export class Game {
   private kick = 0; // camera recoil, radians of upward pitch that decays back
   private stepEase = 0; // metres the camera trails the predicted eye height after leaving the ground or landing
   private hearsKarts = false; // a kart's sounds have been sent for
+  private hearsStart = false; // a race's start's have
   private readonly drivers = new Set<AvatarId>(); // the looks seen driving a kart, whose boost cries have been sent for
   private riding: number | null = null; // metres the camera's ground is over the sim's feet while it rides the ground
   private walkDir = { x: 0, z: 1 }; // the way the body last moved across the floor, for the ride
@@ -380,6 +384,9 @@ export class Game {
     this.models = new Models(this.engine, this.loader, this.interiors);
     this.driving = new Driving(this.engine);
     this.rescuers = new Rescuers(this.engine.scene);
+    this.starter = new Starter(this.engine);
+    this.starter.onLamp = (at) => this.sfx.play(START_SOUNDS.lamp, at);
+    this.starter.onGo = (at) => this.sfx.play(START_SOUNDS.go, at);
     this.driving.onKnock = (at) => this.sfx.play(KART_SOUNDS.knock, at);
     this.driving.onSpark = (at, spark) => this.sfx.play(KART_SOUNDS.spark, at, { rate: SPARK_RATE[spark] });
     this.driving.onBoost = (at, driver) => {
@@ -1380,6 +1387,11 @@ export class Game {
             karts: sampled.karts,
           })
         : NOTHING;
+    if (showing.starter && !this.hearsStart) {
+      this.hearsStart = true;
+      for (const id of Object.values(START_SOUNDS)) this.sfx.want(id);
+    }
+    this.starter.update(showing.starter, dt);
     this.banner.set(this.startGate.up ? null : this.standing(showing));
     this.results.set(
       this.game.phase === 'results' && this.game.until !== null

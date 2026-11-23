@@ -204,6 +204,8 @@ export type SoundId =
   | 'colgera-cry'
   | 'colgera-cry-far'
   | 'colgera-theme'
+  | 'race-count'
+  | 'race-go'
   | 'krusty-krab-theme'
   | 'spongebob-house-theme'
   | 'tower-theme'
@@ -385,6 +387,11 @@ const SOUNDS: Record<SoundId, SoundSpec> = {
   'spongebob-death': { file: 'spongebob-death.mp3', half: 6, reach: 30, volume: 0.25, swell: 0.8, lazy: true },
   'mike-death': { file: 'mike-death.mp3', half: 6, reach: 30, volume: 0.25, swell: 0.15, fade: 0.15, lazy: true },
   'boat-horn': { file: 'boat-horn.mp3', half: 10, reach: 40, volume: 0.3, lazy: true }, // the foghorn alarm clock in SpongeBob's bedroom, at a click
+  // A race's start (START_SOUNDS), sent for as Lakitu first comes with the starting lights: a beep
+  // as each lamp lights and a longer one, an octave up, as they turn green, heard from where he
+  // hangs them by the whole grid.
+  'race-count': { file: 'race-count.mp3', half: 40, reach: 160, volume: 0.1, lazy: true },
+  'race-go': { file: 'race-go.mp3', half: 40, reach: 160, volume: 0.1, lazy: true },
   // A kart's (KART_SOUNDS), sent for as the first kart is seen. Its engine is two loops crossed over
   // by its revs (kartLoops): the idle, all but unheard except from its seat, and the running, played
   // faster and slower by them. Its drift's skid is kept quiet, and a boost's rush dies away into its
@@ -573,6 +580,9 @@ export const GEAR_SOUNDS: Record<GearId, { thrusting?: SoundId }> = {
 // What's heard of a kart: its engine idling and running, its drift and the zap of each spark the
 // drift reaches, a boost beginning, a trick, a knock that costs it wrenches (a wall, another kart,
 // a shot), and its blowing up.
+// What's heard of a race's start (render/lakitu/Starter.ts).
+export const START_SOUNDS = { lamp: 'race-count', go: 'race-go' } satisfies Record<string, SoundId>;
+
 export const KART_SOUNDS = {
   idle: 'kart-idle',
   running: 'kart-engine',
