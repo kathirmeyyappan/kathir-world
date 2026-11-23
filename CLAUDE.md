@@ -176,7 +176,10 @@ anything that can wait off the path everyone pays:
 - Lakitu's files (his body with his rod, his hook and their picture, about 80 KB) are fetched the
   first time a driver is seen stranded within `SCOPED_SIGHT`, two seconds before he comes
   (`wantLakitu` in `render/lakitu/Lakitu.ts`). A rescue never waits on them: until they're here
-  the kart is hoisted and set down with nobody holding it.
+  the kart is hoisted and set down with nobody holding it. The starting lights he hangs at a
+  race's start (a part and its picture, about 75 KB) are fetched with him as he first comes to
+  start one (`wantStartLights`, `render/lakitu/StartLights.ts`), five seconds before the grid is
+  let go; the count never waits on them, and until they're here he isn't drawn.
 - A sound is fetched by everyone up front unless it's `lazy` in `SOUNDS` (`Sfx.soon`, `Sfx.want`).
   Every look's voice is lazy: an intro is fetched as it's said within earshot, and a look's jumps,
   long jumps, hurts and kills (with its death and its theme for its own player) as it's first seen worn
@@ -1462,9 +1465,17 @@ a circle that closes in on their head and opens out from it again, under the HUD
 `scripts/lakitu-model.py` from the rip of MK8's referee, a Collada file of skinned meshes with no
 animation: the script turns his joints into a pose (`POSES`: `fishing`, with the rod in his fist
 and one of his four faces) and carries the skin along by its weights, so a new pose is a row
-there, and writes each thing he holds beside him (`hook`; and `flag`, `lap`, `reverse` and
-`signal`, with `props.png`, which nothing draws yet). To other players a rescue is a kart
-hoisted, gone and set down, with him there if they're near.
+there, and writes each thing he holds beside him (`hook`; `signal`, the starting lights; and
+`flag`, `lap` and `reverse`, which nothing draws yet; all but the hook painted by `props.png`).
+To other players a rescue is a kart hoisted, gone and set down, with him there if they're near.
+
+He starts a race too (see Game modes): `render/lakitu/Starter.ts` stands him over the road ahead
+of the grid, facing it, the starting lights (`StartLights.ts`) on the end of his line in his
+hook's place, where and as the room's game says (a `Start`, a mode's `Showing.starter`): down
+from up behind as the grid forms, a lamp lit red with each second of the count (its lens drawn
+again a hair proud of itself in its colour, with a halo), all three green at GO, and back up the
+way he came. Each lamp's lighting is a beep and the green a longer one, an octave up
+(`START_SOUNDS`, `lazy` as a kart's are, heard from where he hangs the lights).
 
 What's heard of a kart is `KART_SOUNDS` (`audio/Sfx.ts`), every one `lazy` and sent for as the
 first kart is seen. Its engine is two loops crossed over by its revs (`kartLoops`: its speed's share

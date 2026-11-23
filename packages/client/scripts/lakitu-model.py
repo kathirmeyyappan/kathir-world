@@ -17,7 +17,9 @@ It writes, in public/assets/models/lakitu/, parts in the client's format (house_
   turned and the skin carried along by its weights: `fishing`, the rod held out over what he
   fishes for;
 - `hook`, the eye its line ties to at the origin;
-- `flag`, `lap`, `reverse` and `signal`, as the rip stands them, which nothing draws yet.
+- `signal`, the starting lights, as the rip stands them, which he hangs from his line at a race's
+  start (render/lakitu/StartLights.ts);
+- `flag`, `lap` and `reverse`, as the rip stands them, which nothing draws yet.
 
 And their pictures: `lakitu.png` for him, his four faces, the rod and the hook, and `props.png`
 for the rest (the colour of each alone: what lights up on the boards and the lights is in the

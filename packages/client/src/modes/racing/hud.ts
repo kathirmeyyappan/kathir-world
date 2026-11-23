@@ -10,6 +10,7 @@ import {
   placesOf,
   pointsFor,
   racing,
+  spotAt,
   trackOf,
   type GameState,
   type Kart,
@@ -17,16 +18,20 @@ import {
   type Round,
 } from '@world/shared';
 import { secondsUntil } from '../../ui/clock';
+import type { Start } from '../../render/lakitu/Starter';
 import type { BannerLine } from '../../ui/GameBanner';
 import type { Leaderboard } from '../../ui/Results';
 import type { Moment, Showing } from '../index';
 
 const GO_SECONDS = 1; // how long GO! stands once the grid is let go
+// Lakitu at the start: metres ahead of the start line and over the road that the top of his lights
+// hangs, and the seconds he takes to come as the grid forms, stays once it's let go, and takes to go.
+const STARTER = { ahead: 12, over: 4.6, come: 1.2, stay: 0.5, go: 1.2 };
 
 export function racingHud(game: GameState, at: Moment): Showing {
-  if (!isRacing(game) || !game.round) return { line: null, scores: null, board: null };
+  if (!isRacing(game) || !game.round) return { line: null, scores: null, board: null, starter: null };
   const round = game.round;
-  if (round.over !== null) return { line: null, scores: null, board: boardOf(game, round, at.tick) };
+  if (round.over !== null) return { line: null, scores: null, board: boardOf(game, round, at.tick), starter: null };
   const places = placesOf(round, game.racers, alongOf(round, at.karts));
   // The place of someone racing or over the line; null for anyone else (out, or watching).
   const placed = !round.out.includes(at.me) && places.includes(at.me) ? places.indexOf(at.me) + 1 : null;
@@ -35,6 +40,7 @@ export function racingHud(game: GameState, at: Moment): Showing {
   return {
     line: lineOf(game, round, at, placed, left),
     board: null,
+    starter: starterOf(round, at.tick),
     scores: {
       headline: placed === null ? null : ordinal(placed),
       caption: placed === null ? race : `of ${game.racers.length} · ${race}`,
@@ -42,6 +48,22 @@ export function racingHud(game: GameState, at: Moment): Showing {
       seconds: left,
       urgent: left !== null && left <= RACE.hurry,
     },
+  };
+}
+
+// Lakitu with the starting lights, from the grid's forming until he's gone after it's let go: a
+// lamp lit red for each second of the count that's begun, and all three green from GO.
+function starterOf(round: Round, tick: number): Start | null {
+  const toGo = (round.go - tick) / TICK_RATE;
+  if (toGo > RACE.grid || toGo < -(STARTER.stay + STARTER.go)) return null;
+  const track = trackOf(round.track);
+  const spot = spotAt(track, track.start + STARTER.ahead);
+  return {
+    at: { x: spot.x, y: spot.y + STARTER.over, z: spot.z },
+    yaw: spot.yaw + Math.PI,
+    here: toGo > 0 ? (RACE.grid - toGo) / STARTER.come : 1 - (-toGo - STARTER.stay) / STARTER.go,
+    red: toGo > 0 && toGo <= RACE.countdown ? RACE.countdown + 1 - Math.ceil(toGo) : 0,
+    green: toGo <= 0,
   };
 }
 

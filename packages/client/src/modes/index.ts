@@ -2,6 +2,7 @@
 // shares to lay out without knowing which mode they're in. A mode's own is in its directory here;
 // a mode with nothing of its own adds nothing.
 import type { GameModeId, GameState, Kart } from '@world/shared';
+import type { Start } from '../render/lakitu/Starter';
 import type { BannerLine } from '../ui/GameBanner';
 import type { Row } from '../ui/menu/rows';
 import type { Leaderboard } from '../ui/Results';
@@ -36,18 +37,20 @@ export interface Moment {
   karts: Kart[];
 }
 
-// What a game has on the HUD while it's played: the line standing over the view
-// (ui/GameBanner.ts), what's in the top right (ui/Scores.ts), and a leaderboard over the view
-// (ui/Results.ts). Null: nothing there.
+// What a game shows while it's played: on the HUD, the line standing over the view
+// (ui/GameBanner.ts), what's in the top right (ui/Scores.ts) and a leaderboard over the view
+// (ui/Results.ts); and in the world, Lakitu starting a race (render/lakitu/Starter.ts). Null:
+// nothing there.
 export interface Showing {
   line: BannerLine | null;
   scores: Tally | null;
   board: Leaderboard | null;
+  starter: Start | null;
 }
 
-export const NOTHING: Showing = { line: null, scores: null, board: null };
+export const NOTHING: Showing = { line: null, scores: null, board: null, starter: null };
 
-// What each mode's game has on the HUD while it's played, to the player at that moment.
+// What each mode's game shows while it's played, to the player at that moment.
 export const MODE_HUD: Record<GameModeId, (game: GameState, at: Moment) => Showing> = {
   freeplay: () => NOTHING,
   racing: racingHud,

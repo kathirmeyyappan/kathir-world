@@ -1,8 +1,9 @@
 // Lakitu as he fishes (scripts/lakitu-model.py's `fishing`): on his cloud with his rod held out
-// in front of him, a line hanging from its tip and the hook on its end. He's stood by where the
-// eye of his hook is, so whatever he fishes for says where that is and he's over it. His files (two
-// parts and a picture, about 80 KB) are sent for with `wantLakitu`, and until they're here nothing
-// of him is drawn.
+// in front of him, a line hanging from its tip and on its end his hook, or whatever else is hung
+// there (`end`: the starting lights, StartLights.ts). He's stood by where the end of his line is,
+// so whatever he fishes for says where that is and he's over it. His files (two parts and a
+// picture, about 80 KB) are sent for with `wantLakitu`, and until they're here nothing of him is
+// drawn.
 import {
   Color3,
   Mesh,
@@ -44,14 +45,20 @@ export function wantLakitu(scene: Scene): void {
 
 export class Lakitu {
   private readonly body: TransformNode; // the middle of him, turned the way he faces
-  private readonly hook: TransformNode; // the eye of his hook
+  // The end of his line, turned and sized as he is: the eye of his hook, or the top of what's hung
+  // there in its place.
+  readonly end: TransformNode;
   // A metre of line down from the origin, stood at the tip of his rod and stretched to the hook.
   private readonly line: LinesMesh;
   private built = false;
 
-  constructor(private readonly scene: Scene) {
+  // `hooked`: his hook is on the end of his line; without it the end is left for something else.
+  constructor(
+    private readonly scene: Scene,
+    private readonly hooked: boolean,
+  ) {
     this.body = new TransformNode('lakitu', scene);
-    this.hook = new TransformNode('lakitu-hook', scene);
+    this.end = new TransformNode('lakitu-line-end', scene);
     this.line = MeshBuilder.CreateLines('lakitu-line', { points: [Vector3.Zero(), Vector3.Down()] }, scene);
     this.line.color = LINE;
     this.line.isPickable = false;
@@ -59,7 +66,7 @@ export class Lakitu {
   }
 
   // Stands him fishing, facing `yaw` at `size` times his own, the tip of his rod `line` metres
-  // over `eye`, where his hook's eye hangs.
+  // over `eye`, where the end of his line hangs.
   fish(eye: Vec3, yaw: number, line: number, size: number): void {
     if (!this.built && !this.build()) return;
     const [sin, cos] = [Math.sin(yaw), Math.cos(yaw)];
@@ -69,8 +76,8 @@ export class Lakitu {
       tip - TIP_Y * size,
       eye.z - (TIP_Z * cos - TIP_X * sin) * size,
     );
-    this.hook.position.set(eye.x, eye.y, eye.z);
-    for (const node of [this.body, this.hook]) {
+    this.end.position.set(eye.x, eye.y, eye.z);
+    for (const node of [this.body, this.end]) {
       node.rotation.y = yaw;
       node.scaling.setAll(size);
     }
@@ -80,7 +87,7 @@ export class Lakitu {
 
   dispose(): void {
     this.body.dispose();
-    this.hook.dispose();
+    this.end.dispose();
     this.line.dispose();
   }
 
@@ -90,7 +97,7 @@ export class Lakitu {
     if (!parts) return false;
     for (const [mesh, parent] of [
       [parts.body, this.body],
-      [parts.hook, this.hook],
+      ...(this.hooked ? ([[parts.hook, this.end]] as const) : []),
     ] as const) {
       const made = mesh.clone(mesh.name, parent);
       made.setEnabled(true);
