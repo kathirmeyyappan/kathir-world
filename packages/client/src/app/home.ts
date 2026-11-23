@@ -59,7 +59,10 @@ const TAG_PX = 16; // the least the name over the stage's body is drawn at: the 
 
 // What each tab's button says, and the line under its code, if any.
 const TABS: Record<JoinMode, { action: string; hint: string }> = {
-  create: { action: 'CREATE', hint: 'a new room under a code no one is using' },
+  create: {
+    action: 'CREATE',
+    hint: 'by creating this room, you become the room master and have control over game settings',
+  },
   join: { action: 'JOIN', hint: '' },
 };
 
