@@ -13,6 +13,9 @@
 // canvas can be any size and change it; each draw fits the view to the size it has.
 import {
   EYE_HEIGHT,
+  ROAD_WIDTH,
+  spotAt,
+  type Track,
   HIGH_LANDMARKS,
   HIGH_UP,
   LANDMARKS,
@@ -36,6 +39,9 @@ export interface MinimapFrame {
   me: { x: number; y: number; z: number; yaw: number };
   players: (Sighted & { x: number; y: number; z: number; yaw: number; bot: boolean })[];
   cubes: { x: number; z: number }[];
+  // The track in play (the shared package's `Rules.track`): all else is dulled, its finish line is
+  // marked, and everyone on the map is marked as boldly as you. Null: none.
+  track: Track | null;
 }
 
 export type MinimapView = 'close' | 'wide' | 'world';
@@ -86,6 +92,11 @@ const PLINTH = 'rgb(104, 78, 54)';
 const ARCH = 'rgb(150, 114, 78)';
 const ROOF = 'rgb(84, 62, 44)';
 const SEAM = 'rgba(36, 24, 14, 0.9)';
+// A track in play: what's laid over everything off it, and over the track itself.
+const DULL = 'rgba(9, 11, 16, 0.74)';
+const LIT = `rgba(${ACCENT}, 0.3)`;
+// A track's finish line: metres along the road it's drawn, and CSS pixels at the least.
+const FINISH = { m: 3, px: 2.5 };
 const OTHERS = 0.6; // other people's arrows, as a fraction of yours
 const BOT = 5; // CSS pixels across a bot's square, inside its light edge: still under a person's arrow
 const LEVEL = 3; // metres of height difference at which another player reads as above or below you
@@ -110,6 +121,7 @@ export class MapCanvas {
   private readonly landmarkLayer = layer();
   private readonly woodLayer = layer();
   private readonly houseLayer = layer();
+  private readonly dullLayer = layer();
   private readonly parts: Map<WorldPart, Path2D>; // each part's path, made once
   private readonly bounds;
   private width = 0; // CSS pixels, as last drawn
@@ -129,6 +141,7 @@ export class MapCanvas {
     const { x, y, z } = frame.me;
     const t = this.transform(frame.me, view, framing);
     this.drawGround(t, y - EYE_HEIGHT > HIGH_UP ? [...LANDMARKS, ...HIGH_LANDMARKS] : LANDMARKS, heights);
+    if (frame.track) this.drawTrack(t, frame.track);
 
     const ctx = this.ctx;
     ctx.setTransform(RES, 0, 0, RES, 0, 0); // markers in CSS pixels
@@ -138,7 +151,8 @@ export class MapCanvas {
       ctx.globalAlpha = Math.abs(p.y - y) < LEVEL ? 1 : 0.45;
       ctx.fillStyle = p.colour;
       if (p.bot) this.bot(t, p.x, p.z);
-      else this.arrow(t, p.x, p.z, p.yaw - (view === 'world' ? 0 : frame.me.yaw), p.pointer ? 1 : OTHERS);
+      else
+        this.arrow(t, p.x, p.z, p.yaw - (view === 'world' ? 0 : frame.me.yaw), p.pointer || frame.track ? 1 : OTHERS);
     }
     ctx.globalAlpha = 1;
     ctx.fillStyle = '#fff';
@@ -163,6 +177,49 @@ export class MapCanvas {
     this.toWorld(ctx, t);
     ctx.imageSmoothingEnabled = false; // a metre a pixel, each kept square
     ctx.drawImage(heights.canvas, heights.x, heights.z);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+  }
+
+  // A track in play over what's drawn: everything off it dulled, the track itself lit, and its
+  // finish line across it.
+  private drawTrack(t: Transform, track: Track): void {
+    const [W, H] = [this.width * RES, this.height * RES];
+    const strip = trackPath(track);
+    const dull = this.dullLayer;
+    dull.setTransform(1, 0, 0, 1, 0, 0);
+    dull.globalCompositeOperation = 'source-over';
+    dull.clearRect(0, 0, W, H);
+    dull.fillStyle = DULL;
+    dull.fillRect(0, 0, W, H);
+    this.toWorld(dull, t);
+    dull.globalCompositeOperation = 'destination-out';
+    dull.lineWidth = ROAD_WIDTH;
+    dull.lineJoin = 'round';
+    dull.stroke(strip);
+    const ctx = this.ctx;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.drawImage(dull.canvas, 0, 0);
+    this.toWorld(ctx, t);
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = ROAD_WIDTH;
+    ctx.strokeStyle = LIT;
+    ctx.stroke(strip);
+    // The line: white across the road, dashed black over it, so it reads as checkered at any size.
+    const s = spotAt(track, track.finish);
+    const [ax, az] = [Math.cos(s.yaw) * (ROAD_WIDTH / 2), -Math.sin(s.yaw) * (ROAD_WIDTH / 2)];
+    ctx.lineWidth = Math.max(FINISH.m, FINISH.px * t.scale);
+    for (const [colour, dash] of [
+      ['#fff', []],
+      ['#111', [ctx.lineWidth, ctx.lineWidth]],
+    ] as const) {
+      ctx.strokeStyle = colour;
+      ctx.setLineDash(dash);
+      ctx.beginPath();
+      ctx.moveTo(s.x - ax, s.z - az);
+      ctx.lineTo(s.x + ax, s.z + az);
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
   }
 
@@ -195,6 +252,7 @@ export class MapCanvas {
       this.landmarkLayer.canvas,
       this.woodLayer.canvas,
       this.houseLayer.canvas,
+      this.dullLayer.canvas,
     ]) {
       c.width = width * RES;
       c.height = height * RES;
@@ -455,6 +513,22 @@ export function coordsOf(me: MinimapFrame['me']): string {
 
 function layer(): CanvasRenderingContext2D {
   return document.createElement('canvas').getContext('2d')!;
+}
+
+const strips = new WeakMap<Track, Path2D>();
+
+// A track's middle as a path in world metres, made once: a line through its spots, begun afresh
+// wherever they go back along it (a split's second strand, listed after its first).
+function trackPath(track: Track): Path2D {
+  let path = strips.get(track);
+  if (path) return path;
+  path = new Path2D();
+  track.spots.forEach((s, i) => {
+    if (i === 0 || s.at < track.spots[i - 1].at) path.moveTo(s.x, s.z);
+    else path.lineTo(s.x, s.z);
+  });
+  strips.set(track, path);
+  return path;
 }
 
 // A landmark filled in grey: any but those drawn as themselves.

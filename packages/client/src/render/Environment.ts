@@ -2,14 +2,26 @@
 // (Floor.ts) and streamed in by the loader, the ground past the edge OUTSIDE_HEIGHT below as one
 // plane under it all, all three gridded by one shader; and a gradient sky with stars. Sky
 // billboards live in SkyObject.ts.
-import { Color3, Effect, Mesh, MeshBuilder, ShaderMaterial, Vector2, Vector3, type Scene } from '@babylonjs/core';
-import { CHUNK, OUTSIDE_HEIGHT, type Ground, type Raised } from '@world/shared';
+import {
+  Color3,
+  Effect,
+  Mesh,
+  MeshBuilder,
+  RawTexture,
+  ShaderMaterial,
+  Texture,
+  Vector2,
+  Vector3,
+  type Scene,
+} from '@babylonjs/core';
+import { CHUNK, OUTSIDE_HEIGHT, type Ground, type Raised, type Track } from '@world/shared';
 import { BASE_FOG_DENSITY, Engine, FOG_COLOR } from './Engine';
 import { GROUND_FRAGMENT, GROUND_VERTEX, SKY_FRAGMENT, SKY_VERTEX } from './shaders';
 import { floorChunk } from './Floor';
 import { around, type Loader } from './Loader';
 import { Quads } from './Quads';
 import { RISEN_SIDE, over, raisedGround } from './RaisedGround';
+import { trackMask } from './TrackMask';
 
 // The ground shader's `side` for the slab's meshes, which carry each vertex's own (Floor.ts).
 const SIDE_PER_VERTEX = -1;
@@ -36,6 +48,10 @@ export class Environment {
   private readonly span: number;
   private readonly outside: Mesh;
   private time = 0;
+  // The track in play as the ground's shader reads it (TrackMask.ts), and where its corner is; with
+  // no track, a picture of nowhere, for the shader to have one bound.
+  private track: { picture: RawTexture; corner: Vector2 } | null = null;
+  private readonly noTrack: RawTexture;
 
   constructor(
     private readonly engine: Engine,
@@ -50,6 +66,15 @@ export class Environment {
     Effect.ShadersStore['worldGroundFragmentShader'] = GROUND_FRAGMENT;
     Effect.ShadersStore['worldSkyVertexShader'] = SKY_VERTEX;
     Effect.ShadersStore['worldSkyFragmentShader'] = SKY_FRAGMENT;
+    this.noTrack = RawTexture.CreateRGBATexture(
+      new Uint8Array([255, 0, 255, 0]),
+      1,
+      1,
+      engine.scene,
+      false,
+      false,
+      Texture.NEAREST_SAMPLINGMODE,
+    );
     this.outside = this.createOutside();
     this.createGround(loader);
     this.createRaised(loader, raised);
@@ -135,6 +160,36 @@ export class Environment {
     });
   }
 
+  // The track in play, which the floor is drawn against: off it the floor and the roads are grey,
+  // and its sides are a bold line of the grid. Null: none, and all the floor is in play.
+  setTrack(track: Track | null): void {
+    this.track?.picture.dispose();
+    this.track = null;
+    if (track) {
+      const mask = trackMask(track);
+      const picture = RawTexture.CreateRGBATexture(
+        mask.data,
+        mask.width,
+        mask.depth,
+        this.engine.scene,
+        false,
+        false,
+        Texture.NEAREST_SAMPLINGMODE,
+      );
+      picture.wrapU = picture.wrapV = Texture.CLAMP_ADDRESSMODE;
+      this.track = { picture, corner: new Vector2(mask.x, mask.z) };
+    }
+    for (const mat of this.grounds) this.showTrack(mat);
+  }
+
+  private showTrack(mat: ShaderMaterial): void {
+    const picture = this.track?.picture ?? this.noTrack;
+    mat.setFloat('trackOn', this.track ? 1 : 0);
+    mat.setTexture('trackMask', picture);
+    mat.setVector2('trackCorner', this.track?.corner ?? Vector2.Zero());
+    mat.setVector2('trackSize', new Vector2(picture.getSize().width, picture.getSize().height));
+  }
+
   private groundMaterial(name: string, side: number): ShaderMaterial {
     const mat = new ShaderMaterial(`${name}Mat`, this.engine.scene, 'worldGround', {
       attributes: ['position', 'normal', 'uv'],
@@ -157,7 +212,11 @@ export class Environment {
         'reliefCentre',
         'reliefRadius',
         'reliefStrength',
+        'trackOn',
+        'trackCorner',
+        'trackSize',
       ],
+      samplers: ['trackMask'],
     });
     mat.setFloat('sideOf', side);
     mat.setFloat('relief', 0);
@@ -167,6 +226,7 @@ export class Environment {
     mat.setColor3('fogColor', FOG_COLOR);
     mat.setColor3('hazeColor', HAZE_COLOR);
     mat.setFloat('fogScale', 1);
+    this.showTrack(mat);
     mat.backFaceCulling = false;
     this.grounds.push(mat);
     this.materials.push(mat);
