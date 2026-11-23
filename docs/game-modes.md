@@ -389,7 +389,7 @@ outside dev until each can be played, so freeplay is run on every merge.
 - [x] The game: colours, the sites dealt, the clock, the points, the kill lines, the end, and the
       results screen every mode fills in.
 - [x] Who sees whom: names, pins and maps; the HUD's points and clock; the roster by team.
-- [ ] Shootout on the home screen and in the guide.
+- [x] Shootout on the home screen and in the guide.
 
 **4. Racing**
 

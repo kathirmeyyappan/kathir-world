@@ -33,7 +33,10 @@ import {
   type BotId,
   type KartId,
   type Region,
+  GAME_MODES,
+  GAME_MODE_IDS,
 } from '@world/shared';
+import { MODE_FACTS } from '../modes';
 import { BodyView, type Shown, type Thing } from '../render/BodyView';
 import { Elevation } from '../ui/Elevation';
 import { MapCanvas } from '../ui/MapCanvas';
@@ -59,6 +62,7 @@ import {
   type Entry,
   type Photo,
   type Place,
+  MODE_TEXT,
 } from './content';
 import { audition } from '../audio/Sfx';
 import { botDiagram } from './botDiagrams';
@@ -668,6 +672,19 @@ function botsPanel(): HTMLElement {
   return panel;
 }
 
+// A card to each mode that can be played: its name, the home screen's line, what it is, its numbers.
+function modesPanel(): HTMLElement {
+  const panel = el('div', 'cards');
+  for (const id of GAME_MODE_IDS.filter((mode) => GAME_MODES[mode].playable)) {
+    const card = el('section', 'card wide');
+    card.append(el('h2', '', GAME_MODES[id].name), el('p', 'summary', GAME_MODES[id].blurb), list(MODE_TEXT[id]));
+    const facts = MODE_FACTS[id]();
+    if (facts.length) card.append(statTable(facts));
+    panel.append(card);
+  }
+  return panel;
+}
+
 function commandsPanel(): HTMLElement {
   const panel = el('div', 'cards');
   const controls = el('section', 'card wide');
@@ -701,6 +718,7 @@ function main(): void {
     ['characters', 'CHARACTERS'],
     ['items', 'ITEMS'],
     ['world', 'WORLD'],
+    ['modes', 'MODES'],
     ['bots', 'BOTS'],
     ['commands', 'COMMANDS'],
     ['gallery', 'GALLERY'],
@@ -716,6 +734,7 @@ function main(): void {
   const lightbox = new Lightbox();
   const { panel: world, map: worldMap } = worldPanel(lightbox);
   panels.set('world', world);
+  panels.set('modes', modesPanel());
   panels.set('bots', botsPanel());
   panels.set('commands', commandsPanel());
   panels.set('gallery', galleryPanel(lightbox));

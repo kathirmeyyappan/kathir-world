@@ -3,6 +3,7 @@
 // a mode with nothing of its own adds nothing.
 import type { GameModeId, GameState } from '@world/shared';
 import type { Row } from '../ui/menu/rows';
+import { shootoutFacts } from './shootout/facts';
 import { shootoutSettings } from './shootout/settings';
 
 // What a mode's settings read, and how they ask for a change.
@@ -19,4 +20,11 @@ export const MODE_SETTINGS: Record<GameModeId, (hooks: ModeHooks) => Row[]> = {
   freeplay: () => [],
   racing: () => [],
   shootout: shootoutSettings,
+};
+
+// Each mode's numbers as the guide gives them, worked out from what the game runs on.
+export const MODE_FACTS: Record<GameModeId, () => { label: string; value: string }[]> = {
+  freeplay: () => [],
+  racing: () => [],
+  shootout: shootoutFacts,
 };

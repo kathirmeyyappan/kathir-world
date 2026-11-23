@@ -1660,7 +1660,7 @@ it's one on foot they could switch to.
 ## Guide
 
 The guide (`world.kathirm.com/guide/`, `packages/client/guide/index.html` and `src/guide/`) is a
-second Vite page: every character, item, kart, place, bot and command in tabs. A character stands
+second Vite page: every character, item, kart, place, game mode, bot and command in tabs. A character stands
 in a `BodyView` (`render/BodyView.ts`, the menu's player view), or at its ON FOOT / IN KART toggle
 sits in the Standard Kart in their own paint (`Shown.kart`: the view parks a kart on its stage and
 seats the body in it, `parkedKart`; a dragon has no toggle); an item, a heart or a résumé cube
@@ -1672,7 +1672,9 @@ registries the game runs on, never typed in: a table's value is a number and its
 or a key to type), never a sentence, with the keys that do an ability in its heading, and a thing's
 tables hold only what its own row changes, never a constant every one of its kind shares. Its words
 are `guide/content.ts`, keyed by the
-registries' ids, so a new skin, item, gear, kart or pickup doesn't build until it has an entry there:
+registries' ids, so a new skin, item, gear, kart, pickup or game mode doesn't build until it has an entry there
+(a mode's numbers are its own to give, `MODE_FACTS` in the client's `modes/index.ts`, and only a
+mode that can be played is listed):
 plain statements of what each thing is (Kathir writes anything more, and the fun facts), no numbers.
 A character's SOUNDS are a button for every sound it makes that not every look makes alike
 (`guide/sounds.ts` `linesOf`): what it says (`VOICES`), the sounds of the moves it has, its own

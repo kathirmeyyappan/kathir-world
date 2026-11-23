@@ -11,6 +11,7 @@ import {
   type ItemId,
   type KartId,
   type PickupKind,
+  type GameModeId,
 } from '@world/shared';
 import { DRIVING } from '../ui/legend';
 import type { AbilityId } from './stats';
@@ -22,6 +23,19 @@ export interface Entry {
 }
 
 export const INTRO = ['this is the kathir world official (can I call it that?) guide.'];
+
+// What each game mode is, said plainly: a room is created in one, on the home screen.
+export const MODE_TEXT: Record<GameModeId, string[]> = {
+  freeplay: ['A room with no game in it. Every command works, and nothing is scored.'],
+  racing: ['A series of races in karts, each on a new track through the roads.'],
+  shootout: [
+    'The room master splits the room into even teams in the menu and starts the game.',
+    'Each team starts indoors, apart from the others, in its own colour.',
+    'A kill of someone on another team scores for your team, and every death costs your own.',
+    'You see your teammates on the map and by name, and nothing of the other teams but their bodies.',
+    'Dragons, teleporting, colours and bots are off. When the clock runs out, the most points win.',
+  ],
+};
 
 // The keys, on foot, as a dragon and in a kart.
 const SHARED: [string, string][] = [
