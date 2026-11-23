@@ -1,6 +1,7 @@
 // The game modes a room can be created in (docs/game-modes.md). Freeplay is the game with no
 // rules of its own: what a room is unless it's created as another, and what the room everyone
 // shares always is. The rest are games, each with its own rules over the same world.
+import type { GameBot } from './bots';
 import type { Phase } from './game';
 import { GameMode, type ModeRoom } from './mode';
 import type { Command } from '../commands';
@@ -10,6 +11,7 @@ import { RACING_RULES } from './racing/rules';
 import { Shootout } from './shootout/referee';
 import { SHOOTOUT_RULES } from './shootout/rules';
 
+export * from './bots';
 export { MASTER_LEFT, RESULTS_SECONDS, START_SECONDS, type Phase } from './game';
 export type { GameMode, Joining, ModeRoom } from './mode';
 export { FREEPLAY_DYING } from './rules';
@@ -88,6 +90,7 @@ export interface GameState {
   master: string | null;
   phase: Phase | null; // where the game is (game.ts); null in freeplay, which has no game to be anywhere in
   until: number | null; // the tick the phase's clock runs out at, where it has one: the start's countdown
+  bots: GameBot[]; // the bots its game brings (bots.ts), as set: the first is bot 1. None in freeplay
 }
 
 // What a player asks of the game (a `game` message): its master's to ask, starting it and ending it.

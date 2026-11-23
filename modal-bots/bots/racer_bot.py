@@ -45,7 +45,10 @@ from common.driving import Driver, Keys, skill
 from common.racing_line import Line, Shape, racing_line
 
 MOST_LATE = 10  # ticks: the most a driver allows for between what it sees and its keys being taken
-UNRATED = 0.5  # the rating of a racer its game gives none
+# How good a racer its game's least level asks for and its most, of all a driver can be: short of
+# both ends, since each racer has form of its own either side of what it's asked for.
+RATINGS = (0.1, 0.88)
+UNRATED = 0.5  # the rating of a racer no game brought
 # Of the whole range of skill: how far a racer's talent sets it from its rating, and how far the
 # day it's having sets it from that.
 TALENT = 0.1
@@ -125,8 +128,7 @@ class Racer:
         if self._racing != (race["track"], race["go"]) or self._race is None:
             self._racing = (race["track"], race["go"])
             self.races += 1
-            rated = next((r.get("rating") for r in state.game["racers"] if r["id"] == me.id), None)
-            rating = UNRATED if rated is None else float(rated)
+            rating = state.rating(RATINGS, UNRATED)
             self._race = asyncio.create_task(
                 asyncio.to_thread(race_of, self._seed, race["track"], race["go"], kart.kart, rating)
             )

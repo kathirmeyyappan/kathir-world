@@ -2,35 +2,24 @@
 // that is a series of races, each on a track of its own, for points by the place finished in.
 import { TICK_RATE } from '../../sim/constants';
 import { gridOf, onTrack, routes, trackOf, withinTrack } from '../../sim/tracks';
-import type { AvatarId } from '../../sim/avatars';
 import type { PlayerState } from '../../sim/types';
-import { Game, START_SECONDS } from '../game';
+import { Game } from '../game';
 import { RACING_RULES } from './rules';
 import {
-  BOT_LOOKS,
-  BOT_WAIT,
   RACE,
   RACER_BOT,
   RACES,
-  botName,
   isRacingChange,
   pointsFor,
   racing,
-  ratingOf,
-  type RaceBot,
   type Racer,
   type RacingState,
   type Round,
 } from './state';
 
 export class Racing extends Game {
+  protected readonly plays = RACER_BOT;
   private races = RACES.count;
-  private bots: RaceBot[] = [];
-  // The bots asked for as the game started and still to come: the level of each, by the name it's
-  // to come as. And how good a racer each that has come is asked to be, by its id.
-  private awaited = new Map<string, number>();
-  private ratings = new Map<string, number>();
-  private givenUp = 0; // the tick from which the start no longer waits for them
   private racers: Racer[] = [];
   private points: number[] = [];
   private tracks: number[] = []; // each race's track, dealt as the game begins
@@ -43,22 +32,15 @@ export class Racing extends Game {
       ...super.state,
       mode: 'racing',
       races: this.races,
-      bots: this.bots.map((bot) => ({ ...bot })),
       racers: this.racers.map((racer) => ({ ...racer })),
       points: [...this.points],
       round,
     };
   }
 
-  // Whoever is in the lobby is to race, and a bot the game asked for has come. Someone who comes
-  // once a game has begun watches it.
+  // Whoever is in the lobby is to race. Someone who comes once a game has begun watches it.
   override joined(player: PlayerState, made: boolean): void {
     super.joined(player, made);
-    const level = player.bot ? this.awaited.get(player.name) : undefined;
-    if (level !== undefined) {
-      this.awaited.delete(player.name);
-      this.ratings.set(player.id, ratingOf(level));
-    }
     if (player.bot || player.ghost) return;
     this.racers.push(this.racerOf(player));
     this.room.publish();
@@ -82,47 +64,14 @@ export class Racing extends Game {
 
   protected override set(change: unknown): boolean {
     if (!isRacingChange(change)) return false;
-    if ('bots' in change) {
-      // Each bot keeps the look it has; one added is given its own.
-      const bots = this.bots.slice(0, change.bots.length);
-      change.bots.forEach((level, i) => (bots[i] = { level, avatar: bots[i]?.avatar ?? this.look(bots) }));
-      this.bots = bots;
-    } else this.races = Math.max(RACES.min, Math.min(RACES.max, change.races));
+    this.races = Math.max(RACES.min, Math.min(RACES.max, change.races));
     return true;
-  }
-
-  // A look for a bot joining `bots`: one that none of them wears and nobody here does, while
-  // there's one, by the room's dice.
-  private look(bots: RaceBot[]): AvatarId {
-    const worn = new Set([...this.room.people(), ...bots].map((racer) => racer.avatar));
-    const free = BOT_LOOKS.filter((look) => !worn.has(look));
-    const from = free.length > 0 ? free : BOT_LOOKS;
-    return from[Math.floor(this.room.random() * from.length)];
-  }
-
-  // Its bots are asked for as its start is counted down, each by the name it's to come as and in
-  // its look.
-  protected override gather(): void {
-    this.awaited.clear();
-    this.bots.forEach(({ level, avatar }, i) => {
-      if (this.room.call(RACER_BOT, botName(i), avatar)) this.awaited.set(botName(i), level);
-    });
-    this.givenUp = this.room.tick() + (START_SECONDS + BOT_WAIT) * TICK_RATE;
-  }
-
-  protected override awaits(name: string): boolean {
-    return this.awaited.has(name);
-  }
-
-  protected override gathered(): boolean {
-    return this.awaited.size === 0 || this.room.tick() >= this.givenUp;
   }
 
   // The game begins: whoever is here is who races, its bots among them, under the name they have
   // now, each race is dealt a track of its own, and the first is set up for everyone to be put on
-  // its grid. A bot that hasn't come by now isn't in it.
+  // its grid.
   protected override begin(): void {
-    this.awaited.clear();
     this.racers = this.room.everyone().map((player) => this.racerOf(player));
     this.points = this.racers.map(() => 0);
     const dealt = new Set<number>();
@@ -190,8 +139,6 @@ export class Racing extends Game {
 
   // Back in the lobby everyone there is to race the next game, those who watched the last included.
   protected override toLobby(): void {
-    this.awaited.clear();
-    this.ratings.clear();
     this.round = null;
     this.racers = this.room.people().map((player) => this.racerOf(player));
     super.toLobby();
@@ -223,7 +170,6 @@ export class Racing extends Game {
       name: player.name,
       colour: player.color,
       avatar: player.avatar,
-      rating: this.ratings.get(player.id) ?? null,
       gone: false,
     };
   }

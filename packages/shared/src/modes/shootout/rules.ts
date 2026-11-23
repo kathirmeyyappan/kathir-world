@@ -1,11 +1,12 @@
 // Shootout's rules (docs/game-modes.md), which the Room enforces and the client shows.
 import { gameRules } from '../game';
 import { FREEPLAY_DYING, type Rules } from '../rules';
-import { TEAMS, isShootout, type ShootoutState } from './state';
+import { TEAMS, isShootout, memberOf, type ShootoutState } from './state';
 
 export const SHOOTOUT_RULES: Rules = {
   // A fight on foot and in karts between teams in their own colours: nothing that flies over it or
-  // steps out of it, no colour but the team's, and people alone. Its dead come back as freeplay's do.
+  // steps out of it, no colour but the team's, and no bots but its own. Its dead come back as
+  // freeplay's do.
   ...gameRules({
     allows: {
       speedy: true,
@@ -23,7 +24,7 @@ export const SHOOTOUT_RULES: Rules = {
     dying: FREEPLAY_DYING,
   }),
 
-  // Even teams, with someone on each.
+  // Even teams, with someone on each: the game's bots count as anyone does.
   starts(game) {
     if (!isShootout(game)) return null;
     const sizes = game.teams.map((team) => team.length);
@@ -35,7 +36,8 @@ export const SHOOTOUT_RULES: Rules = {
   // their own again.
   side(game, player) {
     if (!isShootout(game) || !fought(game)) return null;
-    const team = game.teams.findIndex((players) => players.includes(player));
+    const member = memberOf(game.bots, player);
+    const team = game.teams.findIndex((members) => members.includes(member));
     return team < 0 ? null : TEAMS[team];
   },
 

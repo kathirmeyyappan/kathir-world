@@ -1,6 +1,7 @@
 // Shootout's own part of a game's state (docs/game-modes.md): its settings, which its room master
 // changes in the lobby, everyone's team, and each team's points.
 import { NAMED_COLORS } from '../../sim/constants';
+import type { GameBot, Plays } from '../bots';
 import type { GameState } from '../index';
 
 // The teams there can be, in the order they're added: each one's name and the colour its players go
@@ -19,10 +20,16 @@ export const POINTS = { kill: 2, death: 1 };
 // and how long it can be set.
 export const CLOCK = { seconds: 300, step: 30, min: 30, max: 1200 };
 
+// The bot that fights: the bots app's fighter (modal-bots/bots/fighter_bot.py), which reads how
+// good to be off its level among the game's bots, and its side off the teams.
+export const FIGHTER_BOT: Plays = { bot: 'fighter', worker: 'combat' };
+
 export interface ShootoutState extends GameState {
   mode: 'shootout';
   seconds: number; // how long its game runs, as set
-  teams: string[][]; // each team's players, by id, in TEAMS' order: everyone in the game is on one
+  // Each team's members, in TEAMS' order: a person by their id, and one of the game's bots by its
+  // key (`GameBot.key`), here or still to come. Everyone in the game is on one.
+  teams: string[][];
   points: number[]; // each team's points in the game being played, or last played
 }
 
@@ -30,11 +37,16 @@ export function isShootout(game: GameState): game is ShootoutState {
   return game.mode === 'shootout';
 }
 
-// A change its room master makes to its settings.
+// What a player goes by on a team: one of the game's bots its key, anyone else their id.
+export function memberOf(bots: GameBot[], player: string): string {
+  return bots.find((bot) => bot.id === player)?.key ?? player;
+}
+
+// A change its room master makes to its own settings.
 export type ShootoutChange =
   | { clock: number } // how long its game runs, seconds
   | { teams: number } // how many teams there are
-  | { move: string; to: number }; // a player, by id, to the team at that place in TEAMS
+  | { move: string; to: number }; // a member of a team to the team at that place in TEAMS
 
 export function isShootoutChange(v: unknown): v is ShootoutChange {
   if (typeof v !== 'object' || v === null) return false;

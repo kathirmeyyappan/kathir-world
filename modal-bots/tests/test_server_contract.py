@@ -457,8 +457,9 @@ def test_a_race_calls_its_bot_seats_it_and_it_drives_the_track(
     async def scenario() -> None:
         # The room's master, as the browser makes a racing room: one racer, and a bot to race.
         async with websockets.connect(f"{room_server}?room=py-race&name=master&game=racing&mode=create") as master:
-            for message in ({"t": "settings", "change": {"bots": [5]}}, {"t": "game", "do": "start"}):
-                await master.send(json.dumps(message))
+            for change in ({"bots": "more"}, {"bot": 0, "level": 5}):
+                await master.send(json.dumps({"t": "settings", "change": change}))
+            await master.send(json.dumps({"t": "game", "do": "start"}))
             while (call := await asyncio.to_thread(asked.get, timeout=RECEIVE_TIMEOUT))["bot"] != "racer":
                 pass  # the room's own starting bots, which nothing here starts
             assert (call["room"], call["name"]) == ("py-race", "bot 1")

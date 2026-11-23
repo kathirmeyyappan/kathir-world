@@ -48,6 +48,7 @@ import {
   BOT_MAX_SECONDS,
   botArguments,
   botRequest,
+  workerRequest,
   type BotId,
   type BotPlacement,
   type BotRequest,
@@ -168,18 +169,10 @@ export class Room {
       close: (reason) => this.end(reason),
       people: () => this.players.filter((p) => !p.bot),
       everyone: () => this.players.filter((p) => !p.bot || !p.dead),
-      call: (bot, name, avatar) => {
+      call: ({ bot, worker }, name, avatar) => {
         if (!this.spawnBot || !this.publicName) return false;
-        const req: BotRequest = {
-          bot,
-          worker: 'dumb',
-          room: this.publicName,
-          seconds: BOT_MAX_SECONDS,
-          caller: 'room',
-          name,
-          avatar,
-        };
-        this.spawnBot(req).catch((err: unknown) => {
+        const call = { bot, room: this.publicName, seconds: BOT_MAX_SECONDS, caller: 'room', name, avatar };
+        this.spawnBot(workerRequest(call, worker)).catch((err: unknown) => {
           this.log(`the game's bot ${bot} for ${this.id}: ${err instanceof Error ? err.message : String(err)}`);
         });
         return true;
@@ -479,7 +472,7 @@ export class Room {
         this.rename(seat, msg.name);
         return;
       case 'respawn':
-        if (seat.state.dead && !seat.state.bot && this.dying.screen) this.respawn(seat);
+        if (seat.state.dead && this.mode.revives(seat.state) && this.dying.screen) this.respawn(seat);
         return;
       case 'game':
         this.mode.asked(seat.state, msg.do);
@@ -730,12 +723,13 @@ export class Room {
     for (const [id, seat] of this.seats) {
       const me = seat.state;
       const lain = seat.diedTick === null ? 0 : this.tick - seat.diedTick;
-      if (me.bot && lain >= BOT_CORPSE_TICKS) {
+      const revived = this.mode.revives(me);
+      if (!revived && lain >= BOT_CORPSE_TICKS) {
         this.leave(id);
         seat.link.close?.('dead');
         continue;
       }
-      if (!me.bot && lain >= lies) {
+      if (revived && lain >= lies) {
         this.respawn(seat);
         continue;
       }

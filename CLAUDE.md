@@ -919,7 +919,9 @@ body (`buryBody`: it leaves
 `CORPSE_DROP`, see Regions and pickups) and gives the seat a new one, as whoever comes in is given
 (a full life, nothing held or worn), somewhere in `RESPAWN_AREAS`, in the look they died in
 if it's one on foot (a dragon's rider comes back as the standard body). A bot is never brought back: its
-corpse lies five seconds and its seat is dropped. A new body is the Room's `rebody`, which a game
+corpse lies five seconds and its seat is dropped. Whether someone dead is brought back is the
+room's game's to say (`GameMode.revives`): a person always, and a bot a game brought itself until
+that game's lobby is back (see Game modes). A new body is the Room's `rebody`, which a game
 uses too, to put everyone where it starts and back in its lobby (see Game modes): the seat's
 `PlayerState` made afresh with its name, colour and score, and `body` counted one up. Nothing else
 on the wire says it happened: clients read it off the snapshots, a `body` that isn't the one they
@@ -1576,7 +1578,7 @@ handed in as `MenuHooks`; `rows.ts` is the kinds of row (a toggle, a stepper wit
 an AUTO button, a field, buttons, a link to share, words to read, a board of players in columns
 whose players, each with their emblem, are dragged or tapped from one to another, one with
 something of its own that's set, a bot's level, having it after its name between a - and a + that
-step it) and how each
+step it, or under its name in a column too narrow for both) and how each
 draws, a button able
 to come and go, to be greyed, and to warn of what it does and go at a second press
 (`ui/pressTwice.ts`, as every way out of a room warns its room master that leaving closes it); and
@@ -1850,7 +1852,10 @@ Bots must use the modules under `modal-bots/common/`:
   one retry on stale authentication, welcome validation, JSON transport, and clean close.
 - `WorldState(connection.welcome, connection.room)` owns the latest authoritative players, cubes,
   health, deaths, and server tick, with the karts (`state.karts`, and `state.kart`, the one this
-  bot drives) and the room's game as it was last told (`state.game`, its `GameState` as sent).
+  bot drives) and the room's game as it was last told (`state.game`, its `GameState` as sent),
+  with this bot as that game brought it (`state.brought`, None for one no game brought) and how
+  good the game asks it to be on the bot's own scale (`state.rating(ratings, unrated)`, from its
+  level there).
   Apply every received message before making the next decision.
   `state.nearest_player(people_only=...)` is the closest living player in a straight line, never
   a ghost (`Player.ghost`: in the room and not in its game).
@@ -1992,7 +1997,8 @@ finally:
 
 The observer is intentionally simpler because it never sends input. Use `circle_bot.py` as the
 reference for an active receive loop plus 30 Hz input task. A dead person is brought back in their
-own seat after ten seconds (see Death and respawn); a dead bot never is: its corpse lies five
+own seat after ten seconds (see Death and respawn); a dead bot never is, unless a game brought it
+and is still on (the fighter asks to be, `controls.respawn()`): its corpse lies five
 seconds, then the Room drops its seat and closes its connection with the reason `dead`, which ends
 its run (stop the input task and keep receiving, as `circle_bot.py` does). A death from `/kill-bots` has no kill event, so react to `state.me.dead`,
 not to the event. A bot that should respawn instead must close, wait for the chosen respawn
@@ -2118,8 +2124,9 @@ Python process runs. The sidecar spawns the worker's function (`BOTS_FUNCTIONS` 
 seconds}`, the request's `name` and placement (`spawn`, `avatar`) and, for a combat bot, `targets`,
 using the container's own Modal credentials; Node never holds a token. A bot called from chat
 therefore needs a row in `bots.ts` as well as its Python module; one without a row is started only
-with `modal run`, or by a game for itself: a race's racers are asked for by its referee
-(`ModeRoom.call`, `docs/game-modes.md`), by the worker's name for them, and are no command.
+with `modal run`, or by a game for itself: a game's own bots (a race's racers, a shootout's
+fighters) are asked for by its referee (`ModeRoom.call`, `docs/game-modes.md`), by the bots app's
+name for them and the worker they run on (the mode's `Plays`), whether or not they're a command.
 A row's `look` is the one look that bot always wears (the stalker is always Tung
 Tung Tung Sahur, the one body that shows where it looks standing still): `botRequest` dresses it so
 and it takes no `-s`, and its Python module wears that look whatever it's given.

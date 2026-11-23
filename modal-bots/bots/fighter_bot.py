@@ -8,7 +8,8 @@ hurt it. How well it does all of it is its ``Skill``, and what it's like is its 
 
 1. Who it's against. In a game with sides (a shootout's teams), everyone on another side, and it
    leaves its own side alone. With none: every person, or with ``targets`` every player whose name
-   has one of them in it. Never a ghost, and nobody in the first seconds of a new body.
+   has one of them in it. Never a ghost, and nobody in the first seconds of a new body. One a game
+   brought is against nobody until that game is being played, and nobody once it's over.
 
 2. Its rating. A game that brought it says how good it's to be (its level, in the game's bots);
    called from chat it's of the middle level. Its own form sets it a little either side of that.
@@ -79,9 +80,10 @@ from common.deployment import validate_duration
 from common.fighting import ARMS, Aim, Arm, Skill, Temper, believed, mark_on, skill, temper
 from common.map.bodies import EYE_HEIGHT
 
-LEVELS = (1, 5)  # the least and most a game asks of a fighter (BOT_LEVELS in the shared package)
-RATINGS = (0.08, 0.92)  # how good those are, of all a fighter can be: its form goes either side
-UNRATED = 0.5  # the rating of a fighter no game has given a level
+# How good a fighter its game's least level asks for and its most, of all a fighter can be: short
+# of both ends, since its form goes either side.
+RATINGS = (0.08, 0.92)
+UNRATED = 0.5  # the rating of a fighter no game brought
 TALENT = 0.08  # how far a fighter's own form sets it from its rating
 SIGHT_EVERY = 3  # ticks between its checks of who's in sight
 SIGHT_CHECKS = 4  # the nearest this many it's against are checked
@@ -208,23 +210,15 @@ async def run_fighter_bot(
 
 
 def sides_of(game: Mapping[str, Any]) -> dict[str, int]:
-    """The side each player is on in a game being played or just played, by id; none where the
-    game has no sides, or isn't on."""
+    """The side each player is on in a game being played, by id; none where the game has no
+    sides, or isn't on."""
     teams = game.get("teams")
-    if game.get("phase") not in ("playing", "results") or not isinstance(teams, list):
+    if game.get("phase") != "playing" or not isinstance(teams, list):
         return {}
-    return {str(player): side for side, team in enumerate(teams) for player in team}
-
-
-def rating_of(game: Mapping[str, Any], me: str) -> float:
-    """How good a fighter the room's game asks the player ``me`` to be: its level among the bots
-    the game brought, of all a fighter can be. One no game brought is of the middle."""
-    bots = game.get("bots")
-    level = next((bot["level"] for bot in bots if bot.get("id") == me), None) if isinstance(bots, list) else None
-    if level is None:
-        return UNRATED
-    share = (float(level) - LEVELS[0]) / (LEVELS[1] - LEVELS[0])
-    return RATINGS[0] + (RATINGS[1] - RATINGS[0]) * share
+    # A team lists a person by their id and one of the game's bots by its key, come or not.
+    bots = {bot["key"]: bot["id"] for bot in game.get("bots") or []}
+    sides = {bots.get(member, member): side for side, team in enumerate(teams) for member in team}
+    return {str(player): side for player, side in sides.items() if player is not None}
 
 
 class Fighter:
@@ -314,9 +308,11 @@ class Fighter:
         if me.dead:
             return self._lie(tick, controls)
         self._died = None
-        self._rate(state, me)
+        self._rate(state)
         sides = sides_of(state.game)
-        foes = self._foes(state, me, sides, tick)
+        # One a game brought fights in that game, and stands by through its countdown and results.
+        idle = state.brought is not None and state.game.get("phase") != "playing"
+        foes = [] if idle else self._foes(state, me, sides, tick)
         allies = [
             p
             for p in state.players.values()
@@ -362,8 +358,8 @@ class Fighter:
             self.target = self._noticed = self._goal = self._route = None
         return []
 
-    def _rate(self, state: WorldState, me: Player) -> None:
-        rating = rating_of(state.game, me.id)
+    def _rate(self, state: WorldState) -> None:
+        rating = state.rating(RATINGS, UNRATED)
         if rating == self.rating:
             return
         self.rating = rating

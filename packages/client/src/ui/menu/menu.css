@@ -601,6 +601,31 @@
   position: absolute;
   inset: -8px -5px;
 }
+/* In a column too narrow for a name beside what's set of its player, that takes a line of its own
+   under the name, its display across it. */
+#menu .board .column {
+  container-type: inline-size;
+}
+@container (max-width: 269px) {
+  #menu .board .player:has(.reading) {
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 6px;
+  }
+  #menu .board .player > :is(.steps, .reading) {
+    flex: 1 0 100%;
+  }
+  #menu .board .player .steps {
+    gap: 4px;
+  }
+  #menu .board .player .reading {
+    justify-content: center;
+    padding: 0 2px;
+  }
+  #menu .board .player .steps .reading {
+    flex: 1;
+  }
+}
 #menu .board .column.open .player {
   cursor: grab;
 }

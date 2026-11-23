@@ -41,9 +41,9 @@ import {
   PINEAPPLE_DOOR,
   PINEAPPLE_PLACEMENT,
   botRequest,
+  BOT_LEVELS,
   BOT_LOOKS,
   BOT_WAIT,
-  ratingOf,
   defaultBotsFor,
   RACE,
   isRacing,
@@ -265,7 +265,11 @@ test('a room with a game has a room master: whoever made it, told to everyone, w
   const free = new Room('free', { seed: 1, onEnd: (why) => ends.push(why) });
   const d = link();
   const idd = free.join('dave', d, { made: true })!;
-  assert.deepEqual(told(d), { mode: 'freeplay', master: null, phase: null, until: null }, 'no master, and no game');
+  assert.deepEqual(
+    told(d),
+    { mode: 'freeplay', master: null, phase: null, until: null, bots: [] },
+    'no master, and no game',
+  );
   free.receive(idd, { t: 'game', do: 'start' });
   assert.equal(told(d).phase, null, 'nothing to start');
   free.leave(idd);
@@ -624,7 +628,7 @@ test("a race: racers start held on the grid in karts there's no getting out of; 
   );
 });
 
-test("a race's bots: each given a look of its own as it's added, and asked of the host as the game starts by the name it's to come as, in that look; the start waits for them, taking them in and no other bot, and gives up on one that doesn't come; they race beside everyone, and go with the game", () => {
+test("a game's bots: each added at the last one's level in a look of its own and stepped by its place; asked of the host as the game starts by the name it's to come as, in that look; the start waits for them, taking them in and no other bot, and gives up on one that doesn't come; they play beside everyone, and go with the game", () => {
   const asked: BotRequest[] = [];
   const room = new Room('derby', {
     seed: 5,
@@ -639,44 +643,60 @@ test("a race's bots: each given a look of its own as it's added, and asked of th
     assert.ok(isRacing(told_));
     return told_;
   };
+  const set = (change: unknown) => room.receive(ida, { t: 'settings', change });
   room.receive(ida, { t: 'game', do: 'start' });
   assert.equal(game().phase, 'lobby', 'one racer is no race');
-  room.receive(ida, { t: 'settings', change: { bots: [5, 9] } });
-  assert.deepEqual(game().bots, [], 'no level past the most');
-  room.receive(ida, { t: 'settings', change: { bots: [4, 1] } });
+  set({ bots: 'more' });
+  set({ bot: 0, level: 9 });
+  assert.deepEqual(
+    game().bots.map((bot) => bot.level),
+    [BOT_LEVELS.first],
+    'no level past the most',
+  );
+  set({ bot: 0, level: 1 });
+  set({ bots: 'more' });
+  set({ bots: 'more' });
+  assert.deepEqual(
+    game().bots.map((bot) => bot.level),
+    [1, 1, 1],
+    "each added at the last one's level",
+  );
+  set({ bots: 'fewer' });
   const looks = game().bots.map((bot) => bot.avatar);
   assert.ok(looks.every((look) => BOT_LOOKS.includes(look)) && looks[0] !== looks[1], 'no two alike');
-  room.receive(ida, { t: 'settings', change: { bots: [5, 1] } });
+  set({ bot: 0, level: 5 });
   assert.deepEqual(
-    game().bots,
+    game().bots.map(({ level, avatar, id }) => [level, avatar, id]),
     [
-      { level: 5, avatar: looks[0] },
-      { level: 1, avatar: looks[1] },
+      [5, looks[0], null],
+      [1, looks[1], null],
     ],
     'a level stepped, and the bot who it was',
   );
   asked.length = 0;
   room.receive(ida, { t: 'game', do: 'start' });
   assert.deepEqual(
-    asked.map((req) => [req.bot, req.name, req.avatar]),
+    asked.map((req) => [req.bot, req.worker, req.name, req.avatar]),
     [
-      ['racer', 'bot 1', looks[0]],
-      ['racer', 'bot 2', looks[1]],
+      ['racer', 'dumb', 'bot 1', looks[0]],
+      ['racer', 'dumb', 'bot 2', looks[1]],
     ],
   );
   for (let i = 0; i <= START_SECONDS * TICK_RATE; i++) room.step();
   assert.deepEqual([game().phase, game().until], ['starting', null], 'counted down, and waiting for them');
   assert.equal(room.join('circle-bot', link(), { bot: true }), null, 'no bot but its own');
   const bot = room.join('bot 1', link(), { bot: true })!;
+  assert.deepEqual(
+    game().bots.map(({ id }) => id),
+    [bot, null],
+    'which of its bots has come, for the bot to read its level by',
+  );
   while (game().phase === 'starting') room.step();
   assert.ok(room.tick >= (START_SECONDS + BOT_WAIT) * TICK_RATE, 'bot 2, which never came, was given up on');
   assert.deepEqual(
-    game().racers.map((racer) => [racer.name, racer.rating]),
-    [
-      ['alice', null],
-      ['bot 1', ratingOf(5)],
-    ],
-    'it races, as good as its level asks',
+    game().racers.map((racer) => racer.name),
+    ['alice', 'bot 1'],
+    'it races',
   );
   const seated = room.players.find((p) => p.id === bot)!;
   assert.ok(seated.riding && seated.bot, 'on the grid with everyone, a bot still');
@@ -686,6 +706,97 @@ test("a race's bots: each given a look of its own as it's added, and asked of th
     room.players.map((p) => p.name),
     ['alice'],
     'gone with the game',
+  );
+  assert.deepEqual(
+    game().bots.map(({ level, id }) => [level, id]),
+    [
+      [5, null],
+      [1, null],
+    ],
+    'and set for the next as they were',
+  );
+});
+
+test("a shootout's bots: each goes on the team with the fewest as it's added and is moved like anyone, and the one taken away is the last on the team with the most; they count toward even teams, are asked for as fighters, take their team's side and colour, come back from the dead while it's played, and are on their teams still when it's over", () => {
+  const asked: BotRequest[] = [];
+  const room = new Room('melee', {
+    seed: 3,
+    mode: 'shootout',
+    pickupAreas: [],
+    spawnBot: (req) => Promise.resolve(void asked.push(req)),
+  });
+  const a = link();
+  const ida = room.join('alice', a, { made: true, room: 'melee' })!;
+  const player = (id: string) => room.players.find((p) => p.id === id)!;
+  const game = () => {
+    const told_ = told(a);
+    assert.ok(isShootout(told_));
+    return told_;
+  };
+  const set = (change: unknown) => room.receive(ida, { t: 'settings', change });
+  for (let i = 0; i < 3; i++) set({ bots: 'more' });
+  const [k1, k2, k3] = game().bots.map((bot) => bot.key);
+  assert.deepEqual(
+    game().teams,
+    [
+      [ida, k2],
+      [k1, k3],
+    ],
+    'each on the team with the fewest',
+  );
+  set({ move: k3, to: 0 });
+  assert.deepEqual(game().teams, [[ida, k2, k3], [k1]], 'moved as anyone is');
+  set({ bots: 'fewer' });
+  assert.deepEqual(game().teams, [[ida, k2], [k1]], 'the last on the team with the most is the one to go');
+  assert.equal(rulesOf(game()).starts(game()), 'every team needs the same number of players');
+  const idb = room.join('bob', link())!;
+  assert.equal(rulesOf(game()).starts(game()), null, 'even, its bots counted');
+
+  asked.length = 0;
+  room.receive(ida, { t: 'game', do: 'start' });
+  assert.deepEqual(
+    asked.map((req) => [req.bot, req.worker, req.name]),
+    [
+      ['fighter', 'combat', 'bot 1'],
+      ['fighter', 'combat', 'bot 2'],
+    ],
+  );
+  const [bot1, bot2] = ['bot 1', 'bot 2'].map((name) => room.join(name, link(), { bot: true })!);
+  while (game().phase !== 'playing') room.step();
+  assert.deepEqual(
+    [bot1, bot2].map((id) => [rulesOf(game()).side(game(), id), player(id).color]),
+    [
+      [TEAMS[1], TEAMS[1].colour],
+      [TEAMS[0], TEAMS[0].colour],
+    ],
+    "each on its team, in its team's colour",
+  );
+
+  // Shot by the other side it costs its team as anyone does, and comes back as anyone does.
+  room.receive(ida, { t: 'chat', text: '/sniper' });
+  player(ida).pos = { x: 0, y: EYE_HEIGHT, z: 0 };
+  player(bot1).pos = { x: 0, y: EYE_HEIGHT, z: 5 };
+  for (let i = 0; i < ITEMS.sniper.cooldownTicks; i++) room.step();
+  press(room, ida, 0, true);
+  assert.ok(player(bot1).dead);
+  assert.deepEqual(game().points, [2, 0]);
+  const body = player(bot1).body;
+  room.receive(bot1, { t: 'respawn' });
+  assert.ok(!player(bot1).dead && player(bot1).body === body + 1, 'back from the dead');
+
+  room.receive(ida, { t: 'game', do: 'end' });
+  assert.deepEqual(
+    room.players.map((p) => p.name),
+    ['alice', 'bob'],
+    'gone with the game',
+  );
+  assert.deepEqual(
+    game().teams,
+    [
+      [ida, k2],
+      [k1, idb],
+    ],
+    'and on their teams for the next',
   );
 });
 

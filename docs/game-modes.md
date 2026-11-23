@@ -67,10 +67,10 @@ which is null in freeplay, where there's no game to be anywhere in).
    condition to start holds. Everyone is told "Game is starting in 5", counted down
    (`START_SECONDS`, against `GameState.until`), still in the lobby. The lobby's bots are killed
    (as `/kill-bots` does), no bot of a player's calling is seated from here until the lobby is
-   back, and the bots' commands are refused until then (Refused commands, below). A game that
-   brings bots of its own (a race's) asks the host for them now, each by the name it's to come as
-   (`Game.gather`, `ModeRoom.call`), takes in a bot that comes by one of those names (`awaits`)
-   and, once counted down, waits for the ones still to come (`gathered`: `until` is null
+   back, and the bots' commands are refused until then (Refused commands, below). The game's own
+   bots (A game's bots, below) are asked of the host now, each by the name it's to come as
+   (`Game.gather`, `ModeRoom.call`); one that comes by one of those names is taken in (`awaits`)
+   and, once counted down, the start waits for the ones still to come (`gathered`: `until` is null
    meanwhile, and the banner says the game's bots are joining) until it gives up on them.
 3. **Playing.** The world is cleared (karts, frost, hearts left lying, the bots' seats) and every
    player gets a new body: full hearts, nothing held or worn, in the look they had if it's one on
@@ -183,6 +183,25 @@ The roster shows a ghost's mark where its hearts would be. Its own HUD has no he
 that says it's spectating, no word about being out of bounds or at full health, and no prompt at a
 door.
 
+### A game's bots
+
+Every game brings bots of its own the one way (`Game`, with `modes/bots.ts`). Its master adds and
+takes them away in its settings, up to eight (`MOST_BOTS`), and steps each one's level, 1 to 5
+(`BOT_LEVELS`; a new one is at the last one's). Each is a `GameBot` in the game's state
+(`GameState.bots`, the first of them bot 1): its `key`, which its mode lists it by among its
+players, its level, the look the room drew for it as it was added (`BOT_LOOKS`: one nobody there
+wears, while there's one), and once it has come the `id` of the player it is. The master's changes
+are `BotsChange`s, the same for every mode, so the rows for them are too (the client's
+`modes/bots.ts`: the BOTS stepper, and a bot as a board lists it, its level between a - and a +).
+
+A mode says only which of the bots app's bots plays its game (`Game.plays`: a racer, a fighter),
+and where it lists its players itself, what a bot added or taken away does to that list (`added`,
+`dropped`, and `goes`, which one is taken: shootout's teams). The bots are apart from the lobby's,
+which are killed at the start: asked for as the game starts, called bot 1, bot 2 and on, in the
+game as anyone is (a dead one is brought back as a person is until the lobby is back,
+`GameMode.revives`), and gone with it, still set for the next. A bot reads what it was brought as
+off the game's state, by its id (`WorldState.brought` and `rating`, `modal-bots/common/state.py`).
+
 ### Leaving mid-game
 
 Each mode says what a player leaving does to its game. The master leaving closes the room.
@@ -197,19 +216,20 @@ Teams, a clock, and the most points when it runs out.
 - Teams: two to four, named A, B, C and D and coloured red, green, blue and yellow. + adds an
   empty team. - takes the last one away and deals its players round the others in turn. Someone who
   joins the lobby goes on the team with the fewest. The master drags players from team to team.
-- Bots: + adds one to the team with the fewest, - takes one from the team with the most, and each
-  has its level beside it (three levels). These are apart from the lobby's bots, which are killed
-  at the start. Drawn and disabled until there are combat bots (below).
+- Bots (A game's bots, above): + adds one to the team with the fewest, and - takes away the last
+  on the team with the most. Each is on the board on its team, moved like anyone, with its level
+  to step.
 - START once every team has the same number of players, bots counted, and at least one.
 
 Its settings are its own part of the game's state (`ShootoutState`, `modes/shootout/state.ts`: the
-clock's `seconds` and each team's players), changed by the master's `ShootoutChange`s (the clock, how
-many teams, a player to a team; `Shootout.set`, `modes/shootout/referee.ts`). The referee keeps
+clock's `seconds` and each team's members, a person by their id and one of its bots by its key,
+`memberOf`), changed by the master's `ShootoutChange`s (the clock, how
+many teams, a member to a team; `Shootout.set`, `modes/shootout/referee.ts`). The referee keeps
 everyone on a team: whoever comes into the lobby or the countdown, and whoever watched the last
 game as a ghost once the lobby is back, goes on the one with the fewest, and whoever leaves is off
 theirs. The start's condition is `SHOOTOUT_RULES.starts`. On the client they're
-`modes/shootout/settings.ts`: the TEAMS and CLOCK steppers, the board of teams, and the bots' row,
-drawn and off.
+`modes/shootout/settings.ts`: the TEAMS, CLOCK and BOTS steppers and the board of teams, its bots
+on it.
 
 **The game.**
 
@@ -260,11 +280,9 @@ A series of races, each on a track of its own, in karts, for points.
 **Settings.**
 
 - The number of races, 3 unless changed.
-- Bots: + and - add and take away one, up to eight. Apart from the lobby's bots: they're asked
-  for as the game starts, called bot 1, bot 2 and on, and gone when it's over.
-- A board of the racers: everyone in the room, and under them its bots, each in the look the room
-  drew for it as it was added (`BOT_LOOKS`: one nobody there wears, while there's one), with its
-  level after its name, 1 to 5 (`BOT_LEVELS`), stepped by the - and + either side of it.
+- Bots (A game's bots, above): + and - add and take away one.
+- A board of the racers: everyone in the room, and under them its bots, each with its level to
+  step.
 - START with two racers or more, bots counted.
 
 **The game.**
@@ -338,12 +356,13 @@ packages/shared/src/modes/
   index.ts      the registry: each mode's id, name and line, what makes its game (makeMode) and its rules (rulesOf)
   mode.ts       GameMode: what the Room tells a mode and asks it, with freeplay's answers
   rules.ts      Rules: what the Room and the client both ask of a game's state, with freeplay's answers
-  game.ts       Game: what every mode with a game shares: the master, settings, the phases, start and end
+  game.ts       Game: what every mode with a game shares: the master, settings, the phases, start and end, its bots
+  bots.ts       a game's bots: their levels, looks and names, and the changes its master makes to them
   shootout/     its state (state.ts), rules (rules.ts) and referee (referee.ts): teams, spawn sites, points
   racing/       its state (state.ts), rules (rules.ts) and referee (referee.ts): the series, a race's clocks, places
 packages/client/src/modes/
   index.ts      what each mode adds to the client, by mode: its settings' rows, what its game has on the HUD
-  bots.ts       the row both modes' settings end on until there are bots that play them
+  bots.ts       the rows every game's settings have for its bots: how many, and one on a board with its level
   shootout/     its settings (settings.ts: the board of teams, the clock) and its HUD (hud.ts: points and clock)
   racing/       its settings (settings.ts: how many races, the racers) and its HUD (hud.ts: the grid's
                 count, a racer's place, the clock on the rest, the leaderboard)
@@ -461,11 +480,13 @@ be played.
 **3. Shootout**
 
 - [x] Teams in the settings: the board, adding and taking away teams, dragging, joiners dealt in,
-      the condition to start; bots' rows drawn and disabled.
+      the condition to start.
 - [x] The game: colours, the sites dealt, the clock, the points, the kill lines, the end, and the
       results screen every mode fills in.
 - [x] Who sees whom: names, pins and maps; the HUD's points and clock; the roster by team.
 - [x] Shootout on the home screen and in the guide.
+- [x] Its bots: fighters, set in its settings as every game's are, on its teams, back from the
+      dead as anyone is, gone with the game.
 
 **4. Racing**
 
@@ -481,15 +502,13 @@ be played.
 
 ## The modes' bots
 
-**Racing bots** are built. A game's are set in its settings, each by its level and in a look of
-its own (above); the referee asks the host for them as the game starts, each in its look, keeps
-the level of each by the name it comes
-as, and lists a bot racer with how good it's asked to be (`Racer.rating`, `ratingOf` its level:
+**Racing bots** are built, and are a race's own (A game's bots, above). A racer is as good as its
+level asks (`RATINGS` in the bot, of all a driver can be:
 from 0, the middle of the road short of flat out, to 1, all of the road and every drift and trick
 there is; the best of them cut the corner where two of a track's roads meet, across the floor of
 the island they meet on, off the track for about a second of the two a race gives before Lakitu
 comes, and chain drifts down its straights, one after another, each let go at its first spark for
-the boost). The bot (`modal-bots/bots/racer_bot.py`) reads that off the game's state, the track off
+the boost). The bot (`modal-bots/bots/racer_bot.py`) reads its level off the game's state, the track off
 the bots' roads map, and drives (`common/driving.py`, along a `common/racing_line.py`). No two of
 a level race alike: each has a talent of its own for the lobby it's in, so one of them is the one
 to beat, a day it's having, a mood that warms and cools through a race, and its own line and
@@ -497,7 +516,8 @@ start, from dice seeded by the room and its name. Still to come: in freeplay, la
 the roads, the ways across the buildings' floor included.
 
 **Combat bots** are the fighters (`modal-bots/bots/fighter_bot.py`, with `common/fighting.py`),
-and until a shootout brings them its bots' row is disabled and it's people alone; called from chat
+a shootout's own (A game's bots, above), each on a team, fighting from the game's start to its
+results and stood by either side of that; called from chat
 (`/fighter-bot`) one fights every person in a freeplay room. A fighter is as good as its level
 says (of five, the middle one where no game gives it one) and fights in a way of its own, both
 from dice seeded by its room and its name: the weapons it carries and which it likes best (the

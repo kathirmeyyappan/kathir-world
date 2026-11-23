@@ -1,10 +1,10 @@
-// Shootout's settings in the menu's GAME tab (docs/game-modes.md): how many teams, who's on each,
-// and how long the game runs.
+// Shootout's settings in the menu's GAME tab (docs/game-modes.md): how many teams, how long the
+// game runs, the bots it brings and how good each is, and who's on each team.
 import { CLOCK, MIN_TEAMS, TEAMS, isShootout, type ShootoutState } from '@world/shared';
 import { IS_TOUCH } from '../../input/touch';
 import { clockFace } from '../../ui/clock';
-import type { Row } from '../../ui/menu/rows';
-import { BOTS_TO_COME } from '../bots';
+import type { Entry, Row } from '../../ui/menu/rows';
+import { botEntry, botsRow, settable } from '../bots';
 import type { ModeHooks } from '../index';
 
 const MOVING = IS_TOUCH
@@ -18,7 +18,13 @@ export function shootoutSettings(hooks: ModeHooks): Row[] {
     const told = hooks.game();
     return isShootout(told) ? told : NONE;
   };
-  const mine = () => hooks.master() && hooks.game().phase === 'lobby';
+  const mine = () => settable(hooks);
+  // A member of a team: one of the game's bots by its key, with its level, and anyone else by
+  // their id.
+  const member = (key: string): Entry => {
+    const bot = hooks.game().bots.find((b) => b.key === key);
+    return bot ? botEntry(hooks, bot) : hooks.listed(key);
+  };
   return [
     {
       kind: 'stepper',
@@ -35,14 +41,10 @@ export function shootoutSettings(hooks: ModeHooks): Row[] {
       can: (by) =>
         mine() && game().seconds + by * CLOCK.step >= CLOCK.min && game().seconds + by * CLOCK.step <= CLOCK.max,
     },
-    BOTS_TO_COME,
+    botsRow(hooks),
     {
       kind: 'board',
-      columns: () =>
-        game().teams.map((team, i) => ({
-          ...TEAMS[i],
-          players: team.map(hooks.listed),
-        })),
+      columns: () => game().teams.map((team, i) => ({ ...TEAMS[i], players: team.map(member) })),
       can: mine,
       move: (player, to) => hooks.set({ move: player, to }),
       hint: () => (mine() ? MOVING : null),
