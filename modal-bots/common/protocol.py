@@ -82,6 +82,7 @@ class Kart:
     grounded: bool
     hopping: bool  # in the hop a press of the drift key gives, which a drift begins with
     drift: Drift | None
+    boosted: bool  # on a boost: a mini-turbo's, a trick's or a boost pad's
     reel: float  # seconds left of reeling from what it ran into, its tires doing nothing
     rescued: bool  # in Lakitu's hands, being set back on the road: nothing drives it meanwhile
     wrenches: float
@@ -232,6 +233,7 @@ def kart(data: Mapping[str, Any]) -> Kart:
         grounded=data["grounded"],
         hopping=data["hop"] is not None,
         drift=None if drift is None else Drift(way=drift["way"], t=drift["t"]),
+        boosted=data["turbo"] is not None,
         reel=data["reel"],
         rescued=data.get("rescue") is not None,
         wrenches=data["wrenches"],

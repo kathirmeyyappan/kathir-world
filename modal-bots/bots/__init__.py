@@ -13,6 +13,7 @@ from common import Vec3
 
 from .circle_bot import run_circle_bot
 from .observer_bot import run_observer_bot
+from .racer_bot import run_racer_bot
 from .sniper_bot import run_sniper_bot
 from .stalker_bot import run_stalker_bot
 
@@ -49,6 +50,7 @@ class CombatBotInvocation(Protocol):
 DUMB_BOTS: dict[str, DumbBotInvocation] = {
     "circle": run_circle_bot,
     "observer": run_observer_bot,
+    "racer": run_racer_bot,
     "stalker": run_stalker_bot,
 }
 
