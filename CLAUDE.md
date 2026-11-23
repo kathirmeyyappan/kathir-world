@@ -1850,12 +1850,15 @@ Bots must use the modules under `modal-bots/common/`:
   - `load_karts()`: `karts.of(kart.kart)` is how a kart drives (`Driven`).
 - A kart is driven by a `Driver(line, skill, kart, dice)` (`common/driving.py`) along the
   `racing_line(middle, shape, kart)` of a way along the roads (`common/racing_line.py`):
-  `driver.keys(kart, late, mood)` is the gas, the wheel and the drift key to hold next, for a kart
-  seen `late` ticks before they'll be taken (`controls.seq - me.last_seq`). How well it drives is
+  `driver.keys(kart, late, mood, others)` is the gas, the wheel and the drift key to hold next,
+  for a kart seen `late` ticks before they'll be taken (`controls.seq - me.last_seq`), with the
+  other karts at `others`. How well it drives is
   its `Skill`, `skill(rating)` anywhere from 0 (the middle of the road, short of flat out, no
   drifts, no tricks) to 1 (the whole road, every drift held to its last spark, every trick, and
   from 0.7 up a line that cuts the corner where two roads meet, off the track for about a second
-  of the two a race allows), and how it differs from another
+  of the two a race allows, and from 0.75 up drifts chained down the straights, each let go at
+  its first spark for the boost, wherever no other kart is abreast of it or close ahead), and how
+  it differs from another
   of its skill is its `dice` (which bends it drifts, which flights it tricks in, when its
   attention lapses) and the `mood` it's told each tick (-1 cold to 1 hot). It allows for its
   lateness itself and keeps count of what it has pressed, so give it every snapshot's kart, in

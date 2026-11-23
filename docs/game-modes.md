@@ -484,7 +484,8 @@ as, and lists a bot racer with how good it's asked to be (`Racer.rating`, `ratin
 from 0, the middle of the road short of flat out, to 1, all of the road and every drift and trick
 there is; the best of them cut the corner where two of a track's roads meet, across the floor of
 the island they meet on, off the track for about a second of the two a race gives before Lakitu
-comes). The bot (`modal-bots/bots/racer_bot.py`) reads that off the game's state, the track off
+comes, and chain drifts down its straights, one after another, each let go at its first spark for
+the boost). The bot (`modal-bots/bots/racer_bot.py`) reads that off the game's state, the track off
 the bots' roads map, and drives (`common/driving.py`, along a `common/racing_line.py`). No two of
 a level race alike: each has a talent of its own for the lobby it's in, so one of them is the one
 to beat, a day it's having, a mood that warms and cools through a race, and its own line and
