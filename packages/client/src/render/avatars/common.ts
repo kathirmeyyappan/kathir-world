@@ -2,6 +2,7 @@
 // interface the Game drives them through. Names are drawn over avatars by the HUD (ui/NameTags.ts), not in the scene.
 import {
   Color3,
+  Constants,
   DynamicTexture,
   Mesh,
   MeshBuilder,
@@ -37,15 +38,35 @@ const GAIT_EASE = 0.1; // seconds the stride takes to follow a change of speed
 const GHOST_VISIBILITY = 0.35; // how much of a ghost is there to see (sim/types.ts `ghost`)
 
 // Draws every mesh under `root` seen through, as a ghost's body and whatever it carries are, or
-// solid again. A ghost's depth is drawn before its colour, so only its nearest surface shows,
-// never its own insides or far side.
+// solid again. A ghost in the world is drawn after the rest of it, all its depth before any of its
+// colour, so only its outer surface shows, never its insides.
 export function seeThrough(root: TransformNode, ghost: boolean): void {
   const visibility = ghost ? GHOST_VISIBILITY : 1;
   for (const mesh of root.getChildMeshes()) {
     mesh.visibility = visibility;
     if (mesh.material) mesh.material.needDepthPrePass = ghost;
+    if (ghost) ghostGroup(mesh.getScene());
+    if (mesh.renderingGroupId === (ghost ? 0 : GHOST_GROUP)) mesh.renderingGroupId = ghost ? GHOST_GROUP : 0;
   }
 }
+
+export const GHOST_GROUP = 1; // the rendering group a ghost in the world is drawn in
+
+const ghostGroup = perScene((scene) => {
+  scene.setRenderingAutoClearDepthStencil(GHOST_GROUP, false);
+  scene.renderingManager.getRenderingGroup(GHOST_GROUP).onBeforeTransparentRendering = () => {
+    const engine = scene.getEngine();
+    engine.setColorWrite(false);
+    engine.setAlphaMode(Constants.ALPHA_DISABLE);
+    const active = scene.getActiveMeshes();
+    for (let i = 0; i < active.length; i++) {
+      const mesh = active.data[i];
+      if (mesh.renderingGroupId === GHOST_GROUP) for (const subMesh of mesh.subMeshes) subMesh.render(false);
+    }
+    engine.setColorWrite(true);
+  };
+  return true;
+});
 
 // A walk cycle from how fast a player's feet are walking, frame to frame: `pace`, PlayerState.walk
 // as a share of the look's own full walk (walkSpeedOf). `phase` (radians) is the stride's, paced by
