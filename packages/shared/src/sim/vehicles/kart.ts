@@ -155,30 +155,30 @@ export const DRIFT_FROM = 0.4; // of its speed: the least a drift begins or carr
 // m/s²: how fast the wheels take back a slide sideways, every kart alike: past what turning full
 // over or drifting tight at its speed asks of them, so only a boosted turn, or ice, slides. A
 // footing that grips less than this (ice) grips as little along the kart as across it.
-const TRACTION = 40;
+export const TRACTION = 40;
 const REVERSE = 0.35; // of its speed: flat out backing up
 const BRAKING = 2.5; // times its acceleration: braking while still rolling forward
 const COAST = 1.5; // times its acceleration: slowing with no key held, so it stops soon after the gas is let go
 const WHEEL_RATE = 8; // per second: how fast the wheel follows the keys, full over in an eighth of a second
 // Metres: a kerb or a ramp's lip a kart at its model's size rolls up onto rather than running into.
 // One built bigger rolls up as much more (`kerbOf`): its circles reach as much further up a slope.
-const STEP = 0.4;
+export const STEP = 0.4;
 const ROLL = 0.25; // of its width: the most it moves between looks at the ground under it
 // m/s: over a crest, how much faster upward it's going than the ground it comes onto would carry
 // it, past which it leaves the ground: at its speed, a slope's top a sixth steeper than what follows.
-const LIFT = 3;
-const HOP = 4.2; // m/s up: a press of the drift key, 0.44 m up and 0.42 s to come down on the flat
+export const LIFT = 3;
+export const HOP = 4.2; // m/s up: a press of the drift key, 0.44 m up and 0.42 s to come down on the flat
 const DRIFT_HOLD = 0.3; // of the wheel: held this far over or more, it's held a way, a hop's, a drift's or a trick's
 // In a drift, how tight it turns, as a share of its turn with the wheel full over: with the wheel
 // held out of the drift's way (all but straight, so a drift can be carried round a long bend),
 // let be, and held into it (tighter than any turn without one).
-const DRIFT_TURN = { wide: 0.2, neutral: 0.6, tight: 1.25 };
+export const DRIFT_TURN = { wide: 0.2, neutral: 0.6, tight: 1.25 };
 // Seconds of a drift on the ground it takes to come round to that turn from the one it began
 // with, eased, so a hop's slight turn doesn't snap into the drift's as it lands: `turn` with the
 // wheel let be or held out of the drift's way, and up to `tight` with it held full into it, so the
 // tightest turn there is comes on the most gently.
 const DRIFT_EASE = { turn: 0.45, tight: 0.7 };
-const AIR_STEER = 0.3; // of its turn, in the air
+export const AIR_STEER = 0.3; // of its turn, in the air
 const BOUNCE = 0.3; // of the speed it ran into a wall at, back off it
 // Run into at `from` m/s or more, square to what it hit, a kart reels for `seconds`: its tires do
 // nothing, neither driving it nor slowing it, so it rolls back off the wall as it bounced and the

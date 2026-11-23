@@ -36,6 +36,35 @@ def player(
         "bot": False,
         "dead": dead,
         "ghost": False,
+        "riding": None,
+    }
+
+
+def kart(kart_id: str = "k1", driver: str | None = None) -> dict[str, Any]:
+    """A kart as the room sends it: its KartState, and what the garage adds (garage.ts Kart)."""
+    return {
+        "id": kart_id,
+        "kart": "standard",
+        "size": 1,
+        "pos": {"x": 4, "y": 0, "z": 6},
+        "yaw": 0.5,
+        "vel": {"x": 3, "y": 0, "z": 4},
+        "wheel": 0,
+        "gas": 1,
+        "grounded": True,
+        "held": True,
+        "press": None,
+        "down": None,
+        "hop": None,
+        "drift": {"way": -1, "t": 1.2, "from": 0.3},
+        "trick": None,
+        "turbo": None,
+        "boosts": 0,
+        "pad": False,
+        "reel": 0,
+        "paint": {"avatar": "standard", "colour": "#64b5f6"},
+        "wrenches": 5,
+        "driver": driver,
     }
 
 
@@ -59,5 +88,7 @@ def welcome() -> dict[str, Any]:
         "players": [player()],
         "cubes": [cube()],
         "pickups": [],
+        "karts": [],
+        "game": {"mode": "freeplay", "master": None, "phase": None, "until": None},
         "doors": [{"id": "front", "open": False}],
     }

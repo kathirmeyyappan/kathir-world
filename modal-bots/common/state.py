@@ -6,7 +6,7 @@ import math
 from dataclasses import replace
 from typing import Any
 
-from .protocol import Message, Player, Snapshot, Welcome, player, to_dict
+from .protocol import Kart, Message, Player, Snapshot, Welcome, player, to_dict
 
 
 class WorldState:
@@ -21,12 +21,21 @@ class WorldState:
         self.players = {value.id: value for value in welcome.players}
         self.cubes = {value.id: value for value in welcome.cubes}
         self.pickups = {value.id: value for value in welcome.pickups}
+        self.karts = {value.id: value for value in welcome.karts}
+        # The room's game as it was last told: its mode, where it is, and what its mode keeps of it.
+        self.game = welcome.game
         # Every door by its id, and whether it stands open (sim/doors.ts), as the room last said.
         self.doors = dict(welcome.doors)
 
     @property
     def me(self) -> Player | None:
         return self.players.get(self.self_id)
+
+    @property
+    def kart(self) -> Kart | None:
+        """The kart this bot is driving, or None on foot."""
+        me = self.me
+        return None if me is None or me.riding is None else self.karts.get(me.riding)
 
     def nearest_player(self, *, people_only: bool = False) -> Player | None:
         """The closest living player to this bot in a straight line (someone a floor above isn't
@@ -52,6 +61,7 @@ class WorldState:
             self.players = {value.id: value for value in message.players}
             self.cubes = {value.id: value for value in message.cubes}
             self.pickups = {value.id: value for value in message.pickups}
+            self.karts = {value.id: value for value in message.karts}
         elif isinstance(message, Welcome):
             self.requested_room = self.requested_room or message.room
             self._reset(message)
@@ -69,6 +79,8 @@ class WorldState:
                     hearts=hearts,
                     dead=hearts <= 0,
                 )
+        elif message.t == "game":
+            self.game = message.data["game"]
         elif message.t == "door":
             self.doors[str(message.data["id"])] = bool(message.data["open"])
         elif message.t in ("kill", "fell", "out", "crashed"):

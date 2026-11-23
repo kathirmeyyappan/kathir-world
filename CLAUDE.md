@@ -862,6 +862,9 @@ built from, so a change rebuilds only the maps it touches:
   to. Built at once, and it throws where the sim's ground isn't the road's top under a node.
 - **The bodies** (`bodies.ts`, `bodies.py`): every avatar's hitbox, eyes, walk and way of moving.
   Built at once.
+- **The karts** (`karts.ts`, `karts.py`): how each kart drives, as much of it as a driver plans
+  by (its speed, plain and boosted, its turn, what its tires hold, what lifts it off a crest, a
+  drift's turns and the seconds to its sparks), from its row and `kart.ts`. Built at once.
 
 Nearly all of the time is each spot's walks and jumps, worked out apart from every other spot's,
 so the ground's and the moves' are cut into shares (`Share` in `botMap/ground.ts`, which stays
@@ -1810,7 +1813,9 @@ Bots must use the modules under `modal-bots/common/`:
 - `connect(...)` owns lobby admission, session-token redaction, authenticated WebSocket setup,
   one retry on stale authentication, welcome validation, JSON transport, and clean close.
 - `WorldState(connection.welcome, connection.room)` owns the latest authoritative players, cubes,
-  health, deaths, and server tick. Apply every received message before making the next decision.
+  health, deaths, and server tick, with the karts (`state.karts`, and `state.kart`, the one this
+  bot drives) and the room's game as it was last told (`state.game`, its `GameState` as sent).
+  Apply every received message before making the next decision.
   `state.nearest_player(people_only=...)` is the closest living player in a straight line, never
   a ghost (`Player.ghost`: in the room and not in its game).
 - `Controls(connection)` owns input sequence numbers and persistent input intent.
@@ -1842,6 +1847,7 @@ Bots must use the modules under `modal-bots/common/`:
     along the roads' middles, across a gap only for a kart (`gaps=True`). `roads.track(index)` is
     the middle of the race track a race names by that index (a `Middle`: its points in the order
     they're driven, and which of its stretches are a gap or have a boost pad).
+  - `load_karts()`: `karts.of(kart.kart)` is how a kart drives (`Driven`).
 
 Bot files must not import `httpx` or `websockets`, parse raw JSON, copy lobby/token code, manage
 `InputFrame.seq`, or log a token-bearing redirect or authorization header.
@@ -1862,6 +1868,7 @@ controls.shoot(False)
 controls.scope(True)
 controls.thrust(True)               # hold a worn jetpack's lift (after /jetpack)
 controls.run(True)                  # hold the run: the walk 60% faster, except scoped
+controls.drive(gas=1, steer=-0.4, drift=True)  # a kart's keys, held, for a bot sat in one
 controls.read_cube(cube_or_id)
 controls.use(door_id)               # one frame clicking the door it looks at (Route does this)
 await controls.chat("hello")

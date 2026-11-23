@@ -15,6 +15,7 @@ import {
   type GroundMap,
   type MovesMap,
 } from '../src/sim/botMap/ground';
+import { buildKartsMap } from '../src/sim/botMap/karts';
 import { buildRoadsMap } from '../src/sim/botMap/roads';
 import { buildSolidsMap } from '../src/sim/botMap/solids';
 import { botMapCode } from './botMapCode';
@@ -75,4 +76,5 @@ if (process.argv.includes('--keys')) {
     (m) => `${m.nodes.length} nodes, ${m.edges.length} stretches, ${m.gaps.length} gaps, ${m.tracks.length} tracks`,
   );
   instant('bodies', buildBodiesMap, (m) => `${Object.keys(m.hitboxes).length} avatars`);
+  instant('karts', buildKartsMap, (m) => `${Object.keys(m.karts).length} karts`);
 }

@@ -5,7 +5,7 @@ import json
 import pytest
 from common.protocol import Event, ProtocolError, Snapshot, Welcome, decode, to_dict
 
-from tests.helpers import cube, player, welcome
+from tests.helpers import cube, kart, player, welcome
 
 
 def test_decodes_world_messages() -> None:
@@ -16,10 +16,14 @@ def test_decodes_world_messages() -> None:
     assert joined.players[0].pos.y == 1.7
     assert joined.cubes[0].id == "aws"
 
-    snapshot = decode(json.dumps({"t": "snap", "tick": 43, "players": [player()], "cubes": [cube()], "pickups": []}))
+    snap = {"t": "snap", "tick": 43, "players": [player()], "cubes": [cube()], "pickups": [], "karts": [kart()]}
+    snapshot = decode(json.dumps(snap))
     assert isinstance(snapshot, Snapshot)
     assert snapshot.tick == 43
     assert to_dict(snapshot.players[0])["last_seq"] == 0
+    drifting = snapshot.karts[0]
+    assert (drifting.kart, drifting.vel.z, drifting.hopping, drifting.rescued) == ("standard", 4, False, False)
+    assert drifting.drift is not None and (drifting.drift.way, drifting.drift.t) == (-1, 1.2)
 
 
 @pytest.mark.parametrize("kind", ["join", "leave", "chat", "hit", "kill", "future"])
