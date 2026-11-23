@@ -289,14 +289,18 @@ export function inPlay(track: Track, pos: Vec3): boolean {
 }
 
 // A track as the course its karts are held to (vehicles/rescue.ts): left by one off the floor it
-// has in play, which is set down again on its middle where it left, nose along the way the track
-// runs.
+// has in play, which is set down again on its middle where it left, nose the way the track runs
+// on from there: toward its middle a little further along, so at a corner where two of its roads
+// meet it faces the road out, not the one it came in by.
 export function courseOf(track: Track): Course {
   return {
     left: (pos) => !inPlay(track, pos),
     back(safe) {
-      const s = spotAt(track, onTrack(track, safe).at);
-      return { to: { x: s.x, y: s.y, z: s.z }, yaw: s.yaw };
+      const at = onTrack(track, safe).at;
+      const s = spotAt(track, at);
+      const on = spotAt(track, at + SPACING);
+      const far = Math.hypot(on.x - s.x, on.z - s.z);
+      return { to: { x: s.x, y: s.y, z: s.z }, yaw: far < 1e-6 ? s.yaw : Math.atan2(on.x - s.x, on.z - s.z) };
     },
   };
 }

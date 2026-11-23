@@ -10,6 +10,7 @@ import {
   TRACK_LENGTH,
   gridOf,
   inPlay,
+  courseOf,
   layTrack,
   onTrack,
   routes,
@@ -1014,5 +1015,15 @@ test('race tracks: every route runs from an island along the roads to somewhere 
       assert.ok(Math.abs(WORLD_STRUCTURES.groundAt(g.x, g.z, g.y + STEP_UP) - g.y) < 0.1, 'standing on it');
     }
     assert.equal(new Set(grid.map((g) => `${g.x.toFixed(1)},${g.z.toFixed(1)}`)).size, 8, 'a place each');
+    // A kart that left at a corner, where two of its roads meet, is set back facing the road out.
+    const meet = track.spots.findIndex((spot, i) => {
+      const next = track.spots[i + 1];
+      const there = next && Math.hypot(next.x - spot.x, next.z - spot.z) < 1e-6;
+      return there && Math.abs(Math.sin(next.yaw - spot.yaw)) > 0.4;
+    });
+    const [at, out] = [track.spots[meet], track.spots[meet + 2]];
+    const back = courseOf(track).back(at);
+    const off = back.yaw - Math.atan2(out.x - at.x, out.z - at.z);
+    assert.ok(Math.abs(Math.sin(off)) < 0.01 && Math.cos(off) > 0, `faces ${back.yaw} at a corner`);
   }
 });
