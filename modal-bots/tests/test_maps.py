@@ -39,11 +39,24 @@ def test_a_way_takes_only_the_jumps_its_avatar_makes() -> None:
     ground = load_ground()
     gary = ground.jumps_of("gary")
     # A jump the standard body makes and Gary's 0.48 m hop doesn't: his way round never takes it.
-    i, j = next((i, j) for i, out in enumerate(ground.jumps) for j in out if j not in gary[i])
+    i, j = next((i, j) for i, out in ground.jumps.items() for j in out if j not in gary[i])
     route = ground.path(i, j, "gary")
     assert route != [i, j]
     if route is not None:
         assert all(b in ground.edges[a] or b in gary[a] for a, b in itertools.pairwise(route))
+
+
+def test_a_way_is_found_one_way_and_ruled_out_the_other() -> None:
+    ground = load_ground()
+    start = ground.node_at(Vec3(0, 0, 0))
+    assert start is not None
+    # Somewhere a walk from the main disc drops into with no way back out.
+    pit = next(
+        i
+        for i in range(len(ground.nodes))
+        if ground._from_main[i] and not ground._to_main[i] and ground.path(start, i, doors=True) is not None
+    )
+    assert ground.path(pit, start, doors=True) is None
 
 
 def test_the_ground_stops_where_the_roads_begin_and_the_solids_carry_on() -> None:

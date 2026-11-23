@@ -1867,7 +1867,9 @@ Bots must use the modules under `modal-bots/common/`:
     between the spots a player can stand on a 1 m grid round whatever stands and the rectangles of
     open floor between (`ground.areas`), up the stair and over the rail where only a jump gets
     there, and only by the jumps that avatar's walk and jump power make (`ground.jumps_of`). It
-    covers the floor the buildings stand on: out on a road `node_at` is None.
+    covers the floor the buildings stand on: out on a road `node_at` is None. A way is all but the
+    shortest (`HASTE`): a few milliseconds to find across the map and tens up the tower, so look
+    for a long one off the event loop (`asyncio.to_thread`).
     `Route(ground, path, tick, avatar)` (`common/navigation.py`) walks it, across open floor
     straight for the furthest node of it in reach (`ground.straight`): call `route.steer(me.pos,
     tick, controls)` on every snapshot after `look`, and plan again when `route.stuck(tick)`.
