@@ -1,46 +1,60 @@
-// The bots' map of the roads (modal-bots/common/map/roads.py): their middles as a sparse graph, a
-// node every STEP metres or so with the road's height there, for finding a way along them out past
-// the floor the ground's graph covers (ground.ts), on foot or in a kart. Built at once from the
-// road layer's own account of each road (sim/roads.ts `Road.middle`), and held to the sim: where
-// the ground it has under a node isn't the road's top, building it throws.
+// The bots' map of the roads (modal-bots/common/map/roads.py): their middles as a graph, for a
+// kart to be driven by and a way along them to be found in. A node at every end of a length of
+// road (a bend's, a gap's, each short length of a graded climb, so the nodes tell how the road's
+// slope changes) and along one no further apart than STEP, with the road's height there; each
+// stretch between two of them, and which of them have no road under them or a boost pad on them;
+// each road end to end; and every race track (sim/tracks.ts) as the roads it takes. Built at once
+// from the road layer's own account of each road (sim/roads.ts `Road.middle`), and held to the
+// sim: where the ground it has under a node isn't the road's top, building it throws.
 import { STEP_UP } from '../constants';
 import { ROADS } from '../outline';
 import type { Trace } from '../roads';
-import { WALKED } from './ground';
+import { SURFACES } from '../surfaces';
+import { lengthOf, pointOn, routes, runsOf, trackOf } from '../tracks';
+import type { Vec3 } from '../types';
 import { solidWorld } from './solids';
 import { stamped } from './stage';
 
-const STEP = 20; // metres between nodes along a straight, at the most
-const BEND_STEP = 10; // and round a bend, where the road strays from the line between two of them
+const STEP = 20; // metres between nodes along a straight length of road, at the most
+const BEND_STEP = 8; // and round a bend, where the road strays from the line between two of them
 const TRUE = 0.1; // metres the ground may be off a node's height: a boost pad lies a few centimetres proud
 const MEET = 1; // metres from a stretch of another road that a road's end is on it
+const CHECKED = [0, 0.5, 1]; // the tracks checked, as shares of the way down their list
+const CHECK_EVERY = 40; // spots of a checked track's middle from one check to the next
+
+type Pair = [number, number];
 
 export interface RoadsMap {
   source: number;
   nodes: [number, number, number][]; // x, y, z of the road's top at its middle
   // Each stretch of road between two nodes, driven or walked either way. Roads that meet share the
-  // node they meet at, and one that starts on the walked floor starts at that floor's rim.
-  edges: [number, number][];
+  // node they meet at.
+  edges: Pair[];
   // Each stretch with no road under it, there to be jumped at a kart's speed, either way.
-  gaps: [number, number][];
+  gaps: Pair[];
+  pads: Pair[]; // each of the edges with a boost pad lying on it
+  // Each road end to end, as its nodes in the order it's laid: by its first strand, for one that
+  // splits in two.
+  roads: number[][];
+  // Every race track, in the order a race names them by (tracks.ts `routes`), as the roads it
+  // takes in turn: n + 1 for road n the way it's laid, -(n + 1) for it taken the other way.
+  tracks: number[][];
+  // Spots on a few tracks' middles as the sim lays them (the track, then x, y, z): what a reading
+  // of this map is held to.
+  checks: [number, number, number, number][];
 }
 
-// A spot on a road's middle: `along` metres from where its run began, `kept` where the graph has
-// to have a node (an end of the run, of a bend or of a gap), and with a `gap` from it to the next.
-interface Spot {
-  x: number;
-  y: number;
-  z: number;
-  along: number;
-  kept: boolean;
+// A spot on a road's middle, with a `gap` from it to the next.
+interface Spot extends Vec3 {
   gap: boolean;
 }
 
 export function buildRoadsMap(): RoadsMap {
+  const sim = solidWorld();
   const nodes: [number, number, number][] = [];
   const index = new Map<string, number>();
   const cm = (v: number) => Math.round(v * 100) / 100;
-  const nodeAt = ({ x, y, z }: Spot): number => {
+  const nodeAt = ({ x, y, z }: Vec3): number => {
     const node: [number, number, number] = [cm(x), cm(y), cm(z)];
     const key = node.join(',');
     const known = index.get(key);
@@ -49,18 +63,29 @@ export function buildRoadsMap(): RoadsMap {
     nodes.push(node);
     return nodes.length - 1;
   };
-  const [edges, gaps]: [number, number][][] = [[], []];
+  const padded = (a: Vec3, b: Vec3): boolean => {
+    const footing = sim.footing((a.x + b.x) / 2, (a.z + b.z) / 2, (a.y + b.y) / 2 + STEP_UP);
+    return SURFACES[footing.surface].boosts === true;
+  };
+  const [edges, gaps, pads]: Pair[][] = [[], [], []];
   const lips = new Set<number>(); // the nodes at a gap's ends, where the road stops just short
-  for (const road of ROADS)
-    for (const run of road.middle)
-      for (const stretch of offWalked(spotsOf(run))) {
-        const kept = thinned(stretch);
-        kept.slice(0, -1).forEach((spot, k) => {
-          const [a, b] = [nodeAt(spot), nodeAt(kept[k + 1])];
-          (spot.gap ? gaps : edges).push([a, b]);
-          if (spot.gap) (lips.add(a), lips.add(b));
+  const roads = ROADS.map((road) => {
+    const through: number[] = [];
+    for (const run of runsOf(road.middle))
+      run.strands.forEach((strand, k) => {
+        const spots = spotsOf(strand);
+        const ids = spots.map(nodeAt);
+        spots.slice(0, -1).forEach((spot, i) => {
+          const pair: Pair = [ids[i], ids[i + 1]];
+          (spot.gap ? gaps : edges).push(pair);
+          if (spot.gap) (lips.add(pair[0]), lips.add(pair[1]));
+          else if (padded(spot, spots[i + 1])) pads.push(pair);
         });
-      }
+        // A run begins at the node the last one ended on.
+        if (k === 0) through.push(...ids.slice(through[through.length - 1] === ids[0] ? 1 : 0));
+      });
+    return through;
+  });
   // A road that ends out along another, where a way off it meets it between two of its nodes, has
   // that stretch cut in two at its end.
   const ways = nodes.map(() => 0);
@@ -74,11 +99,22 @@ export function buildRoadsMap(): RoadsMap {
     edges.push([e, b]);
   });
   nodes.forEach(([x, y, z], i) => {
-    const ground = solidWorld().groundAt(x, z, y + STEP_UP);
+    const ground = sim.groundAt(x, z, y + STEP_UP);
     if (!lips.has(i) && Math.abs(ground - y) > TRUE)
       throw new Error(`the roads' map has the road ${y} m up at (${x}, ${z}), where the ground is ${ground} m up`);
   });
-  return stamped({ nodes, edges, gaps });
+  const listed = routes();
+  const tracks = listed.map((route) => route.legs.map(({ road, forward }) => (forward ? road + 1 : -(road + 1))));
+  const checks = CHECKED.flatMap((share) => {
+    const track = Math.round(share * (listed.length - 1));
+    let far = -Infinity;
+    // Its first strand through a split: the spots that carry on along it.
+    const middle = trackOf(track).spots.filter((spot) => spot.at > far && ((far = spot.at), true));
+    return middle
+      .filter((_, k) => k % CHECK_EVERY === 0)
+      .map((spot): [number, number, number, number] => [track, cm(spot.x), cm(spot.y), cm(spot.z)]);
+  });
+  return stamped({ nodes, edges, gaps, pads, roads, tracks, checks });
 }
 
 // Metres from a point to the line between two others, ends included.
@@ -96,75 +132,17 @@ function dot(a: number[], b: number[]): number {
 // no further apart than a node may be.
 function spotsOf(run: Trace[]): Spot[] {
   const spots: Spot[] = [];
-  let along = 0;
-  run.forEach((trace) => {
+  for (const trace of run) {
     const bend = trace.kind === 'bend';
     const gap = !bend && (trace.gap ?? false);
-    const length = bend ? trace.r * Math.abs(trace.turn) : Math.hypot(trace.bx - trace.ax, trace.bz - trace.az);
-    const steps = gap ? 1 : Math.max(1, Math.ceil(length / (bend ? BEND_STEP : STEP)));
+    const steps = gap ? 1 : Math.max(1, Math.ceil(lengthOf(trace) / (bend ? BEND_STEP : STEP)));
     for (let k = 0; k <= steps; k++) {
-      const share = k / steps;
-      const end = k === 0 || k === steps;
-      const at = bend
-        ? {
-            x: trace.x + trace.r * Math.cos(trace.start + trace.turn * share),
-            y: trace.y,
-            z: trace.z + trace.r * Math.sin(trace.start + trace.turn * share),
-          }
-        : {
-            x: trace.ax + (trace.bx - trace.ax) * share,
-            y: trace.ay + (trace.by - trace.ay) * share,
-            z: trace.az + (trace.bz - trace.az) * share,
-          };
-      const kept = end && (bend || gap);
+      const { x, y, z } = pointOn(trace, k / steps);
       // A length starts where the last one ended: that spot is both.
       const last = spots[spots.length - 1];
-      if (k === 0 && last) [last.kept, last.gap] = [last.kept || kept, gap];
-      else spots.push({ ...at, along: along + length * share, kept, gap: gap && k === 0 });
+      if (k === 0 && last) last.gap = gap;
+      else spots.push({ x, y, z, gap: gap && k === 0 });
     }
-    along += length;
-  });
-  spots[0].kept = spots[spots.length - 1].kept = true;
-  return spots;
-}
-
-// The stretches of a run that are off the walked floor, each from where it leaves that floor's rim
-// to where it comes back onto it: on it, the ground's graph is the way.
-function offWalked(spots: Spot[]): Spot[][] {
-  const on = (s: Spot) => WALKED.edge(s.x, s.z) < 0;
-  // Where the line from a spot on the floor to one off it crosses the rim, halved down to it.
-  const rim = (inside: Spot, outside: Spot): Spot => {
-    let [a, b] = [inside, outside];
-    for (let k = 0; k < 40; k++) {
-      const mid = { ...a, x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, z: (a.z + b.z) / 2, along: (a.along + b.along) / 2 };
-      if (on(mid)) a = mid;
-      else b = mid;
-    }
-    return { ...b, kept: true, gap: false };
-  };
-  const stretches: Spot[][] = [];
-  let stretch: Spot[] = [];
-  spots.forEach((spot, k) => {
-    const before = spots[k - 1];
-    if (on(spot)) {
-      if (before && !on(before)) stretches.push([...stretch, rim(spot, before)]);
-      stretch = [];
-    } else {
-      if (before && on(before)) stretch.push(rim(before, spot));
-      stretch.push(spot);
-    }
-  });
-  if (stretch.length > 1) stretches.push(stretch);
-  return stretches;
-}
-
-// A stretch's spots with only the ones a node is needed at: every one kept, and of the rest as few
-// as leave no two nodes further apart along the road than STEP.
-function thinned(spots: Spot[]): Spot[] {
-  const out = [spots[0]];
-  for (let k = 1; k < spots.length; k++) {
-    const next = spots[k + 1];
-    if (spots[k].kept || !next || next.along - out[out.length - 1].along > STEP) out.push(spots[k]);
   }
-  return out;
+  return spots;
 }

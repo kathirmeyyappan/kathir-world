@@ -73,11 +73,11 @@ export interface OnTrack {
   off: number;
 }
 
-const lengthOf = (t: Trace): number =>
+export const lengthOf = (t: Trace): number =>
   t.kind === 'bend' ? t.r * Math.abs(t.turn) : Math.hypot(t.bx - t.ax, t.bz - t.az);
 
 // A point `share` of the way along a length of a road's middle, and the way the road runs there.
-function pointOn(t: Trace, share: number): Vec3 & { yaw: number } {
+export function pointOn(t: Trace, share: number): Vec3 & { yaw: number } {
   if (t.kind === 'straight')
     return {
       x: t.ax + (t.bx - t.ax) * share,
@@ -125,7 +125,7 @@ function roadGraph(): { places: Place[]; legs: Leg[] } {
 // A road's middle as the runs a kart drives one after another, each with its length: the road end
 // to end, or for one that splits in two, the run up to the fork, the split (its two strands side
 // by side, as long as the first), and the run on from where they come together.
-function runsOf(runs: Trace[][]): { strands: Trace[][]; length: number }[] {
+export function runsOf(runs: Trace[][]): { strands: Trace[][]; length: number }[] {
   const measured = (strands: Trace[][]) => ({
     strands,
     length: strands[0].reduce((sum, t) => sum + lengthOf(t), 0),

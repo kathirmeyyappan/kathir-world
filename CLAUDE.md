@@ -852,11 +852,14 @@ built from, so a change rebuilds only the maps it touches:
 - **The moves** (`ground.ts`, read with the ground): the jumps of each way a look on foot moves,
   each distinct walk and jump power simulated over the whole graph once; a look that moves as one
   already there adds nothing, and one that moves its own way only its own jumps. A few minutes.
-- **The roads** (`roads.ts`, `roads.py`): the roads' middles as a sparse graph, a node every 20 m
-  or so (10 round a bend) with the road's height there, from the road layer's own `middle`, each
-  stretch with no road under it marked a gap; roads that meet share a node, and one that starts
-  on the buildings' floor starts at its rim. Built at once, and it throws where the sim's ground
-  isn't the road's top under a node. No bot follows it yet.
+- **The roads** (`roads.ts`, `roads.py`): the roads' middles as a graph, from the road layer's own
+  `middle`: a node at every end of a length of road (each short length of a graded climb has its
+  own, so the nodes tell how the road's slope changes) and no more than 20 m apart along one (8
+  round a bend), with the road's height there, each stretch with no road under it marked a gap
+  and each with a boost pad on it marked so; roads that meet share a node. It lists each road end
+  to end, and every race track (`sim/tracks.ts` `routes`, in the order a race names them by) as
+  the roads it takes, with a few spots of the sim's own tracks that a test holds a reading of it
+  to. Built at once, and it throws where the sim's ground isn't the road's top under a node.
 - **The bodies** (`bodies.ts`, `bodies.py`): every avatar's hitbox, eyes, walk and way of moving.
   Built at once.
 
@@ -1836,7 +1839,9 @@ Bots must use the modules under `modal-bots/common/`:
     band included), `bodies.eye_of(player)` where it shoots from and `bodies.walk_speed(avatar)`
     how fast it walks.
   - `load_roads()`: `roads.nearest(spot)` and `roads.path(start, goal, gaps=False)` find a way
-    along the roads' middles, across a gap only for a kart (`gaps=True`).
+    along the roads' middles, across a gap only for a kart (`gaps=True`). `roads.track(index)` is
+    the middle of the race track a race names by that index (a `Middle`: its points in the order
+    they're driven, and which of its stretches are a gap or have a boost pad).
 
 Bot files must not import `httpx` or `websockets`, parse raw JSON, copy lobby/token code, manage
 `InputFrame.seq`, or log a token-bearing redirect or authorization header.
