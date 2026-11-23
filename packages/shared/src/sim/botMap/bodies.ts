@@ -1,6 +1,8 @@
-// The bots' map of the bodies there are: every avatar's hitbox, for aiming, its eyes, its walk and
-// the way it moves (modal-bots/common/map/bodies.py), from the avatars' rows alone. Built at once.
+// The bots' map of the bodies there are: every avatar's hitbox, for aiming, its eyes, its walk, the
+// way it moves and its life (modal-bots/common/map/bodies.py), from the avatars' rows alone. Built
+// at once.
 import { AVATAR_IDS, AVATARS, jumpVelocityOf, walkSpeedOf, type AvatarId, type Hitbox } from '../avatars';
+import { heartsOf } from '../classes';
 import { stamped } from './stage';
 
 export interface BodiesMap {
@@ -9,6 +11,7 @@ export interface BodiesMap {
   eyes: Record<string, number>; // metres from the feet to each avatar's eyes, where its shots leave (sim/avatars.ts)
   walks: Record<string, number>; // how fast each avatar walks at full keys, m/s (sim/avatars.ts walkSpeedOf)
   moves: Record<string, Move>; // how each avatar moves, the moves' key to its jumps (ground.ts MovesMap)
+  lives: Record<string, number>; // the hearts of each avatar's full life (sim/classes.ts heartsOf)
 }
 
 // A way of moving on foot: a walk in m/s and a jump's velocity, as `${walk} ${jump}`. Every class
@@ -35,5 +38,6 @@ export function buildBodiesMap(): BodiesMap {
     eyes: each((id) => AVATARS[id].eye),
     walks: each(walkSpeedOf),
     moves: each(moveOf),
+    lives: each(heartsOf),
   });
 }
