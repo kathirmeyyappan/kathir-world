@@ -3,26 +3,33 @@ from __future__ import annotations
 import asyncio
 import copy
 import itertools
+import json
 import math
 import os
+import queue
 import selectors
 import shutil
 import socket
 import subprocess
+import threading
 import time
 from collections.abc import Iterator
 from contextlib import suppress
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
 import pytest
+import websockets
 from bots import sniper_bot
 from bots.circle_bot import run_circle_bot
 from bots.observer_bot import run_observer_bot
+from bots.racer_bot import run_racer_bot
 from bots.sniper_bot import run_sniper_bot
 from bots.stalker_bot import run_stalker_bot
 from common import Connection, Controls, Event, RoomConnectionError, Snapshot, Vec3, WorldState, connect, run_input_loop
 from common.map.ground import Region, load_ground
+from common.map.roads import load_roads
 from common.map.solids import load_solids
 from common.navigation import Route
 
@@ -40,6 +47,41 @@ def free_port() -> int:
 
 @pytest.fixture
 def room_server() -> Iterator[str]:
+    yield from _serve({})
+
+
+class Calls(ThreadingHTTPServer):
+    """The bots' sidecar, stood in for: every bot the room server asks it to start is kept."""
+
+    asked: queue.Queue[dict[str, Any]]
+
+
+class _Call(BaseHTTPRequestHandler):
+    def do_POST(self) -> None:
+        assert isinstance(self.server, Calls)
+        self.server.asked.put(json.loads(self.rfile.read(int(self.headers["content-length"]))))
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"queued")
+
+    def log_message(self, format: str, *args: Any) -> None:
+        pass
+
+
+@pytest.fixture
+def calling_server() -> Iterator[tuple[str, queue.Queue[dict[str, Any]]]]:
+    """A room server that can call bots, and each one it asks its host for."""
+    calls = Calls(("127.0.0.1", 0), _Call)
+    calls.asked = queue.Queue()
+    threading.Thread(target=calls.serve_forever, daemon=True).start()
+    try:
+        for url in _serve({"BOT_SPAWNER_URL": f"http://127.0.0.1:{calls.server_port}"}):
+            yield url, calls.asked
+    finally:
+        calls.shutdown()
+
+
+def _serve(env: dict[str, str]) -> Iterator[str]:
     if shutil.which("node") is None or not (ROOT / "node_modules" / "tsx").exists():
         pytest.skip("Node dependencies are required for the real-server contract test")
 
@@ -52,7 +94,7 @@ def room_server() -> Iterator[str]:
             "packages/server/src/index.ts",
         ],
         cwd=ROOT,
-        env={**os.environ, "PORT": str(port)},
+        env={**os.environ, "PORT": str(port), **env},
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
@@ -372,3 +414,43 @@ def test_sniper_fires_at_a_person_in_sight_then_waits_out_its_cooldown(
 
     assert report["shots"] >= 2 and len(shot_ticks) == report["shots"], report
     assert all(b - a >= 90 for a, b in itertools.pairwise(shot_ticks)), f"3 s between shots: {shot_ticks}"
+
+
+def test_a_race_calls_its_bot_seats_it_and_it_drives_the_track(
+    calling_server: tuple[str, queue.Queue[dict[str, Any]]],
+) -> None:
+    room_server, asked = calling_server
+
+    async def scenario() -> None:
+        # The room's master, as the browser makes a racing room: one racer, and a bot to race.
+        async with websockets.connect(f"{room_server}?room=py-race&name=master&game=racing&mode=create") as master:
+            for message in ({"t": "settings", "change": {"bots": [5]}}, {"t": "game", "do": "start"}):
+                await master.send(json.dumps(message))
+            while (call := await asyncio.to_thread(asked.get, timeout=RECEIVE_TIMEOUT))["bot"] != "racer":
+                pass  # the room's own starting bots, which nothing here starts
+            assert (call["room"], call["name"]) == ("py-race", "bot 1")
+            bot = asyncio.create_task(run_racer_bot(call["room"], call["name"], 120, direct_ws_url=room_server))
+
+            # Let go, it's down the road it was put on: 100 m from its grid, and still on the track.
+            race: dict[str, Any] | None = None
+            start: tuple[float, float] | None = None
+            async with asyncio.timeout(60):
+                while True:
+                    message = json.loads(await master.recv())
+                    if message["t"] == "game":
+                        race = message["game"]["round"]
+                    if message["t"] != "snap" or race is None:
+                        continue
+                    kart = next((k for k in message["karts"] if k["driver"] not in (None, "p1")), None)
+                    if kart is None:
+                        continue
+                    at = (kart["pos"]["x"], kart["pos"]["z"])
+                    start = start or at
+                    if math.dist(at, start) > 100:
+                        break
+            middle = load_roads().track(race["track"]).points
+            assert min(math.dist(at, (p.x, p.z)) for p in middle) < 12, "on its track"
+        # The master gone, the room ends, and the bot's run with it.
+        assert (await bot)["races"] == 1
+
+    asyncio.run(scenario())
