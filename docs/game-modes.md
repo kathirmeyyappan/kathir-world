@@ -537,7 +537,8 @@ when there's nobody near to fight, and with the wits goes for whoever in reach i
 With nobody to go for it wanders, the shy from lookout to lookout and the bold anywhere. Whoever
 it's going for a long way off along the roads (150 m and more, out past the floor the buildings
 stand on), it takes a kart (`common/trip.py`): it walks to where a road leaves the buildings,
-asks for one, drives it as a racer of its level drives a track, gets out at the far end, and with
+gets into an empty one standing there with its nose down the road, anyone's, or asks for one,
+drives it as a racer of its level drives a track, gets out at the far end, and with
 nobody to fight stands clear of it and shoots it until it blows up, so the room's karts aren't
 used up. It sees no further than anyone does through the fog, or down a scope with a rifle. And
 one with the wits takes a hop by jetpack (`common/flight.py`) where it has no way over the ground

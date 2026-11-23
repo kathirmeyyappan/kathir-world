@@ -1870,7 +1870,7 @@ test('a room has at most two karts for each player in it', () => {
   assert.equal(typeof room.garage.drop(me, 'standard', room.playerCount), 'string', 'a third refused');
 });
 
-test('a kart is got into by walking into it, driven, and got out of with E, what the driver held put away meanwhile; a bot gets into its own alone', () => {
+test('a kart is got into by walking into it, driven, and got out of with E, what the driver held put away meanwhile; a bot gets into one only by using it', () => {
   const { room, ids } = kartRoom({ x: 0, y: 0, z: 0 });
   const [id] = ids;
   const me = room.players[0];
@@ -1895,19 +1895,29 @@ test('a kart is got into by walking into it, driven, and got out of with E, what
   out.pos = { x: k.pos.x, y: k.pos.y + KARTS.standard.body.height + EYE_HEIGHT, z: k.pos.z };
   tick(room);
   assert.equal(out.riding, kart, 'in again');
-  // A bot is left out of a kart lying about, and gets into one it dropped itself.
-  const botId = room.join('fighter-bot', link(), { bot: true });
+  // A bot that walks into a kart lying about, its own or anyone's, isn't in it for that: it gets
+  // in by using it, from beside it.
+  const botId = room.join('fighter-bot', link(), { bot: true })!;
   const bot = room.players.find((p) => p.id === botId)!;
   const lying = room.garage.drop(out, 'standard', room.playerCount);
-  const own = room.garage.drop(bot, 'standard', room.playerCount);
-  assert.ok(typeof lying !== 'string' && typeof own !== 'string');
+  assert.ok(typeof lying !== 'string');
   for (let i = 0; i < TICK_RATE; i++) tick(room);
-  const walksInto = (at: Vec3) => {
-    bot.pos = { x: at.x, y: at.y + EYE_HEIGHT, z: at.z - KARTS.standard.body.length / 2 };
-    tick(room);
+  const beside = (metres: number) => {
+    const z = lying.pos.z - KARTS.standard.body.length / 2 - metres;
+    bot.pos = { x: lying.pos.x, y: lying.pos.y + EYE_HEIGHT, z };
+  };
+  beside(0);
+  tick(room);
+  assert.equal(bot.riding, null, 'walked into');
+  const uses = () => {
+    room.receive(botId, { t: 'input', f: frame(0, [], 0, lying.id) });
+    room.step();
     return bot.riding;
   };
-  assert.deepEqual([walksInto(lying.pos), walksInto(own.pos)], [null, own.id]);
+  beside(5);
+  assert.equal(uses(), null, 'used from too far off');
+  beside(1);
+  assert.equal(uses(), lying.id, 'used from beside it');
 });
 
 test("a driver's late frames step their kart once each, however long the Room drove it on without them", () => {

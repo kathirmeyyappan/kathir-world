@@ -68,7 +68,8 @@ for whatever the change adds or touches, and put the answers in it:
 - **Both sides:** a rule the client has to agree with (what's refused, what's in bounds, who's
   seen) is one pure function in `shared` that the Room and the client both call, never written
   twice.
-- **Bots:** what the bots that play make of it. A game's own bots (a race's racers) and the ones
+- **Bots:** what the bots that play make of it. A game's own bots (a race's racers, a shootout's
+  fighters) and the ones
   called from chat are players like any other, and know only what they were taught: a hazard is
   something they walk or drive into, an item or a pickup something they never use, a new move or
   boost something they lose by to everyone who has it. Say what each bot that meets it does about
@@ -1371,9 +1372,10 @@ its paint, its wrenches and its driver). One is dropped `DROP_AHEAD` in front of
 short of a wall down to right over them, from `DROP_HEIGHT` up; there are never more than two karts
 for each player in the room, and one left empty `IDLE_SECONDS` is taken away. A person on foot gets
 into an empty one by walking or jumping into it (`Garage.runInto`: any touch that doesn't hurt
-them; a bot gets into its own alone, one it dropped or last drove, so none is carried off by a
-kart left lying about, and someone who has just got out isn't taken back in until they've stood
-clear of it): what they hold and wear is put away till they get
+them; and someone who has just got out isn't taken back in until they've stood
+clear of it), and a bot, which walks into things without meaning to and would be carried off by
+any kart left lying about, only by using one from beside it (`InputFrame.use` with the kart's id,
+`Garage.board`, within `BOARD_REACH`): what they hold and wear is put away till they get
 out with E (the `exit` action; never while the room's game keeps them in it, `Rules.seated`, when no
 way out is offered either), whatever move they were in stops, and they ride in its seat
 (`PlayerState.riding`), their frames driving it (`my` the gas, `mx` the wheel, the `drift`
@@ -1764,9 +1766,11 @@ still to do. Where each bot's knowledge of the game is kept:
   drifts, tricks, boost pads, gaps, what Lakitu does. Something new on a road, a new kart or a new
   way to go faster is weighed for the racers there, and a driver that uses it is run against the
   real `stepKart` in a scratch script, over the tracks, before it's trusted.
-- **How a body fights and gets about on foot** (the bots under `bots/`, with
-  `common/navigation.py`): the weapons it asks for by name and their reach, the pickups it goes
-  for, what it takes for a way and what it won't step onto.
+- **How a body fights and gets about on foot** (`bots/fighter_bot.py`, with
+  `common/fighting.py`, whose `ARMS` is the weapons as it knows them, `common/navigation.py`,
+  and for its long ways `common/trip.py` and `common/flight.py`, which reckons by the jetpack's
+  numbers): the weapons it asks for by name, their reach and which suits what, the pickups it
+  goes for, what it takes for a way and what it won't step onto.
 - **What a game tells its bots** (the game's state, `state.game`): a setting or a phase a bot
   should act on is read from there, as a racer reads its race.
 
@@ -1928,7 +1932,8 @@ Bots must use the modules under `modal-bots/common/`:
   line), or None where a walk is as good: from past the end of a road, where it's clear of the
   building the road ends under, to the road nearest where it's going. Whoever takes it walks to
   `plan.board` themselves, and from there a `Trip` has the controls (`trip.ride(state, me,
-  controls)` on every snapshot): it faces down the road, asks for a kart, walks into it, drives it
+  controls)` on every snapshot): it takes an empty kart standing there with its nose down the
+  road, anyone's, or with none asks for one facing that way, gets in by using it, drives it
   as a racer of that `skill` would, brakes at the far end (or wherever it's told to `leave`) and
   gets out, `over` from then.
 - A hop by jetpack is `common/flight.py`: `flight.plan(solids, feet, goal)` is the hop there,
@@ -1960,6 +1965,7 @@ controls.drive(gas=1, steer=-0.4, drift=True)  # a kart's keys, held, for a bot 
 controls.get_out()                  # one frame of the key that gets a driver out of their kart
 controls.read_cube(cube_or_id)
 controls.use(door_id)               # one frame clicking the door it looks at (Route does this)
+controls.use(kart_id)               # one frame getting into the empty kart it's beside
 await controls.respawn()            # ask to be brought back now, where its game gives the dead a screen
 await controls.chat("hello")
 await controls.command("sniper")    # sends /sniper
@@ -1967,7 +1973,8 @@ await controls.command("sniper")    # sends /sniper
 
 There is no generic server-side click message. Browser cube clicks are local visual picking and
 become the `reading` field; use `read_cube`. Attack clicks become the `shoot` action; use
-`fire_once` or `shoot`. A door click is `use`, judged against where the bot looks. A way from
+`fire_once` or `shoot`. A door click is `use`, judged against where the bot looks, and `use` of an
+empty kart from beside it is how a bot gets in: walking into one doesn't. A way from
 `ground.path` keeps out of doorways unless asked (`doors=True`), and a `Route` given
 `doors=state.doors` opens the shut doors on such a way. Sky-object clicks are entirely client-side and have no server interaction.
 
