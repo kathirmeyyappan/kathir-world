@@ -92,6 +92,7 @@ EMBLEMS: dict[str, Emblem] = {
     "sandy": Emblem(WHITE, picture(MARKS / "glove.png", 0.8)),  # her karate glove, out of a frame of the show
     "sahur": Emblem(WHITE, picture(MARKS / "sahur.png", 0.92)),  # himself with his bat, out of a picture of him
     "gary": Emblem(WHITE, picture(MARKS / "shell.png", 0.66)),  # his shell, as the show draws it
+    "monsters": Emblem(WHITE, picture(MARKS / "monsters-m.png", 0.74)),  # the M of the Monsters, Inc. logo
 }
 
 

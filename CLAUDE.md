@@ -351,8 +351,9 @@ wire: server and client both build the world from that file.
   (`dragon.ts`), and a walker it turns back into there, or anywhere out over the void, falls where
   it is. The camera follows it down. The bots' ground map stands its nodes a metre inside the edge, and
   the circle bot, which strafes rather than following that map (it never loads it), asks the
-  solids for ground ahead before it steps and tightens its ring where there's none, turning back
-  only where no ring has any.
+  solids for ground as far ahead as it walks in `EDGE_REACTION` (time enough for a snapshot that
+  arrives late) and tightens its ring where there's none, turning back where no ring has any and
+  sliding along the edge where neither way round has.
 - Size things to the player: eyes at 1.7 m, head at 2.0 m, radius 0.35 m, steps up to 0.5 m climb on
   their own, and a running jump at the standard jump power lands on tops up to about 1.9 m (make
   anything meant to stop a jump 2.1 m or taller; Sulley's 1.2 rises 1.92 m, and may get over it). Doorways at least 1.2 m wide and 2.2 m tall; ramps no steeper than about 30°;
@@ -1560,10 +1561,11 @@ the player is (`Condition`) are not warnings and keep their own.
 
 L is the bare view (`ui/bareView.ts`, on a mouse device): everything laid over the world put away,
 so the picture is the world alone, and brought back by the same key, the game playing on under it.
-It's one rule (`#app.bare`, styles.css) that hides whatever stands in `#app` but the view and what
-the player opens themselves (the menu, the commands, a cube's card, the death screen, and the chat
-while it's typed in), so a new overlay is put away with the rest, and one the player opens goes in
-that rule's list.
+It's one rule (`#app.bare`, styles.css) that hides whatever stands in `#app` but the view, what's
+part of seeing it (the crosshair, the sniper's scope, the view frosted over, the iris, a hit's or
+a heal's flash at the edges) and what the player opens themselves (the menu, the commands, a cube's
+card, the death screen, and the chat while it's typed in), so a new overlay is put away with the
+rest, and one that's part of seeing or that the player opens goes in that rule's list.
 
 Anything that scrolls (the menu's and the commands' bodies, the cube card's body under its
 bar) stands in a `.scroller` beside the rail of `ui/scrollRail.ts`, in place of the browser's

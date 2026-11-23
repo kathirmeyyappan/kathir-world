@@ -74,8 +74,7 @@ export interface Buttons {
 
 export interface Button {
   label: string;
-  press?: () => void;
-  href?: string; // opens in a new tab
+  press: () => void;
   danger?: boolean; // red: a way out of the room
 }
 
@@ -247,8 +246,13 @@ function select(row: Select): Drawn {
   const el = element('div', 'field');
   const box = element('div', 'picker');
   const picker = new Picker(box, row.choices, row.pick);
-  el.append(element('div', 'name', row.label), box, element('div', 'note', row.hint));
-  el.querySelector<HTMLElement>('.note')!.dataset.tone = 'hint';
+  el.append(element('div', 'name', row.label), box);
+  // Its note only ever says its hint, so one with none has no line kept for it.
+  if (row.hint) {
+    const note = element('div', 'note', row.hint);
+    note.dataset.tone = 'hint';
+    el.append(note);
+  }
   // Its list drops under the box, where the menu's body may end: opened, it is brought into view.
   box.addEventListener('click', () => box.querySelector('.options:not(.hidden)')?.scrollIntoView({ block: 'nearest' }));
   // The box follows what the row is about, which the pick changes only once the game has heard of it.
@@ -265,14 +269,9 @@ function select(row: Select): Drawn {
 function buttons(row: Buttons): Drawn {
   const el = element('div', 'buttons');
   for (const b of row.buttons) {
-    const button = b.href ? element('a', 'button', b.label) : element('button', '', b.label);
+    const button = element('button', '', b.label);
     if (b.danger) button.classList.add('danger');
-    if (button instanceof HTMLAnchorElement && b.href) {
-      button.href = b.href;
-      button.target = '_blank';
-      button.rel = 'noopener';
-    }
-    if (b.press) button.addEventListener('click', b.press);
+    button.addEventListener('click', b.press);
     el.append(button);
   }
   return { el };

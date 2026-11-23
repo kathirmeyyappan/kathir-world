@@ -67,8 +67,7 @@
 }
 /* Every button on the card is set in the terminal face, at the size of the rows' names; the scroll
    rail's arrows keep their own (styles.css). */
-#menu button:not(.scroll-rail *),
-#menu a.button {
+#menu button:not(.scroll-rail *) {
   font: 20px/1 var(--mono);
   letter-spacing: 1px;
   padding: 5px 12px;
@@ -458,33 +457,18 @@
   color: rgba(255, 255, 255, 0.38);
 }
 
-/* The home screen's links (styles.css), as a row. The room over it (the field above's empty note
-   and its margin, which this one is taken from) and under it (this margin, then the sections' gap)
-   come to the same. */
+/* The home screen's links (styles.css), as a row: the room round it is its section's. */
 #menu .home-links {
-  margin-top: -9px;
-  margin-bottom: 9px;
+  margin: 0;
 }
 
-/* A row of buttons, sharing the width; a link among them looks like a button. */
+/* A row of buttons, sharing the width. */
 #menu .buttons {
   display: flex;
   gap: 10px;
 }
 #menu .buttons > * {
   flex: 1;
-}
-#menu a.button {
-  padding: 5px 8px;
-  text-align: center;
-  text-decoration: none;
-  color: #fff;
-  background: rgba(100, 181, 246, 0.18);
-  border: 2px solid var(--accent);
-  box-shadow: 3px 3px 0 #000;
-}
-#menu a.button:hover {
-  background: rgba(100, 181, 246, 0.35);
 }
 #menu .buttons .danger {
   background: rgba(255, 59, 78, 0.18);
@@ -561,12 +545,10 @@
     margin-bottom: 12px;
   }
   #menu button:not(.scroll-rail *),
-  #menu a.button,
   #menu .steps .reading {
     font-size: 18px;
   }
-  #menu button:not(.scroll-rail *),
-  #menu a.button {
+  #menu button:not(.scroll-rail *) {
     padding: 4px 8px;
   }
   #menu nav button {
@@ -577,10 +559,6 @@
   }
   #menu .panel {
     gap: 14px;
-  }
-  #menu .home-links {
-    margin-top: -12px;
-    margin-bottom: 12px;
   }
   #menu h2 {
     margin-bottom: 6px;
