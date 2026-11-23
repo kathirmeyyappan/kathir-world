@@ -50,6 +50,7 @@ AT_SPEED = 11.0  # m/s the least a drift is begun at
 MOOD_PACE = 0.04  # of its pace that a driver's mood adds or takes at its most
 MOOD_SHARE = 0.25  # and of the drifts and tricks it could do
 LAPSE = (0.3, 0.9)  # seconds a lapse lasts, the least and the most: off the gas
+AFTER = 40.0  # metres on from a drift let go at its last spark that no other is begun
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,14 +58,16 @@ class Skill:
     """How well a driver drives: the line it takes (``shape``), how much of the speed its kart has,
     on a boost or not, it uses (``pace``, a share), how much of what its tires hold it takes a
     bend at (``grip``, a share), the
-    share of the bends a drift would spark in that it drifts through (``drifts``) and of its
-    flights that it tricks in (``tricks``), and the seconds from one lapse of its attention to the
-    next, on average (``lapses``)."""
+    share of the bends a drift would spark in that it drifts through (``drifts``), how many sparks
+    it holds a drift for before it lets go (``sparks``: 1 the first, blue, which gives the
+    shortest boost), the share of its flights that it tricks in (``tricks``), and the seconds from
+    one lapse of its attention to the next, on average (``lapses``)."""
 
     shape: Shape
     pace: float
     grip: float
     drifts: float
+    sparks: int
     tricks: float
     lapses: float
 
@@ -80,6 +83,7 @@ def skill(rating: float) -> Skill:
         pace=0.875 + 0.125 * r,
         grip=0.5 + 0.35 * r,
         drifts=_unit01((r - 0.3) / 0.6),
+        sparks=1 + (r > 0.5) + (r > 0.75),
         tricks=_unit01((r - 0.15) / 0.6),
         lapses=12 + 78 * r,
     )
@@ -198,11 +202,14 @@ class Driver:
                     else car.drift_neutral - car.drift_wide
                 )
                 steer = way * _unit((want - car.drift_neutral) / spread)
-                spark = next((after for after in car.sparks if after > t - 0.05), None)
+                spark = next((after for after in car.sparks[: self.skill.sparks] if after > t - 0.05), None)
                 bends = turns(pacing * 0.15) * way > HOLDS or turns(pacing * 0.35) * way > HOLDS_ON
                 nearly = spark is not None and spark - t < NEARLY and want > -0.4
                 if spark is None or not (bends or nearly) or flight(pacing * 0.6) or flying:
                     drift = False
+                    # Let go on the last spark it holds for, it takes the rest of the bend as it comes.
+                    if spark is None:
+                        self._passed = s + AFTER
             else:
                 steer = float(way) if self._since <= 1 else _unit(lock / car.air_turn)
                 # Never seen to land in one: it didn't take (too slow, knocked off its line).
