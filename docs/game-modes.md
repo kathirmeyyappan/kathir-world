@@ -532,10 +532,14 @@ rifle is fired only at someone who has gone on as they
 were for a while, so whoever keeps moving isn't shot from across the map. In a game with sides it
 leaves its own side alone, holds its fire while one of them is in the way, keeps with them
 when there's nobody near to fight, and with the wits goes for whoever in reach is nearest dead.
-With nobody to go for it wanders, the shy from lookout to lookout and the bold anywhere.
+With nobody to go for it wanders, the shy from lookout to lookout and the bold anywhere. Whoever
+it's going for a long way off along the roads (150 m and more, out past the floor the buildings
+stand on), it takes a kart (`common/trip.py`): it walks to where a road leaves the buildings,
+asks for one, drives it as a racer of its level drives a track, gets out at the far end, and with
+nobody to fight stands clear of it and shoots it until it blows up, so the room's karts aren't
+used up. It sees no further than anyone does through the fog, or down a scope with a rifle.
 
-Still to come for them: a jetpack used sparingly; a kart taken to cover a long way and then blown
-up with the gun.
+Still to come for them: a jetpack used sparingly.
 
 ## To settle
 

@@ -1365,7 +1365,8 @@ its paint, its wrenches and its driver). One is dropped `DROP_AHEAD` in front of
 short of a wall down to right over them, from `DROP_HEIGHT` up; there are never more than two karts
 for each player in the room, and one left empty `IDLE_SECONDS` is taken away. A person on foot gets
 into an empty one by walking or jumping into it (`Garage.runInto`: any touch that doesn't hurt
-them; bots are left out, and someone who has just got out isn't taken back in until they've stood
+them; a bot gets into its own alone, one it dropped or last drove, so none is carried off by a
+kart left lying about, and someone who has just got out isn't taken back in until they've stood
 clear of it): what they hold and wear is put away till they get
 out with E (the `exit` action; never while the room's game keeps them in it, `Rules.seated`, when no
 way out is offered either), whatever move they were in stops, and they ride in its seat
@@ -1857,7 +1858,8 @@ Bots must use the modules under `modal-bots/common/`:
   - `load_roads()`: `roads.nearest(spot)` and `roads.path(start, goal, gaps=False)` find a way
     along the roads' middles, across a gap only for a kart (`gaps=True`). `roads.track(index)` is
     the middle of the race track a race names by that index (a `Middle`: its points in the order
-    they're driven, and which of its stretches are a gap or have a boost pad).
+    they're driven, and which of its stretches are a gap or have a boost pad), and
+    `roads.way(nodes)` the middle of any way along them, a `path`'s.
   - `load_karts()`: `karts.of(kart.kart)` is how a kart drives (`Driven`).
 - A fight is fought with `common/fighting.py`, as `bots/fighter_bot.py` fights one. How well is a
   `Skill`, `skill(rating)` anywhere from 0 (slow to notice anyone and to bring its aim round, never
@@ -1871,7 +1873,8 @@ Bots must use the modules under `modal-bots/common/`:
   isn't. What it knows of each weapon is a row of `ARMS` there, which mirrors the weapon's
   `ItemSpec`: a new weapon, or a change to one's range, its cooldown or what it does to whoever
   it touches, goes in both. `Arm.suits` is which weapon is for which range and target, which a
-  fighter with the wits holds to.
+  fighter with the wits holds to. It sees no further than anyone does (`SIGHT`, and with a rifle
+  `SCOPED_SIGHT`, mirrored there from `sim/constants.ts`).
 - A kart is driven by a `Driver(line, skill, kart, dice)` (`common/driving.py`) along the
   `racing_line(middle, shape, kart)` of a way along the roads (`common/racing_line.py`):
   `driver.keys(kart, late, mood, others)` is the gas, the wheel and the drift key to hold next,
@@ -1888,6 +1891,14 @@ Bots must use the modules under `modal-bots/common/`:
   lateness itself and keeps count of what it has pressed, so give it every snapshot's kart, in
   order. A line takes about a quarter of a second to work out: do it off the event loop
   (`asyncio.to_thread`), once for every bot that wants it, as `racer_bot.py` does.
+- A long way is taken by kart with `common/trip.py`, as the fighter takes one: `trip.plan(roads,
+  ground, karts, feet, goal, skill)` is the trip there (off the event loop: it works out a
+  line), or None where a walk is as good: from past the end of a road, where it's clear of the
+  building the road ends under, to the road nearest where it's going. Whoever takes it walks to
+  `plan.board` themselves, and from there a `Trip` has the controls (`trip.ride(state, me,
+  controls)` on every snapshot): it faces down the road, asks for a kart, walks into it, drives it
+  as a racer of that `skill` would, brakes at the far end (or wherever it's told to `leave`) and
+  gets out, `over` from then.
 
 Bot files must not import `httpx` or `websockets`, parse raw JSON, copy lobby/token code, manage
 `InputFrame.seq`, or log a token-bearing redirect or authorization header.
@@ -1909,6 +1920,7 @@ controls.scope(True)
 controls.thrust(True)               # hold a worn jetpack's lift (after /jetpack)
 controls.run(True)                  # hold the run: the walk 60% faster, except scoped
 controls.drive(gas=1, steer=-0.4, drift=True)  # a kart's keys, held, for a bot sat in one
+controls.get_out()                  # one frame of the key that gets a driver out of their kart
 controls.read_cube(cube_or_id)
 controls.use(door_id)               # one frame clicking the door it looks at (Route does this)
 await controls.respawn()            # ask to be brought back now, where its game gives the dead a screen

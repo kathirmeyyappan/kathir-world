@@ -83,6 +83,10 @@ class Roads:
             for node in road if leg > 0 else reversed(road):
                 if not nodes or nodes[-1] != node:
                     nodes.append(node)
+        return self.way(nodes)
+
+    def way(self, nodes: Sequence[int]) -> Middle:
+        """The middle of a way along the roads by its nodes in turn (a ``path``'s)."""
         stretches = list(itertools.pairwise(nodes))
         return Middle(
             points=tuple(self.nodes[i] for i in nodes),

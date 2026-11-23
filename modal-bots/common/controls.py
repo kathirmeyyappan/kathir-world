@@ -34,6 +34,7 @@ class Controls:
         self._thrust = False
         self._run = False
         self._drift = False
+        self._exit = False
 
     def move(self, *, forward: float = 0, right: float = 0) -> None:
         if not math.isfinite(forward) or not math.isfinite(right):
@@ -82,6 +83,11 @@ class Controls:
         dy = target.y - origin.y
         dz = target.z - origin.z
         self.look(math.atan2(dx, dz), -math.atan2(dy, math.hypot(dx, dz)))
+
+    def get_out(self) -> None:
+        """One frame of the key that gets a driver out of their kart, where the room's game lets
+        them out."""
+        self._exit = True
 
     def jump(self) -> None:
         self._jump = True
@@ -138,6 +144,8 @@ class Controls:
             actions.append("run")
         if self._drift:
             actions.append("drift")
+        if self._exit:
+            actions.append("exit")
         yaw, pitch = self._shot_look or (self.yaw, self.pitch)
         frame = {
             "seq": self.seq,
@@ -155,6 +163,7 @@ class Controls:
             frame["view"] = self.connection.view_tick
         await self.connection.send({"t": "input", "f": frame})
         self._jump = False
+        self._exit = False
         self._use = None
         self._shoot_once = False
         self._shot_look = None
