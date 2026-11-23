@@ -309,12 +309,21 @@ test("a game's flow: its master starts it from the lobby, counted down, on a wor
     [null, 0, 2],
     'a new body, nothing in hand, the score from nothing',
   );
+  // A game is people alone, so the bots' commands are refused through it, and nothing else is.
+  for (const command of ['/circle-bot', '/kill-bots']) {
+    room.receive(idb, { t: 'chat', text: command });
+    assert.deepEqual(b.inbox.at(-1), { t: 'refused', text: 'not during a game' });
+  }
+  room.receive(idb, { t: 'chat', text: '/gun' });
+  assert.equal(player(idb).item?.id, 'gun');
 
   room.receive(idb, { t: 'game', do: 'end' });
   assert.equal(told(a).phase, 'playing', "and its master's to end");
   room.receive(ida, { t: 'game', do: 'end' });
   assert.equal(told(b).phase, 'lobby');
   assert.equal(player(idb).body, 3, 'everyone back in the lobby in a new body');
+  room.receive(idb, { t: 'chat', text: '/kill-bots' });
+  assert.deepEqual(b.inbox.at(-1), { t: 'refused', text: 'no bots here' }, 'where a bot command is a command again');
 });
 
 test('room calls onEmpty when the last player leaves', () => {

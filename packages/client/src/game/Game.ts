@@ -117,6 +117,7 @@ import { AreaTitle } from '../ui/AreaTitle';
 import { Bubble } from '../ui/Bubble';
 import { CommandHint } from '../ui/CommandHint';
 import { CommandsMenu } from '../ui/CommandsMenu';
+import { refusedBy } from '../ui/commands';
 import { Alert } from '../ui/Alert';
 import { Iris } from '../ui/Iris';
 import { Condition } from '../ui/Condition';
@@ -411,6 +412,7 @@ export class Game {
       this.commandsMenu.set(false); // typed over the commands: the card goes, so what it did is in view
     };
     this.commandsMenu.onCommand = (text) => this.hud.onChat?.(text);
+    this.commandsMenu.refused = this.hud.refused = (row) => refusedBy(this.game, row);
     this.commandsMenu.onDraft = (text) => this.hud.openChat(text);
     this.commandsMenu.onPoint = (text) => this.wantCommand(text, false);
     this.commandsMenu.onNotice = (text) => this.alert.flash(text);
@@ -859,6 +861,7 @@ export class Game {
     const ended = this.game.phase !== null && this.game.phase !== 'lobby' && game.phase === 'lobby';
     this.game = game;
     this.hud.setMaster(game.master);
+    this.commandsMenu.refresh();
     if (ended) this.banner.say('room master ended the game!');
   }
 

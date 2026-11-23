@@ -1,24 +1,29 @@
 // The commands card: every chat command (commands.ts) as a button. Toggled with C or the touch
 // button, it frees the mouse, as the menu does, so a button can be clicked; a button sends its
 // command as a chat message and the card goes, so what it did is in view, and one that needs
-// arguments is greyed and opens chat with it typed, to finish there, saying so (`onNotice`). Q or C closes it, as does a
+// arguments is greyed and opens chat with it typed, to finish there, saying so (`onNotice`). One the
+// room's game refuses is greyed further and says why, the card staying up. Q or C closes it, as does a
 // click beside the card or, on touch, any tap. Blocks game input while open, like the cube card.
 import { IS_TOUCH, onTap } from '../input/touch';
-import { commandGroups, type Group } from './commands';
+import { commandGroups, type Group, type Row } from './commands';
 import { railScroll } from './scrollRail';
 
 export class CommandsMenu {
   private readonly el = document.getElementById('commands')!;
+  private readonly groups = commandGroups();
+  private readonly rows = this.groups.flatMap((group) => group.rows); // in the order of their buttons
   private open = false;
+  // Why the room's game refuses a row's command right now, or null (commands.ts `refusedBy`).
+  refused: ((row: Row) => string | null) | null = null;
   onCommand: ((text: string) => void) | null = null;
   onDraft: ((text: string) => void) | null = null; // opens chat with this typed
   onPoint: ((text: string) => void) | null = null; // a button pointed at, before it's pressed
-  onNotice: ((text: string) => void) | null = null; // what a greyed button says as it opens the chat
+  onNotice: ((text: string) => void) | null = null; // what a greyed button says as it's pressed
   onOpenChange: ((open: boolean) => void) | null = null;
 
   constructor() {
     // The body scrolls; the footer (guide note + close hint) stays put under it.
-    this.el.innerHTML = cardHtml(commandGroups());
+    this.el.innerHTML = cardHtml(this.groups);
     railScroll(this.el.querySelector<HTMLElement>('.body')!);
     if (IS_TOUCH) {
       // Every tap closes the card, a button's after it has done its work. The tap hides the card on
@@ -64,9 +69,20 @@ export class CommandsMenu {
     this.set(!this.open);
   }
 
+  // Greys what the room's game refuses right now, each with why.
+  refresh(): void {
+    this.el.querySelectorAll<HTMLElement>('.cmd-button').forEach((button, i) => {
+      const why = this.refused?.(this.rows[i]) ?? null;
+      button.classList.toggle('refused', why !== null);
+      if (why === null) delete button.dataset.refused;
+      else button.dataset.refused = why;
+    });
+  }
+
   set(open: boolean): void {
     if (open === this.open) return;
     this.open = open;
+    if (open) this.refresh();
     this.el.classList.toggle('hidden', !open);
     if (open && document.pointerLockElement) document.exitPointerLock(); // the mouse is free over the card
     this.onOpenChange?.(open);
@@ -74,10 +90,11 @@ export class CommandsMenu {
 
   // A button sends its command, the card going first so what the command did is in view; a greyed
   // one opens chat with it typed, before the card goes so the mouse stays free for the typing, and
-  // says to add the options there.
+  // says to add the options there. One the game refuses says why and does nothing.
   private press(button: HTMLElement): void {
     const text = button.dataset.tap;
     if (!text) return;
+    if (button.dataset.refused) return this.onNotice?.(button.dataset.refused);
     if (!('needsArgs' in button.dataset)) {
       this.set(false);
       this.onCommand?.(text);

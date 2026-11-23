@@ -4,7 +4,7 @@
 import { CUBE_IDS } from './content/cubes';
 import { CORPSE_DROP, PICKUP_AREAS } from './content/pickups';
 import { RESPAWN_AREAS, SPAWN_AREAS, type SpawnArea } from './content/regions';
-import { FREEPLAY, makeMode, type GameMode, type GameModeId } from './modes';
+import { FREEPLAY, makeMode, rulesOf, type GameMode, type GameModeId } from './modes';
 import {
   isClientMessage,
   type ClientMessage,
@@ -723,6 +723,9 @@ export class Room {
 
   private runCommand(seat: Seat, command: Command): void {
     const me = seat.state;
+    const game = this.mode.state;
+    const refused = rulesOf(game).refuses(game, command);
+    if (refused !== null) return this.refuse(seat, refused);
     // A driver holds the wheel: no kit, no body that can't sit in a kart and no leaving their seat
     // for somewhere else, till they get out.
     const kit =

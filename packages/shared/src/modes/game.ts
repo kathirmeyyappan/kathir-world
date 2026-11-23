@@ -7,6 +7,7 @@ import { TICK_RATE } from '../sim/constants';
 import type { PlayerState } from '../sim/types';
 import type { GameAction, GameState } from './index';
 import { GameMode } from './mode';
+import { kindOf, type CommandKind, type Rules } from './rules';
 
 // What everyone is told as the room closes behind its master.
 export const MASTER_LEFT = 'the room master ended the room';
@@ -15,6 +16,37 @@ export const START_SECONDS = 5;
 
 // Where a game is: waiting in its lobby, counting down to its start, or being played.
 export type Phase = 'lobby' | 'starting' | 'playing';
+
+// Whether a game allows each kind of command from its start until its lobby is back. Its lobby is
+// freeplay's, where nothing is refused.
+export type Allowed = Record<CommandKind, boolean>;
+
+// What every game allows unless it says otherwise: all but the bots' commands, a game being
+// people alone.
+export const GAME_ALLOWS: Allowed = {
+  speedy: true,
+  weapon: true,
+  gear: true,
+  unequip: true,
+  look: true,
+  dragon: true,
+  colour: true,
+  bot: false,
+  'kill-bots': false,
+  kart: true,
+  teleport: true,
+};
+
+// A game's rules, with what it `allows`.
+export function gameRules(allows: Allowed): Rules {
+  return {
+    refuses(game, command) {
+      if (game.phase === null || game.phase === 'lobby') return null;
+      const kind = kindOf(command);
+      return kind !== null && !allows[kind] ? 'not during a game' : null;
+    },
+  };
+}
 
 export class Game extends GameMode {
   // The room master's id. Null until the player who made the room is in it: someone they told the

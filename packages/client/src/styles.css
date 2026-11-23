@@ -915,6 +915,11 @@ body {
   color: #fff;
   white-space: nowrap;
 }
+/* A command the room's game refuses: offered still, greyed. */
+#chat-completions li.refused .cmd,
+#chat-completions li.refused .note {
+  color: rgba(255, 255, 255, 0.28);
+}
 #chat-completions .note {
   font: 14px var(--mono);
   color: rgba(255, 255, 255, 0.55);
@@ -2873,6 +2878,26 @@ body {
 #commands .cmd-button.needs-args:active {
   transform: none;
   box-shadow: 2px 2px 0 #000;
+}
+/* One the room's game refuses: greyed further than one that needs its options typed, and no button
+   to press. */
+#commands .cmd-button.refused {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: none;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+#commands .cmd-button.refused .cmd,
+#commands .cmd-button.refused .note,
+#commands .cmd-button.refused .args {
+  color: rgba(255, 255, 255, 0.22);
+}
+#commands .cmd-button.refused:hover {
+  background: none;
+}
+#commands .cmd-button.refused:active {
+  transform: none;
+  box-shadow: none;
 }
 #commands .close-hint {
   padding: 0;

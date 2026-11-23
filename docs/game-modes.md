@@ -67,8 +67,8 @@ which is null in freeplay, where there's no game to be anywhere in).
 2. **Starting.** The master presses START GAME, which is there to press once the mode's own
    condition to start holds. Everyone is told "Game is starting in 5", counted down
    (`START_SECONDS`, against `GameState.until`), still in the lobby. The lobby's bots are killed
-   (as `/kill-bots` does), no bot is seated from here until the lobby is back, and bot commands are
-   to be refused through it.
+   (as `/kill-bots` does), no bot is seated from here until the lobby is back, and the bots'
+   commands are refused until then (Refused commands, below).
 3. **Playing.** The world is cleared (karts, frost, hearts left lying, the bots' seats) and every
    player gets a new body: full hearts, nothing held or worn, in the look they had if it's one on
    foot and the standard body if it isn't. The roster's kills and deaths start from nothing. The
@@ -106,6 +106,17 @@ A mode says which commands its game allows, and every other is refused there wit
 the Room refuses anything, and greyed on the commands card and in the chat's completions. Bot
 commands are refused in every game. A new command doesn't build until every mode says whether its
 game allows it.
+
+It's a rule of the mode's (`Rules.refuses`, `modes/rules.ts`), holding from a game's start until
+its lobby is back. A command is of a kind (`CommandKind`, `kindOf`: a weapon, gear, a look on
+foot, a dragon, a bot's), and a game says of every kind whether it allows it (`Allowed`, a table,
+made rules by `gameRules` in `modes/game.ts`), so a new kind is a compile error until each game
+has said. Until a mode has a table of its own it has every game's (`GAME_ALLOWS`): everything but
+the bots' commands. The Room asks before anything else about a command (`runCommand`), and the
+client asks the same function of the state it was sent (`rulesOf` for both; `refusedBy` in
+`ui/commands.ts`): a refused command's button on the commands card is greyed, and at a press says
+why in the red box, the card staying up, and its line in the chat's completions is greyed too. One
+sent anyway is refused by the Room like any.
 
 ### Ghosts
 
@@ -209,8 +220,9 @@ A series of races, each on a track of its own, in karts, for points.
 
 ```
 packages/shared/src/modes/
-  index.ts      the registry: each mode's id, name and line, and what makes its game (makeMode)
+  index.ts      the registry: each mode's id, name and line, what makes its game (makeMode) and its rules (rulesOf)
   mode.ts       GameMode: what the Room tells a mode and asks it, with freeplay's answers
+  rules.ts      Rules: what the Room and the client both ask of a game's state, with freeplay's answers
   game.ts       Game: what every mode with a game shares: the master, settings, the phases, start and end
   shootout/     teams, spawn sites, points, and its answers
   racing/       tracks, the grid, places, elimination, points, and its answers
@@ -219,26 +231,27 @@ packages/client/src/modes/
   racing/       its HUD (place), the track on the maps and the floor, the finish line
 ```
 
-A mode has two halves. Its **rules** are pure functions of the game's state, in `shared`, which the
-Room and the client both call, so what the server enforces and what the client shows can't
-disagree and nothing worked out from the state is sent beside it: what's refused, what no hearts
-means, what floor is in play, who sees whom. Its **referee** runs in the Room alone and moves the
-game on: the master's changes to the settings, the start, where everyone is put, the points, the
-clock, the end.
+A mode has two halves. Its **rules** (`Rules`, `modes/rules.ts`; a mode's are `rulesOf` its state)
+are pure functions of the game's state, in `shared`, which the Room and the client both call, so
+what the server enforces and what the client shows can't disagree and nothing worked out from the
+state is sent beside it: what's refused, what no hearts means, what floor is in play, who sees
+whom. Its **referee** (`GameMode`, `modes/mode.ts`) runs in the Room alone and moves the game on:
+the master's changes to the settings, the start, where everyone is put, the points, the clock, the
+end. A rule is never the referee's to answer: the Room asks the rules as the client does.
 
 **The questions**, as the two modes need them. This list is the interface between a mode and
 everything else, and it will change as modes and features are added (`CLAUDE.md` says how).
 
-| The Room or the client asks                              | Freeplay answers                         | For                                                 |
-| -------------------------------------------------------- | ----------------------------------------- | --------------------------------------------------- |
-| May this player do this (a command, getting out)?        | yes                                       | `runCommand`, a kart's exit; the commands card      |
-| What does no hearts mean here?                           | lie 10 s, the death screen, a new body    | the Room's respawn; `ui/Death.ts`                   |
-| Where is this body put?                                  | `SPAWN_AREAS`, `RESPAWN_AREAS`            | joining, a game's start, coming back, a spectator   |
-| What floor is in play?                                   | the whole world's                         | a kart's rescue, the red box, the maps, the floor   |
-| What did this kill or death score?                       | nothing                                   | the Room's `damage`                                 |
-| How does this player see that one?                       | plainly, in their own colour              | name tags, pins, maps, the roster, the chat's names |
-| What is someone who joins now?                           | a player                                  | joining                                             |
-| What does this player leaving do?                        | their seat goes                           | leaving                                             |
+| The Room or the client asks                       | Freeplay answers                       | For                                                 | Asked as                        |
+| ------------------------------------------------- | -------------------------------------- | --------------------------------------------------- | ------------------------------- |
+| May this player do this (a command, getting out)? | yes                                    | `runCommand`, a kart's exit; the commands card      | `Rules.refuses`, of a command   |
+| What does no hearts mean here?                    | lie 10 s, the death screen, a new body | the Room's respawn; `ui/Death.ts`                   | to build                        |
+| Where is this body put?                           | `SPAWN_AREAS`, `RESPAWN_AREAS`         | joining, a game's start, coming back, a spectator   | to build                        |
+| What floor is in play?                            | the whole world's                      | a kart's rescue, the red box, the maps, the floor   | to build                        |
+| What did this kill or death score?                | nothing                                | the Room's `damage`                                 | to build                        |
+| How does this player see that one?                | plainly, in their own colour           | name tags, pins, maps, the roster, the chat's names | to build                        |
+| What is someone who joins now?                    | a player                               | joining                                             | `GameMode.turnsAway`, `joined`  |
+| What does this player leaving do?                 | their seat goes                        | leaving                                             | `GameMode.left`                 |
 
 **State and the wire.** A game's state (`GameState`: the mode, the master and the phase with its
 clock, and to come the settings, the points, a race's track and order) is one object a mode owns,
@@ -283,7 +296,7 @@ outside dev until each can be played, so freeplay is run on every merge.
       the lobby's bots killed at the start and no bot seated in a game.
 - [x] The GAME tab: there in a room with a game, opening first for its master, with START and END
       GAME. Each mode's settings come with the mode.
-- [ ] Refused commands, greyed where commands are offered.
+- [x] Refused commands, greyed where commands are offered.
 - [ ] What no hearts means, per phase: the lobby's three seconds and no screen.
 
 **2. Ghosts**
