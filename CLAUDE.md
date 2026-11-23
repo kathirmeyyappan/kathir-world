@@ -1899,6 +1899,11 @@ Bots must use the modules under `modal-bots/common/`:
   controls)` on every snapshot): it faces down the road, asks for a kart, walks into it, drives it
   as a racer of that `skill` would, brakes at the far end (or wherever it's told to `leave`) and
   gets out, `over` from then.
+- A hop by jetpack is `common/flight.py`: `flight.plan(solids, feet, goal)` is the hop there,
+  straight up, across and down with nothing in a body's way and inside a tank of fuel, or None;
+  `hop.fly(solids, me, tick, controls)` has the controls on every snapshot from then (it asks for
+  the jetpack, climbs, crosses, and comes down no faster than lands unhurt) until it's `over`. What
+  it reckons a tank by mirrors the jetpack's row in `GEAR` (`sim/gear.ts`).
 
 Bot files must not import `httpx` or `websockets`, parse raw JSON, copy lobby/token code, manage
 `InputFrame.seq`, or log a token-bearing redirect or authorization header.

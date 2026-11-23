@@ -537,9 +537,12 @@ it's going for a long way off along the roads (150 m and more, out past the floo
 stand on), it takes a kart (`common/trip.py`): it walks to where a road leaves the buildings,
 asks for one, drives it as a racer of its level drives a track, gets out at the far end, and with
 nobody to fight stands clear of it and shoots it until it blows up, so the room's karts aren't
-used up. It sees no further than anyone does through the fog, or down a scope with a rifle.
-
-Still to come for them: a jetpack used sparingly.
+used up. It sees no further than anyone does through the fog, or down a scope with a rifle. And
+one with the wits takes a hop by jetpack (`common/flight.py`) where it has no way over the ground
+to whoever it's after, or only one two and a half times as long as the hop (up onto a keep's roof
+from its foot, down off the terrace): straight up, across and down where nothing is in the way,
+no more often than every 25 seconds, and never to fight from the air. Falling far, it straps one
+on to brake with.
 
 ## To settle
 

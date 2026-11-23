@@ -4,7 +4,7 @@ import random
 from dataclasses import astuple
 
 from bots.fighter_bot import sides_of
-from common import Vec3, driving, load_ground, load_karts, load_roads, trip
+from common import Vec3, driving, flight, load_ground, load_karts, load_roads, load_solids, trip
 from common.fighting import ARMS, BEST, WORST, Aim, believed, skill, temper
 
 
@@ -83,3 +83,15 @@ def test_a_long_way_along_the_roads_is_one_to_drive() -> None:
     assert back is not None and abs(back.board.x - crossroads.x) < 10
     assert trip.plan(*maps, Vec3(100, 0, 0), keep, driver) is None
     assert trip.plan(*maps, crossroads, Vec3(-300, 0, 0), driver) is None
+
+
+def test_a_hop_goes_up_over_and_down_where_nothing_is_in_its_way() -> None:
+    solids = load_solids()
+    roof = Vec3(-69, 20, 72)  # on a keep's roof, by its rail
+    # From outside the keep: up past the roof, across and down onto it, a step from the rail.
+    hop = flight.plan(solids, Vec3(-79, 0, 66), roof)
+    assert hop is not None and 22 < hop.top < 30
+    assert hop.goal.y == roof.y and abs(hop.goal.x - roof.x) + abs(hop.goal.z - roof.z) <= flight.BESIDE
+    # From under the roof there's none, nor to anywhere a tank won't reach.
+    assert flight.plan(solids, Vec3(-52, 0, 76), roof) is None
+    assert flight.plan(solids, Vec3(40, 0, 0), roof) is None
