@@ -168,7 +168,7 @@ export const VOICES: Record<AvatarId, Voice> = {
     ...BIKINI_BOTTOM,
   },
   sahur: { enter: ['sahur-enter'] },
-  mike: { enter: [], death: ['mike-death'] },
+  mike: { enter: [], hurt: ['mike-hurt'], boost: ['mike-hurt'], death: ['mike-death'] },
   sulley: { enter: [] },
   elizabeth: { enter: [], theme: { sound: 'elizabeth-theme', heardBy: 'wearer' } },
   'light-dragon': { enter: [], theme: { sound: 'dragon-theme', heardBy: 'everyone' } },
