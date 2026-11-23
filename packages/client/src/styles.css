@@ -1553,6 +1553,61 @@ body {
   }
 }
 
+/* A track shown whole before it's raced (TrackPreview.ts): its map in the middle of the view,
+   under the game's line, with a line of its own under it. */
+#track-preview {
+  position: fixed;
+  top: 40%;
+  left: 50%;
+  z-index: 54;
+  width: min(42vh, 80vw);
+  transform: translateX(-50%);
+  padding: 8px;
+  pointer-events: none;
+  background: rgba(11, 13, 20, 0.82);
+  border: 3px solid rgba(var(--accent-rgb), 0.6);
+  box-shadow: 5px 5px 0 #000;
+  opacity: 0;
+  transition: opacity 0.25s;
+}
+#track-preview.on {
+  opacity: 1;
+}
+#track-preview canvas {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+}
+#track-preview .caption {
+  padding-top: 8px;
+  text-align: center;
+  white-space: nowrap;
+  font: 10px/16px var(--pixel);
+  letter-spacing: 1.5px;
+  color: #fff;
+  text-shadow: 2px 2px 0 #000;
+}
+/* A phone on its side has the game's line along the bottom, so the map stands over it; upright,
+   it stands under the line. */
+@media (pointer: coarse) and (max-height: 500px) {
+  #track-preview {
+    top: 62px;
+    width: min(56vh, 40vw);
+    padding: 5px;
+  }
+  #track-preview .caption {
+    padding-top: 4px;
+    font-size: 8px;
+    line-height: 12px;
+  }
+}
+@media (pointer: coarse) and (max-width: 660px) and (orientation: portrait) {
+  #track-preview {
+    top: 290px;
+    width: min(60vw, 34vh);
+  }
+}
+
 /* A player's emblem before their name where players are listed (emblem.ts): a tiny round badge,
    bare until its picture is here. */
 .emblem {

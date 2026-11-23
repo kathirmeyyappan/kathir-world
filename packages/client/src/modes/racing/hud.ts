@@ -28,20 +28,24 @@ const GO_SECONDS = 1; // how long GO! stands once the grid is let go
 // Lakitu at the start: metres ahead of the start line and over the road that the top of his lights
 // hangs, and the seconds he takes to come as the grid forms, stays once it's let go, and takes to go.
 const STARTER = { ahead: 12, over: 4.6, come: 1.2, stay: 0.5, go: 1.2 };
+const NONE: Showing = { line: null, scores: null, board: null, preview: null, starter: null };
 
 export function racingHud(game: GameState, at: Moment): Showing {
-  if (!isRacing(game) || !game.round) return { line: null, scores: null, board: null, starter: null };
+  if (!isRacing(game) || !game.round) return NONE;
   const round = game.round;
-  if (round.over !== null) return { line: null, scores: null, board: boardOf(game, round, at.tick), starter: null };
+  if (round.over !== null) return { ...NONE, board: boardOf(game, round, at.tick) };
   const places = placesOf(round, game.racers, alongOf(round, at.karts));
   // The place of someone racing or over the line; null for anyone else (out, or watching).
   const placed = !round.out.includes(at.me) && places.includes(at.me) ? places.indexOf(at.me) + 1 : null;
   const left = round.closes === null ? null : secondsUntil(round.closes, at.tick);
   const race = `race ${round.number + 1}/${game.races}`;
+  const toGo = (round.go - at.tick) / TICK_RATE; // seconds until the grid is let go
   return {
-    line: lineOf(game, round, at, placed, left),
+    line: lineOf(game, round, at.me, toGo, placed, left),
     board: null,
-    starter: starterOf(round, at.tick),
+    // The new track's map, for as long as the grid's words stand: until the count begins.
+    preview: toGo > RACE.countdown ? `RACE ${round.number + 1}/${game.races} · ${lengthOf(round)} KM` : null,
+    starter: starterOf(round, toGo),
     scores: {
       headline: placed === null ? null : ordinal(placed),
       caption: placed === null ? race : `of ${game.racers.length} · ${race}`,
@@ -52,10 +56,15 @@ export function racingHud(game: GameState, at: Moment): Showing {
   };
 }
 
+// How long the round's track is from its start line to its finish, in kilometres to a tenth.
+function lengthOf(round: Round): string {
+  const track = trackOf(round.track);
+  return ((track.finish - track.start) / 1000).toFixed(1);
+}
+
 // Lakitu with the starting lights, from the grid's forming until he's gone after it's let go: a
 // lamp lit red for each second of the count that's begun, and all three green from GO.
-function starterOf(round: Round, tick: number): Start | null {
-  const toGo = (round.go - tick) / TICK_RATE;
+function starterOf(round: Round, toGo: number): Start | null {
   if (toGo > RACE.grid || toGo < -(STARTER.stay + STARTER.go)) return null;
   const track = trackOf(round.track);
   const spot = spotAt(track, track.start + STARTER.ahead);
@@ -81,17 +90,17 @@ function alongOf(round: Round, karts: Kart[]): (id: string) => number | null {
 function lineOf(
   game: RacingState,
   round: Round,
-  at: Moment,
+  me: string,
+  toGo: number,
   placed: number | null,
   left: number | null,
 ): BannerLine | null {
-  if (!game.racers.some((r) => r.id === at.me)) return null;
+  if (!game.racers.some((r) => r.id === me)) return null;
   if (placed === null) return { text: 'ELIMINATED\nwait for the race to end', tone: 'big' };
-  const toGo = (round.go - at.tick) / TICK_RATE;
   if (toGo > RACE.countdown) return { text: 'Follow the green to the end as fast as you can!' };
   if (toGo > 0) return { text: String(Math.ceil(toGo)), tone: 'big' };
   if (toGo > -GO_SECONDS) return { text: 'GO!', tone: 'big' };
-  if (round.finished.includes(at.me)) {
+  if (round.finished.includes(me)) {
     const waiting = racing(round, game.racers).length > 0 && left !== null;
     return { text: `You finished ${ordinal(placed)}!${waiting ? `\nthe rest have ${left} seconds` : ''}` };
   }

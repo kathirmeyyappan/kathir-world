@@ -223,6 +223,20 @@ export class MapCanvas {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
   }
 
+  // The framing of the world view that fills the canvas with `box`, and `margin` metres round it.
+  framingOf(box: Bounds, margin: number): Framing {
+    const b = this.bounds;
+    const world = Math.max(b.maxX - b.minX, b.maxZ - b.minZ) + 2 * WORLD_MARGIN;
+    const span = Math.max(box.maxX - box.minX, box.maxZ - box.minZ) + 2 * margin;
+    return {
+      zoom: world / span,
+      pan: {
+        right: (box.minX + box.maxX) / 2 - (b.minX + b.maxX) / 2,
+        up: (box.minZ + box.maxZ) / 2 - (b.minZ + b.maxZ) / 2,
+      },
+    };
+  }
+
   // The world point under `x`, `y` CSS pixels from the canvas's corner, in the world view.
   worldAt(x: number, y: number, framing: Framing = STILL): { x: number; z: number } {
     this.fit();

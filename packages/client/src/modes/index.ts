@@ -40,17 +40,19 @@ export interface Moment {
 }
 
 // What a game shows while it's played: on the HUD, the line standing over the view
-// (ui/GameBanner.ts), what's in the top right (ui/Scores.ts) and a leaderboard over the view
-// (ui/Results.ts); and in the world, Lakitu starting a race (render/lakitu/Starter.ts). Null:
+// (ui/GameBanner.ts), what's in the top right (ui/Scores.ts), a leaderboard over the view
+// (ui/Results.ts) and the map of the track in play, whole, with the line under it
+// (ui/TrackPreview.ts); and in the world, Lakitu starting a race (render/lakitu/Starter.ts). Null:
 // nothing there.
 export interface Showing {
   line: BannerLine | null;
   scores: Tally | null;
   board: Leaderboard | null;
+  preview: string | null;
   starter: Start | null;
 }
 
-export const NOTHING: Showing = { line: null, scores: null, board: null, starter: null };
+export const NOTHING: Showing = { line: null, scores: null, board: null, preview: null, starter: null };
 
 // What each mode's game shows while it's played, to the player at that moment.
 export const MODE_HUD: Record<GameModeId, (game: GameState, at: Moment) => Showing> = {
