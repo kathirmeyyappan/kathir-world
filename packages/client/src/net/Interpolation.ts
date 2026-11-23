@@ -56,6 +56,7 @@ export interface RemotePlayer {
   climb: { piece: number; side: 1 | -1; way: 1 | -1 } | null; // on a ladder (sim/types.ts): the piece, the face held, and the way round to it
   chilled: boolean; // slowed by an ice hit (sim/constants.ts): frosted over
   dead: boolean;
+  body: number; // which body of theirs this is (sim/types.ts): a new one is another avatar
   avatar: AvatarId;
   dragon: DragonState | null; // a dragon's body, its spine drawn between snapshots like the head
   riding: string | null; // the kart they're driving (sim/vehicles/garage.ts), if any
@@ -127,9 +128,9 @@ export class Interpolation {
     const players: RemotePlayer[] = [];
     for (const [id, b] of newer.players) {
       if (id === exclude) continue;
-      // Back from the dead they're in a new body somewhere else: nothing is drawn between the two.
+      // A new body (sim/types.ts `body`) is somewhere else: nothing is drawn between it and the last.
       const was = older.players.get(id);
-      const a = was && (b.dead || !was.dead) ? was : b;
+      const a = was && was.body === b.body ? was : b;
       players.push({
         id,
         name: b.name,
@@ -156,6 +157,7 @@ export class Interpolation {
         climb: b.climb,
         chilled: b.chilled > 0,
         dead: b.dead,
+        body: b.body,
         avatar: b.avatar,
         dragon: b.dragon && {
           ...b.dragon,

@@ -99,6 +99,12 @@ export class Garage {
     return [...this.karts.values()];
   }
 
+  // Every kart goes, none of them blown up. Whoever drove one is out of it first (getOut).
+  clear(): void {
+    this.karts.clear();
+    this.keeps.clear();
+  }
+
   // Drops a kart in front of `p`, nose their way, built to seat them: DROP_AHEAD out, or short of a
   // wall in the way down to right over them, from DROP_HEIGHT over their feet or as high as the
   // ceiling lets it. Or says why not: with KARTS_PER_PLAYER for each of the room's `players` already.

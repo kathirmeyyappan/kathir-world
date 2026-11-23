@@ -50,6 +50,7 @@ export function createPlayer(id: string, name: string, color: string, spawn: Vec
     hearts: heartsOf('standard'),
     kills: 0,
     deaths: 0,
+    body: 1,
     dead: false,
   };
   classOf('standard').enter(p);

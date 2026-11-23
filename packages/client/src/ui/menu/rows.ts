@@ -9,6 +9,8 @@ import { pressTwice } from '../pressTwice';
 export interface Tab {
   title: string;
   sections: Section[];
+  shown?: () => boolean; // whether it's there right now; always, unless said
+  first?: () => boolean; // whether the menu opens on it right now, rather than on the tab it was left on
 }
 
 export interface Section {
@@ -16,7 +18,7 @@ export interface Section {
   rows: Row[];
 }
 
-export type Row = Toggle | Stepper | Field | Select | Buttons | Links | Share;
+export type Row = Toggle | Stepper | Field | Select | Buttons | Links | Share | Words;
 
 // A setting with a few values: its button reads the one it's on and moves it to the next.
 export interface Toggle {
@@ -73,9 +75,18 @@ export interface Buttons {
   buttons: Button[];
 }
 
+// Words to read, as they are right now: `big` for what the rows under them are about.
+export interface Words {
+  kind: 'words';
+  text: () => string;
+  big?: boolean;
+}
+
 export interface Button {
   label: string;
   press: () => void;
+  shown?: () => boolean; // whether it's there right now; always, unless said
+  enabled?: () => boolean; // whether it can be pressed right now, or is greyed; always, unless said
   // What a press has to be warned of first, right now, if anything: said under the buttons, the
   // press then to be made again (pressTwice.ts).
   warning?: () => string | null;
@@ -128,7 +139,18 @@ export function draw(row: Row): Drawn {
       return links(row);
     case 'share':
       return share(row);
+    case 'words':
+      return words(row);
   }
+}
+
+function words(row: Words): Drawn {
+  const el = element('div', row.big ? 'words big' : 'words');
+  const refresh = () => {
+    const text = row.text();
+    if (el.textContent !== text) el.textContent = text;
+  };
+  return { el, refresh };
 }
 
 function toggle(row: Toggle): Drawn {
@@ -279,14 +301,20 @@ function buttons(row: Buttons): Drawn {
     warning.textContent = text;
     if (text) warning.scrollIntoView({ block: 'nearest' });
   };
+  const live: (() => void)[] = []; // each button that comes and goes or greys, brought up to date
   for (const b of row.buttons) {
     const button = element('button', '', b.label);
     if (b.danger) button.classList.add('danger');
     pressTwice(button, b.warning ?? (() => null), say, b.press);
+    if (b.shown || b.enabled)
+      live.push(() => {
+        button.hidden = !(b.shown?.() ?? true);
+        button.disabled = !(b.enabled?.() ?? true);
+      });
     line.append(button);
   }
   el.append(line, warning);
-  return { el };
+  return { el, refresh: () => live.forEach((update) => update()) };
 }
 
 function links(row: Links): Drawn {

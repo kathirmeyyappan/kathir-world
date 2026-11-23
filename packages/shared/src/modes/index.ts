@@ -1,10 +1,10 @@
 // The game modes a room can be created in (docs/game-modes.md). Freeplay is the game with no
 // rules of its own: what a room is unless it's created as another, and what the room everyone
 // shares always is. The rest are games, each with its own rules over the same world.
-import { Game } from './game';
+import { Game, type Phase } from './game';
 import { GameMode, type ModeRoom } from './mode';
 
-export { MASTER_LEFT } from './game';
+export { MASTER_LEFT, START_SECONDS, type Phase } from './game';
 export type { GameMode, ModeRoom } from './mode';
 
 export const GAME_MODE_IDS = ['freeplay', 'racing', 'shootout'] as const;
@@ -62,4 +62,14 @@ export interface GameState {
   // The room master's id (game.ts). Null in freeplay, which has none, and in a room whose maker
   // isn't in it yet.
   master: string | null;
+  phase: Phase | null; // where the game is (game.ts); null in freeplay, which has no game to be anywhere in
+  until: number | null; // the tick the phase's clock runs out at, where it has one: the start's countdown
+}
+
+// What a player asks of the game (a `game` message): its master's to ask, starting it and ending it.
+export const GAME_ACTIONS = ['start', 'end'] as const;
+export type GameAction = (typeof GAME_ACTIONS)[number];
+
+export function isGameAction(v: unknown): v is GameAction {
+  return typeof v === 'string' && (GAME_ACTIONS as readonly string[]).includes(v);
 }

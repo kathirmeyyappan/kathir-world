@@ -1,5 +1,5 @@
 // Wire format between client and room host. JSON for now; small enough that it doesn't matter yet.
-import type { GameState } from './modes';
+import { isGameAction, type GameAction, type GameState } from './modes';
 import type { FrostCell } from './sim/frost';
 import type { Appearance } from './sim/avatars';
 import { isItemAction, type ItemAction, type ItemId } from './sim/items';
@@ -36,6 +36,7 @@ export type ClientMessage =
   | { t: 'chat'; text: string }
   | { t: 'rename'; name: string } // what to be called from now on; everyone sees it in the next snapshot
   | { t: 'respawn' } // dead, and back now rather than when the Room would bring them (RESPAWN_SECONDS)
+  | { t: 'game'; do: GameAction } // asks something of the room's game (modes/), which says whose it is to ask
   | { t: 'ping'; at: number };
 
 export type ServerMessage =
@@ -109,6 +110,8 @@ export function isClientMessage(v: unknown): v is ClientMessage {
       return typeof m.name === 'string';
     case 'respawn':
       return true;
+    case 'game':
+      return isGameAction(m.do);
     case 'ping':
       return isNum(m.at);
     default:

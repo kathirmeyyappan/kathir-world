@@ -18,6 +18,7 @@ import {
   MAX_PITCH,
   MASTER_LEFT,
   MAX_REWIND_TICKS,
+  START_SECONDS,
   RESPAWN_SECONDS,
   MOVE_SPEED,
   PICKUP_AREAS,
@@ -49,6 +50,7 @@ import {
   SEATED,
   stranded,
   type BotRequest,
+  type GameState,
   type InputFrame,
   type ItemAction,
   type Region,
@@ -216,29 +218,26 @@ test('a rename is announced, shows in the next snapshot, and waits RENAME_SECOND
   assert.equal(alice().name, 'al');
 });
 
+// The room's game as a client was last told of it, in its welcome or since.
+function told(l: { inbox: ServerMessage[] }): GameState {
+  const last = [...l.inbox].reverse().find((m) => m.t === 'game' || m.t === 'welcome');
+  assert.ok(last && (last.t === 'game' || last.t === 'welcome'));
+  return last.game;
+}
+
 test('a room with a game has a room master: whoever made it, told to everyone, whose leaving ends the room; freeplay has none', () => {
   const ends: string[] = [];
   const room = new Room('derby', { seed: 1, mode: 'racing', onEnd: (why) => ends.push(why) });
   const closed: string[] = [];
   const seat = (name: string) => ({ ...link(), close: (why: string) => closed.push(`${name}: ${why}`) });
   const [a, b, c] = [seat('alice'), seat('bob'), seat('carol')];
-  const told = (l: { inbox: ServerMessage[] }) => {
-    const last = [...l.inbox].reverse().find((m) => m.t === 'game' || m.t === 'welcome');
-    return last && (last.t === 'game' || last.t === 'welcome') ? last.game : null;
-  };
   // Bob, told the code, is seated before the room's maker, and isn't its master for that.
   const idb = room.join('bob', b)!;
-  assert.deepEqual(told(b), { mode: 'racing', master: null });
+  assert.deepEqual([told(b).mode, told(b).master], ['racing', null]);
   const ida = room.join('alice', a, { made: true })!;
-  assert.deepEqual(
-    [told(a), told(b)],
-    [
-      { mode: 'racing', master: ida },
-      { mode: 'racing', master: ida },
-    ],
-  );
+  assert.deepEqual([told(a).master, told(b).master], [ida, ida]);
   room.join('carol', c, { made: true });
-  assert.deepEqual(told(c), { mode: 'racing', master: ida }, 'the room has its master: nobody takes it over');
+  assert.equal(told(c).master, ida, 'the room has its master: nobody takes it over');
 
   room.leave(idb);
   assert.deepEqual([closed, ends], [[], []], 'anyone else leaving is one seat gone');
@@ -250,9 +249,72 @@ test('a room with a game has a room master: whoever made it, told to everyone, w
   const free = new Room('free', { seed: 1, onEnd: (why) => ends.push(why) });
   const d = link();
   const idd = free.join('dave', d, { made: true })!;
-  assert.deepEqual(told(d), { mode: 'freeplay', master: null });
+  assert.deepEqual(told(d), { mode: 'freeplay', master: null, phase: null, until: null }, 'no master, and no game');
+  free.receive(idd, { t: 'game', do: 'start' });
+  assert.equal(told(d).phase, null, 'nothing to start');
   free.leave(idd);
   assert.equal(ends.length, 1, "a freeplay room is nobody's to end");
+});
+
+test("a game's flow: its master starts it from the lobby, counted down, on a world cleared with everyone in a new body, and ends it back to the lobby", () => {
+  const room = new Room('flow', { seed: 2, mode: 'shootout', structures: new Structures([]), pickupAreas: [] });
+  const [a, b] = [link(), link()];
+  const ida = room.join('alice', a, { made: true })!;
+  const idb = room.join('bob', b)!;
+  let botClosed = '';
+  const idc = room.join('circle-bot', { ...link(), close: (why: string) => (botClosed = why) }, { bot: true })!;
+  const player = (id: string) => room.players.find((p) => p.id === id)!;
+  const snap = () => {
+    const last = [...a.inbox].reverse().find((m) => m.t === 'snap');
+    assert.ok(last?.t === 'snap');
+    return last;
+  };
+  // The lobby is left lived in: a dragon, a gun and three kills, a kart, frost, and a body's heart.
+  room.receive(ida, { t: 'chat', text: '/light-dragon' });
+  room.receive(idb, { t: 'chat', text: '/kart' });
+  room.receive(idb, { t: 'chat', text: '/ice-blower' });
+  hold(room, idb, 10);
+  player(idb).kills = 3;
+  const idd = room.join('dave', link())!;
+  player(idd).dead = true;
+  room.leave(idd);
+  room.step();
+  assert.ok(snap().karts.length === 1 && snap().pickups.length === 1 && room.structures.frost.size > 0);
+  assert.equal(told(a).phase, 'lobby');
+
+  room.receive(idb, { t: 'game', do: 'start' });
+  assert.equal(told(a).phase, 'lobby', "the game is its master's to start");
+  room.receive(ida, { t: 'game', do: 'start' });
+  const starts = room.tick + START_SECONDS * TICK_RATE;
+  assert.deepEqual([told(b).phase, told(b).until], ['starting', starts], 'counted down for everyone');
+  assert.ok(player(idc).dead, "the lobby's bots die as it starts");
+  assert.equal(room.join('late-bot', link(), { bot: true }), null, 'and no bot is seated until the lobby is back');
+  while (room.tick < starts) room.step();
+  assert.equal(told(a).phase, 'starting');
+  room.step();
+  assert.deepEqual([told(b).phase, told(b).until], ['playing', null]);
+  assert.ok(
+    snap().karts.length === 0 && snap().pickups.length === 0 && room.structures.frost.size === 0,
+    'a clear world',
+  );
+  assert.ok(!room.players.some((p) => p.id === idc) && botClosed === 'dead', "the bot's seat is gone");
+  const [alice, bob] = [player(ida), player(idb)];
+  assert.deepEqual(
+    [alice.avatar, alice.dragon, alice.hearts],
+    ['standard', null, MAX_HEARTS],
+    'off the dragon, on foot',
+  );
+  assert.deepEqual(
+    [bob.item, bob.kills, bob.body],
+    [null, 0, 2],
+    'a new body, nothing in hand, the score from nothing',
+  );
+
+  room.receive(idb, { t: 'game', do: 'end' });
+  assert.equal(told(a).phase, 'playing', "and its master's to end");
+  room.receive(ida, { t: 'game', do: 'end' });
+  assert.equal(told(b).phase, 'lobby');
+  assert.equal(player(idb).body, 3, 'everyone back in the lobby in a new body');
 });
 
 test('room calls onEmpty when the last player leaves', () => {

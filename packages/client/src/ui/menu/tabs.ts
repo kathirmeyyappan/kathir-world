@@ -4,12 +4,15 @@
 // browser's fullscreen, the Picture's pixel size and frame rate), handed in as MenuHooks, so a new
 // setting is a row here and nothing else has to know about it.
 import {
+  GAME_MODES,
   MAX_NAME_LENGTH,
   MAX_ROOM_ID_LENGTH,
   RENAME_SECONDS,
   cleanName,
   isValidRoomId,
   type AvatarId,
+  type GameAction,
+  type GameState,
   type GearId,
   type ItemId,
   type KartId,
@@ -40,6 +43,9 @@ export interface MenuHooks {
   // What leaving the room does besides, to warn of before any way out of it: closing it for
   // everyone, when it's the room master leaving (the shared package's modes/game.ts). Null: nothing.
   leaving: () => string | null;
+  game: () => GameState; // the room's game as the Room last told of it (the shared package's modes/)
+  master: () => boolean; // whether the player is its room master
+  act: (action: GameAction) => void; // asks something of the game: the room master's to ask
   commands: () => void; // opens the commands menu, which C does from the menu as from the world
   command: (word: string) => void; // sends a chat command, by its word ("mario" for /mario)
 }
@@ -57,11 +63,41 @@ export interface Me {
   kart: KartId | null; // the kart they drive, or none
 }
 
+// The GAME tab is there in a room with a game, and is the one its room master's menu opens on.
 export function menuTabs(hooks: MenuHooks, me: Me): Tab[] {
   return [
     { title: 'PLAY', sections: [you(hooks, me), ...(hooks.online ? [thisRoom(hooks)] : []), switching(hooks, me)] },
     { title: 'SETTINGS', sections: [sound(hooks.sfx), seeing(hooks.view), picture(hooks.picture), more()] },
+    { title: 'GAME', sections: [theGame(hooks)], shown: () => hooks.game().phase !== null, first: hooks.master },
   ];
+}
+
+// The room's game (docs/game-modes.md): what it is, and the START that begins it from its lobby and
+// the END GAME that takes it back there. Everyone sees them; they're the room master's to press,
+// and greyed for everyone else.
+function theGame(hooks: MenuHooks): Section {
+  const lobby = () => hooks.game().phase === 'lobby';
+  return {
+    title: 'THIS GAME',
+    rows: [
+      { kind: 'words', big: true, text: () => GAME_MODES[hooks.game().mode].name },
+      { kind: 'words', text: () => GAME_MODES[hooks.game().mode].blurb },
+      {
+        kind: 'buttons',
+        buttons: [
+          { label: 'START GAME', press: () => hooks.act('start'), shown: lobby, enabled: hooks.master },
+          {
+            label: 'END GAME',
+            press: () => hooks.act('end'),
+            shown: () => !lobby(),
+            enabled: hooks.master,
+            danger: true,
+          },
+        ],
+      },
+      { kind: 'words', text: () => (hooks.master() ? '' : 'Only the room master can start and end the game.') },
+    ],
+  };
 }
 
 // The page fullscreen, HUD included, or back out; the browser's own Esc comes out too.

@@ -1433,6 +1433,55 @@ body {
   }
 }
 
+/* What a game says over the view (GameBanner.ts): the line that stands, flashing, and over it one
+   said for a moment. Clear of the hearts and of what stands under them. */
+#game-banner {
+  position: fixed;
+  top: max(30%, calc(var(--under-hearts) + 56px));
+  left: 0;
+  right: 0;
+  z-index: 55;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px;
+  text-align: center;
+}
+#game-banner > div:empty {
+  display: none;
+}
+#game-banner > div {
+  padding: 8px 16px;
+  font: 12px/20px var(--pixel);
+  letter-spacing: 1.5px;
+  color: #fff;
+  text-shadow: 2px 2px 0 #000;
+  background: rgba(11, 13, 20, 0.5);
+  border: 2px solid rgba(var(--accent-rgb), 0.5);
+}
+#game-banner .said {
+  color: #ffd24a;
+  border-color: rgba(255, 210, 74, 0.6);
+}
+#game-banner .line {
+  animation: game-banner-flash 1.6s steps(4) infinite alternate;
+}
+/* The nudge to the commands and the menu (CommandHint.ts) lies across the same part of the view for
+   the seconds it's up: the banner waits under it. */
+#app:has(#command-hint.on) #game-banner {
+  visibility: hidden;
+}
+@keyframes game-banner-flash {
+  from {
+    opacity: 0.45;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 #command-hint {
   position: fixed;
   /* Under the move hint while that is up and reaches this far down (--move-hint-bottom, Hud.ts). */
@@ -2494,6 +2543,15 @@ body {
    pedals reach up to just short of that; the chat runs from under the corner to just over the pad
    (or the throttle), its oldest lines cut off at the top. */
 @media (pointer: coarse) and (max-height: 500px) {
+  /* A phone on its side has its crosshair where the game's banner would stand, so it stands along
+     the bottom, between the pad and the buttons. */
+  #game-banner {
+    top: auto;
+    bottom: 10px;
+    left: 24%;
+    right: 24%;
+    padding: 0;
+  }
   #corner {
     top: 8px;
     left: 8px;

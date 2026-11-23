@@ -13,7 +13,7 @@ import { railScroll } from '../scrollRail';
 import { CLOSE, pixelSvg } from '../pixelIcons';
 import { gearIcon } from './gearIcon';
 import { Preview } from './Preview';
-import { draw, type Drawn } from './rows';
+import { draw, type Drawn, type Tab } from './rows';
 import { menuTabs, type Me, type MenuHooks } from './tabs';
 import './menu.css';
 
@@ -23,6 +23,7 @@ export type { MenuHooks } from './tabs';
 export class Menu {
   private readonly el = document.createElement('div');
   private readonly drawn: Drawn[] = [];
+  private readonly specs: Tab[]; // what each tab is (tabs.ts), in the order of their buttons
   private readonly tabs: HTMLButtonElement[] = [];
   private readonly panels: HTMLElement[] = [];
   private readonly preview: Preview;
@@ -43,11 +44,12 @@ export class Menu {
   onOpenChange: ((open: boolean, back: boolean) => void) | null = null;
 
   constructor(private readonly hooks: MenuHooks) {
+    this.specs = menuTabs(hooks, this.me);
     this.preview = new Preview(hooks.minimap);
     this.el.id = 'menu';
     this.el.className = 'hidden';
     this.el.translate = true;
-    const card = this.card(hooks);
+    const card = this.card();
     this.el.append(card);
     railScroll(card.querySelector<HTMLElement>('.body')!);
     document.getElementById('app')!.append(this.el);
@@ -77,9 +79,12 @@ export class Menu {
     return this.open;
   }
 
+  // Opens on the tab it was left on, unless one says the menu opens on it right now.
   show(): void {
     if (this.open) return;
     this.open = true;
+    const first = this.specs.findIndex((tab) => there(tab) && tab.first?.());
+    if (first >= 0) this.select(first);
     this.refresh();
     this.el.classList.remove('hidden');
     if (document.pointerLockElement) document.exitPointerLock();
@@ -123,8 +128,12 @@ export class Menu {
     } else if (e.code === 'KeyP') this.hooks.minimap.toggle();
   }
 
+  // Every row brought up to date, and every tab that comes and goes: one that's gone while it was
+  // the one shown gives way to the first.
   private refresh(): void {
     for (const d of this.drawn) d.refresh?.();
+    this.specs.forEach((tab, i) => (this.tabs[i].hidden = !there(tab)));
+    if (!there(this.specs[this.shown])) this.select(0);
   }
 
   // The tab shown. The others stay laid out under it, unseen and out of reach, so the card is as tall
@@ -138,7 +147,7 @@ export class Menu {
     });
   }
 
-  private card(hooks: MenuHooks): HTMLElement {
+  private card(): HTMLElement {
     const card = document.createElement('div');
     card.className = 'card';
     const head = document.createElement('div');
@@ -151,7 +160,7 @@ export class Menu {
     const nav = document.createElement('nav');
     const body = document.createElement('div');
     body.className = 'body';
-    menuTabs(hooks, this.me).forEach((tab, i) => {
+    this.specs.forEach((tab, i) => {
       const button = Object.assign(document.createElement('button'), { textContent: tab.title });
       button.addEventListener('click', () => this.select(i));
       this.tabs.push(button);
@@ -195,4 +204,9 @@ export class Menu {
     this.select(0);
     return card;
   }
+}
+
+// Whether a tab is there right now.
+function there(tab: Tab): boolean {
+  return tab.shown?.() ?? true;
 }

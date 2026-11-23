@@ -881,12 +881,15 @@ which their death screen (`ui/Death.ts`) counts down, or until its RESPAWN butto
 `CORPSE_DROP`, see Regions and pickups) and gives the seat a new one, as whoever comes in is given
 (a full life, nothing held or worn), somewhere in `RESPAWN_AREAS`, in the look they died in
 if it's one on foot (a dragon's rider comes back as the standard body). A bot is never brought back: its
-corpse lies five seconds and its seat is dropped. Nothing on the wire says a respawn happened:
-clients read it off the snapshots, a body that was `dead` and isn't. One drawn dead poofs away
-where it lay and is made afresh (`Game.dropAvatar`), nothing is drawn between the old body and the
-new (`Interpolation`), the player's own client takes the death screen down and its look from the
-new body (`Game.revive`), back in the world at once where the browser gives the mouse back (the
-RESPAWN button's press, or any key pressed in the last few seconds) and behind the start press
+corpse lies five seconds and its seat is dropped. A new body is the Room's `rebody`, which a game
+uses too, to put everyone where it starts and back in its lobby (see Game modes): the seat's
+`PlayerState` made afresh with its name, colour and score, and `body` counted one up. Nothing else
+on the wire says it happened: clients read it off the snapshots, a `body` that isn't the one they
+knew. The last one's avatar goes, in a poof where it lay if it was dead, and is made afresh
+(`Game.dropAvatar`), nothing is drawn between the old body and the new (`Interpolation`), the
+player's own client takes its look from the new body and, back from the dead, takes the death screen
+down (`Game.embody`), back in the world at once where the browser gives the mouse back (the RESPAWN
+button's press, or any key pressed in the last few seconds) and behind the start press
 (`ui/StartGate.ts`) where it won't, and the Room forgets where the old body was for lag compensation
 (`PositionHistory.forget`). Whatever decides when or whether the dead come back (a game mode's
 rules) is a change to when the Room calls `respawn`, and nothing else.
@@ -1518,9 +1521,12 @@ click outside the page), so a free mouse always means the menu, the chat, a card
 screen is up, and M, Esc or a click beside the card goes back into the world; `tabs.ts` is what's in it, rows that read and change what
 other parts keep (the connection, `Sfx`'s channels, `View`, the browser's fullscreen, the `Picture`),
 handed in as `MenuHooks`; `rows.ts` is the kinds of row (a toggle, a stepper with < and > and maybe
-an AUTO button, a field, buttons, a link to share) and how each draws, a button able to warn of what
-it does and go at a second press (`ui/pressTwice.ts`, as every way out of a room warns its room
-master that leaving closes it); and `menu.css` is its look. A
+an AUTO button, a field, buttons, a link to share, words to read) and how each draws, a button able
+to come and go, to be greyed, and to warn of what it does and go at a second press
+(`ui/pressTwice.ts`, as every way out of a room warns its room master that leaving closes it); and
+`menu.css` is its look. A tab can come and go (`Tab.shown`) and be the one the menu opens on
+(`Tab.first`): the GAME tab is there in a room with a game, and its room master's menu opens on it
+(see Game modes). A
 new setting is a row in `tabs.ts`, and a new kind of row a type and a case in `rows.ts`. The PLAY
 tab opens on a window (`Preview.ts`) with the player's own body in it and the map in a square in
 its corner (on touch, the other way round), the two swapping places at a click on the small one, and under it the hint to press C

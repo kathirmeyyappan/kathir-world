@@ -8,6 +8,7 @@ import {
   parseCommand,
   SKY_OBJECTS,
   TICK_DT,
+  TICK_RATE,
   INPUT_WAIT_TICKS,
   WALL_FRAMES,
   INTERIOR_BUILDINGS,
@@ -122,6 +123,7 @@ import { Condition } from '../ui/Condition';
 import { KartGauge } from '../ui/KartGauge';
 import { EdgeFlash } from '../ui/EdgeFlash';
 import { Death } from '../ui/Death';
+import { GameBanner } from '../ui/GameBanner';
 import { StartGate } from '../ui/StartGate';
 import { Fuel } from '../ui/Fuel';
 import { GearHud } from '../ui/GearHud';
@@ -285,11 +287,16 @@ export class Game {
   private readonly wallFrames: WallFrames;
   private readonly interiors: Interiors;
   private readonly minimap = new Minimap();
-  private game: GameState = { mode: FREEPLAY, master: null }; // the room's game, as the Room last told of it
+  // The room's game, as the Room last told of it, and the Room's tick as of its last snapshot, which
+  // the game's clocks are read against.
+  private game: GameState = { mode: FREEPLAY, master: null, phase: null, until: null };
+  private tick = 0;
+  private readonly banner = new GameBanner();
+  private readonly master = (): boolean => this.game.master === this.myId;
   // What leaving the room does besides, which every way out warns of first: closing it for
   // everyone, when it's the room master leaving.
   private readonly leaving = (): string | null =>
-    this.game.master === this.myId ? "You're the room master: leaving closes this room for everyone." : null;
+    this.master() ? "You're the room master: leaving closes this room for everyone." : null;
   private readonly death = new Death(() => this.conn.send({ t: 'respawn' }), this.leaving);
   private readonly startGate: StartGate;
   private readonly hearts = new Hearts();
@@ -311,6 +318,8 @@ export class Game {
   private readonly viewmodel: Viewmodel;
   private readonly pickups: Pickups;
   private dead = false;
+  private body = 0; // which of the player's bodies they're in (sim/types.ts): a new one is taken up as it's seen
+  private readonly bodies = new Map<string, number>(); // and which of theirs everyone else was last drawn in
   private scoped = false;
   private canHit = false;
   private lastScopeNag = -Infinity;
@@ -427,6 +436,13 @@ export class Game {
       minimap: this.minimap,
       rename: (name) => conn.send({ t: 'rename', name }),
       leaving: this.leaving,
+      game: () => this.game,
+      master: this.master,
+      // The menu goes as the game is asked for anything, so what comes of it is in view.
+      act: (action) => {
+        conn.send({ t: 'game', do: action });
+        this.menu.hide(true);
+      },
       commands: () => this.commandsMenu.set(true),
       command: (word) => conn.send({ t: 'chat', text: `/${word}` }),
     });
@@ -690,12 +706,14 @@ export class Game {
     switch (m.t) {
       case 'welcome': {
         this.myId = m.id;
+        this.tick = m.tick;
         this.setGame(m.game);
         // The sky is seeded by the room's key (the Modal session id), which welcome carries, so
         // everyone in a session shares one sky and a new session gets a new one.
         const sky = placeSkyObjects(this.engine, SKY_OBJECTS, HOME_GROUND, WORLD_GROUND, createRng(hashSeed(m.room)));
         for (const object of sky) this.skyByMesh.set(object.mesh.name, object);
         const me = m.players.find((p) => p.id === m.id)!;
+        this.body = me.body;
         this.prediction = new Prediction(me, WORLD_STRUCTURES);
         this.prediction.reconcile(
           me,
@@ -720,6 +738,7 @@ export class Game {
         return;
       }
       case 'snap': {
+        this.tick = m.tick;
         this.interp.push(m, now);
         const me = m.players.find((p) => p.id === this.myId);
         if (me) {
@@ -727,7 +746,7 @@ export class Game {
           // A pickup's worth of hearts flashes; a regen's trickle each tick doesn't.
           if (me.hearts - this.hearts.count >= 1 && !this.dead) this.healFlash.flash();
           this.hearts.set(me.hearts);
-          if (this.dead && !me.dead) this.revive(me);
+          if (me.body !== this.body) this.embody(me);
           const kart = m.karts.find((k) => k.id === me.riding);
           this.wrenches.show(!!kart);
           if (kart) {
@@ -757,6 +776,7 @@ export class Game {
         return;
       case 'leave': {
         this.dropAvatar(m.id);
+        this.bodies.delete(m.id);
         this.criedOut.delete(m.id);
         this.pounds.delete(m.id);
         this.strikes.delete(m.id);
@@ -833,10 +853,26 @@ export class Game {
     }
   }
 
-  // The room's game as the Room tells of it, in its welcome and whenever it changes.
+  // The room's game as the Room tells of it, in its welcome and whenever it changes. A game back in
+  // its lobby with nothing won was ended by its room master.
   private setGame(game: GameState): void {
+    const ended = this.game.phase !== null && this.game.phase !== 'lobby' && game.phase === 'lobby';
     this.game = game;
     this.hud.setMaster(game.master);
+    if (ended) this.banner.say('room master ended the game!');
+  }
+
+  // What the game has standing over the view right now (ui/GameBanner.ts): in its lobby, what
+  // everyone is waiting on, and through its start, the count down to it.
+  private standing(): string | null {
+    const { phase, until } = this.game;
+    if (phase === 'lobby') {
+      if (!this.master()) return 'Waiting for room master to organize and start the game...';
+      return IS_TOUCH ? 'Go to the menu to start the game.' : 'Go to the menu (press M) to start the game.';
+    }
+    if (phase === 'starting' && until !== null)
+      return `Game is starting in ${Math.max(1, Math.ceil((until - this.tick) / TICK_RATE))}`;
+    return null;
   }
 
   // Frost comes and goes for the sim (so prediction slides where the server does) and the eye alike.
@@ -882,20 +918,23 @@ export class Game {
     this.mourningUntil = performance.now() + (DEATH_SOUND_DELAY + this.sfx.seconds(said.sound)) * 1000;
   }
 
-  // The local player is back from the dead, in the new body `me` (the Room's `respawn`): the death
-  // screen and its sound end, the look is the new body's, which says its intro as one coming into
-  // the world does, and the world has the mouse again, behind the start press where the browser
-  // won't give it back without one (a respawn on the Room's clock, nothing pressed since).
-  private revive(me: PlayerState): void {
-    this.dead = false;
-    this.death.hide();
+  // The local player is in a new body, `me` (the Room's `rebody`: back from the dead, or put
+  // somewhere by a game): a new life, begun in third person, its look theirs and their own avatar
+  // made afresh. Back from the dead, the death screen and its sound end and the world has the mouse
+  // again, behind the start press where the browser won't give it back without one (a respawn on
+  // the Room's clock, nothing pressed since).
+  private embody(me: PlayerState): void {
+    this.body = me.body;
     this.view.set('third');
-    this.sfx.hush(DIRGE);
-    this.mourningUntil = 0;
     this.input.yaw = me.yaw;
     this.input.pitch = me.pitch;
     this.ownAvatar?.dispose();
     this.ownAvatar = null;
+    if (!this.dead) return;
+    this.dead = false;
+    this.death.hide();
+    this.sfx.hush(DIRGE);
+    this.mourningUntil = 0;
     this.syncBlocked();
     if (!IS_TOUCH) Promise.resolve(this.canvasEl.requestPointerLock?.()).catch(() => this.startGate.show());
   }
@@ -1261,6 +1300,7 @@ export class Game {
             : null,
     );
     this.commandHint.update(this.startGate.up, this.isBlocked());
+    this.banner.set(this.startGate.up ? null : this.standing());
     this.minimap.update({
       me: { x: p.x, y: p.y, z: p.z, yaw: this.input.yaw },
       players: sampled.players,
@@ -1357,8 +1397,9 @@ export class Game {
     const seen = new Set<string>();
     for (const rp of sampled.players) {
       seen.add(rp.id);
-      // Back from the dead, they're in a new body: the one that lay there goes.
-      if (!rp.dead && this.avatars.get(rp.id)?.corpse()) this.dropAvatar(rp.id);
+      // In a new body (sim/types.ts `body`), they're another avatar: the last goes, in a poof if it lay dead.
+      if ((this.bodies.get(rp.id) ?? rp.body) !== rp.body) this.dropAvatar(rp.id);
+      this.bodies.set(rp.id, rp.body);
       let avatar = this.avatars.get(rp.id);
       // A new look, or a new colour on the figure that wears it, is a new avatar.
       const was = avatar?.kind;
@@ -1593,6 +1634,7 @@ export class Game {
         climb: self.climb,
         chilled: self.chilled > 0,
         dead: this.dead,
+        body: self.body,
         avatar: self.avatar,
         dragon: self.dragon,
         riding: self.riding,

@@ -151,6 +151,11 @@ export function dropPickup(
   add(field, kind, null, feet, rng, from);
 }
 
+// Takes away every pickup that was dropped (dropPickup), leaving the areas' own.
+export function clearDrops(field: PickupField): void {
+  field.items = field.items.filter((p) => p.area !== null);
+}
+
 function spawn(field: PickupField, area: PickupArea, rng: Rng): void {
   const at = randomPointInRegion(area.region, MARGIN, rng);
   add(field, area.kind, area, { x: at.x, y: area.region.y, z: at.z }, rng, null);

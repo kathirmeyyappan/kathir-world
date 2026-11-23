@@ -56,6 +56,7 @@ class Player:
     hearts: float
     kills: int
     deaths: int
+    body: int
     bot: bool
     dead: bool
 
@@ -177,6 +178,7 @@ def player(data: Mapping[str, Any]) -> Player:
         hearts=data["hearts"],
         kills=data["kills"],
         deaths=data["deaths"],
+        body=data["body"],
         bot=data["bot"],
         dead=data["dead"],
     )

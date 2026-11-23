@@ -32,6 +32,7 @@ class FakeConnection:
             hearts=10,
             kills=0,
             deaths=0,
+            body=1,
             bot=False,
             dead=False,
         )
