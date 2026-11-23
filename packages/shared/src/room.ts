@@ -685,7 +685,7 @@ export class Room {
   private advance(seat: Seat, frame: InputFrame | null): void {
     if (seat.state.riding) {
       const game = this.mode.state;
-      const held = rulesOf(game).held(game, seat.state.id, rewindTick(frame?.view, this.tick));
+      const held = rulesOf(game).held(game, seat.state.id, this.tick);
       return this.garage.drive(seat.state, frame, TICK_DT, held);
     }
     const struck = seat.state.strike;

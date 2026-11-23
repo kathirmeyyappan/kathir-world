@@ -28,7 +28,7 @@ export interface Rules {
   // Whether a player (by id) is kept in the kart they drive as the game stands: there's no getting
   // out of it.
   seated(game: GameState, player: string): boolean;
-  // Whether the kart a player (by id) drives is held as the game stood at `tick`: its keys do
+  // Whether the kart a player (by id) drives is held at `tick` of the Room's clock: its keys do
   // nothing, so it stands where it is, or rolls to a stop.
   held(game: GameState, player: string, tick: number): boolean;
 }

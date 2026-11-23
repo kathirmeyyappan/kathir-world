@@ -297,8 +297,9 @@ track where every racer's kart is (`onTrack`): over the line is finished, in no 
 nobody is left racing, the places are scored (`pointsFor`) and the leaderboard stands. Its rules
 (`rules.ts`) are what the Room and the client both ask: only looks on foot are allowed, the
 round's track is the floor in play (`track`), a racer can't get out (`seated`), and a kart is held
-on the grid, over the line and once the race is run (`held`, by the tick of the snapshot its
-driver's frame was made on, so the Room and their prediction let go on the same frame).
+on the grid, over the line and once the race is run (`held`, by the Room's own tick, so everyone
+with the gas down leaves the grid on the same tick whatever their lag; a driver's prediction counts
+that tick on from the last it heard, one for each frame not yet answered).
 
 ## How the code is laid out
 
