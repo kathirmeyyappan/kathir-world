@@ -582,6 +582,11 @@ test("a race: racers start held on the grid in karts there's no getting out of; 
   };
   over(ida);
   assert.deepEqual([round().finished, round().closes], [[ida], room.tick - 1 + RACE.close * TICK_RATE]);
+  for (let i = 0; i <= RACE.free * TICK_RATE; i++) room.step();
+  assert.ok(
+    player(ida).ghost && !player(ida).riding && room.garage.list.length === 2,
+    'and let out a while on: a ghost, their kart gone with them',
+  );
   room.garage.shoot(kart(idb).id, 99, ida);
   room.step();
   room.step();

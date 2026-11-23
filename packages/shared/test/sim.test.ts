@@ -9,6 +9,7 @@ import {
   ROADS,
   TRACK_LENGTH,
   gridOf,
+  inPlay,
   layTrack,
   onTrack,
   routes,
@@ -993,6 +994,10 @@ test('race tracks: every route runs from an island along the roads to somewhere 
       'a road wide',
     );
     assert.ok(!withinTrack(onTrack(track, { ...s, y: s.y + 20 })), 'and on the level it runs at');
+    const last = track.spots[track.spots.length - 1];
+    const aside = route.end.r - 2; // off its road, on the disc it ends on
+    const corner = { x: last.x + Math.cos(last.yaw) * aside, y: last.y, z: last.z - Math.sin(last.yaw) * aside };
+    assert.ok(inPlay(track, corner) && !withinTrack(onTrack(track, corner)), 'all of the disc it ends on is in play');
     const grid = gridOf(track, 8);
     for (const g of grid) {
       const on = onTrack(track, g);

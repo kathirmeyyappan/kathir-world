@@ -201,6 +201,13 @@ export class Garage {
     p.vx = p.vy = p.vz = 0;
   }
 
+  // Takes away the kart `p` drives, them out of it first: gone, not blown up.
+  take(p: PlayerState): void {
+    const k = p.riding ? this.karts.get(p.riding) : undefined;
+    this.getOut(p);
+    if (k) this.forget(k);
+  }
+
   // One step of `p`'s kart by their frame, built to seat them, them sat in it, it worn by what it
   // ran into, and watched for being stranded. With no frame (theirs is late) it steps on the keys
   // of their last, ahead of the frame that step stood in for, which is then taken for its look and

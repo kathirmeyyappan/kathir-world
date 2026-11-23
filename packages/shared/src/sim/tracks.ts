@@ -279,11 +279,21 @@ export function gridOf(track: Track, count: number): (Vec3 & { yaw: number })[] 
   });
 }
 
-// A track as the course its karts are held to (vehicles/rescue.ts): left by one off its road, which
-// is set down again on its middle where it left, nose along the way the track runs.
+// Whether `pos` is on the floor a track has in play: its road, or anywhere on the disc it ends on,
+// where a kart that's over the line has all the room there is to stop in.
+export function inPlay(track: Track, pos: Vec3): boolean {
+  const { end } = track.route;
+  const floor = track.spots[track.spots.length - 1].y;
+  const onEnd = Math.abs(pos.y - floor) <= LEVELS && Math.hypot(pos.x - end.x, pos.z - end.z) <= end.r;
+  return onEnd || withinTrack(onTrack(track, pos));
+}
+
+// A track as the course its karts are held to (vehicles/rescue.ts): left by one off the floor it
+// has in play, which is set down again on its middle where it left, nose along the way the track
+// runs.
 export function courseOf(track: Track): Course {
   return {
-    left: (pos) => !withinTrack(onTrack(track, pos)),
+    left: (pos) => !inPlay(track, pos),
     back(safe) {
       const s = spotAt(track, onTrack(track, safe).at);
       return { to: { x: s.x, y: s.y, z: s.z }, yaw: s.yaw };

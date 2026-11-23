@@ -21,7 +21,7 @@ export interface ModeRoom {
   // nose along `yaw`. Returns them in it.
   seat(player: PlayerState, at: Vec3, yaw: number): PlayerState;
   // A new body for `player` where they are, as a ghost (sim/types.ts): out of the game, and of
-  // whatever they drove. Returns them in it.
+  // whatever they drove, which goes with them. Returns them in it.
   haunt(player: PlayerState): PlayerState;
   kartOf(player: PlayerState): { pos: Vec3 } | null; // the kart they drive, where it is; null on foot
   dropBots(): void; // every living bot drops dead where it stands, as /kill-bots does
