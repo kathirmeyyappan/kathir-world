@@ -60,6 +60,31 @@ class Player:
     bot: bool
     dead: bool
     ghost: bool
+    riding: str | None  # the kart they're driving, sat in its seat; None on foot
+
+
+@dataclass(frozen=True, slots=True)
+class Drift:
+    way: int  # 1 to the right, -1 to the left
+    t: float  # seconds of it on the ground: a spark at each of its kart's ``sparks`` (map.karts)
+
+
+@dataclass(frozen=True, slots=True)
+class Kart:
+    """A kart as the room last told of it (KartState in packages/shared/src/sim/vehicles/kart.ts)."""
+
+    id: str
+    kart: str  # which kart it is (map.karts)
+    driver: str | None  # the player driving it
+    pos: Vec3  # the middle of its underside
+    vel: Vec3
+    yaw: float  # the way its nose points
+    grounded: bool
+    hopping: bool  # in the hop a press of the drift key gives, which a drift begins with
+    drift: Drift | None
+    reel: float  # seconds left of reeling from what it ran into, its tires doing nothing
+    rescued: bool  # in Lakitu's hands, being set back on the road: nothing drives it meanwhile
+    wrenches: float
 
 
 @dataclass(frozen=True, slots=True)
@@ -92,6 +117,10 @@ class Welcome:
     players: tuple[Player, ...]
     cubes: tuple[Cube, ...]
     pickups: tuple[Pickup, ...]
+    karts: tuple[Kart, ...]
+    # The room's game (GameState in packages/shared/src/modes/index.ts): its mode, where it is,
+    # and whatever its mode keeps of it.
+    game: Mapping[str, Any]
     doors: Mapping[str, bool] = field(default_factory=dict)  # every door (sim/doors.ts) and whether it stands open
     t: str = "welcome"
 
@@ -102,6 +131,7 @@ class Snapshot:
     players: tuple[Player, ...]
     cubes: tuple[Cube, ...]
     pickups: tuple[Pickup, ...]
+    karts: tuple[Kart, ...]
     t: str = "snap"
 
 
@@ -129,6 +159,8 @@ def decode(payload: str | bytes) -> Message:
                 players=tuple(player(value) for value in data["players"]),
                 cubes=tuple(cube(value) for value in data["cubes"]),
                 pickups=tuple(_pick(Pickup, value) for value in data["pickups"]),
+                karts=tuple(kart(value) for value in data["karts"]),
+                game=data["game"],
                 doors={str(d["id"]): bool(d["open"]) for d in data["doors"]},
             )
         if data["t"] == "snap":
@@ -137,6 +169,7 @@ def decode(payload: str | bytes) -> Message:
                 players=tuple(player(value) for value in data["players"]),
                 cubes=tuple(cube(value) for value in data["cubes"]),
                 pickups=tuple(_pick(Pickup, value) for value in data["pickups"]),
+                karts=tuple(kart(value) for value in data["karts"]),
             )
         return Event(t=data["t"], data=data)
     except ProtocolError:
@@ -183,6 +216,25 @@ def player(data: Mapping[str, Any]) -> Player:
         bot=data["bot"],
         dead=data["dead"],
         ghost=data["ghost"],
+        riding=data["riding"],
+    )
+
+
+def kart(data: Mapping[str, Any]) -> Kart:
+    drift = data["drift"]
+    return Kart(
+        id=data["id"],
+        kart=data["kart"],
+        driver=data["driver"],
+        pos=_pick(Vec3, data["pos"]),
+        vel=_pick(Vec3, data["vel"]),
+        yaw=data["yaw"],
+        grounded=data["grounded"],
+        hopping=data["hop"] is not None,
+        drift=None if drift is None else Drift(way=drift["way"], t=drift["t"]),
+        reel=data["reel"],
+        rescued=data.get("rescue") is not None,
+        wrenches=data["wrenches"],
     )
 
 

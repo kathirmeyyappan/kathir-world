@@ -33,6 +33,7 @@ class Controls:
         self._scope = False
         self._thrust = False
         self._run = False
+        self._drift = False
 
     def move(self, *, forward: float = 0, right: float = 0) -> None:
         if not math.isfinite(forward) or not math.isfinite(right):
@@ -58,6 +59,17 @@ class Controls:
         sin_y, cos_y = math.sin(self.yaw), math.cos(self.yaw)
         dx, dz = dx / length * speed, dz / length * speed
         self.move(forward=sin_y * dx + cos_y * dz, right=cos_y * dx - sin_y * dz)
+
+    def drive(self, *, gas: float = 0, steer: float = 0, drift: bool = False) -> None:
+        """The keys of the kart the bot is sat in (sim/vehicles/kart.ts), each held until changed:
+        the gas (1) or the brake (-1, which backs it up once it has stopped), the wheel (-1 full
+        left to 1 full right), and the drift key, whose press hops it into a drift on the ground
+        and tricks it in the air."""
+        if not math.isfinite(gas) or not math.isfinite(steer):
+            raise ValueError("a kart's keys must be finite")
+        self.forward = max(-1.0, min(1.0, gas))
+        self.right = max(-1.0, min(1.0, steer))
+        self._drift = drift
 
     def look(self, yaw: float, pitch: float = 0) -> None:
         if not math.isfinite(yaw) or not math.isfinite(pitch):
@@ -119,6 +131,8 @@ class Controls:
             actions.append("thrust")
         if self._run:
             actions.append("run")
+        if self._drift:
+            actions.append("drift")
         yaw, pitch = self._shot_look or (self.yaw, self.pitch)
         frame = {
             "seq": self.seq,

@@ -36,9 +36,10 @@ class FakeConnection:
             bot=False,
             dead=False,
             ghost=False,
+            riding=None,
         )
         self.id = me.id
-        self.welcome = Welcome("p1", "room", 0, (me,), (), ())
+        self.welcome = Welcome("p1", "room", 0, (me,), (), (), (), {})
         self.sent: list[dict[str, Any]] = []
         self.view_tick = 41
 
@@ -75,6 +76,13 @@ def test_controls_build_frames_and_reset_one_shot_inputs() -> None:
     assert second["jump"] is False
     assert second["use"] is None
     assert second["actions"] == ["scope"]
+
+    # A kart's keys aren't a walk's: the gas and the wheel are each their own, held full together.
+    controls.scope(False)
+    controls.drive(gas=1, steer=-1, drift=True)
+    asyncio.run(controls.send_input())
+    driving = connection.sent[2]["f"]
+    assert (driving["my"], driving["mx"], driving["actions"]) == (1, -1, ["drift"])
 
 
 def test_chat_and_commands_hide_wire_messages() -> None:

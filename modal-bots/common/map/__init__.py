@@ -8,7 +8,8 @@ needs, each read once per process and shared by every bot in it:
   moving's jumps across it, for finding a way on foot;
 - ``roads``: the roads' middles as a graph, for a kart to be driven by and a way along them to be
   found in, and every race track as the roads it takes;
-- ``bodies``: every avatar's hitbox, eyes and walk.
+- ``bodies``: every avatar's hitbox, eyes and walk;
+- ``karts``: how each kart drives, for a bot driving one.
 """
 
 from __future__ import annotations

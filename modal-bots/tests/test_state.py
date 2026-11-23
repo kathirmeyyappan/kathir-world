@@ -5,7 +5,7 @@ import json
 from common import Welcome, WorldState
 from common.protocol import Message, decode
 
-from tests.helpers import cube, player, welcome
+from tests.helpers import cube, kart, player, welcome
 
 
 def message(payload: dict[str, object]) -> Message:
@@ -25,14 +25,20 @@ def test_reduces_snapshots_and_roster_events() -> None:
             {
                 "t": "snap",
                 "tick": 43,
-                "players": [player("p1"), player("p2", "alice")],
+                "players": [{**player("p1"), "riding": "k1"}, player("p2", "alice")],
                 "cubes": [cube("notion")],
                 "pickups": [],
+                "karts": [kart("k1", "p1"), kart("k2")],
             }
         )
     )
     assert state.tick == 43
     assert set(state.cubes) == {"notion"}
+    assert state.kart is not None and state.kart.id == "k1"
+
+    assert state.game["mode"] == "freeplay"
+    state.apply(message({"t": "game", "game": {"mode": "racing", "phase": "lobby"}}))
+    assert state.game["mode"] == "racing"
 
     assert state.doors == {"front": False}
     state.apply(message({"t": "door", "id": "front", "open": True, "by": "p2"}))
