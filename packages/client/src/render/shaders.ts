@@ -2,6 +2,7 @@
 import { OUTSIDE_HEIGHT } from '@world/shared';
 import { BASE_FOG_DENSITY } from './Engine';
 import { KERB_HEIGHT, KERB_WIDTH } from './Floor';
+import { CELL, EDGE_STEP, HEIGHT_STEP, LEVELS, TRACK_HALF } from './TrackMask';
 
 // The floor's fog: 1 - exp(-d² × GROUND_FOG × fogScale) at d metres from the camera, the scene's
 // own EXP2 fog, so the floor under anything far off fades exactly as much as it does.
@@ -76,7 +77,10 @@ void main() {
 // (vRim) the grid's own colour. The kerb's face down the drop carries the grid on down from the
 // floor to the ground below (surfaceGridLine). A risen road is the same again up off the floor: the
 // floor's grid on what faces up, a bold green line down each side of it, and its walls the drop's
-// grey face with a bold line along their top.
+// grey face with a bold line along their top. While a track is in play (trackOn), the floor and
+// the roads off it are grey like the ground past the edge, and a bold line of the grid runs along
+// the track's sides and across its ends, so it reads as the one way through wherever it crosses
+// open floor.
 export const GROUND_FRAGMENT = `
 precision highp float;
 varying vec3 vWorld;
@@ -105,6 +109,32 @@ uniform vec3 reliefGlow;
 uniform vec2 reliefCentre;
 uniform float reliefRadius;
 uniform float reliefStrength;
+// The track in play, as a picture of it from above (render/TrackMask.ts): none while trackOn is 0.
+uniform float trackOn;
+uniform sampler2D trackMask;
+uniform vec2 trackCorner; // the world's x and z at the picture's corner
+uniform vec2 trackSize; // its texels across and deep
+
+// One texel's reading of how far across the track this pixel is (the track's edge at
+// ${TRACK_HALF.toFixed(1)}), on whichever level of the track is at the pixel's own height, if either is.
+float trackReadingAt(vec2 texel) {
+  vec4 m = texture2D(trackMask, (texel + 0.5) / trackSize) * 255.0;
+  float lower = abs(vWorld.y - m.g * ${HEIGHT_STEP.toFixed(2)});
+  float upper = abs(vWorld.y - m.a * ${HEIGHT_STEP.toFixed(2)});
+  return min(lower, upper) > ${LEVELS.toFixed(1)} ? 25.5 : (lower <= upper ? m.r : m.b) * ${EDGE_STEP.toFixed(2)};
+}
+
+// That reading blended from the four texels round the pixel, each read at the pixel's own height:
+// the levels are told apart texel by texel, which a filtered read of the picture couldn't do.
+float trackReading() {
+  vec2 t = (vWorld.xz - trackCorner) / ${CELL.toFixed(1)} - 0.5;
+  vec2 i = floor(t);
+  vec2 f = t - i;
+  return mix(
+    mix(trackReadingAt(i), trackReadingAt(i + vec2(1.0, 0.0)), f.x),
+    mix(trackReadingAt(i + vec2(0.0, 1.0)), trackReadingAt(i + vec2(1.0, 1.0)), f.x),
+    f.y);
+}
 
 float gridLine1(float v, float spacing, float width) {
   float g = abs(fract(v / spacing - 0.5) - 0.5) * spacing;
@@ -167,15 +197,26 @@ void main() {
     minor = gridLine(p, 2.0, 0.045);
     major = gridLine(p, 10.0, 0.09);
   }
+  // Off the track in play, what would be floor is as the ground past the edge, and just inside the
+  // track's edge runs a bold line of the grid.
+  float offTrack = 0.0;
+  if (trackOn > 0.5 && (side < 0.5 || top || (side > 1.5 && !risen))) {
+    float reading = trackReading();
+    float soft = fwidth(reading);
+    offTrack = smoothstep(${TRACK_HALF.toFixed(1)} - soft, ${TRACK_HALF.toFixed(1)} + soft, reading);
+    float border = smoothstep(${(TRACK_HALF - KERB_WIDTH).toFixed(1)} - soft, ${(TRACK_HALF - KERB_WIDTH).toFixed(1)} + soft, reading) * (1.0 - offTrack);
+    minor = max(minor, border);
+    major = max(major, border);
+  }
   // How bright the grid is: all of it on the floor, dim on the ground past the edge, and between on the kerb.
-  float inside = side < 0.5 || top ? 1.0 : side < 1.5 ? 0.0 : 0.8;
+  float inside = (side < 0.5 || top ? 1.0 : side < 1.5 ? 0.0 : 0.8) * (1.0 - offTrack);
   float pulse = 0.85 + 0.15 * sin(time * 1.5 - length(p) * 0.15);
   vec3 col = floorColor;
   col = mix(col, lineColor * pulse, minor * 0.55 * (0.4 + 0.6 * inside));
   col = mix(col, majorColor * pulse, major * 0.9 * (0.5 + 0.5 * inside));
   // Grey past the edge: the ground there and all of the kerb but its top, at the floor's edge.
   float outside = risen ? 1.0 - float(top) : side > 1.5 ? 1.0 - step(${(KERB_HEIGHT - 0.001).toFixed(3)}, vWorld.y) : side > 0.5 ? 1.0 : 0.0;
-  col = mix(col, vec3(dot(col, vec3(0.299, 0.587, 0.114))), outside);
+  col = mix(col, vec3(dot(col, vec3(0.299, 0.587, 0.114))), max(outside, offTrack));
   col = mix(col, lineColor * 0.45, rim);
   if (relief > 0.5) {
     vec3 n = normalize(vNormal);

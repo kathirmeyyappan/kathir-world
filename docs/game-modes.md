@@ -326,8 +326,7 @@ packages/client/src/modes/
   bots.ts       the row both modes' settings end on until there are bots that play them
   shootout/     its settings (settings.ts: the board of teams, the clock) and its HUD (hud.ts: points and clock)
   racing/       its settings (settings.ts: how many races, the racers) and its HUD (hud.ts: the grid's
-                count, a racer's place, the clock on the rest, the leaderboard); to come, the track on
-                the maps and the floor, the finish line
+                count, a racer's place, the clock on the rest, the leaderboard)
 ```
 
 A mode has two halves. Its **rules** (`Rules`, `modes/rules.ts`; a mode's are `rulesOf` its state)
@@ -401,7 +400,15 @@ own file until the racing bots are built, when the two graphs become one.
 the track as the course its karts are held to (`Course`, `sim/vehicles/rescue.ts`; `courseOf`),
 and a driven kart's watch counts it stranded off the course as it does on the ground past the
 world's edge: two seconds on, Lakitu sets it down on the track's middle where it left, nose along
-it. The client asks the same of the kart it predicts, for the red box.
+it. The client asks the same of the kart it predicts, for the red box, and draws the track
+wherever the floor is drawn, whichever mode narrowed it: the ground's shader reads a picture of
+the track from above (`render/TrackMask.ts`, made as the track is set, `Environment.setTrack`: a
+texel to four metres saying how far across the track each spot is at the height it runs at, for
+both levels where a deck goes over a road) and draws what's off it grey, as the ground past the
+edge is, with a bold line of the grid along its sides, so it reads as the one way through where it
+crosses open floor; `render/FinishLine.ts` lays the checkered line across its finish; and every
+map (`ui/MapCanvas.ts`, the frame's `track`) dulls all but the track, lights it, marks the line,
+and draws everyone as boldly as you.
 
 ## The stack
 
@@ -442,7 +449,8 @@ outside dev until each can be played, so freeplay is run on every merge.
 - [x] The floor in play: a kart off the track rescued onto it, the red box.
 - [x] A race: the grid, the countdown, no getting out, places, the line, the 45 seconds,
       elimination, points, the leaderboard, the series; its settings and its HUD.
-- [ ] Its look: the track on the maps, the grey floor, the checkered line, Lakitu at the start.
+- [x] Its look: the track on the maps, the grey floor, the checkered line.
+- [ ] Lakitu at the start.
 - [ ] Racing on the home screen and in the guide.
 
 ## Later: the modes' bots

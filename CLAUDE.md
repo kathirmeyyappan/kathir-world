@@ -355,7 +355,13 @@ wire: server and client both build the world from that file.
   the drop, each face gridded across the two axes its normal lies furthest from
   (`surfaceGridLine`, so one family of lines runs over any surface, terrain included). The floor
   ends under the kerb, so every edge in sight is real geometry rather than a shader's cut. The kerb is only drawn:
-  the sim's floor is flat to the edge, and a foot sinks its 8 cm into it unseen. A dragon can fly
+  the sim's floor is flat to the edge, and a foot sinks its 8 cm into it unseen. While the room's
+  game has a track in play (`Rules.track`, see Game modes) the same shader draws whatever of the
+  floor and the risen roads is off it grey, as the ground past the edge is, and a bold line of the
+  grid along the track's sides, from a picture of the track made as it's set
+  (`render/TrackMask.ts`, `Environment.setTrack`: a texel to 4 m, a deck and the road under it
+  apart, 20 ms and under 100 KB a track); `render/FinishLine.ts` lays the checkered line across
+  its finish, and every map dulls all but the track (`MinimapFrame.track`). A dragon can fly
   down into the drop, where the floor's rim is a wall it climbs before coming back in
   (`dragon.ts`), and a walker it turns back into there, or anywhere out over the void, falls where
   it is. The camera follows it down. The bots' ground map stands its nodes a metre inside the edge, and

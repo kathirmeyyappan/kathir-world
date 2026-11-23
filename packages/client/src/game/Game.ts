@@ -59,6 +59,7 @@ import {
   type PlayerClass,
   type PlayerState,
   type ServerMessage,
+  type Track,
   type Vec3,
   EYE_HEIGHT,
   KARTS,
@@ -101,6 +102,7 @@ import { wantKart } from '../render/vehicles/KartMesh';
 import { CubeMesh } from '../render/CubeMesh';
 import { Engine } from '../render/Engine';
 import { Environment } from '../render/Environment';
+import { FinishLine } from '../render/FinishLine';
 import { Interiors } from '../render/Interiors';
 import { FrostLayer } from '../render/Frost';
 import { Loader } from '../render/Loader';
@@ -242,6 +244,8 @@ const SWING_HALF_LIFE = 0.08; // seconds: the camera's swing round a ladder is m
 export class Game {
   private readonly engine: Engine;
   private readonly environment: Environment;
+  private readonly finishLine: FinishLine;
+  private track: Track | null = null; // the track in play, as the room's game has it (`Rules.track`)
   private readonly loader = new Loader(); // streams the world in round the player
   private readonly models: Models;
   private readonly frost: FrostLayer; // the ice sprayed over the world's surfaces (sim/frost.ts)
@@ -367,6 +371,7 @@ export class Game {
     const canvas = canvasEl;
     this.engine = new Engine(canvas, true);
     this.environment = new Environment(this.engine, WORLD_GROUND, this.loader, ROAD_RAISED);
+    this.finishLine = new FinishLine(this.engine.scene);
     buildStructures(this.engine, WORLD_STRUCTURES.list, this.loader);
     buildBoostPads(this.engine, ROAD_PADS, this.loader);
     buildSkyline(this.engine, WORLD_OUTLINE, ROAD_RAISED.flat(), WORLD_STRUCTURES.list, this.loader);
@@ -887,6 +892,12 @@ export class Game {
   private setGame(game: GameState): void {
     const ended = (this.game.phase === 'starting' || this.game.phase === 'playing') && game.phase === 'lobby';
     this.game = game;
+    const track = rulesOf(game).track(game);
+    if (track !== this.track) {
+      this.track = track;
+      this.environment.setTrack(track);
+      this.finishLine.set(track);
+    }
     this.hud.setMaster(game.master);
     this.hud.sided = rulesOf(game).standings(game).length > 0;
     this.commandsMenu.refresh();
@@ -1335,7 +1346,7 @@ export class Game {
     this.kartGauge.set(driving ? this.prediction.kartPace() : null);
     // Driving a kart that's down past the world's edge, there's nothing to do but wait for Lakitu
     // (sim/vehicles/rescue.ts). On foot there, the Room bleeds hearts.
-    const track = rulesOf(this.game).track(this.game);
+    const track = this.track;
     const lost =
       !this.dead &&
       !!self.riding &&
@@ -1378,7 +1389,12 @@ export class Game {
     this.scores.set(showing.scores);
     // Everyone else the player is shown, as the game has it: a mode hides the other side.
     const shown = shownTo(this.game, self, sampled.players);
-    this.minimap.update({ me: { x: p.x, y: p.y, z: p.z, yaw: this.input.yaw }, players: shown, cubes: sampled.cubes });
+    this.minimap.update({
+      me: { x: p.x, y: p.y, z: p.z, yaw: this.input.yaw },
+      players: shown,
+      cubes: sampled.cubes,
+      track,
+    });
     this.menu.sync({
       name: self.name,
       avatar: self.avatar,

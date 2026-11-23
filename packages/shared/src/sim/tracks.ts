@@ -219,9 +219,22 @@ export function withinTrack(on: OnTrack): boolean {
   return on.off <= ROAD_WIDTH / 2;
 }
 
-// The spot of a track's middle `at` metres along it (on a split, on its first strand).
+// A track's middle `at` metres along it (on a split, on its first strand): between the two spots
+// of it that lies between, or its last spot past its end.
 export function spotAt(track: Track, at: number): TrackSpot {
-  return track.spots.find((s) => s.at >= at) ?? track.spots[track.spots.length - 1];
+  const next = track.spots.findIndex((s) => s.at >= at);
+  if (next < 0) return track.spots[track.spots.length - 1];
+  const [a, b] = [track.spots[Math.max(0, next - 1)], track.spots[next]];
+  if (a.at >= at || b.at <= a.at) return b;
+  const k = (at - a.at) / (b.at - a.at);
+  const turn = Math.atan2(Math.sin(b.yaw - a.yaw), Math.cos(b.yaw - a.yaw));
+  return {
+    x: a.x + (b.x - a.x) * k,
+    y: a.y + (b.y - a.y) * k,
+    z: a.z + (b.z - a.z) * k,
+    at,
+    yaw: a.yaw + turn * k,
+  };
 }
 
 // Where `count` karts stand on a track's grid: in rows behind its start line, the first of them
