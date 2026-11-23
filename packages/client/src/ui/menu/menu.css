@@ -326,6 +326,11 @@
 #menu h2 + * {
   margin-top: 0;
 }
+/* A game's settings (a section with a board of its players in it) give each row more room than a
+   list of toggles has. */
+#menu section:has(.board) > :is(.row, .stepper, .board) + :is(.row, .stepper, .board) {
+  margin-top: 20px;
+}
 
 /* A toggle: its name, and a button reading what it's on. */
 #menu .row {

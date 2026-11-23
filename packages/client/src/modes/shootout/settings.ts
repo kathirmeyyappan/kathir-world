@@ -28,6 +28,15 @@ export function shootoutSettings(hooks: ModeHooks): Row[] {
       can: (by) => mine() && game().teams.length + by >= MIN_TEAMS && game().teams.length + by <= TEAMS.length,
     },
     {
+      kind: 'stepper',
+      label: 'CLOCK',
+      value: () => clockFace(game().seconds),
+      step: (by) => hooks.set({ clock: game().seconds + by * CLOCK.step }),
+      can: (by) =>
+        mine() && game().seconds + by * CLOCK.step >= CLOCK.min && game().seconds + by * CLOCK.step <= CLOCK.max,
+    },
+    BOTS_TO_COME,
+    {
       kind: 'board',
       columns: () =>
         game().teams.map((team, i) => ({
@@ -38,14 +47,5 @@ export function shootoutSettings(hooks: ModeHooks): Row[] {
       move: (player, to) => hooks.set({ move: player, to }),
       hint: () => (mine() ? MOVING : null),
     },
-    {
-      kind: 'stepper',
-      label: 'CLOCK',
-      value: () => clockFace(game().seconds),
-      step: (by) => hooks.set({ clock: game().seconds + by * CLOCK.step }),
-      can: (by) =>
-        mine() && game().seconds + by * CLOCK.step >= CLOCK.min && game().seconds + by * CLOCK.step <= CLOCK.max,
-    },
-    BOTS_TO_COME,
   ];
 }

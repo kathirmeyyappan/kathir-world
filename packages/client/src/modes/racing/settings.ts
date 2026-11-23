@@ -23,6 +23,7 @@ export function racingSettings(hooks: ModeHooks): Row[] {
       step: (by) => hooks.set({ races: game().races + by }),
       can: (by) => mine() && game().races + by >= RACES.min && game().races + by <= RACES.max,
     },
+    BOTS_TO_COME,
     {
       kind: 'board',
       columns: () => [
@@ -35,6 +36,5 @@ export function racingSettings(hooks: ModeHooks): Row[] {
       can: () => false,
       move: () => {},
     },
-    BOTS_TO_COME,
   ];
 }
