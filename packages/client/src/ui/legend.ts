@@ -38,7 +38,7 @@ export const DRIVING: LegendCell[] = [
   cell(['W'], 'gas'),
   cell(['S'], 'brake'),
   cell(['A', 'D'], 'steer'),
-  cell(['Space'], 'hop, hold to drift, trick in the air'),
+  cell(['Space'], 'drift / hop / trick'),
 ];
 export const GET_OUT = cell(['E'], 'get out');
 
