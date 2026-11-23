@@ -20,7 +20,12 @@ class Driven:
     turn: float  # metres: the radius of its turn with the wheel full over, at any speed
     air_turn: float  # of that turn, what it has in the air
     grip: float  # m/s² its tires hold across it: a turn that asks more slides wide
-    lift: float  # m/s faster upward than the ground past a crest carries it, at which it leaves the ground
+    # What leaves the ground, in m/s: over a crest it comes up to or onto level, going ``lift``
+    # faster upward than the ground past it carries it; and on its way down, the ground falling away
+    # ``falls`` faster than it was, where that's a fall as fast as ``lift`` too.
+    lift: float
+    falls: float
+    gravity: float  # m/s² it falls at in the air
     hop: float  # seconds the hop a drift begins with is in the air
     drift_from: float  # m/s: the least a drift begins or carries on at
     # The share of its full turn a drift turns at, with the wheel held out of its way, let be, and
@@ -41,6 +46,8 @@ class Karts:
                 air_turn=float(d["airTurn"]),
                 grip=float(d["grip"]),
                 lift=float(d["lift"]),
+                falls=float(d["falls"]),
+                gravity=float(d["gravity"]),
                 hop=float(d["hop"]),
                 drift_from=float(d["drift"]["from"]),
                 drift_wide=float(d["drift"]["wide"]),
