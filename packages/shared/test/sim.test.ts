@@ -5,6 +5,15 @@ import { gunzipSync } from 'node:zlib';
 import { MAP_SOURCES } from '../src/sim/botMap';
 import { climb, gap, layRoad, level, padded, span, split } from '../src/sim/roads';
 import {
+  ISLANDS,
+  ROADS,
+  TRACK_LENGTH,
+  gridOf,
+  layTrack,
+  onTrack,
+  routes,
+  spotAt,
+  withinTrack,
   doorPieces,
   CHILL_SECONDS,
   CHILLED_SPEED_MULTIPLIER,
@@ -953,4 +962,43 @@ test('a wall frame is as wide as its picture, centred mid-storey, hugging the wa
   assert.throws(() => layoutWallFrame({ room, angle: 60, height: 2, show }), /stair/);
   assert.throws(() => layoutWallFrame({ room, angle: 225, height: 20, show }), /too tall/);
   for (const f of WALL_FRAMES) layoutWallFrame(f); // the listed ones all hang cleanly
+});
+
+test('race tracks: every route runs from an island along the roads to somewhere they end, a minute or two long; the track along one has a middle to be placed against, a grid behind its start line and a finish line short of its end', () => {
+  const all = routes();
+  assert.ok(all.length > 100, `${all.length} routes`);
+  for (const route of all) {
+    assert.ok(route.length >= TRACK_LENGTH.min && route.length <= TRACK_LENGTH.max, `${route.length} m`);
+    assert.ok(ISLANDS.includes(route.start) && route.start !== route.end);
+  }
+  // One that takes a road that splits in two, and the first there is.
+  const split = all.find((route) => route.legs.some((leg) => ROADS[leg.road].middle.length === 4))!;
+  for (const route of [all[0], split]) {
+    const track = layTrack(route);
+    assert.ok(track.start < track.finish && track.finish < route.length);
+    track.spots.forEach((spot, i) => {
+      if (i % 25) return;
+      const on = onTrack(track, spot);
+      assert.ok(Math.abs(on.at - spot.at) < 1 && on.off < 0.5, `spot ${i} of ${route.length} m is on its own middle`);
+    });
+    const s = spotAt(track, track.finish);
+    const beside = (across: number) => ({
+      x: s.x + Math.cos(s.yaw) * across,
+      y: s.y,
+      z: s.z - Math.sin(s.yaw) * across,
+    });
+    assert.deepEqual(
+      [8, 12].map((m) => withinTrack(onTrack(track, beside(m)))),
+      [true, false],
+      'a road wide',
+    );
+    assert.ok(!withinTrack(onTrack(track, { ...s, y: s.y + 20 })), 'and on the level it runs at');
+    const grid = gridOf(track, 8);
+    for (const g of grid) {
+      const on = onTrack(track, g);
+      assert.ok(withinTrack(on) && on.at < track.start, 'on the road behind the line');
+      assert.ok(Math.abs(WORLD_STRUCTURES.groundAt(g.x, g.z, g.y + STEP_UP) - g.y) < 0.1, 'standing on it');
+    }
+    assert.equal(new Set(grid.map((g) => `${g.x.toFixed(1)},${g.z.toFixed(1)}`)).size, 8, 'a place each');
+  }
 });
