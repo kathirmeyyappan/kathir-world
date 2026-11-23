@@ -43,7 +43,7 @@ results screen and by a ghost, and has to be right in all of them. So before the
 for whatever the change adds or touches, and put the answers in it:
 
 - **When:** what it does in a lobby, in each mode's game and over its results, and whether a mode
-  refuses it. A new command doesn't build until every mode says whether its game allows it (its
+  refuses it (a race holds its karts and keeps their drivers in them: `Rules.held`, `Rules.seated`). A new command doesn't build until every mode says whether its game allows it (its
   `CommandKind` and each game's `Allowed`, `modes/rules.ts`).
 - **Ghosts:** what a ghost (a spectator, a racer who's out) can do with it, and that a ghost doing
   it changes nothing in the world and isn't heard doing it. Whatever the world does to people it

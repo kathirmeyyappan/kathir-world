@@ -217,16 +217,18 @@ export function controlsOf(frame: InputFrame | null): KartControls {
 }
 
 // One step of the kart `p` drives, by their frame, and them sat in it after: what the Room runs and
-// the driver's own client predicts with.
+// the driver's own client predicts with. `held`, its keys do nothing: it stands where it is, or
+// rolls to a stop (a race's grid, a racer over the line).
 export function ride(
   p: PlayerState,
   k: KartState,
   frame: InputFrame | null,
   dt: number,
   structures: Structures,
+  held = false,
 ): KartStep {
   if (frame) takeLook(p, frame);
-  const step = stepKart(k, controlsOf(frame), dt, structures);
+  const step = stepKart(k, controlsOf(held ? null : frame), dt, structures);
   seat(p, k);
   return step;
 }

@@ -2,12 +2,12 @@
 // master, the player who made the room, whose it is for as long as it lasts, and the flow the
 // master runs it through. A lobby, which is freeplay but for the game waiting to be started; the
 // start, counted down; the game; and the lobby again.
-import { RESPAWN_AREAS, SPAWN_AREAS, type SpawnArea } from '../content/regions';
+import { RESPAWN_AREAS, SPAWN_AREAS } from '../content/regions';
 import { TICK_RATE } from '../sim/constants';
 import type { PlayerState } from '../sim/types';
 import type { GameAction, GameState } from './index';
 import { GameMode, type Joining } from './mode';
-import { FREEPLAY_DYING, kindOf, type Allowed, type Dying, type Rules } from './rules';
+import { kindOf, type Allowed, type Dying, type Rules } from './rules';
 
 // What everyone is told as the room closes behind its master.
 export const MASTER_LEFT = 'the room master ended the room';
@@ -29,25 +29,6 @@ export interface Playing {
   dying: Dying;
 }
 
-// What every game is unless its mode says otherwise: everything allowed but the bots' commands, a
-// game being people alone, and no hearts what it is in freeplay.
-export const ANY_GAME: Playing = {
-  allows: {
-    speedy: true,
-    weapon: true,
-    gear: true,
-    unequip: true,
-    look: true,
-    dragon: true,
-    colour: true,
-    bot: false,
-    'kill-bots': false,
-    kart: true,
-    teleport: true,
-  },
-  dying: FREEPLAY_DYING,
-};
-
 // What no hearts means in a game's lobby, which is somewhere to wait: a body lies long enough for
 // its player to see it, and they're back with nothing put over the view.
 const LOBBY_DYING: Dying = { seconds: 3, screen: false };
@@ -66,6 +47,8 @@ export function gameRules(own: Playing): Rules {
     standings: () => [],
     sees: () => 'plain',
     track: () => null,
+    seated: () => false,
+    held: () => false,
   };
 }
 
@@ -129,8 +112,13 @@ export class Game extends GameMode {
   override step(): void {
     if (this.until === null || this.room.tick() < this.until) return;
     if (this.phase === 'starting') this.begin();
-    else if (this.phase === 'playing') this.to('results', this.room.tick() + RESULTS_SECONDS * TICK_RATE);
+    else if (this.phase === 'playing') this.finish();
     else if (this.phase === 'results') this.toLobby();
+  }
+
+  // The game is over, by its clock or by its mode's own rule: its results stand before the lobby.
+  protected finish(): void {
+    this.to('results', this.room.tick() + RESULTS_SECONDS * TICK_RATE);
   }
 
   // Whether the game is being played: what comes of a death counts only while it is.
@@ -138,9 +126,10 @@ export class Game extends GameMode {
     return this.phase === 'playing';
   }
 
-  // Where `player` starts the game: where anyone comes in, unless the mode puts them somewhere.
-  protected startsAt(_player: PlayerState): SpawnArea[] {
-    return SPAWN_AREAS;
+  // Puts `player` where they start the game, in a new body: where anyone comes in, unless the mode
+  // has somewhere of its own. Returns them in it.
+  protected place(player: PlayerState): PlayerState {
+    return this.room.embody(player, SPAWN_AREAS);
   }
 
   // How many seconds the game runs before it's over, or null: until its room master ends it.
@@ -158,7 +147,7 @@ export class Game extends GameMode {
   protected begin(): void {
     this.room.clear();
     for (const player of this.room.people()) {
-      const body = this.room.embody(player, this.startsAt(player));
+      const body = this.place(player);
       body.kills = body.deaths = 0;
     }
     const seconds = this.runs();

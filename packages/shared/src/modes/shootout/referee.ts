@@ -1,7 +1,7 @@
 // Shootout as its Room runs it (docs/game-modes.md): what every game shares (game.ts), with its
 // own settings, everyone on a team, and a fight between the teams for points until the clock runs
 // out.
-import { INDOOR_ROOMS, type SpawnArea } from '../../content/regions';
+import { INDOOR_ROOMS } from '../../content/regions';
 import type { Region } from '../../sim/regions';
 import type { PlayerState } from '../../sim/types';
 import { Game } from '../game';
@@ -73,11 +73,11 @@ export class Shootout extends Game {
     }
   }
 
-  protected override startsAt(player: PlayerState): SpawnArea[] {
+  protected override place(player: PlayerState): PlayerState {
     const team = this.teamOf(player.id);
-    if (team < 0) return super.startsAt(player);
+    if (team < 0) return super.place(player);
     const rooms = this.sites[team];
-    return [{ region: rooms[this.teams[team].indexOf(player.id) % rooms.length], weight: 1 }];
+    return this.room.embody(player, [{ region: rooms[this.teams[team].indexOf(player.id) % rooms.length], weight: 1 }]);
   }
 
   protected override runs(): number {
