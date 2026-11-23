@@ -52,13 +52,19 @@ hurt it. How well it does all of it is its ``Skill``, and what it's like is its 
    and with nobody to fight, it stands clear and shoots it until it blows up, so the room's karts
    aren't used up.
 
-9. Dying. Where its game brings the dead back, it asks to be after a few seconds and takes up its
+9. A hop. Somewhere it has no way to over the ground, or only one much longer than the hop,
+   one with the wits flies to by jetpack (``common.flight``): straight up, across and down,
+   where nothing is in the way, and not again for a while. Falling far, it straps one on to
+   brake with.
+
+10. Dying. Where its game brings the dead back, it asks to be after a few seconds and takes up its
    weapon again; anywhere else it lies there until the room drops its seat, which ends its run.
 """
 
 from __future__ import annotations
 
 import asyncio
+import itertools
 import math
 import random
 import time
@@ -83,6 +89,7 @@ from common import (
     WorldState,
     connect,
     driving,
+    flight,
     load_bodies,
     load_ground,
     load_karts,
@@ -172,6 +179,9 @@ LINGER_SECONDS = (2.0, 7.0)  # how long it stays where it wandered to
 # Seconds after letting go of a ladder that it walks with its look turned aside, so the walk that
 # took hold of it (straight in, facing it) doesn't take hold again.
 ASIDE_SECONDS = 1.2
+HOP_EVERY = 25.0  # seconds, at the least, from one hop by jetpack to its next
+HOP_SAVES = 2.5  # times the hop that its way over the ground has to be, for it to fly
+FALLING = 16.0  # m/s down from which it's falling, and straps a jetpack on to brake with
 TRIP_EVERY = 20.0  # seconds, at the least, between its plannings of a trip by kart
 TRIP_MOVED = 100.0  # metres whoever it's going for has to be from where its trip ends for another to be planned
 CLOSE_ENOUGH = 60.0  # metres from whoever it's driving to that it gets out
@@ -338,6 +348,8 @@ class Fighter:
         self._next_find = 0
         self._doors: Mapping[str, bool] = {}  # the room's, open or shut (WorldState.doors)
         self._aside_until = 0  # the tick until which it looks aside of its way, clear of a ladder
+        self._hop: flight.Hop | None = None  # the hop by jetpack it's on
+        self._next_hop = 0  # the tick from which it may take another
         self._trip: Trip | None = None  # the trip by kart it's on, or on its way to board
         self._planning: asyncio.Task[trip.Plan | None] | None = None
         self._next_trip = 0  # the tick from which it may plan another
@@ -393,6 +405,13 @@ class Fighter:
             if p.id != me.id and not p.dead and sides.get(p.id, -1) == sides.get(me.id, -2)
         ]
         target = self._watch(state, me, foes, me.id in sides, tick)
+        if self._hops(me, tick):
+            assert self._hop is not None
+            asks = self._hop.fly(self.solids, me, tick, controls)
+            if self._hop.over:
+                self._hop, self._goal, self._route = None, None, None
+                self._next_hop = tick + round(HOP_EVERY * TICK_RATE)
+            return asks
         # A trip has the controls from where it boards, with nobody there to fight first.
         boards = self._trip is not None and target is None and self._trip.boards(_feet(me))
         if self._trip is not None and (me.riding is not None or boards):
@@ -440,8 +459,18 @@ class Fighter:
             self._died = tick
             self.deaths += 1
             self._rise = tick + round(self.dice.uniform(*RESPAWN_SECONDS) * TICK_RATE)
-            self.target = self._noticed = self._goal = self._route = self._trip = self._scrap = None
+            self.target = self._noticed = self._goal = self._route = self._trip = self._scrap = self._hop = None
         return []
+
+    def _hops(self, me: Player, tick: int) -> bool:
+        """Whether a hop by jetpack has the controls: one it's on, or the one it begins now to
+        brake a long fall with, where it has the wits to."""
+        falling = self._hop is None and self._sharp and me.riding is None and me.vy < -FALLING
+        if falling:
+            feet = _feet(me)
+            ground = self.solids.ground_at(feet.x, feet.z, feet.y)
+            self._hop = flight.Hop(Vec3(feet.x, ground, feet.z), feet.y, _leg="down")
+        return self._hop is not None
 
     def _ride(self, state: WorldState, me: Player, foes: list[Player], controls: Controls) -> list[str]:
         """Its trip has the controls, from where it boards to getting out: at the road's far end,
@@ -714,6 +743,8 @@ class Fighter:
         if self._finding is not None and self._finding.done():
             path, self._finding = (None if self._finding.cancelled() else self._finding.result()), None
             self._route = Route(self.ground, path, tick, me.avatar, self._doors) if path else None
+            if self._flies(me, goal, path, tick):
+                return
             if path is None:
                 # No way there over the ground: it leaves the place alone a while.
                 self._goal = None
@@ -732,11 +763,28 @@ class Fighter:
         self._next_find = tick + REPLAN_EVERY
         self._found_for = goal
         if start is None or end is None:
-            self._route = None  # off the walked floor: it goes straight, minding its footing
+            # Off the walked floor: a hop there, or straight, minding its footing.
+            self._route = None
+            self._flies(me, goal, None, tick)
             return
         self._finding = asyncio.get_running_loop().create_task(
             asyncio.to_thread(self.ground.path, start, end, me.avatar, True)
         )
+
+    def _flies(self, me: Player, goal: Vec3, path: list[int] | None, tick: int) -> bool:
+        """Whether it takes a hop by jetpack to ``goal`` in place of ``path``, the way it found
+        there over the ground (None for no way): where the hop is much the shorter, for one with
+        the wits to think of it, and not long after its last."""
+        if not self._sharp or tick < self._next_hop:
+            return False
+        feet = _feet(me)
+        if path is not None:
+            spots = [feet, *(self.ground.nodes[i] for i in path)]
+            way = sum(_apart(a, b) for a, b in itertools.pairwise(spots))
+            if way < HOP_SAVES * (abs(goal.y - feet.y) + _across(feet, goal)):
+                return False
+        self._hop = flight.plan(self.solids, feet, goal)
+        return self._hop is not None
 
     def _mark(self, me: Player, target: Player | None) -> Vec3 | None:
         """The spot on its target that it's aiming for, where it believes them to be."""
