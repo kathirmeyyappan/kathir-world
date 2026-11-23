@@ -9,7 +9,7 @@
 // them (a sidestep, a slither, tentacles wrapping the rungs, running on the steering wheel) extends
 // WalkerAvatar and overrides that phase, keeping the rest. The dragon is its own class (Dragon.ts).
 import { Matrix, Mesh, Quaternion, StandardMaterial, TransformNode, Vector3, VertexBuffer } from '@babylonjs/core';
-import { AVATARS, EYE_HEIGHT, GRAVITY, WORLD_STRUCTURES, walkSpeedOf, type AvatarId } from '@world/shared';
+import { AVATARS, EYE_HEIGHT, GOING, GRAVITY, WORLD_STRUCTURES, walkSpeedOf, type AvatarId } from '@world/shared';
 import type { RemotePlayer } from '../../net/Interpolation';
 import type { Engine } from '../Engine';
 import type { Seat } from '../vehicles/Seat';
@@ -27,7 +27,6 @@ const HEAD_GIVES_UP = 2.4;
 const HEAD_FADE = 0.8;
 const EASE_TURN = 0.12; // seconds a body takes to come round to face the way it's going
 const EASE_AIM = 0.06; // and to face its look, with something in its hand to aim
-export const MOVING = 0.4; // m/s across the floor that is going somewhere: under it the body keeps the way it had
 // Metres that is moving: a player's own body drifts by less on every frame, as its prediction's
 // correction dies away, and that isn't a step of the sim.
 const MOVED = 1e-3;
@@ -144,7 +143,6 @@ export class WalkerAvatar implements Avatar {
   private held: RemotePlayer['climb'] = null; // the ladder face last seen held
   private swing = 0; // radians the body has still to turn round the ladder after a swap
   protected facing = 0; // the way the body faces, radians in the world: the root's yaw
-  private startFacing: number | null = null; // the way it faces when first drawn: else the look's
   protected turn = 0; // radians the body came round by this frame, on foot
   protected velX = 0; // m/s across the floor, in the world, as it last moved
   protected velZ = 0;
@@ -186,14 +184,6 @@ export class WalkerAvatar implements Avatar {
     this.joints = jointsOf(this.root, this.figure);
   }
 
-  heading(): number | null {
-    return this.last ? this.facing : null;
-  }
-
-  face(yaw: number): void {
-    this.startFacing = yaw;
-  }
-
   update(p: RemotePlayer, step: number, seat: Seat | null): void {
     const now = performance.now() / 1000;
     const dt = this.drawn === null ? 0 : Math.min(0.1, now - this.drawn);
@@ -222,9 +212,9 @@ export class WalkerAvatar implements Avatar {
 
   // On the ground or in the air: the legs swing with the stride and the arms against them, the
   // body rising and rocking with it, the weapon arm pointed along the look while holding an item.
-  // Empty-handed the body turns to face the way it's going and stays facing that way when it stops,
-  // the head turning to the look (a headless body turns to it whole); with something to aim it faces
-  // its look, which gives the aim away.
+  // The body comes round to the way the sim has it face (PlayerState.facing: the way it's going,
+  // kept when it stops, or its look with something to aim, which gives the aim away), the head
+  // turning to the look; a headless body standing still turns to the look whole.
   protected walk(p: RemotePlayer, feetY: number, step: number, dt: number): Pose {
     const f = this.figure;
     this.held = null;
@@ -232,9 +222,8 @@ export class WalkerAvatar implements Avatar {
     hang(this.root);
     this.root.position.set(p.x, feetY, p.z);
     const armed = p.item !== null;
-    const going = Math.hypot(this.velX, this.velZ) > MOVING;
-    const standing = f.headless ? p.yaw : this.facing;
-    const want = p.dead ? this.facing : armed ? p.yaw : going ? Math.atan2(this.velX, this.velZ) : standing;
+    const going = Math.hypot(this.velX, this.velZ) > GOING;
+    const want = p.dead ? this.facing : f.headless && !armed && !going ? p.yaw : p.facing;
     this.turn = wrap(want - this.facing) * (1 - Math.exp((-3 * dt) / (armed ? EASE_AIM : EASE_TURN)));
     this.facing = wrap(this.facing + this.turn);
     this.root.rotation.set(0, this.facing, 0);
@@ -498,7 +487,7 @@ export class WalkerAvatar implements Avatar {
     const last = this.last;
     if (!last) {
       this.last = { x: p.x, y: feetY, z: p.z, at: now };
-      this.facing = this.startFacing ?? p.yaw;
+      this.facing = p.facing;
       return;
     }
     const dx = p.x - last.x;

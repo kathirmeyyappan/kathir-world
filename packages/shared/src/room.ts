@@ -301,7 +301,7 @@ export class Room {
   // A body new to the world at `at`, facing any way, so no landmark greets every spawn.
   private newBody(id: string, name: string, color: string, at: Vec3, bot: boolean): PlayerState {
     const body = createPlayer(id, name, color, at, bot);
-    body.yaw = this.rng() * 2 * Math.PI;
+    body.yaw = body.facing = this.rng() * 2 * Math.PI;
     return body;
   }
 

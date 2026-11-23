@@ -39,6 +39,7 @@ export interface RemotePlayer {
   z: number;
   yaw: number;
   pitch: number;
+  facing: number; // the way the body faces (sim/types.ts PlayerState.facing)
   reading: string | null;
   item: ItemId | null;
   firing: boolean;
@@ -139,6 +140,7 @@ export class Interpolation {
         z: lerp(a.pos.z, b.pos.z, t),
         yaw: lerpAngle(a.yaw, b.yaw, t),
         pitch: lerp(a.pitch, b.pitch, t),
+        facing: lerpAngle(a.facing, b.facing, t),
         reading: b.reading,
         item: b.item?.id ?? null,
         firing: b.firing,

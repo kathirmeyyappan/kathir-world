@@ -29,10 +29,6 @@ export interface Avatar {
   hide(): void;
   dispose(): void;
   corpse(): Vector3 | null; // where the body lies, while dead and drawn; null otherwise
-  // The way a body on foot faces, radians in the world, null before it's first drawn; and the way a
-  // new one is to face when it is, so a switch of look leaves the player facing as they were.
-  heading?(): number | null;
-  face?(yaw: number): void;
   setHeadless?(on: boolean): void; // draw the body without the head, for its own wearer's view from its eyes
   act?(action: ItemAction): void; // did one of its class's own actions (a dragon's roar)
 }

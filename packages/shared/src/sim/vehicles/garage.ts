@@ -177,6 +177,7 @@ export class Garage {
     const feet = this.beside(k, p);
     p.pos = { x: feet.x, y: feet.y + EYE_HEIGHT, z: feet.z };
     p.vx = p.vy = p.vz = 0;
+    p.facing = k.yaw;
   }
 
   // One step of `p`'s kart by their frame, built to seat them, them sat in it, it worn by what it

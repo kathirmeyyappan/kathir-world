@@ -862,10 +862,12 @@ builder makes the avatar's parts under the base node and says which plays which 
 with the look, a head, the legs, the free arm, the weapon arm with its grip and the way it reaches
 in the model) and the numbers its walk takes (swings, bob, sway, how it lies dead), and
 `WalkerAvatar` poses every figure the same way: standing, walking, aiming what it holds, falling,
-climbing a ladder, sat driving a kart and lying dead. Empty-handed the body turns to face the way it's going (the look
-only turns its head) and stays facing that way when it stops, unless it's `headless` (Tung Tung
-Tung Sahur, his face on the log), when standing still it turns whole to the look; with something to
-aim it faces its look, so the aim shows. It watches how it moves from where it's drawn, which for a player's own
+climbing a ladder, sat driving a kart and lying dead. Which way the body faces is the sim's
+(`PlayerState.facing`, walker.ts `turnBody`, in every snapshot), so every client draws it alike
+whenever it first saw the body: empty-handed, the way it's going (the look only turns its head),
+kept when it stops; with something to aim, its look, so the aim shows; on a ladder, the ladder; got
+out of a kart, the kart's way. The body comes round to it, and a `headless` one (Tung Tung Tung
+Sahur, his face on the log) standing still turns whole to the look. For its pose, it watches how it moves from where it's drawn, which for a player's own
 body is a sim tick at a time, on whichever frames the ticks fall, with a hair of drift on every
 frame between as its prediction's correction dies away. So nothing is read from a speed taken
 frame to frame (it comes out zero and double by turns, and a pose hung on it flickers): the
