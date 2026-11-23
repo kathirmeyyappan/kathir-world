@@ -62,6 +62,12 @@ body {
   > :not(
     #renderCanvas,
     #crisp-panels,
+    #crosshair,
+    #scope,
+    #frost,
+    #iris,
+    #damage-flash,
+    #heal-flash,
     #menu,
     #commands,
     #info-overlay,
