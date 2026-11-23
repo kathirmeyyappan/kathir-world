@@ -1,22 +1,25 @@
 from __future__ import annotations
 
+import copy
 import itertools
 import math
 import random
 
 from bots.racer_bot import race_of
 from common import Kart, Vec3
+from common.controls import TICK_SECONDS
 from common.driving import Driver, Keys, skill
 from common.map.karts import load_karts
 from common.map.roads import load_roads
-from common.racing_line import racing_line
+from common.protocol import Drift
+from common.racing_line import Line, racing_line
 
 ROAD = 10  # metres from a road's middle to its edge (ROAD_WIDTH in packages/shared/src/sim/outline.ts)
 
 
-def _kart(pos: Vec3, yaw: float, speed: float, rescued: bool = False) -> Kart:
+def _kart(pos: Vec3, yaw: float, speed: float, rescued: bool = False, drift: Drift | None = None) -> Kart:
     vel = Vec3(math.sin(yaw) * speed, 0, math.cos(yaw) * speed)
-    return Kart("k1", "standard", "p1", pos, vel, yaw, True, False, None, False, 0, rescued, 5)
+    return Kart("k1", "standard", "p1", pos, vel, yaw, True, False, drift, False, 0, rescued, 5)
 
 
 def test_a_line_keeps_to_its_road_and_a_driver_follows_it() -> None:
@@ -57,6 +60,54 @@ def test_a_line_keeps_to_its_road_and_a_driver_follows_it() -> None:
     one, other = (race_of(f"lobby/{name}", track, 150, "standard", 0.5) for name in ("bot 1", "bot 2"))
     assert one.driver.skill != other.driver.skill
     assert one.driver.skill == race_of("lobby/bot 1", track, 150, "standard", 0.5).driver.skill
+    # Chaining drifts goes by the rating asked for alone (a race's top level, and the one under
+    # it): every racer rated to does as much of it, whatever its form, and none rated under does any.
+    top, under = (
+        {race_of(f"lobby/bot {n}", track, 150, "standard", rating).driver.skill.chains for n in (1, 2, 3)}
+        for rating in (0.88, 0.685)
+    )
+    assert len(top) == 1 and min(top) > 0 and under == {0}
+
+
+def test_the_best_chain_drifts_down_a_straight() -> None:
+    car = load_karts().of("standard")
+    # A straight road with nothing on it, the line down its middle.
+    n = 100
+    along = tuple(3.0 * i for i in range(n))
+    line = Line(
+        x=(0.0,) * n,
+        y=(0.0,) * n,
+        z=along,
+        s=along,
+        k=(0.0,) * n,
+        gap=(False,) * n,
+        lift=(math.inf,) * n,
+        left=(ROAD,) * n,
+        right=(ROAD,) * n,
+    )
+    at = Vec3(0, 0, 60)
+    # A driver short of the best leaves the drift key be down it.
+    assert Driver(line, skill(0.7), car, random.Random(1)).keys(_kart(at, 0, 15), 0) == Keys(gas=1)
+
+    # Nor does the best with a kart close ahead of it, though one behind is no matter.
+    best = Driver(line, skill(1), car, random.Random(1))
+    assert best.keys(_kart(at, 0, 15), 0, 0, (Vec3(1, 0, 70),)) == Keys(gas=1)
+    # It turns its nose out of a drift's way first, and hops into the drift once that's done.
+    yaw, keys = 0.0, best.keys(_kart(at, 0, 15), 0, 0, (Vec3(1, 0, 50),))
+    turned = keys.steer
+    assert not keys.drift and turned != 0
+    for _ in range(30):
+        if keys.drift:
+            break
+        yaw += keys.steer * 15 / car.turn * TICK_SECONDS
+        keys = best.keys(_kart(at, yaw, 15), 0)
+    way = -1 if turned > 0 else 1
+    assert keys.drift and keys.steer == way and yaw * way < 0
+    # In the drift it holds the wheel out of it, and lets go at the first spark, or of a drift
+    # that turns out to be the other way.
+    assert best.keys(_kart(at, 0, 15, drift=Drift(way, 0.5)), 0) == Keys(gas=1, steer=-way, drift=True)
+    assert not copy.deepcopy(best).keys(_kart(at, 0, 15, drift=Drift(-way, 0.6)), 0).drift
+    assert not best.keys(_kart(at, 0, 15, drift=Drift(way, car.sparks[0] + 0.1)), 0).drift
 
 
 def _off(x: float, z: float, a: Vec3, b: Vec3) -> float:

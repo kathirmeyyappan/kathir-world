@@ -1,7 +1,7 @@
 """Race: whenever the room's game is a race and this bot is sat in a kart on its grid, drive it
 down the track to the line, as well as the game rates it (``common.driving``): from keeping to the
-middle of the road, short of flat out, to the whole road for its line, a drift through every bend
-and a trick off every flight.
+middle of the road, short of flat out, to the whole road for its line, a drift through every bend,
+drift after drift down the straights and a trick off every flight.
 
 No two racers of one rating race alike. Each has a talent of its own, the same all through a
 lobby, that sets it a little above or below its rating, so one of them is the one to beat; a day
@@ -91,9 +91,13 @@ def race_of(seed: str, track: int, go: int, kart: str, rating: float) -> Race:
     """The race the racer seeded ``seed`` (where it is and what it's called) drives on race track
     ``track``, let go at tick ``go``, rated ``rating`` (0 the least there is to 1 the most)."""
     dice = random.Random(f"{seed}/{track}/{go}")
+    # Chaining drifts is its rating's to do or not, the same for every racer rated so: its talent
+    # and its day move how well it drives, not what it has learned to do.
+    chains = skill(rating).chains
     rating += random.Random(seed).uniform(-TALENT, TALENT) + dice.uniform(-DAY, DAY)
     skilled = skill(rating)
-    skilled = replace(skilled, shape=replace(skilled.shape, width=skilled.shape.width - dice.choice(NARROWER)))
+    shape = replace(skilled.shape, width=skilled.shape.width - dice.choice(NARROWER))
+    skilled = replace(skilled, shape=shape, chains=chains)
     waves = ((dice.uniform(*LONG), dice.random()), (dice.uniform(*SHORT), dice.random()))
     reaction = dice.uniform(0, REACTION) * (1.2 - max(0.0, min(1.0, rating)))
     driver = Driver(line_of(track, skilled.shape, kart), skilled, load_karts().of(kart), dice)
@@ -131,7 +135,8 @@ class Racer:
         late = max(0, min(MOST_LATE, sent - me.last_seq))
         if state.tick + late < mine.off:
             return Keys()
-        return mine.driver.keys(kart, late, mine.mood(state.tick))
+        others = tuple(other.pos for other in state.karts.values() if other is not kart)
+        return mine.driver.keys(kart, late, mine.mood(state.tick), others)
 
 
 async def run_racer_bot(

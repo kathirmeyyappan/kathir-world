@@ -56,8 +56,9 @@ class Shape:
 class Line:
     """A line's points in the order they're driven: where each is (``x``, ``z``, and the road's
     height there, ``y``), how far along the line (``s``), how it bends there (``k``, 1/m, positive
-    turning right), whether a jump begins there (``gap``), and the speed, m/s, at which the road
-    falls away from under a kart there (``lift``; infinite where it doesn't)."""
+    turning right), whether a jump begins there (``gap``), the speed, m/s, at which the road
+    falls away from under a kart there (``lift``; infinite where it doesn't), and the metres of
+    road it has to its left and to its right there (``left``, ``right``)."""
 
     x: tuple[float, ...]
     y: tuple[float, ...]
@@ -66,6 +67,8 @@ class Line:
     k: tuple[float, ...]
     gap: tuple[bool, ...]
     lift: tuple[float, ...]
+    left: tuple[float, ...]
+    right: tuple[float, ...]
 
 
 def racing_line(middle: Middle, shape: Shape, kart: Driven) -> Line:
@@ -177,6 +180,12 @@ def racing_line(middle: Middle, shape: Shape, kart: Driven) -> Line:
         k[i] = turned / ((s[i + 1] - s[i - 1]) / 2)
     # The map's points within reach of each point of the line: where the road's slope changes.
     reach = [(_at(mi, max(0.0, h - 0.6)), _at(mi, min(m - 1.0, h + 0.6))) for h in home]
+    # How far to the right of the road's middle each point is.
+    aside = []
+    for i, h in enumerate(home):
+        j = min(m - 2, int(h))
+        ux, uz = mx[j + 1] - mx[j], mz[j + 1] - mz[j]
+        aside.append(((x[i] - _at(mx, h)) * uz - (z[i] - _at(mz, h)) * ux) / (math.hypot(ux, uz) or 1.0))
     return Line(
         x=tuple(x),
         y=tuple(_at(my, h) for h in home),
@@ -187,6 +196,8 @@ def racing_line(middle: Middle, shape: Shape, kart: Driven) -> Line:
         lift=tuple(
             min((lifts[j] for j in range(math.ceil(lo), math.floor(hi) + 1)), default=math.inf) for lo, hi in reach
         ),
+        left=tuple(middle.width / 2 + a for a in aside),
+        right=tuple(middle.width / 2 - a for a in aside),
     )
 
 
