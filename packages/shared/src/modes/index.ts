@@ -1,13 +1,13 @@
 // The game modes a room can be created in (docs/game-modes.md). Freeplay is the game with no
 // rules of its own: what a room is unless it's created as another, and what the room everyone
 // shares always is. The rest are games, each with its own rules over the same world.
-import { GAME_ALLOWS, Game, gameRules, type Phase } from './game';
+import { ANY_GAME, Game, gameRules, type Phase } from './game';
 import { GameMode, type ModeRoom } from './mode';
 import { FREEPLAY_RULES, type Rules } from './rules';
 
 export { MASTER_LEFT, START_SECONDS, type Phase } from './game';
 export type { GameMode, ModeRoom } from './mode';
-export type { Rules } from './rules';
+export type { Dying, Rules } from './rules';
 
 export const GAME_MODE_IDS = ['freeplay', 'racing', 'shootout'] as const;
 export type GameModeId = (typeof GAME_MODE_IDS)[number];
@@ -54,8 +54,8 @@ const GAMES: Record<GameModeId, new (id: GameModeId, room: ModeRoom) => GameMode
 };
 const RULES: Record<GameModeId, Rules> = {
   freeplay: FREEPLAY_RULES,
-  racing: gameRules(GAME_ALLOWS),
-  shootout: gameRules(GAME_ALLOWS),
+  racing: gameRules(ANY_GAME),
+  shootout: gameRules(ANY_GAME),
 };
 
 // A room's game in mode `id`.
@@ -64,7 +64,7 @@ export function makeMode(id: GameModeId, room: ModeRoom): GameMode {
 }
 
 // The rules of the mode a game is in, which the Room enforces and the client shows: each is asked
-// of the game as it stands, `rulesOf(game).refuses(game, command)`.
+// of the game as it stands, `rulesOf(game).dying(game)`.
 export function rulesOf(game: GameState): Rules {
   return RULES[game.mode];
 }

@@ -876,9 +876,13 @@ staircases. List a landmark's there when it's worth navigating by.
 
 A player is one seat in the Room from joining to leaving: their id, name, colour, `kills` and
 `deaths` (`PlayerState`, both on the roster) last the whole visit, and nothing about dying loads a
-page. A body at no hearts is `dead` and lies where it fell. A person's lies `RESPAWN_SECONDS` (10),
-which their death screen (`ui/Death.ts`) counts down, or until its RESPAWN button sends the
-`respawn` message; then the Room (`room.ts` `respawn`) buries the body (`buryBody`: it leaves
+page. A body at no hearts is `dead` and lies where it fell. How long a person's lies, and what
+their player sees meanwhile, is a rule of the room's game that the Room and the client both read
+(`Dying`, the shared package's `modes/rules.ts`): in freeplay ten seconds, which their death screen
+(`ui/Death.ts`) counts down, or until its RESPAWN button sends the `respawn` message; in a game's
+lobby three, with no screen and no death sound, the mouse still the world's and the body watched
+from the boom whatever the view (`View.watching`). Then the Room (`room.ts` `respawn`) buries the
+body (`buryBody`: it leaves
 `CORPSE_DROP`, see Regions and pickups) and gives the seat a new one, as whoever comes in is given
 (a full life, nothing held or worn), somewhere in `RESPAWN_AREAS`, in the look they died in
 if it's one on foot (a dragon's rider comes back as the standard body). A bot is never brought back: its
@@ -888,12 +892,12 @@ uses too, to put everyone where it starts and back in its lobby (see Game modes)
 on the wire says it happened: clients read it off the snapshots, a `body` that isn't the one they
 knew. The last one's avatar goes, in a poof where it lay if it was dead, and is made afresh
 (`Game.dropAvatar`), nothing is drawn between the old body and the new (`Interpolation`), the
-player's own client takes its look from the new body and, back from the dead, takes the death screen
+player's own client takes its look from the new body and, back from under the death screen, takes it
 down (`Game.embody`), back in the world at once where the browser gives the mouse back (the RESPAWN
 button's press, or any key pressed in the last few seconds) and behind the start press
 (`ui/StartGate.ts`) where it won't, and the Room forgets where the old body was for lag compensation
-(`PositionHistory.forget`). Whatever decides when or whether the dead come back (a game mode's
-rules) is a change to when the Room calls `respawn`, and nothing else.
+(`PositionHistory.forget`). Whatever else decides when or whether the dead come back is a change to
+that rule, or to when the Room calls `respawn`, and nothing else.
 
 ## Avatars
 

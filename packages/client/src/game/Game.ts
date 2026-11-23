@@ -44,6 +44,7 @@ import {
   itemStats,
   lookDirection,
   resolveFire,
+  rulesOf,
   FREEPLAY,
   type AvatarId,
   type FrostCell,
@@ -905,12 +906,17 @@ export class Game {
     this.avatars.delete(id);
   }
 
-  // The local player died; `how` heads the death screen.
+  // The local player died. Where the room's game puts the death screen over a death (the shared
+  // package's modes/rules.ts `Dying`), `how` heads it; where it doesn't, the world stays in view,
+  // the mouse stays the world's, and they watch their body lie until they're back.
   private die(how: string): void {
     this.dead = true;
     this.setScoped(false);
     this.syncBlocked();
-    this.death.show(how);
+    const { seconds, screen } = rulesOf(this.game).dying(this.game);
+    this.view.watching = !screen;
+    if (!screen) return;
+    this.death.show(how, seconds);
     // The look's death plays over the death screen, a moment on so the last hit is heard first, and
     // over that hit's cry rather than cutting it, as the look's other lines cut its last. For as long
     // as it lasts it's the player's own music: the theme playing is gone by the time it starts, and
@@ -923,7 +929,7 @@ export class Game {
 
   // The local player is in a new body, `me` (the Room's `rebody`: back from the dead, or put
   // somewhere by a game): a new life, begun in third person, its look theirs and their own avatar
-  // made afresh. Back from the dead, the death screen and its sound end and the world has the mouse
+  // made afresh. Back from under the death screen, it and its sound end and the world has the mouse
   // again, behind the start press where the browser won't give it back without one (a respawn on
   // the Room's clock, nothing pressed since).
   private embody(me: PlayerState): void {
@@ -935,10 +941,12 @@ export class Game {
     this.ownAvatar = null;
     if (!this.dead) return;
     this.dead = false;
+    this.view.watching = false;
+    this.syncBlocked();
+    if (!this.death.up) return;
     this.death.hide();
     this.sfx.hush(DIRGE);
     this.mourningUntil = 0;
-    this.syncBlocked();
     if (!IS_TOUCH) Promise.resolve(this.canvasEl.requestPointerLock?.()).catch(() => this.startGate.show());
   }
 

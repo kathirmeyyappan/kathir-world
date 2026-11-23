@@ -35,7 +35,7 @@ export type ClientMessage =
   | { t: 'input'; f: InputFrame }
   | { t: 'chat'; text: string }
   | { t: 'rename'; name: string } // what to be called from now on; everyone sees it in the next snapshot
-  | { t: 'respawn' } // dead, and back now rather than when the Room would bring them (RESPAWN_SECONDS)
+  | { t: 'respawn' } // dead, and back now: the death screen's button (modes/rules.ts `Dying`)
   | { t: 'game'; do: GameAction } // asks something of the room's game (modes/), which says whose it is to ask
   | { t: 'ping'; at: number };
 

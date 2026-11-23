@@ -51,10 +51,6 @@ export const CHILLED_SPEED_MULTIPLIER = 0.5;
 
 // Shooting: hits are resolved on the server against each avatar's hit capsule (sim/avatars.ts).
 // Ranges and cooldowns are per item, in items.ts.
-// Seconds a dead person lies before the Room brings them back (room.ts `respawn`): what their death
-// screen counts down.
-export const RESPAWN_SECONDS = 10;
-
 // How far behind the newest snapshot remote players are rendered. Higher hides jitter, costs latency.
 export const INTERP_DELAY_TICKS = 3;
 // How far back the server will rewind targets to judge a shot (lag compensation, rewind.ts).

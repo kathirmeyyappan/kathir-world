@@ -62,8 +62,8 @@ which is null in freeplay, where there's no game to be anywhere in).
    view (`ui/GameBanner.ts`): "Waiting for room master to organize and start the game..." for
    everyone but the master, whose own says "Go to the menu (press M) to start the game." A body at
    no hearts lies three seconds, so its player sees they died, and is then back at full hearts in
-   `RESPAWN_AREAS`, with no death screen and no death sound (to build). And whoever joins is a
-   player. The room's default bots come as they do in freeplay, and bots can be called.
+   `RESPAWN_AREAS`, with no death screen and no death sound (No hearts, below). And whoever joins
+   is a player. The room's default bots come as they do in freeplay, and bots can be called.
 2. **Starting.** The master presses START GAME, which is there to press once the mode's own
    condition to start holds. Everyone is told "Game is starting in 5", counted down
    (`START_SECONDS`, against `GameState.until`), still in the lobby. The lobby's bots are killed
@@ -109,14 +109,27 @@ game allows it.
 
 It's a rule of the mode's (`Rules.refuses`, `modes/rules.ts`), holding from a game's start until
 its lobby is back. A command is of a kind (`CommandKind`, `kindOf`: a weapon, gear, a look on
-foot, a dragon, a bot's), and a game says of every kind whether it allows it (`Allowed`, a table,
-made rules by `gameRules` in `modes/game.ts`), so a new kind is a compile error until each game
-has said. Until a mode has a table of its own it has every game's (`GAME_ALLOWS`): everything but
-the bots' commands. The Room asks before anything else about a command (`runCommand`), and the
+foot, a dragon, a bot's), and a game says of every kind whether it allows it (`Playing.allows`, an
+`Allowed`: a table, made rules by `gameRules` in `modes/game.ts`), so a new kind is a compile error
+until each game has said. Until a mode has a table of its own it has every game's (`ANY_GAME`):
+everything but the bots' commands. The Room asks before anything else about a command (`runCommand`), and the
 client asks the same function of the state it was sent (`rulesOf` for both; `refusedBy` in
 `ui/commands.ts`): a refused command's button on the commands card is greyed, and at a press says
 why in the red box, the card staying up, and its line in the chat's completions is greyed too. One
 sent anyway is refused by the Room like any.
+
+### No hearts
+
+What no hearts means is a rule of the mode's too (`Rules.dying`, a `Dying`): how many seconds a
+person's body lies before the Room brings them back in a new one, and whether the death screen
+stands over that, with its count, its RESPAWN button to come back sooner and the look's death
+sound. Freeplay's is ten seconds under the screen (`FREEPLAY_DYING`). A game's lobby, its
+countdown included, is somewhere to wait: three seconds and no screen (`LOBBY_DYING`), the mouse
+staying the world's, and the player watching their body lie from the boom whatever their view
+(`View.watching`), since nothing else says they died but the kill line. While a game is played
+it's the mode's own to say (`Playing.dying`), freeplay's until it does. The Room reads it each
+step for how long the dead lie and takes a `respawn` message only where there's a screen to have
+sent it; the client reads it as its player dies (`Game.die`).
 
 ### Ghosts
 
@@ -245,7 +258,7 @@ everything else, and it will change as modes and features are added (`CLAUDE.md`
 | The Room or the client asks                       | Freeplay answers                       | For                                                 | Asked as                        |
 | ------------------------------------------------- | -------------------------------------- | --------------------------------------------------- | ------------------------------- |
 | May this player do this (a command, getting out)? | yes                                    | `runCommand`, a kart's exit; the commands card      | `Rules.refuses`, of a command   |
-| What does no hearts mean here?                    | lie 10 s, the death screen, a new body | the Room's respawn; `ui/Death.ts`                   | to build                        |
+| What does no hearts mean here?                    | lie 10 s, the death screen, a new body | the Room's respawn; `ui/Death.ts`                   | `Rules.dying`                   |
 | Where is this body put?                           | `SPAWN_AREAS`, `RESPAWN_AREAS`         | joining, a game's start, coming back, a spectator   | to build                        |
 | What floor is in play?                            | the whole world's                      | a kart's rescue, the red box, the maps, the floor   | to build                        |
 | What did this kill or death score?                | nothing                                | the Room's `damage`                                 | to build                        |
@@ -297,7 +310,7 @@ outside dev until each can be played, so freeplay is run on every merge.
 - [x] The GAME tab: there in a room with a game, opening first for its master, with START and END
       GAME. Each mode's settings come with the mode.
 - [x] Refused commands, greyed where commands are offered.
-- [ ] What no hearts means, per phase: the lobby's three seconds and no screen.
+- [x] What no hearts means, per phase: the lobby's three seconds and no screen.
 
 **2. Ghosts**
 

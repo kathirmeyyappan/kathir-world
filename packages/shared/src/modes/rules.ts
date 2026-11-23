@@ -10,10 +10,25 @@ import type { GameState } from './index';
 export interface Rules {
   // Why `command` is refused as the game stands, or null.
   refuses(game: GameState, command: Command): string | null;
+  // What no hearts means for a person as the game stands.
+  dying(game: GameState): Dying;
 }
+
+// What no hearts means for a person: their body lies `seconds` where it fell, and they're then
+// back in a new one. With a `screen`, the death screen stands over that, counting it down: its
+// button brings them back sooner, and their look's death sound plays. With none the world stays in
+// view, and they watch their body lie there.
+export interface Dying {
+  seconds: number;
+  screen: boolean;
+}
+
+// Freeplay's: ten seconds under the death screen.
+export const FREEPLAY_DYING: Dying = { seconds: 10, screen: true };
 
 export const FREEPLAY_RULES: Rules = {
   refuses: () => null,
+  dying: () => FREEPLAY_DYING,
 };
 
 // What a command is to a game's rules. A game says of every kind whether it allows it (game.ts

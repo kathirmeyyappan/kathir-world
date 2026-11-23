@@ -19,7 +19,6 @@ import {
   MASTER_LEFT,
   MAX_REWIND_TICKS,
   START_SECONDS,
-  RESPAWN_SECONDS,
   MOVE_SPEED,
   PICKUP_AREAS,
   RENAME_SECONDS,
@@ -43,6 +42,7 @@ import {
   PINEAPPLE_PLACEMENT,
   botRequest,
   defaultBotsFor,
+  rulesOf,
   AVATARS,
   BLAST,
   KARTS,
@@ -281,6 +281,20 @@ test("a game's flow: its master starts it from the lobby, counted down, on a wor
   room.step();
   assert.ok(snap().karts.length === 1 && snap().pickups.length === 1 && room.structures.frost.size > 0);
   assert.equal(told(a).phase, 'lobby');
+  // The lobby is somewhere to wait: its dead lie a few seconds with no death screen over them, and
+  // are back no sooner for asking.
+  const fall = () => {
+    player(idb).pos.y += 100;
+    while (!player(idb).dead) room.step();
+    return room.tick;
+  };
+  const lobby = rulesOf(told(a)).dying(told(a));
+  const died = fall();
+  room.receive(idb, { t: 'respawn' });
+  while (room.tick < died + lobby.seconds * TICK_RATE - 5) room.step();
+  assert.ok(player(idb).dead, 'lying there until just short of it, whatever was asked');
+  for (let i = 0; i < 10; i++) room.step();
+  assert.ok(!player(idb).dead && player(idb).hearts === MAX_HEARTS, 'and back at full hearts');
 
   room.receive(idb, { t: 'game', do: 'start' });
   assert.equal(told(a).phase, 'lobby', "the game is its master's to start");
@@ -306,7 +320,7 @@ test("a game's flow: its master starts it from the lobby, counted down, on a wor
   );
   assert.deepEqual(
     [bob.item, bob.kills, bob.body],
-    [null, 0, 2],
+    [null, 0, 3],
     'a new body, nothing in hand, the score from nothing',
   );
   // A game is people alone, so the bots' commands are refused through it, and nothing else is.
@@ -316,12 +330,20 @@ test("a game's flow: its master starts it from the lobby, counted down, on a wor
   }
   room.receive(idb, { t: 'chat', text: '/gun' });
   assert.equal(player(idb).item?.id, 'gun');
+  // In the game the dead lie as freeplay's do: longer, under the death screen, back for the asking.
+  const game = rulesOf(told(a)).dying(told(a));
+  assert.ok(!lobby.screen && game.screen && game.seconds > lobby.seconds);
+  fall();
+  for (let i = 0; i < lobby.seconds * TICK_RATE + 10; i++) room.step();
+  assert.ok(player(idb).dead, "past the lobby's time, still lying there");
+  room.receive(idb, { t: 'respawn' });
+  assert.ok(!player(idb).dead);
 
   room.receive(idb, { t: 'game', do: 'end' });
   assert.equal(told(a).phase, 'playing', "and its master's to end");
   room.receive(ida, { t: 'game', do: 'end' });
   assert.equal(told(b).phase, 'lobby');
-  assert.equal(player(idb).body, 3, 'everyone back in the lobby in a new body');
+  assert.equal(player(idb).body, 5, 'everyone back in the lobby in a new body');
   room.receive(idb, { t: 'chat', text: '/kill-bots' });
   assert.deepEqual(b.inbox.at(-1), { t: 'refused', text: 'no bots here' }, 'where a bot command is a command again');
 });
@@ -657,7 +679,7 @@ test('the dead: a person comes back after 10 s, or at once when they ask, in the
   snipe(idc);
   const lay = { ...player(idb).pos };
 
-  while (room.tick < died + RESPAWN_SECONDS * TICK_RATE - 5) room.step();
+  while (room.tick < died + rulesOf(told(a)).dying(told(a)).seconds * TICK_RATE - 5) room.step();
   assert.ok(player(idb).dead, 'still lying there just short of 10 s');
   assert.deepEqual(closed, ['bot'], 'the bot was dropped on the way, its connection closed');
   assert.ok(!room.players.some((p) => p.id === idc));
