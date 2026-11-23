@@ -196,15 +196,18 @@ export function layTrack(route: Route): Track {
 
 // Where `pos` is against `track`, by the spot of its middle nearest it on the road `pos` is on (a
 // deck and the road under it are told apart by their heights): how far along the track that is, and
-// how far off its middle. Somewhere on no level of it is as far off as can be.
+// how far off its middle. Somewhere on no level of it (in the air over it, in Lakitu's hands) is as
+// far off as can be, and as far along as the spot nearest it of them all.
 export function onTrack(track: Track, pos: Vec3): OnTrack {
   let [nearest, distance] = [track.spots[0], Infinity];
+  let [nearestOfAll, straight] = [track.spots[0], Infinity];
   for (const s of track.spots) {
-    if (Math.abs(pos.y - s.y) > LEVELS) continue;
     const d = Math.hypot(pos.x - s.x, pos.z - s.z);
-    if (d < distance) [nearest, distance] = [s, d];
+    const through = Math.hypot(d, pos.y - s.y);
+    if (through < straight) [nearestOfAll, straight] = [s, through];
+    if (Math.abs(pos.y - s.y) <= LEVELS && d < distance) [nearest, distance] = [s, d];
   }
-  if (distance === Infinity) return { at: 0, off: Infinity };
+  if (distance === Infinity) return { at: nearestOfAll.at, off: Infinity };
   // Along the way the track runs there, and across it.
   const [fx, fz] = [Math.sin(nearest.yaw), Math.cos(nearest.yaw)];
   const [dx, dz] = [pos.x - nearest.x, pos.z - nearest.z];

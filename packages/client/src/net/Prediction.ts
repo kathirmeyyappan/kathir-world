@@ -1,7 +1,9 @@
 // Client-side prediction for the local player. Inputs are applied immediately with the shared sim
 // and kept until the server acknowledges them; on each snapshot we rewind to the server's state
 // and replay what it hasn't seen yet. A driver's frames drive their kart (sim/vehicles/kart.ts
-// `ride`), so it's the kart that's predicted, rewound and replayed with them.
+// `ride`), so it's the kart that's predicted, rewound and replayed with them. The Room steps a
+// frame a tick, so one it hasn't answered yet is taken to be stepped as many ticks on from the
+// last tick heard as there are frames ahead of it: what a kart held by the room's game is let go by.
 import {
   TICK_DT,
   clonePlayer,
@@ -29,10 +31,14 @@ export class Prediction {
   private last: InputFrame | null = null; // the frame last applied
   private pending: InputFrame[] = [];
   private seq = 0;
+  private tick = 0; // the Room's tick as of the snapshot last reconciled with
 
   constructor(
     initial: PlayerState,
     private readonly structures: Structures,
+    // Whether the room's game holds the kart they drive where it stands at `tick` of the Room's
+    // clock (the shared package's `Rules.held`): its keys do nothing then, as in the Room.
+    private readonly held: (tick: number) => boolean,
   ) {
     this.state = clonePlayer(initial);
   }
@@ -41,9 +47,14 @@ export class Prediction {
     return ++this.seq;
   }
 
+  // The Room's tick as their next frame will meet it, as near as can be told.
+  get nextTick(): number {
+    return this.tick + this.pending.length;
+  }
+
   // Applies a local frame.
   apply(frame: InputFrame): void {
-    this.step(this.state, this.kart, frame);
+    this.step(this.state, this.kart, frame, this.nextTick);
     this.pending.push(frame);
     this.last = frame;
   }
@@ -70,17 +81,18 @@ export class Prediction {
   private kartAfter(seconds: number): KartState | null {
     if (!this.kart) return null;
     const on = cloneKart(this.kart);
-    stepKart(on, controlsOf(this.last), seconds, this.structures);
+    stepKart(on, controlsOf(this.held(this.nextTick) ? null : this.last), seconds, this.structures);
     return on;
   }
 
   // Returns how far the corrected position moved, so the caller can smooth the pop. `kart` is the
-  // server's word on the kart they drive, if they do.
-  reconcile(server: PlayerState, kart: Kart | undefined): { dx: number; dy: number; dz: number } {
+  // server's word on the kart they drive, if they do, and `tick` the Room's as it sent them.
+  reconcile(server: PlayerState, kart: Kart | undefined, tick: number): { dx: number; dy: number; dz: number } {
     this.pending = this.pending.filter((f) => f.seq > server.lastSeq);
+    this.tick = tick;
     const next = clonePlayer(server);
     const driven = server.riding && kart ? cloneKart(kart) : null;
-    for (const f of this.pending) this.step(next, driven, f);
+    this.pending.forEach((f, i) => this.step(next, driven, f, tick + i));
     const delta = {
       dx: this.state.pos.x - next.pos.x,
       dy: this.state.pos.y - next.pos.y,
@@ -91,8 +103,9 @@ export class Prediction {
     return delta;
   }
 
-  private step(p: PlayerState, kart: KartState | null, frame: InputFrame): void {
-    if (p.riding && kart) ride(p, kart, frame, TICK_DT, this.structures);
+  // One frame's step, taken as the Room will take it at `tick`.
+  private step(p: PlayerState, kart: KartState | null, frame: InputFrame, tick: number): void {
+    if (p.riding && kart) ride(p, kart, frame, TICK_DT, this.structures, this.held(tick));
     else stepPlayer(p, frame, TICK_DT, this.structures);
   }
 }

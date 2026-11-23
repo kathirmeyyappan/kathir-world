@@ -15,6 +15,7 @@ export interface MobileActionState {
   canFire: boolean; // false for a scope-only weapon that isn't scoped
   climbing: boolean; // on a ladder: SWAP goes round to its other face
   driving: boolean; // in a kart: OUT gets out of it, and there's no SELECT, its corner being the pedals' (a tap on the view opens a cube)
+  kept: boolean; // the room's game keeps a driver in their kart: no OUT
   move: { label: 'CROUCH' | 'POUND' | 'BAT'; on: boolean } | null; // what a look's own move is where it stands, and whether it's on
 }
 
@@ -64,7 +65,7 @@ export class MobileActions {
     this.scope.classList.toggle('hidden', !canScope);
     this.scope.classList.toggle('on', state.scoped);
     this.swap?.classList.toggle('hidden', !state.climbing);
-    this.out?.classList.toggle('hidden', !state.driving);
+    this.out?.classList.toggle('hidden', !state.driving || state.kept);
     if (this.pound) {
       this.pound.classList.toggle('hidden', !state.move);
       this.pound.classList.toggle('on', !!state.move?.on);

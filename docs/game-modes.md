@@ -301,6 +301,16 @@ on the grid, over the line and once the race is run (`held`, by the Room's own t
 with the gas down leaves the grid on the same tick whatever their lag; a driver's prediction counts
 that tick on from the last it heard, one for each frame not yet answered).
 
+The client's part (`modes/racing/hud.ts`) is read off that state and the karts in the snapshot,
+with nothing more sent: the grid's words and its count and GO!, by the same count of the Room's
+tick the kart is let go by; a racer's place, hugely, in the top right (`placesOf`: over the line
+in the order crossed, then by how far along the track each kart is, then whoever's out), with
+which race it is and, once someone has finished, the clock on the rest, flashing through its last
+ten seconds; over the view, who finished and how long is left, the place a racer finished in, or
+ELIMINATED; and when the race is run, its leaderboard (each racer's points so far and what the
+race gave them) until the next begins. A racer is offered no way out of their kart: no key in
+the legend, no hint, no OUT on touch.
+
 ## How the code is laid out
 
 ```
@@ -312,9 +322,12 @@ packages/shared/src/modes/
   shootout/     its state (state.ts), rules (rules.ts) and referee (referee.ts): teams, spawn sites, points
   racing/       its state (state.ts), rules (rules.ts) and referee (referee.ts): the series, a race's clocks, places
 packages/client/src/modes/
-  index.ts      what each mode adds to the client, by mode: its settings' rows
-  shootout/     its settings (settings.ts: the board of teams, the clock) and its HUD (points and clock)
-  racing/       its HUD (place), the track on the maps and the floor, the finish line
+  index.ts      what each mode adds to the client, by mode: its settings' rows, what its game has on the HUD
+  bots.ts       the row both modes' settings end on until there are bots that play them
+  shootout/     its settings (settings.ts: the board of teams, the clock) and its HUD (hud.ts: points and clock)
+  racing/       its settings (settings.ts: how many races, the racers) and its HUD (hud.ts: the grid's
+                count, a racer's place, the clock on the rest, the leaderboard); to come, the track on
+                the maps and the floor, the finish line
 ```
 
 A mode has two halves. Its **rules** (`Rules`, `modes/rules.ts`; a mode's are `rulesOf` its state)
@@ -333,11 +346,12 @@ everything else, and it will change as modes and features are added (`CLAUDE.md`
 | May this player do this (a command, getting out)? | yes                                    | `runCommand`, a kart's exit; the commands card      | `Rules.refuses`, `Rules.seated` |
 | Is this player's kart held where it stands?       | no                                     | the Room's drive; the driver's prediction           | `Rules.held`                    |
 | What does no hearts mean here?                    | lie 10 s, the death screen, a new body | the Room's respawn; `ui/Death.ts`                   | `Rules.dying`                   |
-| Where is this body put?                           | `SPAWN_AREAS`, `RESPAWN_AREAS`         | joining, a game's start, coming back, a spectator   | `Game.startsAt`, at a start     |
+| Where is this body put?                           | `SPAWN_AREAS`, `RESPAWN_AREAS`         | joining, a game's start, coming back, a spectator   | `Game.place`, at a start        |
 | What floor is in play?                            | the whole world's                      | a kart's rescue, the red box, the maps, the floor   | `Rules.track`                   |
 | What did this kill or death score?                | nothing                                | the Room's `damage`                                 | `GameMode.died`                 |
 | Whose side is this player on?                     | nobody's                               | friendly fire's kill line; names and marks (to come)| `Rules.side`                    |
-| How does the game stand?                          | it doesn't                             | the results screen; the HUD's points (to come)      | `Rules.standings`               |
+| How does the game stand?                          | it doesn't                             | the results screen; the roster's order              | `Rules.standings`               |
+| What's on the HUD while the game is played?       | nothing                                | the banner's line, the top right, a leaderboard     | the client's `MODE_HUD`         |
 | How does this player see that one?                | plainly, in their own colour           | name tags, pins, maps, the roster, the chat's names | `Rules.sees`, `Rules.side`      |
 | What is someone who joins now?                    | a player                               | joining                                             | `GameMode.joining`, `joined`    |
 | What does this player leaving do?                 | their seat goes                        | leaving                                             | `GameMode.left`                 |
@@ -364,8 +378,11 @@ refuses every join from then on, and its code is free once its session has idled
 **The client.** What every mode shares is written once: the banner (the lobby's lines, the
 countdown, a race's last seconds), the results screen, the GAME tab, refused commands greyed, the
 roster's marks (crown, ghost, team), a ghost's drawing, and the mode's say in `ui/NameTags.ts`,
-`ui/Pins.ts`, `ui/MapCanvas.ts` and `ui/Death.ts`. A mode's client directory adds its own HUD and
-nothing else, and `Game.ts` asks the questions rather than growing a branch per mode.
+`ui/Pins.ts`, `ui/MapCanvas.ts` and `ui/Death.ts`. A mode's client directory adds its settings'
+rows (`MODE_SETTINGS`) and what its game has on the HUD while it's played (`MODE_HUD`, a
+`Showing`: the line standing over the view, what's in the top right, a leaderboard over the view),
+which the shared `ui/GameBanner.ts`, `ui/Scores.ts` and `ui/Results.ts` draw; `Game.ts` asks
+rather than growing a branch per mode.
 
 **The roads' graph.** `sim/tracks.ts` reads the roads as a graph off the road layer's own account
 of each (`Road.middle`): a road is a leg between the two discs it's laid from and to, and a route
@@ -423,9 +440,9 @@ outside dev until each can be played, so freeplay is run on every merge.
 
 - [x] The roads' graph in the sim, and tracks found through it.
 - [x] The floor in play: a kart off the track rescued onto it, the red box.
-- [ ] A race: the grid, the countdown, no getting out, places, the line, the 45 seconds,
-      elimination, points, the leaderboard, the series.
-- [ ] Its HUD: the place, the track on the maps, the grey floor, the checkered line.
+- [x] A race: the grid, the countdown, no getting out, places, the line, the 45 seconds,
+      elimination, points, the leaderboard, the series; its settings and its HUD.
+- [ ] Its look: the track on the maps, the grey floor, the checkered line, Lakitu at the start.
 - [ ] Racing on the home screen and in the guide.
 
 ## Later: the modes' bots

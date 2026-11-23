@@ -2,7 +2,9 @@
 // and how long the game runs.
 import { CLOCK, MIN_TEAMS, TEAMS, isShootout, type ShootoutState } from '@world/shared';
 import { IS_TOUCH } from '../../input/touch';
+import { clockFace } from '../../ui/clock';
 import type { Row } from '../../ui/menu/rows';
+import { BOTS_TO_COME } from '../bots';
 import type { ModeHooks } from '../index';
 
 const MOVING = IS_TOUCH
@@ -39,23 +41,11 @@ export function shootoutSettings(hooks: ModeHooks): Row[] {
     {
       kind: 'stepper',
       label: 'CLOCK',
-      value: () => clock(game().seconds),
+      value: () => clockFace(game().seconds),
       step: (by) => hooks.set({ clock: game().seconds + by * CLOCK.step }),
       can: (by) =>
         mine() && game().seconds + by * CLOCK.step >= CLOCK.min && game().seconds + by * CLOCK.step <= CLOCK.max,
     },
-    {
-      kind: 'stepper',
-      label: 'BOTS',
-      value: () => '0',
-      step: () => {},
-      can: () => false,
-      hint: () => 'Bots that play this mode are on the way.',
-    },
+    BOTS_TO_COME,
   ];
-}
-
-// "5:00", "0:30".
-function clock(seconds: number): string {
-  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
 }

@@ -13,7 +13,7 @@ import {
   type PickupKind,
   type GameModeId,
 } from '@world/shared';
-import { DRIVING } from '../ui/legend';
+import { DRIVING, GET_OUT } from '../ui/legend';
 import type { AbilityId } from './stats';
 
 export interface Entry {
@@ -65,7 +65,7 @@ export const CONTROLS: { title: string; keys: [string, string][] }[] = [
   {
     title: 'Kart',
     keys: [
-      ...DRIVING.map(({ keys, does }): [string, string] => [keys.join(' / '), does]),
+      ...[...DRIVING, GET_OUT].map(({ keys, does }): [string, string] => [keys.join(' / '), does]),
       ['Mouse', 'look around'],
       ...SHARED,
     ],

@@ -1461,8 +1461,30 @@ body {
   border: 3px solid rgba(var(--accent-rgb), 0.5);
   font: 30px var(--mono);
 }
+/* The one thing the player has to know, where the game has one (a racer's place), and under it
+   what it's of. */
+#scores .headline {
+  text-align: center;
+  font-size: 104px;
+  line-height: 1;
+  color: #fff;
+  text-shadow: 5px 5px 0 #000;
+}
+#scores .caption {
+  text-align: center;
+  font-size: 24px;
+  color: rgba(255, 255, 255, 0.8);
+  text-shadow: 2px 2px 0 #000;
+}
+#scores .headline:empty,
+#scores .caption:empty {
+  display: none;
+}
 #scores ul {
   list-style: none;
+}
+#scores ul:empty {
+  display: none;
 }
 #scores li {
   display: flex;
@@ -1485,15 +1507,33 @@ body {
   color: #fff;
   text-shadow: 3px 3px 0 #000;
 }
-/* On touch the top right is CHAT's and CMDS', so it stands under them, small. */
+/* Its last seconds. */
+#scores .clock.urgent {
+  color: #ff5a4e;
+  animation: urgent-flash 0.5s steps(2) infinite;
+}
+@keyframes urgent-flash {
+  50% {
+    opacity: 0.35;
+  }
+}
+/* On touch the top right is CHAT's and CMDS', so it stands under them, small: where a kart's OUT
+   goes, and under that while it's there. */
 @media (pointer: coarse) {
   #scores {
-    top: 78px;
-    right: 8px;
+    top: 124px;
+    right: 16px;
     min-width: 0;
     padding: 4px 8px;
     border-width: 2px;
     font-size: 15px;
+  }
+  #scores .headline {
+    font-size: 34px;
+    text-shadow: 2px 2px 0 #000;
+  }
+  #scores .caption {
+    font-size: 11px;
   }
   #scores li {
     gap: 14px;
@@ -1507,6 +1547,9 @@ body {
     padding-top: 4px;
     border-top-width: 2px;
     font-size: 17px;
+  }
+  #app:has(#out-button:not(.hidden)) #scores {
+    top: 178px;
   }
 }
 
@@ -1543,7 +1586,22 @@ body {
   border-color: rgba(255, 210, 74, 0.6);
 }
 #game-banner .line {
+  white-space: pre-line;
   animation: game-banner-flash 1.6s steps(4) infinite alternate;
+}
+/* One read at a glance (a count, GO!): its first line of text big, steady. */
+#game-banner .line.big {
+  animation: none;
+}
+#game-banner .line.big::first-line {
+  font-size: 44px;
+  line-height: 60px;
+}
+/* Time running out. */
+#game-banner .line.urgent {
+  color: #ff5a4e;
+  border-color: rgba(255, 90, 78, 0.7);
+  animation: urgent-flash 0.5s steps(2) infinite;
 }
 /* The nudge to the commands and the menu (CommandHint.ts) lies across the same part of the view for
    the seconds it's up: the banner waits under it. */
@@ -1920,6 +1978,12 @@ body {
 #results li.won {
   opacity: 1;
   background: rgba(255, 255, 255, 0.08);
+}
+/* What's noted beside a side's points: pushed over to them, the name keeping the left. */
+#results .note {
+  margin-left: auto;
+  padding: 0 14px 0 28px;
+  opacity: 0.75;
 }
 #results .count {
   font: 18px var(--mono);
@@ -2671,6 +2735,10 @@ body {
     right: 24%;
     padding: 0;
   }
+  /* A kart's pedals reach further in from the right than a walker's buttons. */
+  #app:has(#pedals:not(.hidden)) #game-banner {
+    right: 34%;
+  }
   #corner {
     top: 8px;
     left: 8px;
@@ -2769,6 +2837,26 @@ body {
   #commands-button {
     right: 88px;
   }
+  /* The game's points stand under CHAT, or beside OUT while that's there. */
+  #scores,
+  #app:has(#out-button:not(.hidden)) #scores {
+    top: 56px;
+  }
+  #app:has(#out-button:not(.hidden)) #scores {
+    right: 88px;
+  }
+  /* With a headline it's one line, the clock at its end, so it stands clear of a kart's pedals. */
+  #scores:has(.headline:not(:empty)) {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+  #scores:has(.headline:not(:empty)) .clock {
+    margin: 0;
+    padding: 0 0 0 8px;
+    border-top: 0;
+    border-left: 2px solid rgba(var(--accent-rgb), 0.3);
+  }
   #item-hint,
   #move-hint {
     top: 96px;
@@ -2845,6 +2933,10 @@ body {
 @media (pointer: coarse) and (max-width: 660px) and (orientation: portrait) {
   #area-title {
     top: 176px;
+  }
+  /* Under the game's points, which stand in the corner beside it. */
+  #game-banner {
+    top: max(30%, 220px, calc(var(--under-hearts) + 56px));
   }
   /* Small enough for each of the nudge's lines to stay on one row. */
   #command-hint .text {
