@@ -1,4 +1,5 @@
 // Wire format between client and room host. JSON for now; small enough that it doesn't matter yet.
+import type { GameState } from './modes';
 import type { FrostCell } from './sim/frost';
 import type { Appearance } from './sim/avatars';
 import { isItemAction, type ItemAction, type ItemId } from './sim/items';
@@ -42,6 +43,7 @@ export type ServerMessage =
       t: 'welcome';
       id: string;
       room: string;
+      game: GameState; // the room's game (modes/)
       tick: number;
       players: PlayerState[];
       cubes: CubeSnapshot[];

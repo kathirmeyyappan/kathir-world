@@ -6,7 +6,7 @@
 //            same-origin, so the proxy's session cookie applies and no token is needed.
 //   launcher anywhere else (GitHub Pages): navigate to the lobby, which starts a session and
 //            redirects the browser to the room host with the token. See docs/join-flow.png.
-import { AVATARS, NAMED_COLORS, isAvatarId, type AvatarId } from '@world/shared';
+import { AVATARS, FREEPLAY, NAMED_COLORS, isAvatarId, type AvatarId, type GameModeId } from '@world/shared';
 import { skinChoice } from '../app/skins';
 import { WsConnection, type Connection } from './Connection';
 
@@ -21,6 +21,9 @@ if (startParams.get('lobby')) sessionStorage.setItem('world.lobby', startParams.
 const home = startParams.get('home');
 if (home && home !== location.origin) sessionStorage.setItem('world.home', home);
 export const SERVED_BY_ROOM_HOST = sessionStorage.getItem('world.direct') === '1';
+// What the lobby says of the room it sent this page to, on the address it sent it to: the game
+// mode the room was created in. The page hands each on to the room server as it joins, as given.
+const LOBBY_SAYS = ['game'];
 // Home when it's another page: on the room host, the launcher (or dev page) the lobby named, else the
 // launcher the room host puts in the page. Null on home itself.
 export const HOME = sessionStorage.getItem('world.home') || pageMeta('world-home');
@@ -138,9 +141,16 @@ export function colorName(hex: string): string | null {
   return Object.keys(NAMED_COLORS).find((name) => NAMED_COLORS[name] === hex) ?? null;
 }
 
-function lobbyJoin(lobby: string, roomId: string, you: Joiner | undefined, mode: JoinMode): string {
+function lobbyJoin(
+  lobby: string,
+  roomId: string,
+  you: Joiner | undefined,
+  mode: JoinMode,
+  game: GameModeId = FREEPLAY,
+): string {
   const query = you ? joinQuery(you) : new URLSearchParams();
   query.set('mode', mode);
+  if (game !== FREEPLAY) query.set('game', game);
   return `${lobby}/join/${encodeURIComponent(roomId)}?${query}`;
 }
 
@@ -177,12 +187,19 @@ export function warmLobby(): void {
 }
 
 // Into a room as `mode` asks, or with no mode, into the room host's own room (the one the lobby sent
-// this page to, or this tab's on a reload), which the lobby has already admitted it to.
-export async function joinRoom(roomId: string, you: Joiner, mode: JoinMode | null): Promise<Connection> {
+// this page to, or this tab's on a reload), which the lobby has already admitted it to. `game` is
+// the game mode a create makes its room in.
+export async function joinRoom(
+  roomId: string,
+  you: Joiner,
+  mode: JoinMode | null,
+  game: GameModeId = FREEPLAY,
+): Promise<Connection> {
   const ws = () => {
     const query = joinQuery(you);
     query.set('room', roomId);
     if (mode) query.set('mode', mode);
+    if (game !== FREEPLAY) query.set('game', game);
     return query;
   };
   const wsScheme = location.protocol === 'https:' ? 'wss' : 'ws';
@@ -195,10 +212,12 @@ export async function joinRoom(roomId: string, you: Joiner, mode: JoinMode | nul
   // The room host serves one session's room; any other goes through the lobby.
   const lobby = lobbyUrl();
   if (SERVED_BY_ROOM_HOST && (!mode || !lobby)) {
-    return WsConnection.connect(`${wsScheme}://${location.host}/ws?${ws()}`);
+    const query = ws();
+    for (const key of LOBBY_SAYS) if (startParams.has(key)) query.set(key, startParams.get(key)!);
+    return WsConnection.connect(`${wsScheme}://${location.host}/ws?${query}`);
   }
 
   if (!lobby) throw new LobbyUnavailableError('no lobby configured');
-  location.href = lobbyJoin(lobby, roomId, you, mode ?? 'join');
+  location.href = lobbyJoin(lobby, roomId, you, mode ?? 'join', game);
   return new Promise(() => {});
 }

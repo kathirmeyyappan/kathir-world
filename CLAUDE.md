@@ -1616,7 +1616,12 @@ skin on it.
 
 The home screen (`app/home.ts`) is the room on the left (a JOIN tab, the default, with JOIN GLOBAL over a code, and a CREATE tab;
 the lobby, or Node in dev, turns away a create on a running room and a join on none, back to home
-with `?error=`; global is always there to join, and so never anyone's to create)
+with `?error=`; global is always there to join, and so never anyone's to create; the CREATE tab
+picks the room's game mode from a dropdown with the mode's line under it, `GAME_MODES` in the shared
+package's `modes/index.ts`, the ones that can't be played yet offered only in dev or with `?modes` on
+the page, and the pick rides the create as `?game=`: the lobby keeps it with the room's session and
+hands it to every join, the room server makes the Room in it (`RoomOptions.mode`), and `welcome.game`
+tells everyone)
 and the player on the right: a `BodyView` of the chosen skin with the typed name over its head, the name, and a dropdown of every look
 on foot (no dragons) a person can switch to by command (the first, the standard body in a named
 color drawn afresh each load, so the choice is kept but not the color; last, the standard body in each

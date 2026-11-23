@@ -402,10 +402,15 @@ body {
 #home-mode-hint:empty {
   display: none;
 }
-#home-mode-hint {
+#home-mode-hint,
+#home-game-blurb {
   margin-top: 8px;
   font-size: 17px;
   color: rgba(255, 255, 255, 0.5);
+}
+/* The game mode a create picks, over the code it's created under. */
+.home-tab-panel #home-game-row {
+  margin-bottom: 18px;
 }
 #home-view .name-tag {
   pointer-events: none;

@@ -2,7 +2,16 @@
 // that Modal's proxy stamps on the upgrade request, or by ?room= when running bare (local dev).
 import { createServer, type IncomingMessage } from 'node:http';
 import { WebSocketServer, type WebSocket } from 'ws';
-import { Room, hashSeed, placementFromQuery, type ClientLink, type ServerMessage } from '@world/shared';
+import {
+  FREEPLAY,
+  Room,
+  hashSeed,
+  isGameModeId,
+  placementFromQuery,
+  type ClientLink,
+  type GameModeId,
+  type ServerMessage,
+} from '@world/shared';
 import { createBotSpawner } from './bots';
 import { createStaticHandler } from './static';
 
@@ -22,7 +31,8 @@ function log(msg: string): void {
   console.log(`${new Date().toISOString()} ${msg}`);
 }
 
-function roomFor(key: string): Room {
+// The room under `key`, made in `mode` if this is the join that makes it.
+function roomFor(key: string, mode: GameModeId): Room {
   const pending = emptyTimers.get(key);
   if (pending) {
     clearTimeout(pending);
@@ -33,6 +43,7 @@ function roomFor(key: string): Room {
     // Seeded by the key (the Modal session id in production): the same session always gets the
     // same cube layout and spawns, even if Node rebuilt the room after an empty spell.
     room = new Room(key, {
+      mode,
       seed: hashSeed(key),
       log,
       spawnBot,
@@ -59,6 +70,14 @@ function roomKey(req: IncomingMessage, url: URL): string {
   const session = req.headers[SESSION_HEADER];
   if (typeof session === 'string' && session) return session;
   return url.searchParams.get('room') || 'local';
+}
+
+// The game a join says its room is in (?game=): what the room's creator picked, which the lobby
+// keeps with the room and hands every join, so whichever makes the Room makes it in that mode. A
+// bare server takes the creator's own word. The global room is freeplay whatever is said.
+function gameOf(url: URL): GameModeId {
+  const game = url.searchParams.get('game');
+  return isGameModeId(game) && url.searchParams.get('room') !== GLOBAL_ROOM ? game : FREEPLAY;
 }
 
 // Why a join's mode (?mode=create or join; none is either) turns it away, or null. Behind Modal the
@@ -119,7 +138,7 @@ http.on('upgrade', (req, socket, head) => {
       ws.close(1008, refused);
       return;
     }
-    const room = roomFor(key);
+    const room = roomFor(key, gameOf(url));
     // ?bot=1 is the bot framework declaring itself; the browser client never sends it. A bot may
     // also say where it stands (?x=&y=&z=); anyone may say how they look (?avatar= or ?color=).
     const id = room.join(url.searchParams.get('name') ?? '', linkFor(ws), {

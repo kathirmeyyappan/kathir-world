@@ -5,9 +5,9 @@ what `global` always is. The others are games with rules of their own, shootout 
 This is what each is to do, how the code is to be laid out for them, and how far it has got.
 `CLAUDE.md` ("Game modes") has the two rules every change is held to; everything else is here.
 
-Keep it true as the work lands: a part that's built is struck off the stack at the end, and its
+Keep it true as the work lands: a part that's built is ticked off the stack at the end, and its
 description here (or in `CLAUDE.md`, where it's something every agent needs) is put in the present
-tense. **Nothing here is built yet.**
+tense. **Only what's ticked there is built.**
 
 ## The modes
 
@@ -18,8 +18,10 @@ tense. **Nothing here is built yet.**
 | Shootout  | Split up into even teams and get as many kills as you can. Team with the most kills wins. |
 
 The home screen's CREATE tab has a GAME MODE dropdown, freeplay unless another is picked, with the
-mode's line under it. `global` is always freeplay, and so is an offline room. Freeplay has no
-room master, no GAME tab and no banner: it is the game as it stands, and stays so.
+mode's line under it. The modes are `GAME_MODES` (`packages/shared/src/modes/index.ts`: each one's
+id, name and line), and one that can't be played yet (`playable`) is offered only in dev, or with
+`?modes` on the home page. `global` is always freeplay, and so is an offline room. Freeplay has
+no room master, no GAME tab and no banner: it is the game as it stands, and stays so.
 
 ## What every game has
 
@@ -209,17 +211,20 @@ everything else, and it will change as modes and features are added (`CLAUDE.md`
 | What is someone who joins now?                           | a player                                  | joining                                             |
 | What does this player leaving do?                        | their seat goes                           | leaving                                             |
 
-**State and the wire.** A game's state (the mode, the master, the phase, the settings, the points,
-a race's track and order) is one object a mode owns, sent whole in `welcome` and again whenever it
-changes; clocks are in it as the tick they run out at. The master's changes go up as one kind of
+**State and the wire.** A game's state (`GameState`: the mode, and to come the master, the phase,
+the settings, the points, a race's track and order) is one object a mode owns, sent whole in
+`welcome` (`welcome.game`) and again whenever it changes; clocks are in it as the tick they run out
+at. The master's changes go up as one kind of
 message. A player's own part in it rides on `PlayerState` (`ghost`). The mode rides the join as
 `game=` (the join's `mode=` is already create or join). The Python mirror carries all of it, and
 bots take no ghost for a target.
 
-**The hosts.** The lobby keeps a room's mode with its session and hands it on with every join, so
-whichever join makes the Room makes it in the right mode; in dev the room server takes it from the
-create. A room its master closed refuses every join from then on, and its session reads as dead to
-the lobby, which frees its code.
+**The hosts.** A create's pick rides it as `?game=`. The lobby keeps it with the room's session
+(checking only its shape: which modes there are is the shared package's to know) and hands it on
+with every join, whatever that join asks for, so whichever join makes the Room makes it in the
+right mode (`RoomOptions.mode`); in dev the room server takes it from the create. A room its master
+closed is to refuse every join from then on, and its session to read as dead to the lobby, which
+frees its code.
 
 **The client.** What every mode shares is written once: the banner (the lobby's lines, the
 countdown, a race's last seconds), the results screen, the GAME tab, refused commands greyed, the
@@ -240,7 +245,7 @@ outside dev until each can be played, so freeplay is run on every merge.
 
 **1. What every game has**
 
-- [ ] The mode at create: the registry, the home screen's dropdown and line, the mode through the
+- [x] The mode at create: the registry, the home screen's dropdown and line, the mode through the
       lobby and the room server into the Room, and into `welcome`.
 - [ ] The room master: the crown, the master's leaving closing the room, the warning on LEAVE ROOM,
       a closed room's code freed.
