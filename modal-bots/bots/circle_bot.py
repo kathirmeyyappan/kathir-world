@@ -1,8 +1,11 @@
 """Circle the nearest player, or the world origin when alone, the same way round, on a ring that
 tightens where a wall stops it or the ground drops away ahead, and eases back out to its full size
-once there's room, so it keeps circling someone on a bridge or a road narrower than the ring. Only
-where no ring has ground ahead does it turn back the other way. It reads the solids and the bodies,
-not the ground map, which is most of the memory a bot's maps take."""
+once there's room, so it keeps circling someone on a bridge or a road narrower than the ring. From
+far off it walks straight at them. Where no ring has ground ahead it turns back the other way, and
+where neither way has it slides along the edge; held at the tightest ring by a wall, it turns back.
+A turn back lasts a few seconds at the least, and then it goes clockwise again once that way has
+ground ahead, so two circling each other find their orbit again. It reads the solids and the
+bodies, not the ground map, which is most of the memory a bot's maps take."""
 
 from __future__ import annotations
 
@@ -36,12 +39,25 @@ ORBIT_RADIUS = 12  # metres: the ring's full size, which it never grows past
 MIN_RADIUS = 3  # metres: the tightest ring, a couple of bodies clear of whoever it circles
 SHRINK = 1.5  # metres the ring tightens each time a drop or a wall is in its way
 GROW = 1.0  # m/s the ring eases back out toward ORBIT_RADIUS while there's ground for it
+# Metres off the ring over which it eases in or out; as far again past that it still strafes round,
+# less and less, and further off it walks straight at the centre.
 RADIAL_CORRECTION_DISTANCE = 6
-# Metres ahead along its move the bot looks for ground: none there within EDGE_DROP under its feet
-# (the floor's edge, where a step further drops it to its death, or the edge of whatever it stands
-# on) and it tightens the ring, turns back where no ring has any, or stands where neither way has.
-EDGE_LOOKAHEAD = 1.5
+# Seconds of walking ahead the bot looks for ground along its move: its snapshot's age, its input's
+# way back to the Room and a tick or two, so it stops short at its own walk however late it hears.
+# Ground missing there within EDGE_DROP under its feet (the floor's edge, where a step further drops
+# it to its death, or the edge of whatever it stands on) at any of the spots EDGE_SAMPLE apart, and
+# it tightens the ring, turns back, or slides along the edge.
+EDGE_REACTION = 0.8
+EDGE_LOOKAHEAD = 1.5  # metres it looks ahead at the least
+EDGE_SAMPLE = 0.5
 EDGE_DROP = 1.0
+# Seconds a turn back lasts at the least before it goes clockwise again, as soon as that way has
+# ground ahead: every circle bot goes round clockwise, so two circling each other orbit their
+# middle, and one left going the other way would walk alongside the other instead.
+DETOUR_SECONDS = 3.0
+# Degrees its heading is swung off to either side, nearest first, to slide along an edge where no
+# ring has ground ahead either way round.
+SWINGS = (30, 60, 90, 120, 150)
 STEP = 0.5  # metres a walk steps up onto on its own (STEP_UP in packages/shared/src/sim/constants.ts)
 # Blocked means covering under half the commanded distance over a few ticks: a wall is soaking up
 # the move. The window is long enough that one late snapshot doesn't count.
@@ -160,6 +176,7 @@ class Circler:
         self.radius: float = ORBIT_RADIUS
         self.turns = 0
         self._tick: int | None = None  # the snapshot it last stepped on
+        self._turned = 0  # the snapshot it last turned back on
 
     def step(self, tick: int, me: Player, center: Vec3, controls: Controls) -> bool:
         """Set the controls for this snapshot; True when it turned back."""
@@ -167,46 +184,70 @@ class Circler:
         self._tick = tick
         controls.look_at(me.pos, center)
         distance = math.hypot(me.pos.x - center.x, me.pos.z - center.z)
+        turned = False
         if self.stall.blocked(tick, me.pos, controls, self.bodies.walk_speed(me.avatar)):
-            self.radius = max(MIN_RADIUS, self.radius - SHRINK)
+            if self.radius > MIN_RADIUS:
+                self.radius = max(MIN_RADIUS, self.radius - SHRINK)
+            else:
+                turned = self._turn(tick)
+        detoured = tick - self._turned >= DETOUR_SECONDS * TICK_RATE
+        if self.way != CLOCKWISE and detoured and self._clear(me, controls, _heading(distance, self.radius, CLOCKWISE)):
+            turned = self._turn(tick)
         wider = min(ORBIT_RADIUS, self.radius + GROW * dt)
-        if wider > self.radius and self._clear(me, controls, distance, wider, self.way):
+        if wider > self.radius and self._clear(me, controls, _heading(distance, wider, self.way)):
             self.radius = wider
         for way in (self.way, -self.way):
             radius = self._ring(me, controls, distance, way)
             if radius is None:
                 continue
             self.radius = radius
-            if way == self.way:
-                return False
-            self.way = way
-            self.turns += 1
-            self.stall.reset(tick)
-            return True
+            return self._turn(tick) if way != self.way else turned
+        # No ring has ground ahead either way round: slide along the edge, the heading swung off to
+        # whichever side has ground, the nearest swing first.
+        forward, right = _heading(distance, self.radius, self.way)
+        for swing in SWINGS:
+            for side in (self.way, -self.way):
+                if self._clear(me, controls, _swung(forward, right, side * swing)):
+                    return turned
         controls.stop()
-        return False
+        return turned
+
+    def _turn(self, tick: int) -> bool:
+        """Go round the other way."""
+        self.way = -self.way
+        self.turns += 1
+        self._turned = tick
+        self.stall.reset(tick)
+        return True
 
     def _ring(self, me: Player, controls: Controls, distance: float, way: int) -> float | None:
         """The widest ring no wider than its own with ground ahead circling ``way`` round, the
         controls set to circle it; None where even the tightest has none."""
         radius: float = self.radius
-        while not self._clear(me, controls, distance, radius, way):
+        while not self._clear(me, controls, _heading(distance, radius, way)):
             if radius <= MIN_RADIUS:
                 return None
             radius = max(MIN_RADIUS, radius - SHRINK)
         return radius
 
-    def _clear(self, me: Player, controls: Controls, distance: float, radius: float, way: int) -> bool:
-        """Set the controls to circle ``way`` round on a ring of ``radius``; whether the ground
-        EDGE_LOOKAHEAD along that move is there, within EDGE_DROP under the feet."""
-        _orbit(controls, distance, radius, way)
+    def _clear(self, me: Player, controls: Controls, heading: tuple[float, float]) -> bool:
+        """Set the controls to walk ``heading`` (forward, right); whether there's ground all along
+        the way it walks in EDGE_REACTION, within EDGE_DROP under the feet."""
+        forward, right = heading
+        controls.move(forward=forward, right=right)
         dx, dz = _world_move(controls)
         length = math.hypot(dx, dz)
         if length < 1e-6:
             return True
         feet = _feet(me)
-        x, z = feet.x + dx / length * EDGE_LOOKAHEAD, feet.z + dz / length * EDGE_LOOKAHEAD
-        return feet.y - self.solids.ground_at(x, z, feet.y + STEP) <= EDGE_DROP
+        ahead = max(EDGE_LOOKAHEAD, self.bodies.walk_speed(me.avatar) * EDGE_REACTION)
+        steps = math.ceil(ahead / EDGE_SAMPLE)
+        for i in range(1, steps + 1):
+            d = ahead * i / steps
+            x, z = feet.x + dx / length * d, feet.z + dz / length * d
+            if feet.y - self.solids.ground_at(x, z, feet.y + STEP) > EDGE_DROP:
+                return False
+        return True
 
 
 # Which way round the bot circles, as the way it strafes facing the centre: right is clockwise seen
@@ -214,10 +255,19 @@ class Circler:
 CLOCKWISE = 1
 
 
-def _orbit(controls: Controls, distance: float, radius: float, way: int) -> None:
-    """Strafe ``way`` round the centre, easing in or out toward a ring of ``radius``."""
-    radial = max(-1.0, min(1.0, (distance - radius) / RADIAL_CORRECTION_DISTANCE))
-    controls.move(forward=radial, right=way)
+def _heading(distance: float, radius: float, way: int) -> tuple[float, float]:
+    """The move (forward, right, facing the centre) that strafes ``way`` round it, easing in or out
+    toward a ring of ``radius``; from far off, straight at it."""
+    off = distance - radius
+    radial = max(-1.0, min(1.0, off / RADIAL_CORRECTION_DISTANCE))
+    strafe = max(0.0, min(1.0, 2 - off / RADIAL_CORRECTION_DISTANCE))
+    return radial, way * strafe
+
+
+def _swung(forward: float, right: float, degrees: float) -> tuple[float, float]:
+    """A move (forward, right) turned ``degrees`` toward the right."""
+    a = math.radians(degrees)
+    return forward * math.cos(a) - right * math.sin(a), right * math.cos(a) + forward * math.sin(a)
 
 
 class Stall:
