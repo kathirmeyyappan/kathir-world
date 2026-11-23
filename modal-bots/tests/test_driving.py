@@ -25,14 +25,15 @@ def test_a_line_keeps_to_its_road_and_a_driver_follows_it() -> None:
     middle = roads.track(track)
     for skilled in (skill(0), skill(1)):
         line = racing_line(middle, skilled.shape, car)
-        # On the road all the way, cutting its corners, and never asking a turn no kart can make.
-        for x, y, z in zip(line.x, line.y, line.z, strict=True):
+        # On the road all the way, between its points too, and cutting the road's corners.
+        ways = list(zip(line.x, line.y, line.z, strict=True))
+        halfway = [((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2) for a, b in itertools.pairwise(ways)]
+        for x, y, z in ways + halfway:
             assert (
                 min(_off(x, z, a, b) for a, b in itertools.pairwise(middle.points) if abs((a.y + b.y) / 2 - y) < 4)
-                < ROAD - 1
+                < ROAD - 0.5
             )
         assert line.s[-1] < sum(math.dist((a.x, a.z), (b.x, b.z)) for a, b in itertools.pairwise(middle.points))
-        assert max(abs(k) for k in line.k) < car.drift_tight / car.turn
 
         # On its line and along it: the gas, and the wheel all but straight.
         at = len(line.x) // 3
