@@ -4,7 +4,7 @@
 // the state is sent beside it. FREEPLAY_RULES is freeplay's answers; a game's are those with some
 // answered its own way (game.ts).
 import type { Command } from '../commands';
-import { AVATARS } from '../sim/avatars';
+import { AVATARS, type AvatarId } from '../sim/avatars';
 import type { Track } from '../sim/tracks';
 import type { GameState } from './index';
 
@@ -38,10 +38,13 @@ export interface Rules {
 // own, for someone on their side; or `hidden`, with none of the three.
 export type Sight = 'plain' | 'side' | 'hidden';
 
-// A side in a game (a team): what it's called, and the colour its players go by.
+// A side in a game: what it's called, and the colour its players go by. One that is a single
+// player (a racer) has the look they wear too, which with their colour is how they appear: what
+// their name is drawn in and their emblem beside it are worked out from that.
 export interface Side {
   name: string;
   colour: string;
+  avatar?: AvatarId;
 }
 
 export interface Standing {

@@ -3,6 +3,7 @@
 // a mode with nothing of its own adds nothing.
 import type { GameModeId, GameState, Kart } from '@world/shared';
 import type { Start } from '../render/lakitu/Starter';
+import type { Listed } from '../ui/emblem';
 import type { BannerLine } from '../ui/GameBanner';
 import type { Row } from '../ui/menu/rows';
 import type { Leaderboard } from '../ui/Results';
@@ -19,7 +20,7 @@ export interface ModeHooks {
   game: () => GameState; // the room's game as the Room last told of it
   master: () => boolean; // whether the player is its room master, whose the settings are to change
   set: (change: unknown) => void; // asks for a change to them (the mode's own, in the shared package)
-  nameOf: (id: string) => string; // what a player is called
+  listed: (id: string) => Listed; // a player as a board lists them
 }
 
 // The rows of each mode's settings in the menu's GAME tab: everyone sees them as they stand, and

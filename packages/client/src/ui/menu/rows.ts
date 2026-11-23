@@ -4,6 +4,7 @@
 import { Picker, type Choice } from '../../app/Picker';
 import { IS_TOUCH } from '../../input/touch';
 import { pixelSvg } from '../pixelIcons';
+import { named, type Listed } from '../emblem';
 import { pressTwice } from '../pressTwice';
 
 export interface Tab {
@@ -98,7 +99,7 @@ export interface Board {
 export interface Column {
   name: string;
   colour: string;
-  players: { id: string; name: string }[];
+  players: Listed[]; // each with their emblem before their name
 }
 
 export interface Button {
@@ -182,7 +183,8 @@ function board(row: Board): Drawn {
         head.append(element('span', 'name', col.name), element('span', 'count', String(col.players.length)));
         column.append(head);
         for (const p of col.players) {
-          const player = element('div', p.id === picked ? 'player picked' : 'player', p.name);
+          const player = element('div', p.id === picked ? 'player picked' : 'player');
+          player.append(...named(p.name, p.appearance));
           player.translate = false;
           if (can) {
             player.draggable = true;

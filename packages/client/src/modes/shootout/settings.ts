@@ -32,7 +32,7 @@ export function shootoutSettings(hooks: ModeHooks): Row[] {
       columns: () =>
         game().teams.map((team, i) => ({
           ...TEAMS[i],
-          players: team.map((id) => ({ id, name: hooks.nameOf(id) })),
+          players: team.map(hooks.listed),
         })),
       can: mine,
       move: (player, to) => hooks.set({ move: player, to }),

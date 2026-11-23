@@ -1553,6 +1553,18 @@ body {
   }
 }
 
+/* A player's emblem before their name where players are listed (emblem.ts): a tiny round badge,
+   bare until its picture is here. */
+.emblem {
+  display: inline-block;
+  width: 1.15em;
+  height: 1.15em;
+  margin-right: 0.45em;
+  vertical-align: -0.2em;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08) center / contain no-repeat;
+}
+
 /* What a game says over the view (GameBanner.ts): the line that stands, flashing, and over it one
    said for a moment. Clear of the hearts and of what stands under them. */
 #game-banner {

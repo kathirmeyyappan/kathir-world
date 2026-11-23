@@ -2,12 +2,21 @@
 // the chat offers the commands it could be the start of (commands.ts), listed above the box with
 // the best nearest it: Up picks from the bottom, Down comes back, Enter or Tab (or a click) puts
 // the pick in the box, where Enter sends it as anything else.
-import { MAX_CHAT_LENGTH, MAX_HEARTS, heartsOf, type AvatarId, type Element, type KillItem } from '@world/shared';
+import {
+  MAX_CHAT_LENGTH,
+  MAX_HEARTS,
+  heartsOf,
+  type Appearance,
+  type AvatarId,
+  type Element,
+  type KillItem,
+} from '@world/shared';
 import { CROWN, GHOST, HEART, KNIFE, ROBOT, SKULL, pixelSvg } from './pixelIcons';
 
 import { IS_TOUCH } from '../input/touch';
 import { roomLink } from '../net/lobby';
 import { commandGroups, completionsOf, type Row } from './commands';
+import type { Listed } from './emblem';
 import type { LegendCell } from './legend';
 import { nameColour } from '../render/liveries';
 
@@ -294,6 +303,7 @@ export class Hud {
     for (const p of list) {
       const e = this.players.get(p.id);
       if (!e) continue;
+      e.appearance = { avatar: p.avatar, color: p.color };
       const life = heartsOf(p.avatar);
       const colour = p.colour;
       if (
@@ -338,6 +348,11 @@ export class Hud {
 
   playerName(id: string): string {
     return this.players.get(id)?.name ?? 'someone';
+  }
+
+  // A player as they're listed beside their emblem (emblem.ts).
+  listed(id: string): Listed {
+    return { id, name: this.playerName(id), appearance: this.players.get(id)?.appearance ?? null };
   }
 
   // Red crosshair while a shot from here would land.
@@ -570,6 +585,7 @@ interface RosterPlayer {
 
 interface RosterEntry {
   name: string;
+  appearance: Appearance; // the look they wear and their own colour
   color: string; // the one they go by (liveries.ts `nameColour`)
   bot: boolean;
   hearts: number;
@@ -584,6 +600,7 @@ interface RosterEntry {
 function entry(p: RosterPlayer): RosterEntry {
   return {
     name: p.name,
+    appearance: { avatar: p.avatar, color: p.color },
     color: nameColour(p),
     bot: !!p.bot,
     hearts: p.hearts ?? MAX_HEARTS,

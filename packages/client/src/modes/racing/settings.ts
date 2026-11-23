@@ -29,7 +29,7 @@ export function racingSettings(hooks: ModeHooks): Row[] {
         {
           name: 'RACERS',
           colour: RACERS_COLOUR,
-          players: game().racers.map((racer) => ({ id: racer.id, name: hooks.nameOf(racer.id) })),
+          players: game().racers.map((racer) => hooks.listed(racer.id)),
         },
       ],
       can: () => false,

@@ -19,6 +19,7 @@ import {
 } from '@world/shared';
 import { secondsUntil } from '../../ui/clock';
 import type { Start } from '../../render/lakitu/Starter';
+import { nameColour } from '../../render/liveries';
 import type { BannerLine } from '../../ui/GameBanner';
 import type { Leaderboard } from '../../ui/Results';
 import type { Moment, Showing } from '../index';
@@ -113,9 +114,11 @@ function boardOf(game: RacingState, round: Round, tick: number): Leaderboard {
     lines: game.racers
       .map((racer, i) => {
         const place = round.finished.indexOf(racer.id) + 1;
+        const who = { avatar: racer.avatar, color: racer.colour };
         return {
           name: racer.name,
-          colour: racer.colour,
+          colour: nameColour(who),
+          emblem: who,
           note: place > 0 ? `+${pointsFor(place, game.racers.length)}` : 'OUT',
           points: game.points[i],
           won: game.points[i] === most,

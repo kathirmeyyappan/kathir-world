@@ -288,7 +288,8 @@ A series of races, each on a track of its own, in karts, for points.
 - After the last, the racer with the most points wins, a tie being shared.
 
 A game's own state is `RacingState` (`modes/racing/state.ts`): how many `races`, the `racers` (each
-with the name and colour they had as it began, and whether they've left), their `points`, and the
+with the name, colour and look they had as it began, and whether they've left), their `points`, and
+the
 `round` being run: its track (a place in `routes()`), the tick it's let `go`, the tick it `closes`
 once someone has finished, who has `finished` in order, who's `out`, and once it's run the tick
 the next begins. The referee (`Racing`, `referee.ts`) deals the tracks as the game begins, seats

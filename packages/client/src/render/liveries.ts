@@ -86,6 +86,26 @@ export async function emblemPixels(livery: Livery): Promise<ImageData> {
   return drawn;
 }
 
+const addresses = new Map<string, Promise<string>>();
+
+// A livery's emblem as an address the page's own pictures are drawn from (ui/emblem.ts): its
+// file's, or for the default, its letters painted in the livery's primary, made once a colour.
+export function emblemAddress(livery: Livery): Promise<string> {
+  if (livery.emblem !== DEFAULT_EMBLEM) return Promise.resolve(`/assets/textures/emblems/${livery.emblem}.png`);
+  const key = emblemKey(livery);
+  let address = addresses.get(key);
+  if (!address) {
+    address = emblemPixels(livery).then((drawn) => {
+      const canvas = Object.assign(document.createElement('canvas'), { width: drawn.width, height: drawn.height });
+      canvas.getContext('2d')!.putImageData(drawn, 0, 0);
+      return canvas.toDataURL();
+    });
+    addresses.set(key, address);
+    address.catch(() => addresses.delete(key)); // a fetch that failed is tried again by the next to ask
+  }
+  return address;
+}
+
 // What tells a livery's emblem as it's drawn from every other's, for whatever keeps one.
 export function emblemKey(livery: Livery): string {
   return livery.emblem === DEFAULT_EMBLEM ? `${livery.emblem}:${livery.primary}` : livery.emblem;

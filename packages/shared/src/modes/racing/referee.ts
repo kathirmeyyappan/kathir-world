@@ -157,5 +157,5 @@ export class Racing extends Game {
 }
 
 function racerOf(player: PlayerState): Racer {
-  return { id: player.id, name: player.name, colour: player.color, gone: false };
+  return { id: player.id, name: player.name, colour: player.color, avatar: player.avatar, gone: false };
 }
