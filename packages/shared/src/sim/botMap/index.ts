@@ -7,7 +7,8 @@
 //   buildings stand on, and each way of moving's jumps across it, for finding a way on foot;
 // - the roads (roads.ts): the roads' middles as a graph, for a kart to be driven by and a way
 //   along them to be found in, and every race track as the roads it takes;
-// - the bodies (bodies.ts): every avatar's hitbox, eyes, walk and way of moving.
+// - the bodies (bodies.ts): every avatar's hitbox, eyes, walk and way of moving;
+// - the karts (karts.ts): how each kart drives, for a bot driving one.
 // `npm run bot-map` (scripts/writeBotMap.ts) builds them. Each carries a fingerprint of what it was
 // built from (its `source`), so a change rebuilds only the maps it touches, and a test fails while
 // a file's no longer matches. The ground and the moves, which take minutes, carry a hash of the sim
@@ -15,6 +16,7 @@
 // builds either afresh when its source or its code is off (deploy.sh).
 import { buildBodiesMap } from './bodies';
 import { groundMapSource, movesMapSource } from './ground';
+import { buildKartsMap } from './karts';
 import { buildRoadsMap } from './roads';
 import { buildSolidsMap } from './solids';
 
@@ -25,4 +27,5 @@ export const MAP_SOURCES: Record<string, () => number> = {
   moves: movesMapSource,
   roads: () => buildRoadsMap().source,
   bodies: () => buildBodiesMap().source,
+  karts: () => buildKartsMap().source,
 };
