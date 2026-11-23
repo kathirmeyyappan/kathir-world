@@ -51,7 +51,8 @@ UNRATED = 0.5  # the rating of a racer its game gives none
 TALENT = 0.1
 DAY = 0.05
 NARROWER = (0, 0.5, 1)  # metres its line may keep nearer the middle than its skill's
-REACTION = 0.4  # seconds from the lights to the gas, at the most, for the least of racers
+REACTION = 0.2  # seconds from the lights to the gas, at the most, for the least of racers
+ON_IT = 0.7  # the rating from which a racer is on the gas as the grid is let go, whatever its form
 # A mood is two waves, a long one and a short one over it: the seconds each takes, least and most.
 LONG = (14, 26)
 SHORT = (5, 9)
@@ -99,9 +100,9 @@ def race_of(seed: str, track: int, go: int, kart: str, rating: float) -> Race:
     shape = replace(skilled.shape, width=skilled.shape.width - dice.choice(NARROWER))
     skilled = replace(skilled, shape=shape, chains=chains)
     waves = ((dice.uniform(*LONG), dice.random()), (dice.uniform(*SHORT), dice.random()))
-    reaction = dice.uniform(0, REACTION) * (1.2 - max(0.0, min(1.0, rating)))
+    reaction = dice.uniform(0, REACTION) * max(0.0, 1 - max(0.0, rating) / ON_IT)
     driver = Driver(line_of(track, skilled.shape, kart), skilled, load_karts().of(kart), dice)
-    return Race(driver, go + round(reaction * TICK_RATE), waves)
+    return Race(driver, go + int(reaction * TICK_RATE), waves)
 
 
 class Racer:
@@ -134,7 +135,9 @@ class Racer:
         mine = self._race.result()
         late = max(0, min(MOST_LATE, sent - me.last_seq))
         if state.tick + late < mine.off:
-            return Keys()
+            # One that's on the gas as the grid is let go holds it through the count, as a person
+            # does: the room lets every kart with it down go on the same tick, however late its keys.
+            return Keys(gas=1) if mine.off == race["go"] else Keys()
         others = tuple(other.pos for other in state.karts.values() if other is not kart)
         return mine.driver.keys(kart, late, mine.mood(state.tick), others)
 
