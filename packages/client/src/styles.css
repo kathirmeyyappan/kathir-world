@@ -1971,6 +1971,7 @@ body {
 }
 #results .card {
   text-align: center;
+  max-width: 520px;
 }
 #results ul {
   list-style: none;
@@ -1978,18 +1979,49 @@ body {
   gap: 6px;
   margin: 14px 0;
 }
+/* Everyone behind whoever won: small, in their order. */
 #results li {
   display: flex;
   justify-content: space-between;
-  padding: 6px 14px;
-  font: 24px var(--mono);
+  align-items: center;
+  padding: 3px 12px;
+  font: 18px var(--mono);
   color: var(--side);
   border: 2px solid var(--side);
-  opacity: 0.6;
+  opacity: 0.7;
 }
+/* Whoever won, or leads: big, crowned, and set apart from the rest. */
 #results li.won {
+  padding: 10px 16px;
+  font-size: 36px;
+  border-width: 3px;
   opacity: 1;
   background: rgba(255, 255, 255, 0.08);
+}
+#results li.won + li:not(.won) {
+  margin-top: 18px;
+}
+#results .crown {
+  width: 0.8em;
+  height: 0.8em;
+  margin-right: 0.4em;
+  vertical-align: -0.06em;
+  shape-rendering: crispEdges;
+}
+#results .crown rect {
+  fill: #ffd24a;
+}
+@media (pointer: coarse) {
+  #results li {
+    font-size: 14px;
+  }
+  #results li.won {
+    padding: 6px 12px;
+    font-size: 24px;
+  }
+  #results li.won + li:not(.won) {
+    margin-top: 12px;
+  }
 }
 /* What's noted beside a side's points: pushed over to them, the name keeping the left. */
 #results .note {

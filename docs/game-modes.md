@@ -75,8 +75,9 @@ which is null in freeplay, where there's no game to be anywhere in).
    master's END GAME, which goes straight back to the lobby with no results: "room master ended the
    game!" stands over the lobby's banner for a moment, and goes.
 4. **Results.** Who won, on one screen every mode fills in (`ui/Results.ts`, from the mode's
-   `Rules.standings`), for ten seconds (`RESULTS_SECONDS`), the world going on under it with
-   nothing left to score. A game whose mode gives it a length (`Game.runs`) comes here as its clock
+   `Rules.standings`): the winner big at the top with a crown, or every side level on the most
+   under "it's a tie", and the rest small under them in their order. It stands for ten seconds
+   (`RESULTS_SECONDS`), the world going on under it with nothing left to score. A game whose mode gives it a length (`Game.runs`) comes here as its clock
    runs out; one without is its master's to end.
 5. Back to the **lobby**: everyone gets a new body in `RESPAWN_AREAS`, as after a death, ghosts are
    players again, the world is cleared, and the lobby's bots don't come back.

@@ -1,10 +1,12 @@
-// A leaderboard standing over the view (docs/game-modes.md): a game's results, who won and every
-// side with its points, the best first, until the lobby; or what a mode puts up while its game is
-// played (a race's, between one race and the next: the client's `MODE_HUD`). Nothing on it is
-// pressed: the world goes on under it.
+// A leaderboard standing over the view (docs/game-modes.md): a game's results, every side with its
+// points, the best first, until the lobby; or what a mode puts up while its game is played (a
+// race's, between one race and the next: the client's `MODE_HUD`). Whoever won, or leads, stands
+// big at the top with a crown, apart from everyone else, small under them in their order. Nothing
+// on it is pressed: the world goes on under it.
 import type { Appearance, Standing } from '@world/shared';
 import { nameColour } from '../render/liveries';
 import { named } from './emblem';
+import { CROWN, pixelSvg } from './pixelIcons';
 
 export interface Leaderboard {
   title: string;
@@ -31,7 +33,7 @@ export function resultsOf(standings: Standing[], seconds: number): Leaderboard {
   });
   const winners = lines.filter((line) => line.won);
   return {
-    title: winners.length === 1 ? `${winners[0].name} WINS!` : `A TIE: ${winners.map((line) => line.name).join(', ')}`,
+    title: winners.length === 1 ? `${winners[0].name} WINS!` : "IT'S A TIE!",
     colour: winners.length === 1 ? winners[0].colour : null,
     lines,
     footer: `back to the lobby in ${seconds}`,
@@ -62,6 +64,7 @@ export class Results {
         const span = (className: string, textContent: string) =>
           Object.assign(document.createElement('span'), { className, textContent });
         const name = span('name', '');
+        if (line.won) name.append(pixelSvg(CROWN, 'crown'));
         name.append(...named(line.name, line.emblem));
         li.append(name, span('note', line.note), span('points', String(line.points)));
         return li;
