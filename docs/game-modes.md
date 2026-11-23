@@ -19,8 +19,7 @@ tense. **Only what's ticked there is built.**
 
 The home screen's CREATE tab has a GAME MODE dropdown, freeplay unless another is picked, with the
 mode's line under it. The modes are `GAME_MODES` (`packages/shared/src/modes/index.ts`: each one's
-id, name and line), and one that can't be played yet (`playable`) is offered only in dev, or with
-`?modes` on the home page. `global` is always freeplay, and so is an offline room. Freeplay has
+id, name and line). `global` is always freeplay, and so is an offline room. Freeplay has
 no room master, no GAME tab and no banner: it is the game as it stands, and stays so.
 
 ## What every game has
@@ -416,8 +415,9 @@ and draws everyone as boldly as you.
 
 ## The stack
 
-Merged a PR at a time, in these batches. Shootout and Racing stay out of the home screen's dropdown
-outside dev until each can be played, so freeplay is run on every merge.
+Merged a PR at a time, in these batches. Shootout and Racing each came to the home screen's
+dropdown with the last PR of its batch, so freeplay was all anyone was offered until a mode could
+be played.
 
 **1. What every game has**
 
@@ -455,7 +455,7 @@ outside dev until each can be played, so freeplay is run on every merge.
       elimination, points, the leaderboard, the series; its settings and its HUD.
 - [x] Its look: the track on the maps, the grey floor, the checkered line.
 - [x] Lakitu at the start.
-- [ ] Racing on the home screen and in the guide.
+- [x] Racing on the home screen and in the guide.
 
 ## Later: the modes' bots
 

@@ -2,6 +2,7 @@
 // and the race being run: its track, its clocks, and who has finished it or is out of it.
 import type { GameState } from '../index';
 
+export const MIN_RACERS = 2; // how many it takes to start a game
 // How many races a game is: what it's set to at first, and the least and most it can be.
 export const RACES = { count: 3, min: 1, max: 9 };
 // A race's clocks, in seconds: its racers held on the grid; of that, the countdown at its end; from

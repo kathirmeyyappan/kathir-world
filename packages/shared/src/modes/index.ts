@@ -25,7 +25,6 @@ export interface GameModeSpec {
   id: GameModeId;
   name: string; // what it's called wherever a mode is picked or named
   blurb: string; // the line under it where it's picked
-  playable: boolean; // whether its game can be played: one that can't is offered in dev alone
 }
 
 export const GAME_MODES: Record<GameModeId, GameModeSpec> = {
@@ -33,19 +32,16 @@ export const GAME_MODES: Record<GameModeId, GameModeSpec> = {
     id: 'freeplay',
     name: 'Freeplay',
     blurb: 'No rules. Do whatever you want with friends!',
-    playable: true,
   },
   racing: {
     id: 'racing',
     name: 'Racing',
     blurb: 'Race against other players in a 3 round competition.',
-    playable: false,
   },
   shootout: {
     id: 'shootout',
     name: 'Shootout',
     blurb: 'Split up into even teams and get as many kills as you can. Team with the most kills wins.',
-    playable: true,
   },
 };
 

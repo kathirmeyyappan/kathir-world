@@ -7,6 +7,7 @@ import type { BannerLine } from '../ui/GameBanner';
 import type { Row } from '../ui/menu/rows';
 import type { Leaderboard } from '../ui/Results';
 import type { Tally } from '../ui/Scores';
+import { racingFacts } from './racing/facts';
 import { racingHud } from './racing/hud';
 import { racingSettings } from './racing/settings';
 import { shootoutFacts } from './shootout/facts';
@@ -60,6 +61,6 @@ export const MODE_HUD: Record<GameModeId, (game: GameState, at: Moment) => Showi
 // Each mode's numbers as the guide gives them, worked out from what the game runs on.
 export const MODE_FACTS: Record<GameModeId, () => { label: string; value: string }[]> = {
   freeplay: () => [],
-  racing: () => [],
+  racing: racingFacts,
   shootout: shootoutFacts,
 };

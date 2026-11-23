@@ -1664,8 +1664,7 @@ The home screen (`app/home.ts`) is the room on the left (a JOIN tab, the default
 the lobby, or Node in dev, turns away a create on a running room and a join on none, back to home
 with `?error=`; global is always there to join, and so never anyone's to create; the CREATE tab
 picks the room's game mode from a dropdown with the mode's line under it, `GAME_MODES` in the shared
-package's `modes/index.ts`, the ones that can't be played yet offered only in dev or with `?modes` on
-the page, and the pick rides the create as `?game=`: the lobby keeps it with the room's session and
+package's `modes/index.ts`, and the pick rides the create as `?game=`: the lobby keeps it with the room's session and
 hands it to every join, the room server makes the Room in it (`RoomOptions.mode`), and `welcome.game`
 tells everyone)
 and the player on the right: a `BodyView` of the chosen skin with the typed name over its head, the name, and a dropdown of every look
@@ -1691,8 +1690,7 @@ or a key to type), never a sentence, with the keys that do an ability in its hea
 tables hold only what its own row changes, never a constant every one of its kind shares. Its words
 are `guide/content.ts`, keyed by the
 registries' ids, so a new skin, item, gear, kart, pickup or game mode doesn't build until it has an entry there
-(a mode's numbers are its own to give, `MODE_FACTS` in the client's `modes/index.ts`, and only a
-mode that can be played is listed):
+(a mode's numbers are its own to give, `MODE_FACTS` in the client's `modes/index.ts`):
 plain statements of what each thing is (Kathir writes anything more, and the fun facts), no numbers.
 A character's SOUNDS are a button for every sound it makes that not every look makes alike
 (`guide/sounds.ts` `linesOf`): what it says (`VOICES`), the sounds of the moves it has, its own
