@@ -45,8 +45,10 @@ class WorldState:
     def brought(self) -> dict[str, Any] | None:
         """This bot as the room's game brought it (its ``GameBot``, the shared package's
         modes/bots.ts): what it's set to there. None for a bot no game brought."""
+        # A room still running an older server lists its bots without the players they came as:
+        # none of them is this one.
         bots = self.game.get("bots") or []
-        return next((bot for bot in bots if bot["id"] == self.self_id), None)
+        return next((bot for bot in bots if bot.get("id") == self.self_id), None)
 
     def rating(self, ratings: tuple[float, float], unrated: float) -> float:
         """How good the room's game asks this bot to be: ``ratings`` are what the least level a
