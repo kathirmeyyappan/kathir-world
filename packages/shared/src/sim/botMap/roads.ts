@@ -7,7 +7,8 @@
 // from the road layer's own account of each road (sim/roads.ts `Road.middle`), and held to the
 // sim: where the ground it has under a node isn't the road's top, building it throws.
 import { STEP_UP } from '../constants';
-import { ROADS } from '../outline';
+import type { Disc } from '../ground';
+import { ROADS, ROAD_WIDTH, WORLD_OUTLINE } from '../outline';
 import type { Trace } from '../roads';
 import { SURFACES } from '../surfaces';
 import { lengthOf, pointOn, routes, runsOf, trackOf } from '../tracks';
@@ -19,6 +20,7 @@ const STEP = 20; // metres between nodes along a straight length of road, at the
 const BEND_STEP = 8; // and round a bend, where the road strays from the line between two of them
 const TRUE = 0.1; // metres the ground may be off a node's height: a boost pad lies a few centimetres proud
 const MEET = 1; // metres from a stretch of another road that a road's end is on it
+const MEET_PLACE = 2; // metres from a place's middle that a road's end is at it (tracks.ts)
 const CHECKED = [0, 0.5, 1]; // the tracks checked, as shares of the way down their list
 const CHECK_EVERY = 40; // spots of a checked track's middle from one check to the next
 
@@ -42,6 +44,11 @@ export interface RoadsMap {
   // Spots on a few tracks' middles as the sim lays them (the track, then x, y, z): what a reading
   // of this map is held to.
   checks: [number, number, number, number][];
+  width: number; // metres across a road, and so across a track
+  // Metres from the middle of any place a track turns at (an island, the crossroads: where two of
+  // its roads meet at a corner) that are floor all round, on that place's own disc: the least of
+  // them all.
+  junction: number;
 }
 
 // A spot on a road's middle, with a `gap` from it to the next.
@@ -114,7 +121,24 @@ export function buildRoadsMap(): RoadsMap {
       .filter((_, k) => k % CHECK_EVERY === 0)
       .map((spot): [number, number, number, number] => [track, cm(spot.x), cm(spot.y), cm(spot.z)]);
   });
-  return stamped({ nodes, edges, gaps, pads, roads, tracks, checks });
+  return stamped({ nodes, edges, gaps, pads, roads, tracks, checks, width: ROAD_WIDTH, junction: junction() });
+}
+
+// The radius of the smallest disc any track goes from one of its roads to the next on: where one
+// length of its middle ends and the next begins, at a place's middle (a split's fork is no place).
+function junction(): number {
+  const discs = WORLD_OUTLINE.filter((part): part is Disc => part.kind === 'disc');
+  let least = Infinity;
+  routes().forEach((_, index) => {
+    const spots = trackOf(index).spots;
+    spots.forEach((spot, i) => {
+      const next = spots[i + 1];
+      if (!next || Math.hypot(next.x - spot.x, next.z - spot.z) > 1e-6) return;
+      const disc = discs.find((d) => Math.hypot(d.x - spot.x, d.z - spot.z) < MEET_PLACE);
+      if (disc) least = Math.min(least, disc.r);
+    });
+  });
+  return least;
 }
 
 // Metres from a point to the line between two others, ends included.
