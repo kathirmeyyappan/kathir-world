@@ -60,7 +60,7 @@ for whatever the change adds or touches, and put the answers in it:
 - **Bounds:** if it asks where the world ends, that it asks for the floor in play, which a mode can
   narrow (a race's track: `Rules.track`, which a kart's rescue is held to as its `Course`).
 - **Sight:** if it shows where someone is (a name, a pin, a mark on a map), that it asks who may
-  see them: a mode hides opponents. It draws from the players `shownTo` the viewer, in the colour
+  see them: a mode can hide opponents. It draws from the players `shownTo` the viewer, in the colour
   each comes with (`ui/sight.ts`, which asks the mode's `Rules.sees` and `Rules.side`), never from
   everyone in the snapshot.
 - **Room state:** if it leaves anything in a room (things lying about, a toggle, a count), what a

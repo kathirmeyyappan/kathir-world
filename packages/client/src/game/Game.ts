@@ -1408,7 +1408,7 @@ export class Game {
         : showing.board,
     );
     this.scores.set(showing.scores);
-    // Everyone else the player is shown, as the game has it: a mode hides the other side.
+    // Everyone else the player is shown, as the game has it: a mode can hide some from others.
     const shown = shownTo(this.game, self, sampled.players);
     const map = { me: { x: p.x, y: p.y, z: p.z, yaw: this.input.yaw }, players: shown, cubes: sampled.cubes, track };
     this.minimap.update(map);
