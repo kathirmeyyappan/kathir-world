@@ -5,6 +5,7 @@
 // answered its own way (game.ts).
 import type { Command } from '../commands';
 import { AVATARS } from '../sim/avatars';
+import type { Track } from '../sim/tracks';
 import type { GameState } from './index';
 
 export interface Rules {
@@ -21,6 +22,9 @@ export interface Rules {
   standings(game: GameState): Standing[];
   // How `viewer` is shown the player `other` (by id) as the game stands.
   sees(game: GameState, viewer: { id: string; ghost: boolean }, other: string): Sight;
+  // The track in play as the game stands (sim/tracks.ts), which is all the floor there is to a
+  // kart while it is; null: the whole world's.
+  track(game: GameState): Track | null;
 }
 
 // How one player is shown another: `plain`, as anyone is in freeplay (their name over their head, a
@@ -59,6 +63,7 @@ export const FREEPLAY_RULES: Rules = {
   side: () => null,
   standings: () => [],
   sees: () => 'plain',
+  track: () => null,
 };
 
 // What a command is to a game's rules. A game says of every kind whether it allows it (`Allowed`),

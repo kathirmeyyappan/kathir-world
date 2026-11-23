@@ -58,7 +58,7 @@ for whatever the change adds or touches, and put the answers in it:
 - **Place:** if it puts a body somewhere (a spawn, a teleport, a respawn, a rescue), that it goes
   through the Room's own placing, where the mode has its say.
 - **Bounds:** if it asks where the world ends, that it asks for the floor in play, which a mode can
-  narrow (a race's track).
+  narrow (a race's track: `Rules.track`, which a kart's rescue is held to as its `Course`).
 - **Sight:** if it shows where someone is (a name, a pin, a mark on a map), that it asks who may
   see them: a mode hides opponents. It draws from the players `shownTo` the viewer, in the colour
   each comes with (`ui/sight.ts`, which asks the mode's `Rules.sees` and `Rules.side`), never from

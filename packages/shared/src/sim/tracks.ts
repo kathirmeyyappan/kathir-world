@@ -9,6 +9,7 @@ import type { Disc } from './ground';
 import { BUILDINGS_OUTLINE, ISLANDS, ROADS, ROAD_WIDTH, WORLD_OUTLINE } from './outline';
 import type { Trace } from './roads';
 import type { Vec3 } from './types';
+import type { Course } from './vehicles/rescue';
 
 // Metres from a track's start line to its finish: a minute or two in a kart.
 export const TRACK_LENGTH = { min: 1200, max: 2400 };
@@ -231,4 +232,29 @@ export function gridOf(track: Track, count: number): (Vec3 & { yaw: number })[] 
     // To the right of the way the track runs, for a positive `across`.
     return { x: s.x + Math.cos(s.yaw) * across, y: s.y, z: s.z - Math.sin(s.yaw) * across, yaw: s.yaw };
   });
+}
+
+// A track as the course its karts are held to (vehicles/rescue.ts): left by one off the side of its
+// road or past either end of it, which is set down again on its middle where it left, nose along
+// the way the track runs.
+export function courseOf(track: Track): Course {
+  return {
+    left(pos) {
+      const on = onTrack(track, pos);
+      return !withinTrack(on) || on.at < 0 || on.at > track.route.length;
+    },
+    back(safe) {
+      const s = spotAt(track, Math.max(0, Math.min(track.route.length, onTrack(track, safe).at)));
+      return { to: { x: s.x, y: s.y, z: s.z }, yaw: s.yaw };
+    },
+  };
+}
+
+const laid = new Map<number, Track>();
+
+// The track along the route at `index` of `routes()`, laid once.
+export function trackOf(index: number): Track {
+  let track = laid.get(index);
+  if (!track) laid.set(index, (track = layTrack(routes()[index])));
+  return track;
 }
