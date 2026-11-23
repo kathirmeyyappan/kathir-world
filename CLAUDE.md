@@ -53,8 +53,8 @@ for whatever the change adds or touches, and put the answers in it:
   client, whatever is heard of other players is heard of the frame's `heard` (`Game.ts`), which
   leaves the ghosts out, and whatever is drawn of a player's body is seen through on a ghost
   (`seeThrough`, `render/avatars/common.ts`).
-- **Points:** if it can hurt or kill, that it goes through the Room's one `damage`, so every mode
-  scores it and says what the death means.
+- **Points:** if it can hurt or kill, that it goes through the Room's one `damage`, which tells
+  the mode of every death (`GameMode.died`), so every mode scores it and says what the death means.
 - **Place:** if it puts a body somewhere (a spawn, a teleport, a respawn, a rescue), that it goes
   through the Room's own placing, where the mode has its say.
 - **Bounds:** if it asks where the world ends, that it asks for the floor in play, which a mode can

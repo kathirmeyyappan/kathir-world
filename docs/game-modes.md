@@ -75,8 +75,10 @@ which is null in freeplay, where there's no game to be anywhere in).
    mode puts everyone where they start, and its rules hold until it ends, by its own rule or by the
    master's END GAME, which goes straight back to the lobby with no results: "room master ended the
    game!" stands over the lobby's banner for a moment, and goes.
-4. **Results.** Who won, on one screen every mode fills in, for ten seconds (to build, with the
-   first game that has any).
+4. **Results.** Who won, on one screen every mode fills in (`ui/Results.ts`, from the mode's
+   `Rules.standings`), for ten seconds (`RESULTS_SECONDS`), the world going on under it with
+   nothing left to score. A game whose mode gives it a length (`Game.runs`) comes here as its clock
+   runs out; one without is its master's to end.
 5. Back to the **lobby**: everyone gets a new body in `RESPAWN_AREAS`, as after a death, ghosts are
    players again, the world is cleared, and the lobby's bots don't come back.
 
@@ -226,6 +228,15 @@ drawn and off.
 - When the clock runs out the team with the most points wins, and a tie is a tie.
 - A player who leaves is gone from their team, whose points stand.
 
+As the game begins (`Shootout.begin`) the rooms indoors (`INDOOR_ROOMS`, `content/regions.ts`) are
+shuffled and dealt round the teams, each player starts in one of their team's (`startsAt`), and
+takes the team's colour as their own (`PlayerState.color`, which paints a standard body and rides
+with whatever is made out in their name), their own kept for the lobby. The Room tells the mode of
+every death (`GameMode.died`, from its one `damage`), and the referee keeps each team's points
+(`ShootoutState.points`, `POINTS`) while the game is being played. A player's team is their side
+(`Rules.side`, null in the lobby), which is how the client knows a teammate's kill for friendly
+fire, and the teams by their points are its standings (`Rules.standings`).
+
 ## Racing
 
 A series of races, each on a track of its own, in karts, for points.
@@ -299,9 +310,11 @@ everything else, and it will change as modes and features are added (`CLAUDE.md`
 | ------------------------------------------------- | -------------------------------------- | --------------------------------------------------- | ------------------------------- |
 | May this player do this (a command, getting out)? | yes                                    | `runCommand`, a kart's exit; the commands card      | `Rules.refuses`, of a command   |
 | What does no hearts mean here?                    | lie 10 s, the death screen, a new body | the Room's respawn; `ui/Death.ts`                   | `Rules.dying`                   |
-| Where is this body put?                           | `SPAWN_AREAS`, `RESPAWN_AREAS`         | joining, a game's start, coming back, a spectator   | to build                        |
+| Where is this body put?                           | `SPAWN_AREAS`, `RESPAWN_AREAS`         | joining, a game's start, coming back, a spectator   | `Game.startsAt`, at a start     |
 | What floor is in play?                            | the whole world's                      | a kart's rescue, the red box, the maps, the floor   | to build                        |
-| What did this kill or death score?                | nothing                                | the Room's `damage`                                 | to build                        |
+| What did this kill or death score?                | nothing                                | the Room's `damage`                                 | `GameMode.died`                 |
+| Whose side is this player on?                     | nobody's                               | friendly fire's kill line; names and marks (to come)| `Rules.side`                    |
+| How does the game stand?                          | it doesn't                             | the results screen; the HUD's points (to come)      | `Rules.standings`               |
 | How does this player see that one?                | plainly, in their own colour           | name tags, pins, maps, the roster, the chat's names | to build                        |
 | What is someone who joins now?                    | a player                               | joining                                             | `GameMode.joining`, `joined`    |
 | What does this player leaving do?                 | their seat goes                        | leaving                                             | `GameMode.left`                 |
@@ -365,7 +378,7 @@ outside dev until each can be played, so freeplay is run on every merge.
 
 - [x] Teams in the settings: the board, adding and taking away teams, dragging, joiners dealt in,
       the condition to start; bots' rows drawn and disabled.
-- [ ] The game: colours, the sites dealt, the clock, the points, the kill lines, the end, and the
+- [x] The game: colours, the sites dealt, the clock, the points, the kill lines, the end, and the
       results screen every mode fills in.
 - [ ] Who sees whom: names, pins and maps; the HUD's points and clock; the roster by team.
 - [ ] Shootout on the home screen and in the guide.

@@ -126,6 +126,7 @@ import { KartGauge } from '../ui/KartGauge';
 import { EdgeFlash } from '../ui/EdgeFlash';
 import { Death } from '../ui/Death';
 import { GameBanner } from '../ui/GameBanner';
+import { Results } from '../ui/Results';
 import { StartGate } from '../ui/StartGate';
 import { Fuel } from '../ui/Fuel';
 import { GearHud } from '../ui/GearHud';
@@ -294,6 +295,7 @@ export class Game {
   private game: GameState = { mode: FREEPLAY, master: null, phase: null, until: null };
   private tick = 0;
   private readonly banner = new GameBanner();
+  private readonly results = new Results();
   private readonly master = (): boolean => this.game.master === this.myId;
   // What leaving the room does besides, which every way out warns of first: closing it for
   // everyone, when it's the room master leaving.
@@ -830,7 +832,7 @@ export class Game {
         this.onHit(m);
         return;
       case 'kill':
-        this.hud.announceKill(m.shooter, m.victim, m.item, m.headshot);
+        this.hud.announceKill(m.shooter, m.victim, m.item, m.headshot, this.sameSide(m.shooter, m.victim));
         this.hud.setDead(m.victim);
         if (m.victim === this.myId) this.die(`${KILLED_BY[m.item] ?? 'shot'} by ${this.hud.playerName(m.shooter)}`);
         this.say(m.shooter, 'kill', GLOAT_DELAY);
@@ -859,10 +861,16 @@ export class Game {
     }
   }
 
+  // Whether two players are on one side of the room's game, where it has sides.
+  private sameSide(a: string, b: string): boolean {
+    const side = (id: string) => rulesOf(this.game).side(this.game, id)?.name ?? null;
+    return side(a) !== null && side(a) === side(b);
+  }
+
   // The room's game as the Room tells of it, in its welcome and whenever it changes. A game back in
-  // its lobby with nothing won was ended by its room master.
+  // its lobby with no results shown was ended by its room master.
   private setGame(game: GameState): void {
-    const ended = this.game.phase !== null && this.game.phase !== 'lobby' && game.phase === 'lobby';
+    const ended = (this.game.phase === 'starting' || this.game.phase === 'playing') && game.phase === 'lobby';
     this.game = game;
     this.hud.setMaster(game.master);
     this.commandsMenu.refresh();
@@ -1328,6 +1336,11 @@ export class Game {
     );
     this.commandHint.update(this.startGate.up, this.isBlocked());
     this.banner.set(this.startGate.up ? null : this.standing());
+    const over = this.game.phase === 'results' && this.game.until !== null;
+    this.results.set(
+      over ? rulesOf(this.game).standings(this.game) : null,
+      over ? Math.max(0, Math.ceil((this.game.until! - this.tick) / TICK_RATE)) : 0,
+    );
     this.minimap.update({
       me: { x: p.x, y: p.y, z: p.z, yaw: this.input.yaw },
       players: sampled.players,

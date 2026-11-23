@@ -154,6 +154,7 @@ export class Room {
     this.id = id;
     this.mode = makeMode(opts.mode ?? FREEPLAY, {
       tick: () => this.tick,
+      random: () => this.rng(),
       publish: () => this.broadcast({ t: 'game', game: this.mode.state }),
       close: (reason) => this.end(reason),
       people: () => this.players.filter((p) => !p.bot),
@@ -573,6 +574,7 @@ export class Room {
     victim.deaths++;
     const seat = this.seats.get(victim.id);
     if (seat) seat.diedTick = this.tick;
+    this.mode.died(victim, shooter === victim ? null : shooter);
     if (!shooter || shooter === victim) return this.broadcast({ t: death, victim: victim.id });
     shooter.kills++;
     const item = by?.move ?? shooter.item!.id;

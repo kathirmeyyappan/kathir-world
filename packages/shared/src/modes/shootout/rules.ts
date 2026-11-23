@@ -1,7 +1,7 @@
 // Shootout's rules (docs/game-modes.md), which the Room enforces and the client shows.
 import { gameRules } from '../game';
 import { FREEPLAY_DYING, type Rules } from '../rules';
-import { isShootout } from './state';
+import { TEAMS, isShootout, type ShootoutState } from './state';
 
 export const SHOOTOUT_RULES: Rules = {
   // A fight on foot and in karts between teams in their own colours: nothing that flies over it or
@@ -30,4 +30,26 @@ export const SHOOTOUT_RULES: Rules = {
     if (sizes.some((n) => n === 0)) return 'every team needs a player';
     return sizes.every((n) => n === sizes[0]) ? null : 'every team needs the same number of players';
   },
+
+  // A player's team is their side from the game's start until the lobby is back, where everyone is
+  // their own again.
+  side(game, player) {
+    if (!isShootout(game) || !fought(game)) return null;
+    const team = game.teams.findIndex((players) => players.includes(player));
+    return team < 0 ? null : TEAMS[team];
+  },
+
+  // The teams by their points, the most first: every team level on the most has won.
+  standings(game) {
+    if (!isShootout(game) || !fought(game)) return [];
+    const most = Math.max(...game.points);
+    return game.teams
+      .map((_, team) => ({ side: TEAMS[team], points: game.points[team], won: game.points[team] === most }))
+      .sort((a, b) => b.points - a.points);
+  },
 };
+
+// Whether its game is being fought, or has just been: the teams are sides only then.
+function fought(game: ShootoutState): boolean {
+  return game.phase === 'playing' || game.phase === 'results';
+}

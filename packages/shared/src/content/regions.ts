@@ -35,15 +35,16 @@ export const SPAWN_AREAS: SpawnArea[] = [
   { region: { kind: 'rect', x: 31.5, z: 0, w: 25, d: 30, y: 0 }, weight: 1 },
 ];
 
+// The ground floor inside each of the buildings: the keeps', the pineapple's living room and the
+// Krusty Krab's dining room.
+const GROUND_FLOORS: Region[] = [...STANDING_KEEPS.map((k) => k.levels[0]), PINEAPPLE_LEVELS[0], KRUSTY_KRAB_FLOOR];
+// Every room indoors with a floor of its own to start from: each of the tower's four, and those.
+export const INDOOR_ROOMS: Region[] = [...TUNG_TUNG_TOWER_INSIDE, ...GROUND_FLOORS];
+
 // Where people come back after dying: half the time anywhere on the middle's floor, and otherwise
 // the ground floor inside one of the buildings, each as likely: the tower's, each keep's, the
 // pineapple's living room and the Krusty Krab's dining room.
-const INDOORS: Region[] = [
-  TUNG_TUNG_TOWER_INSIDE[0],
-  ...STANDING_KEEPS.map((k) => k.levels[0]),
-  PINEAPPLE_LEVELS[0],
-  KRUSTY_KRAB_FLOOR,
-];
+const INDOORS: Region[] = [TUNG_TUNG_TOWER_INSIDE[0], ...GROUND_FLOORS];
 export const RESPAWN_AREAS: SpawnArea[] = [
   { region: MIDDLE, weight: INDOORS.length },
   ...INDOORS.map((region) => ({ region, weight: 1 })),

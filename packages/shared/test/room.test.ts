@@ -42,6 +42,8 @@ import {
   PINEAPPLE_PLACEMENT,
   botRequest,
   defaultBotsFor,
+  INDOOR_ROOMS,
+  TEAMS,
   isShootout,
   rulesOf,
   AVATARS,
@@ -258,7 +260,7 @@ test('a room with a game has a room master: whoever made it, told to everyone, w
 });
 
 test("a game's flow: its master starts it from the lobby, counted down, on a world cleared with everyone in a new body, and ends it back to the lobby", () => {
-  const room = new Room('flow', { seed: 2, mode: 'shootout', structures: new Structures([]), pickupAreas: [] });
+  const room = new Room('flow', { seed: 2, mode: 'racing', structures: new Structures([]), pickupAreas: [] });
   const [a, b] = [link(), link()];
   const ida = room.join('alice', a, { made: true })!;
   const idb = room.join('bob', b)!;
@@ -428,6 +430,99 @@ test("shootout's lobby: everyone goes on the team with the fewest, its master mo
   assert.equal(game().phase, 'starting');
   set(ida, { teams: 3 });
   assert.equal(game().teams.length, 2, 'and set up in the lobby alone');
+});
+
+test("a shootout: the teams start apart indoors in their colours; a kill of the other side is two points, any death one off its team's, never below nothing, and a teammate's kill worth none; the clock out, the results stand, and the lobby is back in everyone's own colour", () => {
+  const room = new Room('shootout', { seed: 8, mode: 'shootout', pickupAreas: [] });
+  const a = link();
+  const ida = room.join('alice', a, { made: true })!;
+  const [idb, idc, idd] = ['bob', 'carol', 'dave'].map((name) => room.join(name, link())!);
+  const player = (id: string) => room.players.find((p) => p.id === id)!;
+  const game = () => {
+    const told_ = told(a);
+    assert.ok(isShootout(told_));
+    return told_;
+  };
+  assert.deepEqual(game().teams, [
+    [ida, idc],
+    [idb, idd],
+  ]);
+  const own = [ida, idb, idc, idd].map((id) => player(id).color);
+  room.receive(ida, { t: 'settings', change: { clock: 60 } });
+  room.receive(ida, { t: 'game', do: 'start' });
+  while (game().phase !== 'playing') room.step();
+  const ends = game().until!;
+  assert.equal(ends - room.tick, 60 * TICK_RATE - 1, 'on its clock from the tick it began');
+
+  assert.deepEqual(
+    [ida, idb, idc, idd].map((id) => player(id).color),
+    [TEAMS[0], TEAMS[1], TEAMS[0], TEAMS[1]].map((team) => team.colour),
+  );
+  const roomOf = (id: string) =>
+    INDOOR_ROOMS.findIndex((r) => {
+      const { x, y, z } = player(id).pos;
+      const across =
+        r.kind === 'rect'
+          ? Math.max(Math.abs(x - r.x) / r.w, Math.abs(z - r.z) / r.d) * 2
+          : Math.hypot(x - r.x, z - r.z) / r.r;
+      return across <= 1 && Math.abs(y - EYE_HEIGHT - r.y) < 2;
+    });
+  const rooms = [ida, idb, idc, idd].map(roomOf);
+  assert.ok(
+    rooms.every((r) => r >= 0),
+    `everyone indoors: ${rooms}`,
+  );
+  assert.ok(
+    ![rooms[0], rooms[2]].some((r) => r === rooms[1] || r === rooms[3]),
+    `no room shared by the teams: ${rooms}`,
+  );
+  assert.deepEqual(rulesOf(game()).side(game(), idb), TEAMS[1]);
+
+  // One snipes another put 5 m in front of them on the open floor, through the head, each pair on
+  // a line of its own, clear of whoever shot last.
+  let lines = 0;
+  const snipe = (shooter: string, victim: string) => {
+    for (const id of [shooter, victim]) if (player(id).dead) room.receive(id, { t: 'respawn' });
+    room.receive(shooter, { t: 'chat', text: '/sniper' });
+    const x = 6 * lines++;
+    player(shooter).pos = { x, y: EYE_HEIGHT, z: 0 };
+    player(victim).pos = { x, y: EYE_HEIGHT, z: 5 };
+    for (let i = 0; i < ITEMS.sniper.cooldownTicks; i++) room.step();
+    press(room, shooter, 0, true);
+    assert.ok(player(victim).dead);
+  };
+  snipe(ida, idb);
+  assert.deepEqual(game().points, [2, 0], 'two for the kill, and nothing to take off a team with none');
+  snipe(idb, ida);
+  assert.deepEqual(game().points, [1, 2]);
+  snipe(idc, ida);
+  assert.deepEqual(game().points, [0, 2], "a teammate's kill: the death alone");
+  player(idd).pos.y += 100;
+  while (!player(idd).dead) room.step();
+  assert.deepEqual(game().points, [0, 1], 'a fall costs its team as any death does');
+  assert.deepEqual(
+    rulesOf(game())
+      .standings(game())
+      .map((s) => [s.side.name, s.points, s.won]),
+    [
+      ['TEAM B', 1, true],
+      ['TEAM A', 0, false],
+    ],
+  );
+
+  while (room.tick < ends) room.step();
+  assert.equal(game().phase, 'playing');
+  room.step();
+  assert.equal(game().phase, 'results');
+  snipe(idb, ida);
+  assert.deepEqual(game().points, [0, 1], 'nothing scores once it is over');
+  while (game().phase === 'results') room.step();
+  assert.equal(game().phase, 'lobby');
+  assert.deepEqual(
+    [ida, idb, idc, idd].map((id) => player(id).color),
+    own,
+  );
+  assert.equal(rulesOf(game()).side(game(), idb), null, 'and nobody is on a side');
 });
 
 test('room calls onEmpty when the last player leaves', () => {

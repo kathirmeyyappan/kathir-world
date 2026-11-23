@@ -2,7 +2,7 @@
 // master, the player who made the room, whose it is for as long as it lasts, and the flow the
 // master runs it through. A lobby, which is freeplay but for the game waiting to be started; the
 // start, counted down; the game; and the lobby again.
-import { RESPAWN_AREAS, SPAWN_AREAS } from '../content/regions';
+import { RESPAWN_AREAS, SPAWN_AREAS, type SpawnArea } from '../content/regions';
 import { TICK_RATE } from '../sim/constants';
 import type { PlayerState } from '../sim/types';
 import type { GameAction, GameState } from './index';
@@ -13,9 +13,12 @@ import { FREEPLAY_DYING, kindOf, type Allowed, type Dying, type Rules } from './
 export const MASTER_LEFT = 'the room master ended the room';
 // Seconds from the master's START to the game, counted down for everyone.
 export const START_SECONDS = 5;
+// Seconds a game's results stand before everyone is back in the lobby.
+export const RESULTS_SECONDS = 10;
 
-// Where a game is: waiting in its lobby, counting down to its start, or being played.
-export type Phase = 'lobby' | 'starting' | 'playing';
+// Where a game is: waiting in its lobby, counting down to its start, being played, or over, its
+// results standing.
+export type Phase = 'lobby' | 'starting' | 'playing' | 'results';
 
 // What a mode says of its own game, where its answer is a value.
 export interface Playing {
@@ -59,6 +62,8 @@ export function gameRules(own: Playing): Rules {
     },
     dying: (game) => (game.phase === 'playing' ? own.dying : LOBBY_DYING),
     starts: () => null,
+    side: () => null,
+    standings: () => [],
   };
 }
 
@@ -67,19 +72,19 @@ export class Game extends GameMode {
   // code to can be seated first, and isn't its master for that.
   private master: string | null = null;
   private phase: Phase = 'lobby';
-  private until: number | null = null; // the tick the start's countdown runs out at, while it runs
+  private until: number | null = null; // the tick the phase runs out at, where it's on a clock
 
   override get state(): GameState {
     return { ...super.state, master: this.master, phase: this.phase, until: this.until };
   }
 
   // A game is people alone, and those who were there as it began: the lobby's bots die as it
-  // starts and none is seated until it's over, and a person who comes once it's being played
-  // watches it as a ghost until the lobby is back.
+  // starts and none is seated until it's over, and a person who comes once it has begun watches it
+  // as a ghost until the lobby is back.
   override joining(bot: boolean): Joining {
     if (this.phase === 'lobby') return 'player';
     if (bot) return { away: 'a game is on' };
-    return this.phase === 'playing' ? 'ghost' : 'player';
+    return this.phase === 'starting' ? 'player' : 'ghost';
   }
 
   override joined(player: PlayerState, made: boolean): void {
@@ -117,8 +122,28 @@ export class Game extends GameMode {
     return false;
   }
 
+  // The clock a phase is on runs out: the countdown into the game, the game (where its mode gives
+  // it one) into its results, and those back into the lobby.
   override step(): void {
-    if (this.phase === 'starting' && this.room.tick() >= this.until!) this.begin();
+    if (this.until === null || this.room.tick() < this.until) return;
+    if (this.phase === 'starting') this.begin();
+    else if (this.phase === 'playing') this.to('results', this.room.tick() + RESULTS_SECONDS * TICK_RATE);
+    else if (this.phase === 'results') this.toLobby();
+  }
+
+  // Whether the game is being played: what comes of a death counts only while it is.
+  protected get playing(): boolean {
+    return this.phase === 'playing';
+  }
+
+  // Where `player` starts the game: where anyone comes in, unless the mode puts them somewhere.
+  protected startsAt(_player: PlayerState): SpawnArea[] {
+    return SPAWN_AREAS;
+  }
+
+  // How many seconds the game runs before it's over, or null: until its room master ends it.
+  protected runs(): number | null {
+    return null;
   }
 
   private start(): void {
@@ -126,15 +151,16 @@ export class Game extends GameMode {
     this.to('starting', this.room.tick() + START_SECONDS * TICK_RATE);
   }
 
-  // The game begins: on a world with nothing left on it from the lobby, everyone in a new body,
-  // their kills and deaths counted from nothing.
-  private begin(): void {
+  // The game begins: on a world with nothing left on it from the lobby, everyone in a new body
+  // where its mode starts them, their kills and deaths counted from nothing.
+  protected begin(): void {
     this.room.clear();
     for (const player of this.room.people()) {
-      const body = this.room.embody(player, SPAWN_AREAS);
+      const body = this.room.embody(player, this.startsAt(player));
       body.kills = body.deaths = 0;
     }
-    this.to('playing');
+    const seconds = this.runs();
+    this.to('playing', seconds === null ? null : this.room.tick() + seconds * TICK_RATE);
   }
 
   // Back to the lobby, as everyone comes back from the dead: a new body each, on a world with
