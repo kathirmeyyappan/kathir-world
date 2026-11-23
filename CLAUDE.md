@@ -1743,8 +1743,8 @@ interpolation, or visual picking.
 ### Required contract
 
 A bot runs on one of the bots app's two Modal workers, and its signature is what that worker gives
-it. A dumb bot (circle, stalker, observer) runs on `run_dumb_bot` and satisfies `DumbBotInvocation`
-in `modal-bots/bots/__init__.py`; a combat bot (the sniper) runs on `run_combat_bot` and satisfies
+it. A dumb bot (circle, stalker, observer, the racers) runs on `run_dumb_bot` and satisfies
+`DumbBotInvocation` in `modal-bots/bots/__init__.py`; a combat bot (the sniper) runs on `run_combat_bot` and satisfies
 `CombatBotInvocation`, which adds `targets`, the parts of player names it goes after (any case;
 empty means every person). Make a bot a combat bot when it takes names from chat. Either kind loads
 the maps of the world it needs itself (see the shared runtime below).
@@ -1848,6 +1848,18 @@ Bots must use the modules under `modal-bots/common/`:
     the middle of the race track a race names by that index (a `Middle`: its points in the order
     they're driven, and which of its stretches are a gap or have a boost pad).
   - `load_karts()`: `karts.of(kart.kart)` is how a kart drives (`Driven`).
+- A kart is driven by a `Driver(line, skill, kart, dice)` (`common/driving.py`) along the
+  `racing_line(middle, shape, kart)` of a way along the roads (`common/racing_line.py`):
+  `driver.keys(kart, late, mood)` is the gas, the wheel and the drift key to hold next, for a kart
+  seen `late` ticks before they'll be taken (`controls.seq - me.last_seq`). How well it drives is
+  its `Skill`, `skill(rating)` anywhere from 0 (the middle of the road, short of flat out, no
+  drifts, no tricks) to 1 (the whole road, every drift held to its last spark, every trick), and
+  how it differs from another
+  of its skill is its `dice` (which bends it drifts, which flights it tricks in, when its
+  attention lapses) and the `mood` it's told each tick (-1 cold to 1 hot). It allows for its
+  lateness itself and keeps count of what it has pressed, so give it every snapshot's kart, in
+  order. A line takes about a quarter of a second to work out: do it off the event loop
+  (`asyncio.to_thread`), once for every bot that wants it, as `racer_bot.py` does.
 
 Bot files must not import `httpx` or `websockets`, parse raw JSON, copy lobby/token code, manage
 `InputFrame.seq`, or log a token-bearing redirect or authorization header.
@@ -1884,7 +1896,9 @@ become the `reading` field; use `read_cube`. Attack clicks become the `shoot` ac
 Tap weapons require a press frame followed by a release frame. Hold weapons require `shoot` on
 every frame. Sniper shots require scope to remain enabled, and a scoped player walks at 30% speed
 and can't jump. Run exactly one input loop per connection; never call `send_input()` concurrently
-from multiple tasks.
+from multiple tasks. A bot that drives a kart sends a frame for every snapshot it's sent instead
+(`racer_bot.py`), with no loop of its own: its keys are then taken a tick after what they were
+decided on, and the room steps its kart once for each of them.
 
 ### Active-bot lifecycle
 
