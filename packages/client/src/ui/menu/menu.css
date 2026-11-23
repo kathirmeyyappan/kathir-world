@@ -535,8 +535,9 @@
 #menu .board .head .count {
   font-size: 17px;
 }
-/* Someone on it: their emblem and name, what's set of theirs after it, and where that's the
-   player's to step, - and + at either end, each a fair target for a thumb. */
+/* Someone on it: their emblem and name, and after it what's set of theirs: to read, or where it's
+   the player's to step, a stepper's box at the row's end, each of its buttons a fair target for a
+   thumb. */
 #menu .board .player {
   display: flex;
   align-items: center;
@@ -558,19 +559,25 @@
   color: var(--accent-soft);
   white-space: nowrap;
 }
-#menu .board .player:has(.step) {
-  padding: 0;
+#menu .board .player:has(.steps) {
+  padding-right: 0;
 }
-#menu .board .player .step {
+#menu .board .player .steps {
+  flex: none;
   align-self: stretch;
-  min-width: 42px;
-  padding: 0;
   border: 0;
   box-shadow: none;
-  background: rgba(100, 181, 246, 0.18);
 }
-#menu .board .player .step:disabled {
-  opacity: 0.3;
+#menu .board .player .steps .step {
+  min-width: 42px;
+  padding: 0;
+}
+#menu .board .player .steps .reading {
+  flex: none;
+  min-width: 0;
+  padding: 0 10px;
+  font-size: inherit;
+  white-space: nowrap;
 }
 #menu .board .column.open .player {
   cursor: grab;

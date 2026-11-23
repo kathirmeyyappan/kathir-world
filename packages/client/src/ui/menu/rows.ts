@@ -108,8 +108,8 @@ export interface Entry extends Listed {
   set?: Setting;
 }
 
-// What something is set to, and where it's the player's to change, how: - and + either side of
-// whose it is `step` it, each while it `can` go that way.
+// What something is set to, and where it's the player's to change, how: the - and + either side
+// of it `step` it, each while it `can` go that way.
 export interface Setting {
   value: string;
   step?: (by: 1 | -1) => void;
@@ -204,19 +204,15 @@ function board(row: Board): Drawn {
           player.translate = false;
           if (p.set) {
             const { value, step, can: goes } = p.set;
-            player.append(element('span', 'value', value));
-            // - before them and + after, where it's the player's to step either way.
-            if (step && goes && (goes(-1) || goes(1)))
-              for (const by of [-1, 1] as const) {
-                const button = element('button', 'step', by < 0 ? '-' : '+');
-                button.disabled = !goes(by);
-                button.addEventListener('click', (e) => {
-                  e.stopPropagation(); // a press of its own, not one on the column it's in
-                  step(by);
-                });
-                if (by < 0) player.prepend(button);
-                else player.append(button);
-              }
+            // Between - and + where it's the player's to step either way, and only read otherwise.
+            if (step && goes && (goes(-1) || goes(1))) {
+              const box = steps(['-', '+'], (by, press) => {
+                press.stopPropagation(); // a press of its own, not one on the column it's in
+                step(by);
+              });
+              box.show(value, goes);
+              player.append(box.el);
+            } else player.append(element('span', 'value', value));
           }
           if (can) {
             player.draggable = true;
@@ -251,8 +247,8 @@ function board(row: Board): Drawn {
     const can = row.can();
     if (!can || !cols.some((col) => col.players.some((p) => p.id === picked))) picked = null;
     // Which way each setting on it can be stepped is part of what it shows.
-    const steps = cols.map((col) => col.players.map((p) => [p.set?.can?.(-1), p.set?.can?.(1)]));
-    const now = JSON.stringify([cols, steps, can, picked]);
+    const ways = cols.map((col) => col.players.map((p) => [p.set?.can?.(-1), p.set?.can?.(1)]));
+    const now = JSON.stringify([cols, ways, can, picked]);
     if (now !== shown) {
       shown = now;
       fill(cols, can);
@@ -292,44 +288,53 @@ function toggle(row: Toggle): Drawn {
   return { el, refresh };
 }
 
+// A value in one box between the two buttons that step it down and up, each reading as `signs` has
+// it. `show` brings it up to date: what it reads, and which way it can be stepped.
+function steps(signs: readonly [string, string], step: (by: 1 | -1, press: MouseEvent) => void) {
+  const el = element('div', 'steps');
+  const reading = element('span', 'reading');
+  reading.translate = false;
+  const buttons = ([-1, 1] as const).map((by, i) => {
+    const button = element('button', 'step', signs[i]);
+    button.translate = false;
+    button.addEventListener('click', (press) => step(by, press));
+    return { by, button };
+  });
+  el.append(buttons[0].button, reading, buttons[1].button);
+  const show = (value: string, can: (by: 1 | -1) => boolean) => {
+    if (reading.textContent !== value) reading.textContent = value;
+    for (const { by, button } of buttons) button.disabled = !can(by);
+  };
+  return { el, show };
+}
+
 function stepper(row: Stepper): Drawn {
   const el = element('div', 'stepper');
   const line = element('div', 'row');
   const controls = element('div', 'controls');
   const refreshers: (() => void)[] = [];
-  const pressing = (button: HTMLButtonElement, press: () => void) =>
-    button.addEventListener('click', () => {
-      press();
-      refresh();
-    });
-  const steps = element('div', 'steps');
+  const box = steps(['<', '>'], (by) => {
+    row.step(by);
+    refresh();
+  });
   if (row.auto) {
     const { label, on, press } = row.auto;
     const auto = element('button', 'auto');
     auto.translate = false;
-    pressing(auto, press);
+    auto.addEventListener('click', () => {
+      press();
+      refresh();
+    });
     refreshers.push(() => {
       const text = label();
       if (auto.textContent !== text) auto.textContent = text;
       auto.classList.toggle('on', on());
-      steps.classList.toggle('off', on());
+      box.el.classList.toggle('off', on());
     });
     controls.append(auto);
   }
-  const reading = element('span', 'reading');
-  reading.translate = false;
-  for (const by of [-1, 1] as const) {
-    const button = element('button', 'step', by < 0 ? '<' : '>');
-    button.translate = false;
-    pressing(button, () => row.step(by));
-    refreshers.push(() => (button.disabled = !row.can(by)));
-    steps.append(by < 0 ? button : reading, by < 0 ? reading : button);
-  }
-  refreshers.push(() => {
-    const text = row.value();
-    if (reading.textContent !== text) reading.textContent = text;
-  });
-  controls.append(steps);
+  refreshers.push(() => box.show(row.value(), row.can));
+  controls.append(box.el);
   line.append(element('span', 'name', row.label), controls);
   el.append(line);
   if (row.hint) {
