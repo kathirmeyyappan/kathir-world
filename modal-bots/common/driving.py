@@ -35,6 +35,7 @@ BRAKING = 10.0  # m/s² a driver counts on slowing at, a way short of what the b
 THROWN = 1.5  # metres off its line a flight may bring it down and still be taken
 CREST_SHARE = 0.8  # of the speed a crest would throw it at that it's taken at, where a flight isn't
 LOST = 25.0  # metres off its line from which a driver looks for where it is afresh
+FALLEN = 4.0  # metres under its line's road that a kart on the ground has fallen off it
 STUCK_TICKS = 40  # ticks all but still before it backs off
 BACK_TICKS = 30  # ticks it backs off for
 # A drift is begun for a bend the line turns into at this share of the kart's full turn or more,
@@ -138,6 +139,10 @@ class Driver:
         forward = kart.vel.x * math.sin(kart.yaw) + kart.vel.z * math.cos(kart.yaw)
         s = self._place(x, kart.pos.y, z)
         i = self._at
+        # Down on the ground past the road's edge, there's no driving back up: Lakitu's to wait for.
+        if kart.grounded and kart.pos.y < line.y[i] - FALLEN:
+            self._key = 0
+            return Keys()
         total = line.s[-1]
         # The point of the line it steers for, further ahead the faster it goes, and the turn that
         # takes it there (a circle through the point), as a share of its tightest.
@@ -255,7 +260,7 @@ class Driver:
                 min(range(n), key=lambda a: (line.x[a] - x) ** 2 + (line.z[a] - z) ** 2 + 4 * (line.y[a] - y) ** 2),
             )
         best, share = math.inf, 0.0
-        for a in range(max(0, self._at - 2), min(n - 2, self._at + 8) + 1):
+        for a in range(max(0, self._at - 4), min(n - 2, self._at + 16) + 1):
             ux, uz = line.x[a + 1] - line.x[a], line.z[a + 1] - line.z[a]
             t = _unit01(((x - line.x[a]) * ux + (z - line.z[a]) * uz) / ((ux * ux + uz * uz) or 1.0))
             d = math.hypot(x - line.x[a] - ux * t, z - line.z[a] - uz * t)

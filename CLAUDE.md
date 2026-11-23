@@ -1856,7 +1856,7 @@ Bots must use the modules under `modal-bots/common/`:
   of its skill is its `dice` (which bends it drifts, which flights it tricks in, when its
   attention lapses) and the `mood` it's told each tick (-1 cold to 1 hot). It allows for its
   lateness itself and keeps count of what it has pressed, so give it every snapshot's kart, in
-  order. A line takes about a fifth of a second to work out: do it off the event loop
+  order. A line takes about a quarter of a second to work out: do it off the event loop
   (`asyncio.to_thread`), once for every bot that wants it, as `racer_bot.py` does.
 
 Bot files must not import `httpx` or `websockets`, parse raw JSON, copy lobby/token code, manage
