@@ -49,6 +49,7 @@ export interface Shown {
   item: ItemId | null;
   gear: GearId | null;
   chilled: boolean;
+  ghost: boolean;
   shattered: number[];
   kart: KartId | null;
 }
@@ -354,7 +355,7 @@ export class BodyView {
       climb: null,
       chilled: shown.chilled,
       dead: false,
-      ghost: false,
+      ghost: shown.ghost,
       body: 1,
       avatar: shown.avatar,
       dragon: body,

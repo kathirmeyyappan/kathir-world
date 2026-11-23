@@ -43,6 +43,9 @@ export const SKULL = ['..####..', '.######.', '##.##.##', '##.##.##', '########'
 // 8x8 crown: three points over a band.
 export const CROWN = ['........', '#..##..#', '#..##..#', '##.##.##', '########', '########', '########', '........'];
 
+// 8x8 ghost: a dome with two eyes over a scalloped hem.
+export const GHOST = ['..####..', '.######.', '########', '#.##.###', '#.##.###', '########', '########', '#.##.##.'];
+
 // 8x8 robot head: antenna, visor eyes, a mouth grille.
 export const ROBOT = ['...##...', '...##...', '.######.', '#.#..#.#', '#.#..#.#', '#.####.#', '.#.##.#.', '.######.'];
 

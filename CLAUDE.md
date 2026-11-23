@@ -49,7 +49,10 @@ for whatever the change adds or touches, and put the answers in it:
   it changes nothing in the world and isn't heard doing it. Whatever the world does to people it
   does to the Room's `bodies`, which leaves the ghosts out, and what a ghost's own step, shot or
   click would do is stopped where each is taken (`room.ts` `advance`, `applyActions`, `use`); a new
-  kind of command says whether a ghost may ask for it (`GHOST_ALLOWS`, `modes/rules.ts`).
+  kind of command says whether a ghost may ask for it (`GHOST_ALLOWS`, `modes/rules.ts`). On the
+  client, whatever is heard of other players is heard of the frame's `heard` (`Game.ts`), which
+  leaves the ghosts out, and whatever is drawn of a player's body is seen through on a ghost
+  (`seeThrough`, `render/avatars/common.ts`).
 - **Points:** if it can hurt or kill, that it goes through the Room's one `damage`, so every mode
   scores it and says what the death means.
 - **Place:** if it puts a body somewhere (a spawn, a teleport, a respawn, a rescue), that it goes
@@ -1545,7 +1548,7 @@ its corner (on touch, the other way round), the two swapping places at a click o
 is, where the world's own avatar builders stand the avatar on a floor ruled in metres that fades
 out toward its edge (a dragon hovering over it, its head weaving and its body trailing as the sim
 would keep it), holding what the player holds and as the player is (`Me`: frosted over, a
-dragon's crystals shot out, sat in the kart they drive), so every skin's own idle motion runs there too; the view turns on
+dragon's crystals shot out, sat in the kart they drive, seen through as a ghost), so every skin's own idle motion runs there too; the view turns on
 its own and under a drag, from above or below (the floor fades out as the view comes down to its
 level). The map (`menu/Map.ts`) is the HUD minimap's view, CLOSE, WIDE or WORLD (the first two
 centred on you and turning with you, 32 m and 100 m out to the nearer edge, WIDE to start with; P steps one wider, and
