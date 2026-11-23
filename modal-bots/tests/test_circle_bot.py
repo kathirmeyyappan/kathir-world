@@ -31,7 +31,7 @@ def test_stall_fires_once_per_settle_when_the_bot_stops_making_headway() -> None
     assert stalls[1] - stalls[0] >= SETTLE_TICKS
 
 
-def test_tightens_its_ring_where_the_ground_drops_away_and_turns_back_only_where_no_ring_fits() -> None:
+def test_keeps_off_the_road_side_tightening_its_ring_turning_back_or_sliding_along_it() -> None:
     # On the Krusty Krab's road, half a metre in from its side at z -10, far out past its grounds.
     me = dataclasses.replace(FakeConnection().welcome.players[0], pos=Vec3(-255, 1.7, -9.5))
     controls = Controls(FakeConnection())  # type: ignore[arg-type]
@@ -46,3 +46,9 @@ def test_tightens_its_ring_where_the_ground_drops_away_and_turns_back_only_where
     circler = Circler(load_solids(), load_bodies())
     assert circler.step(0, me, Vec3(-255 + ORBIT_RADIUS, 1.7, -9.5), controls)
     assert circler.way == -way and controls.right == -way
+
+    # Toward someone far off across the drop: no ring has ground either way, so it slides along
+    # the road's side rather than standing or stepping off it.
+    circler = Circler(load_solids(), load_bodies())
+    assert not circler.step(0, me, Vec3(-255, 1.7, -60), controls)
+    assert abs(controls.forward) < 0.5 < abs(controls.right)
