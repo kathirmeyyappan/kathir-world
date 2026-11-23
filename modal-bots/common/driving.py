@@ -55,6 +55,10 @@ EVEN = 0.25  # of the wheel, the most it's held over as a trick is pressed: unde
 MOOD_PACE = 0.04  # of its pace that a driver's mood adds or takes at its most
 MOOD_SHARE = 0.25  # and of the drifts and tricks it could do
 LAPSE = (0.3, 0.9)  # seconds a lapse lasts, the least and the most: off the gas
+# The best cut corners: from this rating up a line may leave the road where two roads meet, for
+# these metres at the most, about a second off the track of the two a race allows before Lakitu comes.
+CUTS = 0.7
+CUT = 22.0
 AFTER = 40.0  # metres on from a drift let go at its last spark that no other is begun
 
 
@@ -84,7 +88,14 @@ def skill(rating: float) -> Skill:
     r = _unit01(rating)
     return Skill(
         # To the half metre, so drivers near each other in skill share a line.
-        shape=Shape(width=round(2 * (3 + 5 * r)) / 2, jump=3 + r, pad=3 + 3 * r, radius=24 - 6 * r, most=8),
+        shape=Shape(
+            width=round(2 * (3 + 5 * r)) / 2,
+            jump=3 + r,
+            pad=3 + 3 * r,
+            radius=24 - 6 * r,
+            most=8,
+            cut=CUT if r >= CUTS else 0,
+        ),
         pace=0.875 + 0.125 * r,
         grip=0.5 + 0.35 * r,
         drifts=_unit01((r - 0.3) / 0.6),

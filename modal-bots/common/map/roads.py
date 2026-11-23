@@ -25,6 +25,10 @@ class Middle:
     points: tuple[Vec3, ...]
     gap: tuple[bool, ...]
     pad: tuple[bool, ...]
+    width: float  # metres across the road
+    # Metres from a corner of it (where two of its roads meet, on an island or the crossroads)
+    # that are floor all round: the place's own disc, off the road.
+    junction: float
 
 
 class Roads:
@@ -42,6 +46,8 @@ class Roads:
         self._tracks = tuple(tuple(int(leg) for leg in track) for track in roads["tracks"])
         # Spots on a few tracks' middles as the sim lays them: (track, x, y, z).
         self.checks = tuple((int(track), Vec3(float(x), float(y), float(z))) for track, x, y, z in roads["checks"])
+        self.width = float(roads["width"])
+        self.junction = float(roads["junction"])
 
     def _joined(self, pairs: Sequence[Sequence[int]]) -> tuple[tuple[int, ...], ...]:
         out: list[list[int]] = [[] for _ in self.nodes]
@@ -83,6 +89,8 @@ class Roads:
             points=tuple(self.nodes[i] for i in nodes),
             gap=tuple(b in self.gaps[a] for a, b in stretches),
             pad=tuple(b in self.pads[a] for a, b in stretches),
+            width=self.width,
+            junction=self.junction,
         )
 
 

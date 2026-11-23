@@ -859,7 +859,9 @@ built from, so a change rebuilds only the maps it touches:
   and each with a boost pad on it marked so; roads that meet share a node. It lists each road end
   to end, and every race track (`sim/tracks.ts` `routes`, in the order a race names them by) as
   the roads it takes, with a few spots of the sim's own tracks that a test holds a reading of it
-  to. Built at once, and it throws where the sim's ground isn't the road's top under a node.
+  to, the road's width, and how far from the middle of any place a track turns at its floor
+  reaches (`junction`, the least of them: what a line that cuts a corner there has to cut
+  across). Built at once, and it throws where the sim's ground isn't the road's top under a node.
 - **The bodies** (`bodies.ts`, `bodies.py`): every avatar's hitbox, eyes, walk and way of moving.
   Built at once.
 - **The karts** (`karts.ts`, `karts.py`): how each kart drives, as much of it as a driver plans
@@ -1851,8 +1853,9 @@ Bots must use the modules under `modal-bots/common/`:
   `driver.keys(kart, late, mood)` is the gas, the wheel and the drift key to hold next, for a kart
   seen `late` ticks before they'll be taken (`controls.seq - me.last_seq`). How well it drives is
   its `Skill`, `skill(rating)` anywhere from 0 (the middle of the road, short of flat out, no
-  drifts, no tricks) to 1 (the whole road, every drift held to its last spark, every trick), and
-  how it differs from another
+  drifts, no tricks) to 1 (the whole road, every drift held to its last spark, every trick, and
+  from 0.7 up a line that cuts the corner where two roads meet, off the track for about a second
+  of the two a race allows), and how it differs from another
   of its skill is its `dice` (which bends it drifts, which flights it tricks in, when its
   attention lapses) and the `mood` it's told each tick (-1 cold to 1 hot). It allows for its
   lateness itself and keeps count of what it has pressed, so give it every snapshot's kart, in

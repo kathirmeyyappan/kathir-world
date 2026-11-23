@@ -7,6 +7,9 @@ of how it bends either side, and held within its reach of the middle. Near whate
 into the air (a jump, a crest it's fast enough over) it keeps closer to the middle, where a flight
 has room either side to come down in; over a boost pad, to the pad; and round a corner too sharp
 for a kart within its reach (two roads meeting on an island), it has what room the turn takes.
+
+A line that cuts leaves the road at such a corner, across the floor of the place the two roads
+meet on: no race stops a kart that's off its track for a moment, so the corner is there to cut.
 """
 
 from __future__ import annotations
@@ -30,6 +33,7 @@ NEAR_PAD = 1  # and of a boost pad
 REACH = 14  # points of the middle either side of a line's point that it's held against
 SAME_LEVEL = 1.0  # metres up or down within which a stretch of the middle is the same road as another
 FLAT = 0.02  # the least a road's slope falls by for there to be a crest
+EDGE = 2.5  # metres in from the rim of a place's floor that a line cutting across it keeps
 
 
 @dataclass(frozen=True, slots=True)
@@ -37,13 +41,15 @@ class Shape:
     """How a line may run: metres from the middle it may go (``width``), near a jump or a crest
     (``jump``) and over a boost pad (``pad``); the tightest turn it should ask of a kart, in
     metres (``radius``), and the most it may go from the middle to keep to that round a corner
-    (``most``)."""
+    (``most``); and the metres it may run off the road to cut a corner where two roads meet,
+    across the floor of the place they meet on (``cut``; none, it keeps to the road)."""
 
     width: float
     jump: float
     pad: float
     radius: float
     most: float
+    cut: float = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -90,6 +96,21 @@ def racing_line(middle: Middle, shape: Shape, kart: Driven) -> Line:
             if pads[a]:
                 wide[j] = min(wide[j], shape.pad + max(0, abs(a - j) - NEAR_PAD) * FINE * KERB)
 
+    # Where it may leave the road: round each corner of the middle, as far as the place there is
+    # floor, and no further than has it back on a road within the metres it may be off them (a
+    # way across at a distance from the corner is as long as the two roads are apart there).
+    cuts: list[tuple[float, float, float, float]] = []
+    if shape.cut > 0:
+        for i in range(1, len(px) - 1):
+            turn = abs(
+                _wrap(
+                    math.atan2(px[i + 1] - px[i], pz[i + 1] - pz[i]) - math.atan2(px[i] - px[i - 1], pz[i] - pz[i - 1])
+                )
+            )
+            if turn >= CORNER:
+                apart = 2 * math.sin((math.pi - turn) / 2)  # the two roads, for each metre out from the corner
+                cuts.append((px[i], py[i], pz[i], min(middle.junction - EDGE, (shape.cut + middle.width) / apart)))
+
     def nearest(x: float, z: float, h: int, reach: int) -> tuple[float, float, float, float]:
         """The point nearest ``(x, z)`` of the middle's stretches within ``reach`` of its point
         ``h``, on that point's level (a deck is no part of the road under it): how far off it is,
@@ -117,7 +138,9 @@ def racing_line(middle: Middle, shape: Shape, kart: Driven) -> Line:
         if best > 0.5 * wide[h]:
             best, bx, bz, bj = nearest(x, z, h, REACH)
         w = min(wide[int(bj)], wide[min(m - 1, int(bj) + 1)])
-        if best > w:
+        if best > w and not any(
+            abs(my[h] - ky) <= SAME_LEVEL and math.hypot(x - kx, z - kz) <= far for kx, ky, kz, far in cuts
+        ):
             x, z = bx + (x - bx) * w / best, bz + (z - bz) * w / best
         return x, z, bj
 

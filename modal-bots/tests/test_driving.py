@@ -25,14 +25,20 @@ def test_a_line_keeps_to_its_road_and_a_driver_follows_it() -> None:
     middle = roads.track(track)
     for skilled in (skill(0), skill(1)):
         line = racing_line(middle, skilled.shape, car)
-        # On the road all the way, between its points too, and cutting the road's corners.
+        # On the road all the way, between its points too, but where it cuts a corner two roads
+        # meet at: there, off it for no more than a second and a half's driving, of the two a race
+        # allows. And shorter than the road's middle.
         ways = list(zip(line.x, line.y, line.z, strict=True))
         halfway = [((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2) for a, b in itertools.pairwise(ways)]
-        for x, y, z in ways + halfway:
-            assert (
-                min(_off(x, z, a, b) for a, b in itertools.pairwise(middle.points) if abs((a.y + b.y) / 2 - y) < 4)
-                < ROAD - 0.5
-            )
+        off = [
+            min(_off(x, z, a, b) for a, b in itertools.pairwise(middle.points) if abs((a.y + b.y) / 2 - y) < 4)
+            for x, y, z in itertools.chain.from_iterable(zip(ways, halfway, strict=False))
+        ]
+        # A point or a halfway every metre and a half of the line.
+        longest = 1.5 * max(
+            (len(list(run)) for out, run in itertools.groupby(off, lambda d: d > ROAD - 0.5) if out), default=0
+        )
+        assert longest <= (1.5 * car.speed if skilled.shape.cut else 0)
         assert line.s[-1] < sum(math.dist((a.x, a.z), (b.x, b.z)) for a, b in itertools.pairwise(middle.points))
 
         # On its line and along it: the gas, and the wheel all but straight.
