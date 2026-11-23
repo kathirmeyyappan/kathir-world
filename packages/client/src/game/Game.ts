@@ -8,7 +8,6 @@ import {
   parseCommand,
   SKY_OBJECTS,
   TICK_DT,
-  TICK_RATE,
   INPUT_WAIT_TICKS,
   WALL_FRAMES,
   INTERIOR_BUILDINGS,
@@ -93,6 +92,7 @@ import { InputManager } from '../input/InputManager';
 import { MobileActions, type MobileActionState } from '../input/MobileActions';
 import { MobileControls } from '../input/MobileControls';
 import { IS_TOUCH, onTap } from '../input/touch';
+import { MODE_HUD, NOTHING, type Showing } from '../modes';
 import type { Connection } from '../net/Connection';
 import { Interpolation, type RemotePlayer } from '../net/Interpolation';
 import { Prediction } from '../net/Prediction';
@@ -126,8 +126,9 @@ import { Condition } from '../ui/Condition';
 import { KartGauge } from '../ui/KartGauge';
 import { EdgeFlash } from '../ui/EdgeFlash';
 import { Death } from '../ui/Death';
-import { GameBanner } from '../ui/GameBanner';
-import { Results } from '../ui/Results';
+import { secondsUntil } from '../ui/clock';
+import { GameBanner, type BannerLine } from '../ui/GameBanner';
+import { Results, resultsOf } from '../ui/Results';
 import { Scores } from '../ui/Scores';
 import { colourOf, shownTo } from '../ui/sight';
 import { StartGate } from '../ui/StartGate';
@@ -725,10 +726,13 @@ export class Game {
         for (const object of sky) this.skyByMesh.set(object.mesh.name, object);
         const me = m.players.find((p) => p.id === m.id)!;
         this.body = me.body;
-        this.prediction = new Prediction(me, WORLD_STRUCTURES);
+        this.prediction = new Prediction(me, WORLD_STRUCTURES, (tick) =>
+          rulesOf(this.game).held(this.game, this.myId, tick),
+        );
         this.prediction.reconcile(
           me,
           m.karts.find((k) => k.id === me.riding),
+          m.tick,
         );
         this.input.yaw = me.yaw;
         this.input.pitch = me.pitch;
@@ -778,6 +782,7 @@ export class Game {
           const d = this.prediction.reconcile(
             me,
             m.karts.find((k) => k.id === me.riding),
+            m.tick,
           );
           const dist = Math.hypot(d.dx, d.dy, d.dz);
           if (dist > SNAP_DISTANCE) this.correction.set(0, 0, 0);
@@ -889,17 +894,18 @@ export class Game {
   }
 
   // What the game has standing over the view right now (ui/GameBanner.ts): in its lobby, what
-  // everyone is waiting on, through its start, the count down to it, and for a ghost, what they are.
-  private standing(): string | null {
+  // everyone is waiting on, through its start, the count down to it, then what the mode's game has
+  // to say (`showing`), and for a ghost it says nothing to and shows no leaderboard, what they are.
+  private standing(showing: Showing): BannerLine | null {
     const { phase, until } = this.game;
     if (phase === 'lobby') {
-      if (!this.master()) return 'Waiting for room master to organize and start the game...';
-      return IS_TOUCH ? 'Go to the menu to start the game.' : 'Go to the menu (press M) to start the game.';
+      if (!this.master()) return { text: 'Waiting for room master to organize and start the game...' };
+      return { text: IS_TOUCH ? 'Go to the menu to start the game.' : 'Go to the menu (press M) to start the game.' };
     }
     if (phase === 'starting' && until !== null)
-      return `Game is starting in ${Math.max(1, Math.ceil((until - this.tick) / TICK_RATE))}`;
-    if (this.prediction?.state.ghost) return 'Spectating as a ghost until this game ends.';
-    return null;
+      return { text: `Game is starting in ${Math.max(1, secondsUntil(until, this.tick))}` };
+    if (showing.line || showing.board) return showing.line;
+    return this.prediction?.state.ghost ? { text: 'Spectating as a ghost until this game ends.' } : null;
   }
 
   // Frost comes and goes for the sim (so prediction slides where the server does) and the eye alike.
@@ -1223,7 +1229,9 @@ export class Game {
       this.mobile.setClass(cls);
       this.classId = cls;
     }
-    this.hud.setKeys(legendOf(self));
+    // Whether the room's game keeps them in the kart they drive: no way out is offered then.
+    const kept = rulesOf(this.game).seated(this.game, this.myId);
+    this.hud.setKeys(legendOf(self, kept));
     this.mobile.setKart(driven);
     if (self.avatar !== this.look) {
       if (this.look) this.say(this.myId, 'enter');
@@ -1305,7 +1313,7 @@ export class Game {
     // their kart: there's no getting out of his hands), and how their kart is going; on touch the
     // OUT button says the one, and there's no room for the other.
     const driving = !!self.riding && !this.dead && !IS_TOUCH;
-    const free = driving && !this.prediction.kart?.rescue;
+    const free = driving && !kept && !this.prediction.kart?.rescue;
     this.hud.setItemHint(
       free ? EXIT_HINT : showHint ? itemHint(held.id, !IS_TOUCH, this.scoped, classOf(self.avatar)) : '',
       held && !ITEMS[held.id].own ? itemStats(held.id) : '',
@@ -1352,12 +1360,22 @@ export class Game {
             : null,
     );
     this.commandHint.update(this.startGate.up, this.isBlocked());
-    this.banner.set(this.startGate.up ? null : this.standing());
-    const over = this.game.phase === 'results' && this.game.until !== null;
-    const standings = rulesOf(this.game).standings(this.game);
-    const left = this.game.until === null ? null : Math.max(0, Math.ceil((this.game.until - this.tick) / TICK_RATE));
-    this.results.set(over ? standings : null, left ?? 0);
-    this.scores.set(this.game.phase === 'playing' && standings.length > 0 ? standings : null, left);
+    // While a game is played its HUD is the mode's to fill in; over its results, the standings.
+    const showing =
+      this.game.phase === 'playing'
+        ? MODE_HUD[this.game.mode](this.game, {
+            me: this.myId,
+            tick: this.prediction.nextTick,
+            karts: sampled.karts,
+          })
+        : NOTHING;
+    this.banner.set(this.startGate.up ? null : this.standing(showing));
+    this.results.set(
+      this.game.phase === 'results' && this.game.until !== null
+        ? resultsOf(rulesOf(this.game).standings(this.game), secondsUntil(this.game.until, this.tick))
+        : showing.board,
+    );
+    this.scores.set(showing.scores);
     // Everyone else the player is shown, as the game has it: a mode hides the other side.
     const shown = shownTo(this.game, self, sampled.players);
     this.minimap.update({ me: { x: p.x, y: p.y, z: p.z, yaw: this.input.yaw }, players: shown, cubes: sampled.cubes });
@@ -1500,6 +1518,7 @@ export class Game {
       canFire: this.canFire(),
       climbing: !!self.climb,
       driving: !!self.riding,
+      kept,
       move: this.dead || self.riding ? null : this.ownMove(self),
     });
     if (hit !== this.canHit) {

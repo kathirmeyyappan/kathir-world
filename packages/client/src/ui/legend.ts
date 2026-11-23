@@ -33,15 +33,17 @@ const BOARDS: Record<PlayerClass, (p: PlayerState) => LegendCell[]> = {
   'asian-dragon': () => [cell(['W'], 'fly forward'), cell(['A', 'S', 'D'], 'roar')],
 };
 
-// A driver's keys, whatever the body.
+// A driver's keys, whatever the body, and the key out of the kart, for a driver who may get out.
 export const DRIVING: LegendCell[] = [
   cell(['W'], 'gas'),
   cell(['S'], 'brake'),
   cell(['A', 'D'], 'steer'),
   cell(['Space'], 'hop, hold to drift, trick in the air'),
-  cell(['E'], 'get out'),
 ];
+export const GET_OUT = cell(['E'], 'get out');
 
-export function legendOf(p: PlayerState): LegendCell[] {
-  return [...(p.riding ? DRIVING : BOARDS[classOf(p.avatar).id](p)), ...COMMON];
+// `kept`: the room's game keeps a driver in their kart (the shared package's `Rules.seated`).
+export function legendOf(p: PlayerState, kept: boolean): LegendCell[] {
+  const driving = kept ? DRIVING : [...DRIVING, GET_OUT];
+  return [...(p.riding ? driving : BOARDS[classOf(p.avatar).id](p)), ...COMMON];
 }
