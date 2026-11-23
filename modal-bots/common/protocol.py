@@ -61,6 +61,7 @@ class Player:
     dead: bool
     ghost: bool
     riding: str | None  # the kart they're driving, sat in its seat; None on foot
+    climbing: bool = False  # on a ladder, which a walk straight into one takes hold of
 
 
 @dataclass(frozen=True, slots=True)
@@ -218,6 +219,7 @@ def player(data: Mapping[str, Any]) -> Player:
         dead=data["dead"],
         ghost=data["ghost"],
         riding=data["riding"],
+        climbing=data.get("climb") is not None,
     )
 
 

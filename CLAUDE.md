@@ -1780,7 +1780,7 @@ interpolation, or visual picking.
 
 A bot runs on one of the bots app's two Modal workers, and its signature is what that worker gives
 it. A dumb bot (circle, stalker, observer, the racers) runs on `run_dumb_bot` and satisfies
-`DumbBotInvocation` in `modal-bots/bots/__init__.py`; a combat bot (the sniper) runs on `run_combat_bot` and satisfies
+`DumbBotInvocation` in `modal-bots/bots/__init__.py`; a combat bot (the sniper, the fighter) runs on `run_combat_bot` and satisfies
 `CombatBotInvocation`, which adds `targets`, the parts of player names it goes after (any case;
 empty means every person). Make a bot a combat bot when it takes names from chat. Either kind loads
 the maps of the world it needs itself (see the shared runtime below).
@@ -1886,6 +1886,17 @@ Bots must use the modules under `modal-bots/common/`:
     the middle of the race track a race names by that index (a `Middle`: its points in the order
     they're driven, and which of its stretches are a gap or have a boost pad).
   - `load_karts()`: `karts.of(kart.kart)` is how a kart drives (`Driven`).
+- A fight is fought with `common/fighting.py`, as `bots/fighter_bot.py` fights one. How well is a
+  `Skill`, `skill(rating)` anywhere from 0 (slow to notice anyone and to bring its aim round, never
+  on the mark for long, stood still while it shoots) to 1 (quick, steady, hard to hit, with the
+  wits to draw the weapon for the range and to go for a heart when it's hurt); what it's like is
+  a `Temper`, `temper(dice)`: the weapons it carries and likes best, how it handles each, and its
+  nerve, from one that keeps its distance and waits to one that goes and finds whoever it's
+  after. Nothing misses on purpose: an `Aim` swings toward where its fighter believes its target
+  is (`believed`: a read a moment old, carried on by how they were moving), only so fast and
+  never quite still, so someone stood still is hit and someone who keeps changing their mind
+  isn't. What it knows of each weapon is a row of `ARMS` there, which mirrors the weapon's
+  `ItemSpec`: a new weapon, or a change to one's range or cooldown, goes in both.
 - A kart is driven by a `Driver(line, skill, kart, dice)` (`common/driving.py`) along the
   `racing_line(middle, shape, kart)` of a way along the roads (`common/racing_line.py`):
   `driver.keys(kart, late, mood, others)` is the gas, the wheel and the drift key to hold next,
@@ -1925,6 +1936,7 @@ controls.run(True)                  # hold the run: the walk 60% faster, except 
 controls.drive(gas=1, steer=-0.4, drift=True)  # a kart's keys, held, for a bot sat in one
 controls.read_cube(cube_or_id)
 controls.use(door_id)               # one frame clicking the door it looks at (Route does this)
+await controls.respawn()            # ask to be brought back now, where its game gives the dead a screen
 await controls.chat("hello")
 await controls.command("sniper")    # sends /sniper
 ```
@@ -1940,7 +1952,8 @@ every frame. Sniper shots require scope to remain enabled, and a scoped player w
 and can't jump. Run exactly one input loop per connection; never call `send_input()` concurrently
 from multiple tasks. A bot that drives a kart sends a frame for every snapshot it's sent instead
 (`racer_bot.py`), with no loop of its own: its keys are then taken a tick after what they were
-decided on, and the room steps its kart once for each of them.
+decided on, and the room steps its kart once for each of them. The fighter does the same on foot,
+so what it does follows from what it last saw, a tick on.
 
 ### Active-bot lifecycle
 
@@ -2074,7 +2087,7 @@ Use an isolated room such as `bot-smoke`, not `global`, for automated or manual 
 
 ### Calling bots from chat
 
-`/sniper-bot`, `/circle-bot`, `/stalker-bot` and `/observer-bot` start a bot in the caller's room, within 50 m
+`/fighter-bot`, `/sniper-bot`, `/circle-bot`, `/stalker-bot` and `/observer-bot` start a bot in the caller's room, within 50 m
 of them across the floor and at their height: on whatever is there within a step, or in the air to
 fall from, never inside a wall. The sniper ignores the spot and starts indoors, in the tower or a keep. The `-bot` is optional where the bare word
 isn't already a command (`/circle`, but `/sniper` is the rifle). Flags go in any order, each at most once, and each has a long form too

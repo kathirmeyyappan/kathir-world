@@ -496,13 +496,24 @@ to beat, a day it's having, a mood that warms and cools through a race, and its 
 start, from dice seeded by the room and its name. Still to come: in freeplay, lapping the whole of
 the roads, the ways across the buildings' floor included.
 
-Until the others are built their row in shootout's settings is disabled, and a shootout is people
-alone.
+**Combat bots** are the fighters (`modal-bots/bots/fighter_bot.py`, with `common/fighting.py`),
+and until a shootout brings them its bots' row is disabled and it's people alone; called from chat
+(`/fighter-bot`) one fights every person in a freeplay room. A fighter is as good as its level
+says (of five, the middle one where no game gives it one) and fights in a way of its own, both
+from dice seeded by its room and its name: the weapons it carries and which it likes best (the
+gun, the flamethrower, the ice blower, the rifle), how it handles each, and its nerve, from one
+that keeps its distance and waits to one that goes and finds whoever it's after. It misses nobody
+on purpose: its aim follows where it believes its target is, a read a moment old carried on by how
+they were moving, with a hand that comes round only so fast and never holds quite still, so a
+level is how soon it notices someone, how well it stays on them, how often its weapon fires, how
+much it moves in a fight, and how far it thinks past its aim (the other weapon when the first
+doesn't suit, a heart when it's hurt). A rifle is fired only at someone who has gone on as they
+were for a while, so whoever keeps moving isn't shot from across the map. In a game with sides it
+leaves its own side alone, holds its fire while one of them is in the way, and keeps with them
+when there's nobody near to fight.
 
-- **Combat bots**, three levels, with a better reading of the map than the bots have today: the
-  gun and the flamethrower, swapped between as the fight asks; a jetpack used sparingly; a kart
-  taken to cover a long way and then blown up with the gun; moving smoothly rather than from node
-  to node of the ground's graph.
+Still to come for them: a jetpack used sparingly; a kart taken to cover a long way and then blown
+up with the gun.
 
 ## To settle
 

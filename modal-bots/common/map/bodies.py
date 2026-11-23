@@ -5,11 +5,10 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from functools import cache
 from typing import Any
 
 from ..protocol import Player, Vec3
-from . import read
+from . import once, read
 
 EYE_HEIGHT = 1.7  # metres from feet to eyes (EYE_HEIGHT in packages/shared/src/sim/constants.ts)
 
@@ -57,6 +56,6 @@ class Bodies:
         return Vec3(p.pos.x, p.pos.y - EYE_HEIGHT + self.eyes.get(p.avatar, EYE_HEIGHT), p.pos.z)
 
 
-@cache
+@once
 def load_bodies() -> Bodies:
     return Bodies(read("bodies"))
