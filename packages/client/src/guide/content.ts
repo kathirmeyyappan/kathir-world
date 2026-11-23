@@ -27,7 +27,14 @@ export const INTRO = ['this is the kathir world official (can I call it that?) g
 // What each game mode is, said plainly: a room is created in one, on the home screen.
 export const MODE_TEXT: Record<GameModeId, string[]> = {
   freeplay: ['A room with no game in it. Every command works, and nothing is scored.'],
-  racing: ['A series of races in karts, each on a new track through the roads.'],
+  racing: [
+    'The room master sets how many races in the menu and starts the game with everyone in the room.',
+    'Each race is on a new track through the roads, drawn in green: the floor off it is grey, and a kart that leaves it is set back on it by Lakitu.',
+    "Everyone starts in a kart on the grid, held there until Lakitu's lights turn green. Nobody gets out.",
+    'The first over the checkered line starts a clock on the rest. Whoever has not finished when it runs out is out of that race, and so is a racer whose kart blows up.',
+    'First place scores a point for every racer and each place behind it one less. The most points after the last race win.',
+    'Only looks can be changed: weapons, gear, karts, teleporting and bots are off.',
+  ],
   shootout: [
     'The room master splits the room into even teams in the menu and starts the game.',
     'Each team starts indoors, apart from the others, in its own colour.',

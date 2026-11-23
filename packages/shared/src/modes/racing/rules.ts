@@ -2,7 +2,7 @@
 import { trackOf } from '../../sim/tracks';
 import { gameRules } from '../game';
 import type { Rules } from '../rules';
-import { isRacing, type RacingState } from './state';
+import { MIN_RACERS, isRacing, type RacingState } from './state';
 
 export const RACING_RULES: Rules = {
   // Everyone in a kart of their own from the grid to the line: a look on foot can be changed, and
@@ -25,7 +25,7 @@ export const RACING_RULES: Rules = {
   }),
 
   starts(game) {
-    return isRacing(game) && game.racers.length < 2 ? 'a race needs two racers' : null;
+    return isRacing(game) && game.racers.length < MIN_RACERS ? `a race needs ${MIN_RACERS} racers` : null;
   },
 
   // The racers by their points, the most first: everyone level on the most is winning, or has won.

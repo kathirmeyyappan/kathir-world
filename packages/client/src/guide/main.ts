@@ -672,10 +672,10 @@ function botsPanel(): HTMLElement {
   return panel;
 }
 
-// A card to each mode that can be played: its name, the home screen's line, what it is, its numbers.
+// A card to each mode: its name, the home screen's line, what it is, its numbers.
 function modesPanel(): HTMLElement {
   const panel = el('div', 'cards');
-  for (const id of GAME_MODE_IDS.filter((mode) => GAME_MODES[mode].playable)) {
+  for (const id of GAME_MODE_IDS) {
     const card = el('section', 'card wide');
     card.append(el('h2', '', GAME_MODES[id].name), el('p', 'summary', GAME_MODES[id].blurb), list(MODE_TEXT[id]));
     const facts = MODE_FACTS[id]();

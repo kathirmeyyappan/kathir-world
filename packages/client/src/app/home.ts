@@ -78,15 +78,13 @@ export function showHome(): Promise<HomeResult> {
   document.getElementById('home-source')!.prepend(pixelSvg(GITHUB, 'home-icon'));
 
   const params = new URLSearchParams(location.search);
-  // The game mode a create makes its room in: every mode that can be played, and in dev, or with
-  // ?modes on the page, the ones that can't yet. With one to pick from, there's nothing to ask.
-  const games = GAME_MODE_IDS.filter((id) => GAME_MODES[id].playable || import.meta.env.DEV || params.has('modes'));
+  // The game mode a create makes its room in.
   const gameRow = document.getElementById('home-game-row')!;
   const gameBlurb = document.getElementById('home-game-blurb')!;
   const describe = (id: string) => (gameBlurb.textContent = isGameModeId(id) ? GAME_MODES[id].blurb : '');
   const game = new Picker(
     document.getElementById('home-game')!,
-    games.map((id) => ({ value: id, label: GAME_MODES[id].name, note: '' })),
+    GAME_MODE_IDS.map((id) => ({ value: id, label: GAME_MODES[id].name, note: '' })),
     describe,
   );
   describe(game.value);
@@ -96,7 +94,7 @@ export function showHome(): Promise<HomeResult> {
   const pick = (to: JoinMode) => {
     mode = to;
     globalRow.classList.toggle('hidden', to !== 'join');
-    gameRow.classList.toggle('hidden', to !== 'create' || games.length < 2);
+    gameRow.classList.toggle('hidden', to !== 'create');
     for (const tab of tabs) tab.setAttribute('aria-selected', String(tab.dataset.mode === to));
     joinBtn.textContent = TABS[to].action;
     modeHint.textContent = TABS[to].hint;
