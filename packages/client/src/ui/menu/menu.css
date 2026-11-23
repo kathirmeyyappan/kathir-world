@@ -535,9 +535,8 @@
 #menu .board .head .count {
   font-size: 17px;
 }
-/* Someone on it: their emblem and name, and after it what's set of theirs: to read, or where it's
-   the player's to step, a stepper's box at the row's end, each of its buttons a fair target for a
-   thumb. */
+/* Someone on it: their emblem and name, and after it what's set of theirs, read in a little
+   display: alone, or where it's the player's to step, between a button down and a button up. */
 #menu .board .player {
   display: flex;
   align-items: center;
@@ -555,29 +554,52 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-#menu .board .player .value {
-  color: var(--accent-soft);
+#menu .board .player .reading {
+  flex: none;
+  display: flex;
+  align-items: center;
+  height: 30px;
+  min-width: 0;
+  padding: 0 8px;
+  font-size: inherit;
+  line-height: 1;
+  letter-spacing: 1px;
   white-space: nowrap;
+  color: var(--accent-soft);
+  background: #05070c;
+  border: 2px solid rgba(100, 181, 246, 0.5);
 }
-#menu .board .player:has(.steps) {
-  padding-right: 0;
+#menu .board .player:has(.reading) {
+  padding-right: 6px;
 }
 #menu .board .player .steps {
   flex: none;
-  align-self: stretch;
+  gap: 6px;
+  background: none;
   border: 0;
   box-shadow: none;
 }
 #menu .board .player .steps .step {
-  min-width: 42px;
-  padding: 0;
-}
-#menu .board .player .steps .reading {
-  flex: none;
+  position: relative;
+  width: 30px;
+  height: 30px;
   min-width: 0;
-  padding: 0 10px;
-  font-size: inherit;
-  white-space: nowrap;
+  padding: 0;
+  font: 10px/1 var(--pixel);
+  letter-spacing: 0;
+  background: rgba(100, 181, 246, 0.18);
+  border: 2px solid var(--accent);
+  box-shadow: 2px 2px 0 #000;
+}
+#menu .board .player .steps .step:hover:enabled {
+  background: rgba(100, 181, 246, 0.35);
+}
+/* A thumb's target: the button is pressed from anywhere in its row's height, and out to halfway to
+   what stands beside it (each measured from inside its border). */
+#menu .board .player .steps .step::after {
+  content: '';
+  position: absolute;
+  inset: -8px -5px;
 }
 #menu .board .column.open .player {
   cursor: grab;

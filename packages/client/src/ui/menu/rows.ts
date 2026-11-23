@@ -212,7 +212,7 @@ function board(row: Board): Drawn {
               });
               box.show(value, goes);
               player.append(box.el);
-            } else player.append(element('span', 'value', value));
+            } else player.append(element('span', 'reading', value));
           }
           if (can) {
             player.draggable = true;
@@ -288,7 +288,7 @@ function toggle(row: Toggle): Drawn {
   return { el, refresh };
 }
 
-// A value in one box between the two buttons that step it down and up, each reading as `signs` has
+// A value read between the two buttons that step it down and up, each saying what `signs` has for
 // it. `show` brings it up to date: what it reads, and which way it can be stepped.
 function steps(signs: readonly [string, string], step: (by: 1 | -1, press: MouseEvent) => void) {
   const el = element('div', 'steps');
