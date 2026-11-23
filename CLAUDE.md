@@ -68,6 +68,12 @@ for whatever the change adds or touches, and put the answers in it:
 - **Both sides:** a rule the client has to agree with (what's refused, what's in bounds, who's
   seen) is one pure function in `shared` that the Room and the client both call, never written
   twice.
+- **Bots:** what the bots that play make of it. A game's own bots (a race's racers) and the ones
+  called from chat are players like any other, and know only what they were taught: a hazard is
+  something they walk or drive into, an item or a pickup something they never use, a new move or
+  boost something they lose by to everyone who has it. Say what each bot that meets it does about
+  it, and teach the ones it matters to in the same PR, or say in it that they're still to be
+  taught (Keeping the bots up with the game, below).
 
 Until the part of the modes a question names is built (the doc's stack says how far it has got),
 answer it against what stands in its place today: `damage`, `spawnPoint` and `respawn`,
@@ -1737,6 +1743,33 @@ are plain words like the rest of the guide's, no numbers, short (a line is about
 with `note` for anything beyond the headline. Screenshot every diagram at desktop and phone width
 before the PR and check nothing overlaps. This is the guide's style only; the architecture diagrams
 in `docs/` keep their own.
+
+## Keeping the bots up with the game
+
+A bot plays with what it knew when it was written. Whenever the game gains something a player
+would have to learn (a stage hazard, an item or a weapon, a pickup, a move, a kart or a way to
+boost, a surface, a stretch of map, a rule of a mode), go through the bots that meet it and
+decide for each what it should do: keep clear of it, use it, go for it, or carry on as it is.
+Where the answer isn't to carry on, change the bot in the same PR, or say in the PR that it's
+still to do. Where each bot's knowledge of the game is kept:
+
+- **What stands, and where the floor is:** the maps (`npm run bot-map`, see Checking a change),
+  which a test fails on until they're rebuilt. A hazard that isn't a structure (something that
+  moves, burns or falls) is in no map: a bot has to be told of it, from the snapshot or the
+  content.
+- **How a kart is driven** (`common/driving.py`, `common/racing_line.py` and the karts map):
+  drifts, tricks, boost pads, gaps, what Lakitu does. Something new on a road, a new kart or a new
+  way to go faster is weighed for the racers there, and a driver that uses it is run against the
+  real `stepKart` in a scratch script, over the tracks, before it's trusted.
+- **How a body fights and gets about on foot** (the bots under `bots/`, with
+  `common/navigation.py`): the weapons it asks for by name and their reach, the pickups it goes
+  for, what it takes for a way and what it won't step onto.
+- **What a game tells its bots** (the game's state, `state.game`): a setting or a phase a bot
+  should act on is read from there, as a racer reads its race.
+
+A bot's level has to keep meaning what it means: something new is used well by the best and
+poorly, or not at all, by the least, rather than by all of them alike. And a bot is no better
+informed than a player: what the game hides from people (Sight, above) a bot doesn't act on.
 
 ## Adding a Modal bot
 
