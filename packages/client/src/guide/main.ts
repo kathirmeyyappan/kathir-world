@@ -718,7 +718,7 @@ function main(): void {
     ['characters', 'CHARACTERS'],
     ['items', 'ITEMS'],
     ['world', 'WORLD'],
-    ['modes', 'MODES'],
+    ['modes', 'GAME MODES'],
     ['bots', 'BOTS'],
     ['commands', 'COMMANDS'],
     ['gallery', 'GALLERY'],
