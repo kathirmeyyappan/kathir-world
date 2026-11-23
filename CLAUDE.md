@@ -1768,8 +1768,7 @@ still to do. Where each bot's knowledge of the game is kept:
   should act on is read from there, as a racer reads its race.
 
 A bot's level has to keep meaning what it means: something new is used well by the best and
-poorly, or not at all, by the least, rather than by all of them alike. And a bot is no better
-informed than a player: what the game hides from people (Sight, above) a bot doesn't act on.
+poorly, or not at all, by the least, rather than by all of them alike.
 
 ## Adding a Modal bot
 
