@@ -48,12 +48,11 @@ export const SHOOTOUT_RULES: Rules = {
       .sort((a, b) => b.points - a.points);
   },
 
-  // A team sees its own, and nothing of the others but their bodies. A ghost sees everyone, and is
-  // seen by everyone as anyone is.
+  // Everyone is shown everyone, each in their team's colour: a teammate as one of the viewer's
+  // side, and the rest plainly.
   sees(game, viewer, other) {
-    const [mine, theirs] = [this.side(game, viewer.id), this.side(game, other)];
-    if (viewer.ghost || mine === null || theirs === null) return 'plain';
-    return mine === theirs ? 'side' : 'hidden';
+    const mine = this.side(game, viewer.id);
+    return mine !== null && mine === this.side(game, other) ? 'side' : 'plain';
   },
 };
 

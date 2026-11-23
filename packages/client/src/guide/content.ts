@@ -39,7 +39,7 @@ export const MODE_TEXT: Record<GameModeId, string[]> = {
     'The room master splits the room into even teams in the menu and starts the game.',
     'Each team starts indoors, apart from the others, in its own colour.',
     'A kill of someone on another team scores for your team, and every death costs your own.',
-    'You see your teammates on the map and by name, and nothing of the other teams but their bodies.',
+    "Everyone is on the map and named over their head, in their team's colour.",
     'Dragons, teleporting, colours and bots are off. When the clock runs out, the most points win.',
   ],
 };

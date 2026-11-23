@@ -221,8 +221,8 @@ drawn and off.
   their head, the roster, their pin, their mark on the maps, their name in the chat). A standard
   body is painted in it; any other look stays as it is. Everyone has their own colour back in the
   lobby.
-- Opponents have no name over their heads, no pin and no mark on any map. Teammates have all
-  three, and on the maps a big pointer like the player's own.
+- Everyone has their name over their head, a pin and a mark on the maps, in their team's colour.
+  A teammate's mark on the maps is a big pointer like the player's own.
 - A kill of an opponent is two points to the killer's team. Any death is a point off the dead
   player's team, however it came (a fall, out of bounds, a crash, a teammate), and a team's points
   never go below nothing. A teammate can be killed, which scores nothing for the kill, and the chat
@@ -243,7 +243,9 @@ every death (`GameMode.died`, from its one `damage`), and the referee keeps each
 (`Rules.side`, null in the lobby), which is how the client knows a teammate's kill for friendly
 fire, and the teams by their points are its standings (`Rules.standings`).
 
-Who's shown to whom is a rule too (`Rules.sees`: `plain`, `side` or `hidden`). The client asks it
+Who's shown to whom is a rule too (`Rules.sees`: `plain`, `side` or `hidden`; shootout's is `side`
+for a teammate and `plain` for everyone else, and `hidden` is there for a mode that hides its
+opponents). The client asks it
 once a frame (`ui/sight.ts` `shownTo`) and hands the name tags, the pins and the maps only those
 the player is shown, each with the colour they go by (`colourOf`: their side's, else their own
 look's) and whether their mark is a pointer as big as the player's own; the roster takes the same
