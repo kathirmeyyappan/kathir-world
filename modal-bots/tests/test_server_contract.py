@@ -467,10 +467,12 @@ def test_a_race_calls_its_bot_seats_it_and_it_drives_the_track(
                 run_racer_bot(call["room"], call["name"], 120, direct_ws_url=room_server, avatar=call["avatar"])
             )
 
-            # Let go, it's down the road it was put on: 100 m from its grid, and still on the track.
+            # Let go, it's off its grid at once and down the road it was put on: 100 m on, and still
+            # on the track.
             race: dict[str, Any] | None = None
             looks: dict[str, str] = {}
             start: tuple[float, float] | None = None
+            left: int | None = None  # the tick it was first seen off its grid
             async with asyncio.timeout(60):
                 while True:
                     message = json.loads(await master.recv())
@@ -483,9 +485,15 @@ def test_a_race_calls_its_bot_seats_it_and_it_drives_the_track(
                     if kart is None:
                         continue
                     at = (kart["pos"]["x"], kart["pos"]["z"])
-                    start = start or at
+                    if start is None or message["tick"] < race["go"]:
+                        start = at
+                    elif left is None and math.dist(at, start) > 0.001:
+                        left = message["tick"]
                     if math.dist(at, start) > 100:
                         break
+            assert left is not None and left - race["go"] <= 1, (
+                "a racer of the top level holds the gas through the count"
+            )
             middle = load_roads().track(race["track"]).points
             assert min(math.dist(at, (p.x, p.z)) for p in middle) < 12, "on its track"
             assert looks["bot 1"] == call["avatar"] != "standard", "in the look the room drew for it"

@@ -13,7 +13,7 @@ import {
   type Camera,
 } from '@babylonjs/core';
 import { ITEMS, ITEM_IDS, type AvatarId, type Element, type ItemId, type Strike } from '@world/shared';
-import { seeThrough } from './avatars/common';
+import { GHOST_GROUP, seeThrough } from './avatars/common';
 import type { Engine } from './Engine';
 import { coneAngle, createJet, type Jet } from './Jet';
 
@@ -231,10 +231,10 @@ export class Viewmodel {
     barrel.position.y = 0.475; // the handle's end at the node, the barrel out along its y
     barrel.isPickable = false;
     this.bat.setEnabled(false);
-    // Drawn over the world, with the depth cleared first: the item reaches past the eyes further
-    // than a ladder's rungs or a wall stand off them, and would otherwise vanish into whatever the
-    // player is up against.
-    for (const mesh of [...this.root.getChildMeshes(), barrel]) mesh.renderingGroupId = 1;
+    // Drawn over the world and its ghosts, with the depth cleared first: the item reaches past the
+    // eyes further than a ladder's rungs or a wall stand off them, and would otherwise vanish into
+    // whatever the player is up against.
+    for (const mesh of [...this.root.getChildMeshes(), barrel]) mesh.renderingGroupId = GHOST_GROUP + 1;
   }
 
   // A strike's swing across the view: `strike` is how far into one the player is (null out of one,

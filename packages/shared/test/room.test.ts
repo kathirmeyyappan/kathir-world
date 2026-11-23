@@ -494,11 +494,11 @@ test("a shootout: the teams start apart indoors in their colours; a kill of the 
     `no room shared by the teams: ${rooms}`,
   );
   assert.deepEqual(rulesOf(game()).side(game(), idb), TEAMS[1]);
-  const sees = (ghost: boolean, other: string) => rulesOf(game()).sees(game(), { id: ida, ghost }, other);
+  const sees = (other: string) => rulesOf(game()).sees(game(), { id: ida, ghost: false }, other);
   assert.deepEqual(
-    [sees(false, idc), sees(false, idb), sees(true, idb)],
-    ['side', 'hidden', 'plain'],
-    'a team sees its own and not the others; a ghost sees everyone',
+    [sees(idc), sees(idb)],
+    ['side', 'plain'],
+    'a teammate is of their side, and the rest are shown plainly',
   );
 
   // One snipes another put 5 m in front of them on the open floor, through the head, each pair on
@@ -546,7 +546,7 @@ test("a shootout: the teams start apart indoors in their colours; a kill of the 
     own,
   );
   assert.equal(rulesOf(game()).side(game(), idb), null, 'and nobody is on a side');
-  assert.equal(sees(false, idb), 'plain');
+  assert.equal(sees(idc), 'plain');
 });
 
 test("a race: racers start held on the grid in karts there's no getting out of; the first over the line starts the clock on the rest; whoever's kart blows up, or who runs out of time, is out of it and a ghost; places score, the next race puts everyone still here back on a grid, and after the last the results stand", () => {
