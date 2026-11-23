@@ -23,6 +23,7 @@ export interface Target {
   id: string;
   pos: Vec3;
   dead: boolean;
+  ghost: boolean; // in the room and not in the world (types.ts): everything passes through them
   avatar: AvatarId;
   dragon: Pick<DragonState, 'spine' | 'risen' | 'shattered'> | null;
   riding: string | null; // sat in a kart (vehicles/garage.ts): only what stands out of the seat is hit
@@ -35,6 +36,7 @@ export interface Shooter {
   pitch: number;
   avatar: AvatarId;
   dragon: Pick<DragonState, 'head'> | null;
+  ghost: boolean; // their shots reach nobody
 }
 
 export interface Hit<T extends Target> {
@@ -43,14 +45,20 @@ export interface Hit<T extends Target> {
   part: HitPart;
 }
 
+// Whether nothing lands on `p`: the dead, and a ghost.
+function spared(p: Target): boolean {
+  return p.dead || p.ghost;
+}
+
 // Everyone an item's shot reaches, per its fire shape: one player for hitscan, all of them
-// for a cone.
+// for a cone, and nobody for a ghost's.
 export function resolveFire<T extends Target>(
   spec: Pick<ItemSpec, 'fire' | 'range'>,
   shooter: Shooter,
   players: Iterable<T>,
   structures: Structures = WORLD_STRUCTURES,
 ): Hit<T>[] {
+  if (shooter.ghost) return [];
   if (spec.fire.kind === 'cone') return findConeHits(shooter, players, spec.range, spec.fire.halfAngle, structures);
   const hit = findHit(shooter, players, spec.range, structures);
   return hit ? [hit] : [];
@@ -70,7 +78,7 @@ export function findConeHits<T extends Target>(
   const o = eyeOf(shooter);
   const hits: Hit<T>[] = [];
   for (const p of players) {
-    if (p.id === shooter.id || p.dead) continue;
+    if (p.id === shooter.id || spared(p)) continue;
     const part = inCone(o, dir, classOf(p.avatar).hitShape(p), range, halfAngle, structures);
     if (part !== null) hits.push({ target: p, headshot: false, part });
   }
@@ -90,7 +98,7 @@ export function findStrikeHits<T extends Target>(
   const { o, dir } = strikeCone(striker);
   const hits: Hit<T>[] = [];
   for (const p of players) {
-    if (p.id === striker.id || p.dead) continue;
+    if (p.id === striker.id || spared(p)) continue;
     const part = inCone(o, dir, classOf(p.avatar).hitShape(p), strike.reach, strike.arc, structures);
     if (part !== null) hits.push({ target: p, headshot: false, part });
   }
@@ -164,7 +172,7 @@ export function findHit<T extends Target>(
   let best: Hit<T> | null = null;
   let bestT = Math.min(range, structures.raycast(o, dir, range)); // the shot stops at the first wall
   for (const p of players) {
-    if (p.id === shooter.id || p.dead) continue;
+    if (p.id === shooter.id || spared(p)) continue;
     const hit = rayShape(o, dir, classOf(p.avatar).hitShape(p), bestT);
     if (hit && hit.t < bestT) {
       bestT = hit.t;
@@ -186,7 +194,7 @@ export function reach<T extends Target>(
 ): number {
   let best = Math.min(range, structures.raycast(o, d, range));
   for (const p of players) {
-    if (p.id === selfId || p.dead) continue;
+    if (p.id === selfId || spared(p)) continue;
     const hit = rayShape(o, d, classOf(p.avatar).hitShape(p), best);
     if (hit && hit.t < best) best = hit.t;
   }

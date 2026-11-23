@@ -35,6 +35,7 @@ class FakeConnection:
             body=1,
             bot=False,
             dead=False,
+            ghost=False,
         )
         self.id = me.id
         self.welcome = Welcome("p1", "room", 0, (me,), (), ())

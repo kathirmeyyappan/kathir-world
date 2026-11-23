@@ -22,6 +22,10 @@ export interface ModeRoom {
   clear(): void;
 }
 
+// What a join is made as the game stands: a player in it, a ghost (sim/types.ts `ghost`: in the
+// room and not in the game), or nothing, turned away with why.
+export type Joining = 'player' | 'ghost' | { away: string };
+
 export class GameMode {
   constructor(
     readonly id: GameModeId,
@@ -33,9 +37,9 @@ export class GameMode {
     return { mode: this.id, master: null, phase: null, until: null };
   }
 
-  // Why a join is turned away right now, or null. `bot`: it's a bot's.
-  turnsAway(_bot: boolean): string | null {
-    return null;
+  // What someone joining right now is. `bot`: it's a bot.
+  joining(_bot: boolean): Joining {
+    return 'player';
   }
 
   // Someone took a seat. `made`: theirs is the join that made the room.

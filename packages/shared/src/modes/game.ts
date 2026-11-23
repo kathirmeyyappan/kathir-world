@@ -6,8 +6,8 @@ import { RESPAWN_AREAS, SPAWN_AREAS } from '../content/regions';
 import { TICK_RATE } from '../sim/constants';
 import type { PlayerState } from '../sim/types';
 import type { GameAction, GameState } from './index';
-import { GameMode } from './mode';
-import { FREEPLAY_DYING, kindOf, type CommandKind, type Dying, type Rules } from './rules';
+import { GameMode, type Joining } from './mode';
+import { FREEPLAY_DYING, kindOf, type Allowed, type Dying, type Rules } from './rules';
 
 // What everyone is told as the room closes behind its master.
 export const MASTER_LEFT = 'the room master ended the room';
@@ -16,9 +16,6 @@ export const START_SECONDS = 5;
 
 // Where a game is: waiting in its lobby, counting down to its start, or being played.
 export type Phase = 'lobby' | 'starting' | 'playing';
-
-// Whether a game allows each kind of command.
-export type Allowed = Record<CommandKind, boolean>;
 
 // What a mode says of its own game, where its answer is a value.
 export interface Playing {
@@ -75,9 +72,13 @@ export class Game extends GameMode {
     return { ...super.state, master: this.master, phase: this.phase, until: this.until };
   }
 
-  // A game is people alone: the lobby's bots die as it starts, and none is seated until it's over.
-  override turnsAway(bot: boolean): string | null {
-    return bot && this.phase !== 'lobby' ? 'a game is on' : null;
+  // A game is people alone, and those who were there as it began: the lobby's bots die as it
+  // starts and none is seated until it's over, and a person who comes once it's being played
+  // watches it as a ghost until the lobby is back.
+  override joining(bot: boolean): Joining {
+    if (this.phase === 'lobby') return 'player';
+    if (bot) return { away: 'a game is on' };
+    return this.phase === 'playing' ? 'ghost' : 'player';
   }
 
   override joined(player: PlayerState, made: boolean): void {

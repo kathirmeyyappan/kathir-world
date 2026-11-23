@@ -68,6 +68,10 @@ export interface PlayerState {
   body: number;
   bot: boolean; // declared by the client at join; a headless player, shown as one, and never keeps a room open
   dead: boolean; // lying where they died, until the Room brings a person back in a new body (room.ts `respawn`)
+  // In the room and not in its game (docs/game-modes.md): seen by everyone, and nothing they do
+  // touches the world, nor anything in it them. Floors and walls hold them as they hold anyone,
+  // and a door doesn't (collision.ts `throughDoors`).
+  ghost: boolean;
 }
 
 // One tick of intent from a client. Look is client-authoritative; movement is not.

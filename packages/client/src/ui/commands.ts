@@ -15,7 +15,7 @@ import {
   KART_IDS,
   botArguments,
   parseCommand,
-  rulesOf,
+  refusal,
   type GameState,
 } from '@world/shared';
 
@@ -81,11 +81,12 @@ export function commandGroups(): Group[] {
   ];
 }
 
-// Why the room's game refuses a row's command as it stands (the shared package's modes/rules.ts,
-// which the Room enforces the same), or null: what's offered greyed.
-export function refusedBy(game: GameState, row: Row): string | null {
+// Why a row's command is refused of the player (`me`, null before they're in the world) as the
+// room's game stands, by the answer the Room enforces (the shared package's `refusal`), or null:
+// what's offered greyed.
+export function refusedBy(game: GameState, me: { ghost: boolean } | null, row: Row): string | null {
   const command = parseCommand(row.like ?? row.tap.trim());
-  return command && rulesOf(game).refuses(game, command);
+  return command && refusal(game, me ?? { ghost: false }, command);
 }
 
 // The commands `text` could be the start of, where it's a command being typed (from the slash, no

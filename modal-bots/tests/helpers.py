@@ -35,6 +35,7 @@ def player(
         "body": 1,
         "bot": False,
         "dead": dead,
+        "ghost": False,
     }
 
 

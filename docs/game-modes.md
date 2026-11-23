@@ -80,8 +80,8 @@ which is null in freeplay, where there's no game to be anywhere in).
 5. Back to the **lobby**: everyone gets a new body in `RESPAWN_AREAS`, as after a death, ghosts are
    players again, the world is cleared, and the lobby's bots don't come back.
 
-Someone who joins once a game is playing is a ghost (below) until the lobby is back; until ghosts
-are built, they're a player like any.
+Someone who joins once a game is being played is a ghost (below) until the lobby is back. Someone
+who joins through the countdown is in the game it's counting down to.
 
 What a game does to its room it does through `ModeRoom` (`modes/mode.ts`): a new body for a player
 somewhere (`embody`, the Room's `rebody`, which is also what brings the dead back, and counts
@@ -144,6 +144,20 @@ playing, or a racer who is out.
   melted), it takes no pickup, opens no door (it walks through a shut one), scores nothing, and has
   nothing to do with karts (it can't drop one, get in one or be hit by one).
 - A ghost sees everyone, whatever a mode hides from its players: every name, pin and mark.
+
+A ghost is `PlayerState.ghost`, which every client is sent. The world's doings are kept to the
+Room's `bodies`, everyone but the ghosts: pounds, storms, karts and pickups reach bodies alone, and
+shots and strikes pass through a ghost (`combat.ts` `spared`, which the client's crosshair and aim
+ask the same). What a ghost does comes to nothing: its step lands on nothing and swings at nobody
+(`Room.advance`), its shot is seen and reaches no one, no kart and no frost (`applyActions`;
+`resolveFire` for the client's crosshair), it swings no door (`use`) and no door stops it
+(`Structures.throughDoors`, taken in `stepPlayer`, so prediction agrees), and `damage` turns it
+away whatever got that far, so nothing can kill one into a player's body. What it may ask for is a
+table of its own (`GHOST_ALLOWS`: no kart, no dragon), checked before the game's
+(`refusal`, which the Room enforces and the client greys by). What a join is made is the mode's to
+say (`GameMode.joining`: a player, a ghost, or turned away): a game being played makes a person a
+ghost, who comes in 10 m across the floor from someone in it (`Room.besideSomeone`), and every new
+body the lobby hands out is a player's. How a ghost is drawn and heard is to build.
 
 ### Leaving mid-game
 
@@ -263,7 +277,7 @@ everything else, and it will change as modes and features are added (`CLAUDE.md`
 | What floor is in play?                            | the whole world's                      | a kart's rescue, the red box, the maps, the floor   | to build                        |
 | What did this kill or death score?                | nothing                                | the Room's `damage`                                 | to build                        |
 | How does this player see that one?                | plainly, in their own colour           | name tags, pins, maps, the roster, the chat's names | to build                        |
-| What is someone who joins now?                    | a player                               | joining                                             | `GameMode.turnsAway`, `joined`  |
+| What is someone who joins now?                    | a player                               | joining                                             | `GameMode.joining`, `joined`    |
 | What does this player leaving do?                 | their seat goes                        | leaving                                             | `GameMode.left`                 |
 
 **State and the wire.** A game's state (`GameState`: the mode, the master and the phase with its
@@ -314,9 +328,9 @@ outside dev until each can be played, so freeplay is run on every merge.
 
 **2. Ghosts**
 
-- [ ] `PlayerState.ghost`: nothing a ghost does touches the world, and nothing touches it.
+- [x] `PlayerState.ghost`: nothing a ghost does touches the world, and nothing touches it.
+- [x] Joining a game that's playing: a spectator, 10 m from someone, a player again in the lobby.
 - [ ] A ghost drawn translucent, to itself too, and unheard by others; its icon on the roster.
-- [ ] Joining a game that's playing: a spectator, 10 m from someone, a player again in the lobby.
 
 **3. Shootout**
 

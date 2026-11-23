@@ -52,6 +52,7 @@ export function createPlayer(id: string, name: string, color: string, spawn: Vec
     deaths: 0,
     body: 1,
     dead: false,
+    ghost: false,
   };
   classOf('standard').enter(p);
   return p;
@@ -152,7 +153,8 @@ export function stepPlayer(
   if (input) takeLook(p, input);
   stepItem(p, input, dt);
   p.walk = 0; // a class that walks sets it
-  const landing = classOf(p.avatar).step(p, input, dt, structures);
+  const step = () => classOf(p.avatar).step(p, input, dt, structures);
+  const landing = p.ghost ? structures.throughDoors(step) : step();
   p.boost = Math.max(0, p.boost - dt);
   p.chilled = Math.max(0, p.chilled - dt);
   return landing;

@@ -348,6 +348,50 @@ test("a game's flow: its master starts it from the lobby, counted down, on a wor
   assert.deepEqual(b.inbox.at(-1), { t: 'refused', text: 'no bots here' }, 'where a bot command is a command again');
 });
 
+test('a ghost: who joins a game being played comes in beside someone in it, and nothing they do touches the world, nor anything in it them, until the lobby is back', () => {
+  const room = new Room('ghost', { seed: 6, mode: 'shootout', structures: new Structures([]), pickupAreas: [] });
+  const [a, c] = [link(), link()];
+  const ida = room.join('alice', a, { made: true })!;
+  const idb = room.join('bob', link())!;
+  const player = (id: string) => room.players.find((p) => p.id === id)!;
+  room.receive(ida, { t: 'game', do: 'start' });
+  const idd = room.join('dave', link())!;
+  assert.ok(!player(idd).ghost, 'in before the countdown is out, in the game');
+  while (told(a).phase !== 'playing') room.step();
+
+  const idc = room.join('carol', c)!;
+  assert.ok(player(idc).ghost);
+  const away = [ida, idb, idd].map((id) =>
+    Math.hypot(player(id).pos.x - player(idc).pos.x, player(id).pos.z - player(idc).pos.z),
+  );
+  assert.ok(
+    away.some((d) => Math.abs(d - 10) < 0.01),
+    `10 m from someone: ${away.map((d) => d.toFixed(1))}`,
+  );
+
+  // In a line along +z: bob, carol 5 m in front of him, alice 5 m past her, each with a gun.
+  const line = (id: string, z: number) => (player(id).pos = { x: 0, y: EYE_HEIGHT, z });
+  [idb, idc, ida].forEach((id, i) => line(id, i * 5));
+  for (const id of [idb, idc]) room.receive(id, { t: 'chat', text: '/gun' });
+  room.step();
+  press(room, idb);
+  const hurt = player(ida).hearts;
+  assert.ok(player(idc).hearts === MAX_HEARTS && hurt < MAX_HEARTS, "bob's shot goes through her to alice");
+  press(room, idc);
+  assert.equal(player(ida).hearts, hurt, 'and her own lands on nobody');
+  room.receive(idc, { t: 'chat', text: '/ice-blower' });
+  hold(room, idc, 10);
+  assert.equal(room.structures.frost.size, 0, 'her spray frosts nothing');
+  room.receive(idc, { t: 'chat', text: '/kart' });
+  assert.deepEqual(c.inbox.at(-1), { t: 'refused', text: 'not as a ghost' });
+  player(idc).pos.y += 100;
+  for (let i = 0; i < 6 * TICK_RATE; i++) room.step();
+  assert.deepEqual([player(idc).hearts, player(idc).dead], [MAX_HEARTS, false], 'no fall hurts her');
+
+  room.receive(ida, { t: 'game', do: 'end' });
+  assert.ok(!player(idc).ghost, 'a player like any, back in the lobby');
+});
+
 test('room calls onEmpty when the last player leaves', () => {
   let empty = 0;
   const room = new Room('t', { onEmpty: () => empty++ });
@@ -879,6 +923,10 @@ test("a click on the house's door within reach swings it for everyone, once a sw
   for (let i = 0; i < DOOR_SWING_SECONDS * TICK_RATE; i++) room.step();
   use(5);
   assert.equal(swings().at(-1)?.t === 'door' && swings().at(-1)?.open, false, 'swung: a click shuts it again');
+  for (let i = 0; i < DOOR_SWING_SECONDS * TICK_RATE; i++) room.step();
+  alice.ghost = true;
+  use(5);
+  assert.equal(swings().length, 2, "a ghost's click swings nothing");
 });
 
 test('a tap weapon fires once per press however long the key is held', () => {

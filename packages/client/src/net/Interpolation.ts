@@ -56,6 +56,7 @@ export interface RemotePlayer {
   climb: { piece: number; side: 1 | -1; way: 1 | -1 } | null; // on a ladder (sim/types.ts): the piece, the face held, and the way round to it
   chilled: boolean; // slowed by an ice hit (sim/constants.ts): frosted over
   dead: boolean;
+  ghost: boolean; // in the room and not in its game (sim/types.ts)
   body: number; // which body of theirs this is (sim/types.ts): a new one is another avatar
   avatar: AvatarId;
   dragon: DragonState | null; // a dragon's body, its spine drawn between snapshots like the head
@@ -157,6 +158,7 @@ export class Interpolation {
         climb: b.climb,
         chilled: b.chilled > 0,
         dead: b.dead,
+        ghost: b.ghost,
         body: b.body,
         avatar: b.avatar,
         dragon: b.dragon && {

@@ -30,11 +30,16 @@ class WorldState:
 
     def nearest_player(self, *, people_only: bool = False) -> Player | None:
         """The closest living player to this bot in a straight line (someone a floor above isn't
-        next to us), leaving out bots when ``people_only``."""
+        next to us), leaving out bots when ``people_only``. A ghost is nobody: in the room, and
+        not in the world."""
         me = self.me
         if me is None:
             return None
-        candidates = (p for p in self.players.values() if p.id != me.id and not p.dead and not (people_only and p.bot))
+        candidates = (
+            p
+            for p in self.players.values()
+            if p.id != me.id and not p.dead and not p.ghost and not (people_only and p.bot)
+        )
         return min(
             candidates,
             key=lambda p: math.dist((p.pos.x, p.pos.y, p.pos.z), (me.pos.x, me.pos.y, me.pos.z)),

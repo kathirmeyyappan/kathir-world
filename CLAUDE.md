@@ -46,7 +46,10 @@ for whatever the change adds or touches, and put the answers in it:
   refuses it. A new command doesn't build until every mode says whether its game allows it (its
   `CommandKind` and each game's `Allowed`, `modes/rules.ts`).
 - **Ghosts:** what a ghost (a spectator, a racer who's out) can do with it, and that a ghost doing
-  it changes nothing in the world and isn't heard doing it.
+  it changes nothing in the world and isn't heard doing it. Whatever the world does to people it
+  does to the Room's `bodies`, which leaves the ghosts out, and what a ghost's own step, shot or
+  click would do is stopped where each is taken (`room.ts` `advance`, `applyActions`, `use`); a new
+  kind of command says whether a ghost may ask for it (`GHOST_ALLOWS`, `modes/rules.ts`).
 - **Points:** if it can hurt or kill, that it goes through the Room's one `damage`, so every mode
   scores it and says what the death means.
 - **Place:** if it puts a body somewhere (a spawn, a teleport, a respawn, a rescue), that it goes
@@ -693,6 +696,8 @@ sends `InputFrame.use`; the Room checks the look reaches that door, swings it, a
 plays over `DOOR_SWING_SECONDS`). Bots' map walks as if every door stood open and lists each
 door's slab; a bot's way keeps out of doorways unless it opens doors (the sniper), whose route
 stops at a shut one in its way, turns to it and sends the same `use`. A Room keeps its own `Structures` for this; the client's `WORLD_STRUCTURES` is its page's.
+A ghost (see Game modes) swings no door and walks through any, shut or open: its step is taken with
+no door's pieces standing (`Structures.throughDoors`, in `stepPlayer`).
 
 ### Interiors
 
@@ -1769,7 +1774,8 @@ Bots must use the modules under `modal-bots/common/`:
   one retry on stale authentication, welcome validation, JSON transport, and clean close.
 - `WorldState(connection.welcome, connection.room)` owns the latest authoritative players, cubes,
   health, deaths, and server tick. Apply every received message before making the next decision.
-  `state.nearest_player(people_only=...)` is the closest living player in a straight line.
+  `state.nearest_player(people_only=...)` is the closest living player in a straight line, never
+  a ghost (`Player.ghost`: in the room and not in its game).
 - `Controls(connection)` owns input sequence numbers and persistent input intent.
 - `run_input_loop(controls, stop)` sends that intent at the server's 30 Hz tick rate without drift.
 - `log_kill`, `log_death`, and `log_message` write structured JSON to Modal's normal function logs.
