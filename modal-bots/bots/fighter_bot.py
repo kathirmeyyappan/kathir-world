@@ -20,7 +20,8 @@ hurt it. How well it does all of it is its ``Skill``, and what it's like is its 
    near for or a spray can't reach, a spray for someone right on top of a gun, and once its ice
    has chilled someone, the gun to finish them with.
 
-4. Seeing. Someone is in its sight when nothing stands between its eyes and their chest. It
+4. Seeing. Someone is in its sight when nothing stands between its eyes and their chest and
+   they're no further off than anyone sees through the fog, or with a rifle, down a scope. It
    checks the nearest few of those it's against every few ticks and goes for the nearest in
    sight, staying on whoever it's already fighting unless another is much nearer, and turning on
    whoever just hurt it. Someone newly in its sight it takes its reaction to go for. In a game
@@ -45,7 +46,13 @@ hurt it. How well it does all of it is its ``Skill``, and what it's like is its 
    its own. With nobody to go for at all it wanders: the shy from one lookout to another, the
    bold anywhere, staying a while at each.
 
-8. Dying. Where its game brings the dead back, it asks to be after a few seconds and takes up its
+8. A long way. Whoever it's going for a long way off along the roads, it takes a kart
+   (``common.trip``): it walks to the end of a road, asks for one, drives it as a racer of its
+   rating drives a track, and gets out at the far end, or sooner once they're near. Done with it
+   and with nobody to fight, it stands clear and shoots it until it blows up, so the room's karts
+   aren't used up.
+
+9. Dying. Where its game brings the dead back, it asks to be after a few seconds and takes up its
    weapon again; anywhere else it lies there until the room drops its seat, which ends its run.
 """
 
@@ -64,7 +71,10 @@ from common import (
     Controls,
     Event,
     Ground,
+    Kart,
+    Karts,
     Player,
+    Roads,
     RoomConnectionError,
     Route,
     Snapshot,
@@ -72,17 +82,34 @@ from common import (
     Vec3,
     WorldState,
     connect,
+    driving,
     load_bodies,
     load_ground,
+    load_karts,
+    load_roads,
     load_solids,
     log_death,
     log_kill,
     log_message,
+    trip,
 )
 from common.controls import TICK_RATE
 from common.deployment import validate_duration
-from common.fighting import ARMS, Aim, Arm, Skill, Temper, believed, mark_on, skill, temper
+from common.fighting import (
+    ARMS,
+    SCOPED_SIGHT,
+    SIGHT,
+    Aim,
+    Arm,
+    Skill,
+    Temper,
+    believed,
+    mark_on,
+    skill,
+    temper,
+)
 from common.map.bodies import EYE_HEIGHT
+from common.trip import Trip
 
 # How good a fighter its game's least level asks for and its most, of all a fighter can be: short
 # of both ends, since its form goes either side.
@@ -128,6 +155,7 @@ FOOT_SAMPLE = 0.5
 REPLAN = 4.0  # metres its goal has to move for it to find its way again
 REPLAN_EVERY = TICK_RATE // 2  # ticks, at the least, between findings of a way
 ARRIVED = 1.5  # metres from where it was going that count as there
+OFF_FLOOR = 12.0  # metres off the walked floor that somewhere can be and still be gone to by a way over it
 HEART_REACH = 70.0  # metres it will go for a heart
 NEARBY_HEART = 8.0  # metres: a heart this close is worth a detour for anyone not at full health
 # The share of a full life under which the one with the most wits breaks off for a heart: the
@@ -144,6 +172,16 @@ LINGER_SECONDS = (2.0, 7.0)  # how long it stays where it wandered to
 # Seconds after letting go of a ladder that it walks with its look turned aside, so the walk that
 # took hold of it (straight in, facing it) doesn't take hold again.
 ASIDE_SECONDS = 1.2
+TRIP_EVERY = 20.0  # seconds, at the least, between its plannings of a trip by kart
+TRIP_MOVED = 100.0  # metres whoever it's going for has to be from where its trip ends for another to be planned
+CLOSE_ENOUGH = 60.0  # metres from whoever it's driving to that it gets out
+# Done with a kart: the nearest it stands to it to shoot it (past its blast, BLAST in
+# sim/vehicles/garage.ts) and the furthest (in its gun's reach), how high up it and how far across
+# its mark is, how far it will come back to it from, and how long it gives the job.
+SCRAP_FROM = (9.0, 14.0)
+KART_MARK = (0.5, 0.6)
+SCRAP_REACH = 70.0
+SCRAP_SECONDS = 40.0
 HISTORY = 16  # ticks of where everyone was that it keeps
 FOREVER = 10**9  # ticks: longer than any run
 
@@ -166,10 +204,14 @@ async def run_fighter_bot(
     state = WorldState(connection.welcome, connection.room)
     controls = Controls(connection)
     # Its maps off the event loop, where every other bot of this process is being stepped.
-    ground, solids, bodies = await asyncio.gather(
-        asyncio.to_thread(load_ground), asyncio.to_thread(load_solids), asyncio.to_thread(load_bodies)
+    ground, solids, bodies, roads, karts = await asyncio.gather(
+        asyncio.to_thread(load_ground),
+        asyncio.to_thread(load_solids),
+        asyncio.to_thread(load_bodies),
+        asyncio.to_thread(load_roads),
+        asyncio.to_thread(load_karts),
     )
-    fighter = Fighter(ground, solids, bodies, f"{connection.room}/{name}", targets)
+    fighter = Fighter(ground, solids, bodies, roads, karts, f"{connection.room}/{name}", targets)
     completed = False
     log_message(name, "joined room", player_id=connection.id, room=connection.room, arms=list(fighter.temper.arms))
 
@@ -237,10 +279,21 @@ def sides_of(game: Mapping[str, Any]) -> dict[str, int]:
 class Fighter:
     """What a fighter is doing between snapshots; ``decide`` runs once for each."""
 
-    def __init__(self, ground: Ground, solids: Solids, bodies: Bodies, seed: str, targets: tuple[str, ...] = ()):
+    def __init__(
+        self,
+        ground: Ground,
+        solids: Solids,
+        bodies: Bodies,
+        roads: Roads,
+        karts: Karts,
+        seed: str,
+        targets: tuple[str, ...] = (),
+    ):
         self.ground = ground
         self.solids = solids
         self.bodies = bodies
+        self.roads = roads
+        self.karts = karts
         self.targets = tuple(t.lower() for t in targets)
         self.dice = random.Random(seed)
         self.temper: Temper = temper(self.dice)
@@ -285,12 +338,17 @@ class Fighter:
         self._next_find = 0
         self._doors: Mapping[str, bool] = {}  # the room's, open or shut (WorldState.doors)
         self._aside_until = 0  # the tick until which it looks aside of its way, clear of a ladder
+        self._trip: Trip | None = None  # the trip by kart it's on, or on its way to board
+        self._planning: asyncio.Task[trip.Plan | None] | None = None
+        self._next_trip = 0  # the tick from which it may plan another
+        self._scrap: tuple[str, int] | None = None  # the kart it's done with, and the tick it gives up on it
         self._died: int | None = None  # the tick it was first seen dead
         self._rise: int | None = None  # the tick it asks to be brought back
 
     def stop(self) -> None:
-        if self._finding is not None:
-            self._finding.cancel()
+        for task in (self._finding, self._planning):
+            if task is not None:
+                task.cancel()
 
     def heard(self, event: Event, me: Player, state: WorldState) -> None:
         """Something happened in the room: what hit it, what it hit, and what it killed."""
@@ -335,7 +393,18 @@ class Fighter:
             if p.id != me.id and not p.dead and sides.get(p.id, -1) == sides.get(me.id, -2)
         ]
         target = self._watch(state, me, foes, me.id in sides, tick)
-        asks = self._hold(me, target, tick)
+        # A trip has the controls from where it boards, with nobody there to fight first.
+        boards = self._trip is not None and target is None and self._trip.boards(_feet(me))
+        if self._trip is not None and (me.riding is not None or boards):
+            return self._ride(state, me, foes, controls)
+        if me.riding is not None:
+            controls.get_out()  # sat in a kart with nowhere to drive it
+            return []
+        wreck = self._done_with(state, target, tick)
+        asks = self._hold(me, target, tick, None if wreck is None else "gun")
+        if wreck is not None:
+            self._wreck(me, wreck, tick, controls)
+            return asks
         if tick >= self._next_think:
             self._next_think = tick + THINK_EVERY
             self._think(state, me, foes, allies, target, idle, tick)
@@ -371,8 +440,59 @@ class Fighter:
             self._died = tick
             self.deaths += 1
             self._rise = tick + round(self.dice.uniform(*RESPAWN_SECONDS) * TICK_RATE)
-            self.target = self._noticed = self._goal = self._route = None
+            self.target = self._noticed = self._goal = self._route = self._trip = self._scrap = None
         return []
+
+    def _ride(self, state: WorldState, me: Player, foes: list[Player], controls: Controls) -> list[str]:
+        """Its trip has the controls, from where it boards to getting out: at the road's far end,
+        or sooner once whoever it's going for is near."""
+        trip = self._trip
+        assert trip is not None
+        trip.leave = bool(foes) and _apart(me.pos, foes[0].pos) < CLOSE_ENOUGH
+        asks = trip.ride(state, me, controls)
+        if trip.over:
+            self._trip = None
+            self._next_trip = state.tick + round(TRIP_EVERY * TICK_RATE)
+            if trip.kart is not None:
+                self._scrap = (trip.kart, state.tick + round(SCRAP_SECONDS * TICK_RATE))
+        return asks
+
+    def _done_with(self, state: WorldState, target: Player | None, tick: int) -> Kart | None:
+        """The kart it has done with and is to blow up, while there's nobody to fight and it
+        stands empty."""
+        if self._scrap is None:
+            return None
+        kart, me = state.karts.get(self._scrap[0]), state.me
+        if kart is None or kart.driver is not None or tick > self._scrap[1]:
+            self._scrap = None
+            return None
+        near = me is not None and _apart(me.pos, kart.pos) <= SCRAP_REACH
+        return kart if target is None and near else None
+
+    def _wreck(self, me: Player, kart: Kart, tick: int, controls: Controls) -> None:
+        """Its controls while it blows up ``kart``: clear of the blast and in its gun's reach,
+        its gun on it."""
+        self._goal = self._route = None
+        eye, feet = self.bodies.eye_of(me), _feet(me)
+        up, across = KART_MARK
+        mark = Vec3(kart.pos.x, kart.pos.y + up, kart.pos.z)
+        self.aim.swing(eye, mark)
+        controls.look(self.aim.yaw, self.aim.pitch)
+        controls.scope(False)
+        controls.shoot(False)
+        controls.run(False)
+        away = _across(feet, kart.pos)
+        nearest, furthest = SCRAP_FROM
+        if not nearest <= away <= furthest:
+            to = 1 if away > furthest else -1
+            self._step = ((kart.pos.x - feet.x) * to, (kart.pos.z - feet.z) * to)
+            self._walk(feet, self._step, me, controls)
+            return
+        controls.stop()
+        held = me.item is not None and me.item.id == "gun"
+        if held and tick >= max(self._ready, self._fumbling) and self.aim.off(eye, mark) < math.atan2(across, away):
+            controls.fire_once()
+            self._ready = tick + ARMS["gun"].every
 
     def _rate(self, state: WorldState) -> None:
         rating = state.rating(RATINGS, UNRATED)
@@ -405,7 +525,8 @@ class Fighter:
             self._next_sight = tick + SIGHT_EVERY
             eye = self.bodies.eye_of(me)
             near = foes[:SIGHT_CHECKS]
-            self._sighted = {p.id: self.solids.clear(eye, self._chest(p)) for p in near}
+            far = SCOPED_SIGHT if ARMS[self.arm].scoped else SIGHT
+            self._sighted = {p.id: _apart(eye, p.pos) <= far and self.solids.clear(eye, self._chest(p)) for p in near}
             for p in near:
                 if self._sighted[p.id]:
                     self._last_seen[p.id] = tick
@@ -435,9 +556,9 @@ class Fighter:
         self.target = chosen.id
         return chosen
 
-    def _hold(self, me: Player, target: Player | None, tick: int) -> list[str]:
-        """The weapon it means to hold as things stand, and the command for it while it isn't
-        holding it."""
+    def _hold(self, me: Player, target: Player | None, tick: int, only: str | None = None) -> list[str]:
+        """The weapon it means to hold as things stand (``only``, where one alone will do), and
+        the command for it while it isn't holding it."""
         held = me.item.id if me.item is not None else None
         if me.item is not None and held == self.arm and me.item.fuel is not None and me.item.fuel < DRY:
             self._dried[self.arm] = tick
@@ -452,7 +573,8 @@ class Fighter:
             # The one in its hand as far as it goes, and another only where that one is well suited.
             suited = (arm for arm in arms if ARMS[arm].suits(apart, chilled, 1 if arm == self.arm else TO_DRAW))
             wanted = next(suited, wanted)
-        if wanted != self.arm and (tick >= self._kept_until or self.arm not in arms):
+        wanted = only or wanted
+        if wanted != self.arm and (tick >= self._kept_until or self.arm not in arms or only is not None):
             self.arm = wanted
             worst, quickest = SWAP_SECONDS
             self._fumbling = tick + round((worst + (quickest - worst) * self.skill.wits) * TICK_RATE)
@@ -518,7 +640,36 @@ class Fighter:
         if self._sighted.get(quarry.id) and _across(feet, _feet(quarry)) <= hold:
             self._goal = self._route = None
             return
+        if target is None and self._drives(me, quarry, tick):
+            return
         self._go(me, _feet(quarry), tick)
+
+    def _drives(self, me: Player, quarry: Player, tick: int) -> bool:
+        """Whether it's on its way to board a kart to go for ``quarry`` in: a long way off, along
+        the roads. The trip is planned off the event loop, and it carries on on foot meanwhile."""
+        feet, there = _feet(me), _feet(quarry)
+        if self._trip is not None:
+            if _across(there, self._trip.plan.end) <= TRIP_MOVED:
+                self._go(me, self._trip.plan.board, tick)
+                return True
+            self._trip = None  # they've gone somewhere else since
+        if self._planning is not None:
+            if self._planning.done():
+                planned, self._planning = self._planning.result(), None
+                if planned is not None:
+                    self._trip = Trip(planned, self._driving, self.karts, self.dice)
+            return False
+        if tick >= self._next_trip and _across(feet, there) >= trip.FAR:
+            self._next_trip = tick + round(TRIP_EVERY * TICK_RATE)
+            self._planning = asyncio.get_running_loop().create_task(
+                asyncio.to_thread(trip.plan, self.roads, self.ground, self.karts, feet, there, self._driving)
+            )
+        return False
+
+    @property
+    def _driving(self) -> driving.Skill:
+        """How well it drives: as a racer of its rating does."""
+        return driving.skill(self.rating + self.talent)
 
     def _heart(self, state: WorldState, me: Player, fighting: bool) -> Vec3 | None:
         """The heart to break off for, if it's hurt enough to: by its nerve, the shy sooner, and
@@ -576,7 +727,8 @@ class Fighter:
         stuck = self._route is not None and self._route.stuck(tick)
         if self._finding is not None or tick < self._next_find or not (moved or stuck or self._route is None):
             return
-        start, end = self.ground.node_at(_feet(me)), self.ground.node_at(goal)
+        # Somewhere just off the walked floor (out on a road) it goes for by the nearest of it.
+        start, end = self.ground.node_at(_feet(me)), self.ground.node_at(goal, OFF_FLOOR)
         self._next_find = tick + REPLAN_EVERY
         self._found_for = goal
         if start is None or end is None:

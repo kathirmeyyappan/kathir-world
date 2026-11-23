@@ -327,8 +327,9 @@ export class Garage {
   }
 
   // `p`, on foot, against kart `k`: pushed out of it, and hurt by how fast the two closed on each
-  // other square to where they touch, or by its coming down on them; or, unhurt, a person against
-  // an empty one, got into it: a kart is got into by walking or jumping into it.
+  // other square to where they touch, or by its coming down on them; or, unhurt, against an empty
+  // one, got into it: a kart is got into by walking or jumping into it. A bot gets into its own
+  // alone (one it dropped or last drove), so no bot is carried off by a kart left lying about.
   private runInto(k: Kart, p: PlayerState, blows: KartBlow[]): void {
     if (p.dead || p.riding || classOf(p.avatar).id !== 'walker') return;
     const keep = this.keeps.get(k.id)!;
@@ -344,7 +345,7 @@ export class Garage {
     const closing = (k.vel.x - p.vx) * n.x + (k.vel.z - p.vz) * n.z;
     const hearts = Math.max(under && k.vel.y < -DROP_SPEED ? DROP_DAMAGE : 0, impactDamage(closing));
     if (hearts === 0) {
-      if (k.driver === null && !p.bot && !keep.left.has(p.id)) this.getIn(p, k);
+      if (k.driver === null && (!p.bot || keep.owner === p.id) && !keep.left.has(p.id)) this.getIn(p, k);
       return;
     }
     keep.struck.set(p.id, this.tick);

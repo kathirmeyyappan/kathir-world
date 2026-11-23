@@ -4,7 +4,7 @@ import random
 from dataclasses import astuple
 
 from bots.fighter_bot import sides_of
-from common import Vec3
+from common import Vec3, driving, load_ground, load_karts, load_roads, trip
 from common.fighting import ARMS, BEST, WORST, Aim, believed, skill, temper
 
 
@@ -66,3 +66,20 @@ def test_a_game_gives_it_its_side() -> None:
     assert sides_of(lobby) == {} == sides_of({"mode": "freeplay", "phase": None, "bots": []})
     assert sides_of({**lobby, "phase": "results"}) == {}, "its sides are the game's while it's played"
     assert sides_of({**lobby, "phase": "playing"}) == {"p1": 0, "p2": 1, "p3": 1}
+
+
+def test_a_long_way_along_the_roads_is_one_to_drive() -> None:
+    maps, driver = (load_roads(), load_ground(), load_karts()), driving.skill(0.5)
+    middle, keep, west, crossroads = Vec3(0, 0, 0), Vec3(-57, 0, -70), Vec3(-700, 0, 5), Vec3(-372, 0, 10)
+    # From the buildings' floor to an island: boarded past the walked floor, where its road is
+    # clear of the building it ends under, and driven to the island.
+    out = trip.plan(*maps, middle, west, driver)
+    assert out is not None and maps[1].node_at(out.board) is None
+    assert out.end.x < -690 and 500 < out.line.s[-1] < 800
+    assert abs(out.heading + 1.5708) < 0.2, "facing down the road it boards on"
+    # Back from one, it boards where it stands; between two spots on the walked floor, or to
+    # somewhere near, it walks.
+    back = trip.plan(*maps, crossroads, keep, driver)
+    assert back is not None and abs(back.board.x - crossroads.x) < 10
+    assert trip.plan(*maps, Vec3(100, 0, 0), keep, driver) is None
+    assert trip.plan(*maps, crossroads, Vec3(-300, 0, 0), driver) is None

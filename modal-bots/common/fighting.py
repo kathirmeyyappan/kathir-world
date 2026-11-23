@@ -25,6 +25,11 @@ from .controls import MAX_PITCH, TICK_SECONDS
 from .map.bodies import EYE_HEIGHT, Hitbox
 from .protocol import Vec3
 
+# How far anyone sees, and how far down a scope (SIGHT and SCOPED_SIGHT in
+# packages/shared/src/sim/constants.ts): past it the fog has whoever is there.
+SIGHT = 125.0
+SCOPED_SIGHT = 560.0
+
 
 @dataclass(frozen=True, slots=True)
 class Arm:
