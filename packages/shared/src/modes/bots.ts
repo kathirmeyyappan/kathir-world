@@ -16,9 +16,8 @@ export const BOT_LOOKS: readonly AvatarId[] = AVATAR_IDS.filter(
   (id) => id !== 'standard' && AVATARS[id].class === 'walker' && AVATARS[id].command !== null && !AVATARS[id].hidden,
 );
 // Seconds past its countdown that a game's start waits for the bots it asked for, before it begins
-// without the ones that haven't come: as long as a host starting them cold can take, so a game
-// nearly always begins with all of them, and no longer, so one that never comes doesn't hold it.
-export const BOT_WAIT = 60;
+// without the ones that haven't come, which are taken in as they do.
+export const BOT_WAIT = 10;
 
 // What a game's bots are called, the first of them bot 1.
 export function botName(index: number): string {
