@@ -92,10 +92,12 @@ class Controls:
     def jump(self) -> None:
         self._jump = True
 
-    def use(self, door: str) -> None:
-        """Click the door the bot is looking at, as a person does, for one frame: the room swings it
-        if it's ``door`` and within reach along the look (``DOOR_REACH``, sim/doors.ts)."""
-        self._use = door
+    def use(self, thing: str) -> None:
+        """Use ``thing`` for one frame. A door (by its id) is clicked, as a person clicks one: the
+        room swings it if it's the door the bot is looking at, within reach along the look
+        (``DOOR_REACH``, sim/doors.ts). An empty kart (by its id) is got into, from beside it
+        (``BOARD_REACH``, sim/vehicles/garage.ts): a bot is in no kart for walking into it."""
+        self._use = thing
 
     def shoot(self, held: bool = True) -> None:
         self._shoot = held

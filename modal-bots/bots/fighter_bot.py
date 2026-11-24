@@ -47,10 +47,11 @@ hurt it. How well it does all of it is its ``Skill``, and what it's like is its 
    bold anywhere, staying a while at each.
 
 8. A long way. Whoever it's going for a long way off along the roads, it takes a kart
-   (``common.trip``): it walks to the end of a road, asks for one, drives it as a racer of its
-   rating drives a track, and gets out at the far end, or sooner once they're near. Done with it
-   and with nobody to fight, it stands clear and shoots it until it blows up, so the room's karts
-   aren't used up.
+   (``common.trip``): it walks to the end of a road, gets into an empty one standing there,
+   anyone's, or asks for one, drives it as a racer of its rating drives a track, and gets out at
+   the far end, or sooner once they're near. Done with it and with nobody to fight, it stands
+   clear and shoots it until it blows up, so the room's karts aren't used up; with whoever it's
+   after a drive away again, it keeps it for that.
 
 9. A hop. Somewhere it has no way to over the ground, or only one much longer than the hop,
    one with the wits flies to by jetpack (``common.flight``): straight up, across and down,
@@ -419,7 +420,7 @@ class Fighter:
         if me.riding is not None:
             controls.get_out()  # sat in a kart with nowhere to drive it
             return []
-        wreck = self._done_with(state, target, tick)
+        wreck = self._done_with(state, me, foes, target, tick)
         asks = self._hold(me, target, tick, None if wreck is None else "gun")
         if wreck is not None:
             self._wreck(me, wreck, tick, controls)
@@ -481,22 +482,28 @@ class Fighter:
         asks = trip.ride(state, me, controls)
         if trip.over:
             self._trip = None
-            self._next_trip = state.tick + round(TRIP_EVERY * TICK_RATE)
-            if trip.kart is not None:
+            if trip.kart is None:
+                self._next_trip = state.tick + round(TRIP_EVERY * TICK_RATE)
+            else:
+                # Out of one it drove: another trip may begin at once, in the same kart.
+                self._next_trip = state.tick
                 self._scrap = (trip.kart, state.tick + round(SCRAP_SECONDS * TICK_RATE))
         return asks
 
-    def _done_with(self, state: WorldState, target: Player | None, tick: int) -> Kart | None:
-        """The kart it has done with and is to blow up, while there's nobody to fight and it
-        stands empty."""
+    def _done_with(
+        self, state: WorldState, me: Player, foes: list[Player], target: Player | None, tick: int
+    ) -> Kart | None:
+        """The kart it has done with and is to blow up, while it stands empty near by with nobody
+        to fight. With whoever it's after a drive away again, it isn't done with it."""
         if self._scrap is None:
             return None
-        kart, me = state.karts.get(self._scrap[0]), state.me
+        kart = state.karts.get(self._scrap[0])
         if kart is None or kart.driver is not None or tick > self._scrap[1]:
             self._scrap = None
             return None
-        near = me is not None and _apart(me.pos, kart.pos) <= SCRAP_REACH
-        return kart if target is None and near else None
+        wanted = bool(foes) and _across(_feet(me), _feet(foes[0])) >= trip.FAR
+        near = _apart(me.pos, kart.pos) <= SCRAP_REACH
+        return kart if target is None and near and not wanted else None
 
     def _wreck(self, me: Player, kart: Kart, tick: int, controls: Controls) -> None:
         """Its controls while it blows up ``kart``: clear of the blast and in its gun's reach,
@@ -686,7 +693,7 @@ class Fighter:
             if self._planning.done():
                 planned, self._planning = self._planning.result(), None
                 if planned is not None:
-                    self._trip = Trip(planned, self._driving, self.karts, self.dice)
+                    self._trip = Trip(planned, self._driving, self.karts, self.solids, self.dice)
             return False
         if tick >= self._next_trip and _across(feet, there) >= trip.FAR:
             self._next_trip = tick + round(TRIP_EVERY * TICK_RATE)

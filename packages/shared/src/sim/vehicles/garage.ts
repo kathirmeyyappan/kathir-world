@@ -53,6 +53,7 @@ const DROP_HEIGHT = 2; // metres over their feet it drops from: landing under wh
 const KARTS_PER_PLAYER = 2; // a room's karts at most, for each player in it
 const IDLE_SECONDS = 120; // an empty kart is taken away after this long
 const STRUCK_SECONDS = 0.5; // a kart hurts the same player again no sooner than this
+const BOARD_REACH = 1.5; // metres from an empty kart's side that whoever asks to get in can be
 // Steps a driven kart takes on the keys of its driver's last frame while their next is late, at
 // the most (a third of a second): past them the driver is taken to be away and the keys let go.
 const AHEAD_TICKS = 10;
@@ -326,10 +327,19 @@ export class Garage {
     return { x: k.pos.x, y: k.pos.y + height, z: k.pos.z };
   }
 
+  // Gets `p` into empty kart `id` at their asking, from beside it: the way in for a bot, which no
+  // touch gets in (`runInto`).
+  board(p: PlayerState, id: string): void {
+    const k = this.karts.get(id);
+    if (!k || k.driver !== null || p.dead || p.riding || classOf(p.avatar).id !== 'walker') return;
+    if (touching(k, p, BOARD_REACH)) this.getIn(p, k);
+  }
+
   // `p`, on foot, against kart `k`: pushed out of it, and hurt by how fast the two closed on each
-  // other square to where they touch, or by its coming down on them; or, unhurt, against an empty
-  // one, got into it: a kart is got into by walking or jumping into it. A bot gets into its own
-  // alone (one it dropped or last drove), so no bot is carried off by a kart left lying about.
+  // other square to where they touch, or by its coming down on them; or, unhurt, a person against
+  // an empty one, got into it: a kart is got into by walking or jumping into it. A bot walks into
+  // things without meaning to, so one gets in only where it asks to (`board`), and none is carried
+  // off by a kart left lying about.
   private runInto(k: Kart, p: PlayerState, blows: KartBlow[]): void {
     if (p.dead || p.riding || classOf(p.avatar).id !== 'walker') return;
     const keep = this.keeps.get(k.id)!;
@@ -345,7 +355,7 @@ export class Garage {
     const closing = (k.vel.x - p.vx) * n.x + (k.vel.z - p.vz) * n.z;
     const hearts = Math.max(under && k.vel.y < -DROP_SPEED ? DROP_DAMAGE : 0, impactDamage(closing));
     if (hearts === 0) {
-      if (k.driver === null && (!p.bot || keep.owner === p.id) && !keep.left.has(p.id)) this.getIn(p, k);
+      if (k.driver === null && !p.bot && !keep.left.has(p.id)) this.getIn(p, k);
       return;
     }
     keep.struck.set(p.id, this.tick);
@@ -452,11 +462,17 @@ function circles(k: KartState): { x: number; z: number; r: number }[] {
   return [1, -1].map((s) => ({ x: k.pos.x + f.x * half * s, z: k.pos.z + f.z * half * s, r: width / 2 }));
 }
 
-// Where `p` overlaps kart `k`'s box, if they do: the way out of it across the ground, how far in
-// they are, and whether the kart is over their middle (coming down on them, if it's falling).
-function touching(k: KartState, p: PlayerState): { n: { x: number; z: number }; depth: number; under: boolean } | null {
+// Where `p` overlaps kart `k`'s box, or comes within `reach` of it, if they do: the way out of it
+// across the ground, how far in they are, and whether the kart is over their middle (coming down
+// on them, if it's falling).
+function touching(
+  k: KartState,
+  p: PlayerState,
+  reach = 0,
+): { n: { x: number; z: number }; depth: number; under: boolean } | null {
   const { width, length, height } = bodyOf(k);
-  const { radius, top } = AVATARS[p.avatar].hitbox;
+  const { top } = AVATARS[p.avatar].hitbox;
+  const radius = AVATARS[p.avatar].hitbox.radius + reach;
   const feet = p.pos.y - EYE_HEIGHT;
   if (feet > k.pos.y + height || feet + top < k.pos.y) return null;
   const f = noseOf(k.yaw);
