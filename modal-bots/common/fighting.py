@@ -5,8 +5,8 @@ Two things make a fighter. Its ``Skill`` is how well it does what it does, from 
 to notice anyone, slower to bring its aim round, never on the mark for long, stood still while it
 shoots) to 1 (quick, steady, hard to hit). Its ``Temper`` is what it does, whatever its skill: the
 weapons it carries and which it likes best, how it handles each, and how bold it is, from one that
-keeps its distance and waits to one that goes and finds whoever it's after. Both are drawn from
-dice, so no two fighters of one rating fight alike, and a fighter is itself every time.
+keeps its distance and shoots from there to one that goes and finds whoever it's after. Both are
+drawn from dice, so no two fighters of one rating fight alike, and a fighter is itself every time.
 
 Nothing here misses on purpose. A fighter aims at where it believes its target is, a read a moment
 old that it carries on by how they were moving, with a hand that comes round only so fast and
@@ -99,12 +99,13 @@ class Temper:
 
 
 # The kinds of fighter there are, and how often each turns up: the weapons it carries, and the
-# least and most nerve it has.
+# least and most nerve it has. Every kind carries a rifle, for someone out of its other weapons'
+# reach.
 KINDS: Sequence[tuple[float, tuple[str, ...], tuple[float, float]]] = (
-    (0.3, ("gun",), (0.3, 0.9)),
-    (0.2, ("gun", "flamethrower"), (0.6, 1.0)),
-    (0.2, ("flamethrower", "gun"), (0.7, 1.0)),
-    (0.15, ("ice-blower", "gun"), (0.5, 0.9)),
+    (0.3, ("gun", "sniper"), (0.3, 0.9)),
+    (0.2, ("gun", "flamethrower", "sniper"), (0.6, 1.0)),
+    (0.2, ("flamethrower", "gun", "sniper"), (0.7, 1.0)),
+    (0.15, ("ice-blower", "gun", "sniper"), (0.5, 0.9)),
     (0.15, ("sniper", "gun"), (0.0, 0.35)),
 )
 KNACK = (0.75, 1.3)  # the least and most a fighter's handling of a weapon scales its aim's slack by

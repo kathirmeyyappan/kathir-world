@@ -1900,10 +1900,11 @@ Bots must use the modules under `modal-bots/common/`:
 - A fight is fought with `common/fighting.py`, as `bots/fighter_bot.py` fights one. How well is a
   `Skill`, `skill(rating)` anywhere from 0 (slow to notice anyone and to bring its aim round, never
   on the mark for long, stood still while it shoots) to 1 (quick, steady, hard to hit, with the
-  wits to draw the weapon for the range and to go for a heart when it's hurt); what it's like is
-  a `Temper`, `temper(dice)`: the weapons it carries and likes best, how it handles each, and its
-  nerve, from one that keeps its distance and waits to one that goes and finds whoever it's
-  after. Nothing misses on purpose: an `Aim` swings toward where its fighter believes its target
+  wits to draw the weapon for the range, a rifle for someone too far off to close in on or who
+  hurts it from out of reach, and to go for a heart when it's hurt); what it's like is a
+  `Temper`, `temper(dice)`: the weapons it carries and likes best, how it handles each, and its
+  nerve, from one that keeps its distance and shoots from there to one that goes and finds
+  whoever it's after. Nothing misses on purpose: an `Aim` swings toward where its fighter believes its target
   is (`believed`: a read a moment old, carried on by how they were moving), only so fast and
   never quite still, so someone stood still is hit and someone who keeps changing their mind
   isn't. What it knows of each weapon is a row of `ARMS` there, which mirrors the weapon's

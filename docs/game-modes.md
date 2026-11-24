@@ -522,8 +522,8 @@ results and stood by either side of that; called from chat
 says (of five, the middle one where no game gives it one) and fights in a way of its own, both
 from dice seeded by its room and its name: the weapons it carries and which it likes best (the
 gun, the flamethrower, the ice blower, the rifle), how it handles each, and its nerve, from one
-that keeps its distance and waits to one that goes and finds whoever it's after. It misses nobody
-on purpose: its aim follows where it believes its target is, a read a moment old carried on by how
+that keeps its distance and shoots from there to one that goes and finds whoever it's after. It
+misses nobody on purpose: its aim follows where it believes its target is, a read a moment old carried on by how
 they were moving, with a hand that comes round only so fast and never holds quite still, so a
 level is how soon it notices someone, how well it stays on them, how often its weapon fires, how
 much it moves in a fight, and how far it thinks past its aim: the weapon that suits (`Arm.suits`:
@@ -531,7 +531,15 @@ the gun for someone a rifle is too near for, a spray for someone right on top of
 gun to finish someone its ice has chilled), a heart when it's hurt, and how far its weapon really
 reaches, where the least of them fire from too far off and empty a spray's tank on nothing. A
 rifle is fired only at someone who has gone on as they
-were for a while, so whoever keeps moving isn't shot from across the map. In a game with sides it
+were for a while, so whoever keeps moving isn't shot from across the map. Every fighter carries
+one, whatever it likes best, and one with the wits takes it up for someone in its sight too far
+off to close in on (25 m for the shyest to 60 m for the boldest, `LONG`), and for whoever has
+just hurt it from out of its weapon's reach, wherever they are: it shoots from a stand down its
+scope, moves about with the scope down between stands as far as its skill has it moving, and a
+bold one comes on between them, puts the rifle away once it's near enough to close in, and gives
+it up for a while when a couple of stands running get it no shot. On its
+way across open floor with someone it's against in its sight, or just hurt from out of reach, it
+weaves to one side of its way and the other, with a jump now and then. In a game with sides it
 leaves its own side alone, holds its fire while one of them is in the way, keeps with them
 when there's nobody near to fight, and with the wits goes for whoever in reach is nearest dead.
 With nobody to go for it wanders, the shy from lookout to lookout and the bold anywhere. Whoever
