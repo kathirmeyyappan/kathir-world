@@ -338,6 +338,7 @@ export class Game {
   private readonly pickups: Pickups;
   private dead = false;
   private body = 0; // which of the player's bodies they're in (sim/types.ts): a new one is taken up as it's seen
+  private teamSaidFor = -1; // the body of theirs whose team they were last told
   private readonly bodies = new Map<string, number>(); // and which of theirs everyone else was last drawn in
   private scoped = false;
   private canHit = false;
@@ -935,6 +936,16 @@ export class Game {
     return this.prediction?.state.ghost ? { text: 'Spectating as a ghost until this game ends.' } : null;
   }
 
+  // Each new body of the player's, on a team: which team that is. A side that is one player (it has
+  // their look) is no team.
+  private sayTeam(): void {
+    if (this.body === this.teamSaidFor || !this.prediction) return;
+    const side = rulesOf(this.game).side(this.game, this.prediction.state.id);
+    if (!side || side.avatar) return;
+    this.teamSaidFor = this.body;
+    this.banner.say(`You're on ${side.name}`, side.colour);
+  }
+
   // Frost comes and goes for the sim (so prediction slides where the server does) and the eye alike.
   private setFrost(cells: FrostCell[], on: boolean): void {
     for (const cell of cells) {
@@ -1397,6 +1408,7 @@ export class Game {
     }
     this.starter.update(showing.starter, dt);
     const line = this.startGate.up ? null : this.standing(showing);
+    if (!this.startGate.up) this.sayTeam();
     this.banner.set(line);
     // A look's own moves get their hint as the look is taken, once the start press
     // (ui/StartGate.ts) has let the player in to read it.
