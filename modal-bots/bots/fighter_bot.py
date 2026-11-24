@@ -64,7 +64,13 @@ hurt it. How well it does all of it is its ``Skill``, and what it's like is its 
    nobody for a while. With no perch that sees anyone, it's as shy a fighter as any: toward
    them until they're in its sight, and no nearer. A fight right on top of it, it fights.
 
-9. A long way. Whoever it's going for a long way off along the roads, it takes a kart
+9. Running someone down. Through a life it hunts, with one of the nearest few it's against on
+   foot across floor a kart drives straight over (``common.charge``), it sometimes takes a kart
+   to them, the bolder and sharper the oftener, and whoever has it stung always: into one
+   where it stands, flat out at them, on the brake once it has been at them, and out, to fight
+   on from there on foot. It blows the kart up later, as after a trip.
+
+   A long way. Whoever it's going for a long way off along the roads, it takes a kart
    (``common.trip``): it walks to the end of a road, gets into an empty one standing there,
    anyone's, or asks for one, drives it as a racer of its rating drives a track, and gets out at
    the far end, or sooner once they're near. Done with it and with nobody to fight, it stands
@@ -106,6 +112,7 @@ from common import (
     Solids,
     Vec3,
     WorldState,
+    charge,
     connect,
     driving,
     flight,
@@ -241,6 +248,14 @@ FALLING = 16.0  # m/s down from which it's falling, and straps a jetpack on to b
 TRIP_EVERY = 20.0  # seconds, at the least, between its plannings of a trip by kart
 TRIP_MOVED = 100.0  # metres whoever it's going for has to be from where its trip ends for another to be planned
 CLOSE_ENOUGH = 60.0  # metres from whoever it's driving to that it gets out
+# Running someone down by kart: how often it looks for someone it could, the seconds at the least
+# from its making up its mind about one to its next look, how likely the boldest with the most
+# wits is to do it, and the share of that for one with no wits.
+CHARGE_LOOK = 2.0
+CHARGE_EVERY = 15.0
+DRIVES = 0.9
+WITLESS = 0.5
+CHARGE_FOES = 3  # the nearest this many it's against are looked at for one to run down
 # Done with a kart: the nearest it stands to it to shoot it (past its blast, BLAST in
 # sim/vehicles/garage.ts) and the furthest (in its gun's reach), how high up it and how far across
 # its mark is, how far it will come back to it from, and how long it gives the job.
@@ -419,6 +434,8 @@ class Fighter:
         self._aside_until = 0  # the tick until which it looks aside of its way, clear of a ladder
         self._hop: flight.Hop | None = None  # the hop by jetpack it's on
         self._next_hop = 0  # the tick from which it may take another
+        self._charge: charge.Charge | None = None  # the charge by kart it's making
+        self._next_charge = 0  # the tick from which it may look for someone to run down
         self._trip: Trip | None = None  # the trip by kart it's on, or on its way to board
         self._planning: asyncio.Task[trip.Plan | None] | None = None
         self._next_trip = 0  # the tick from which it may plan another
@@ -500,6 +517,8 @@ class Fighter:
                 self._hop, self._goal, self._route = None, None, None
                 self._next_hop = tick + round(HOP_EVERY * TICK_RATE)
             return asks
+        if self._charge is not None:
+            return self._run_down(state, me, tick, controls)
         # A trip has the controls from where it boards, with nobody there to fight first.
         boards = self._trip is not None and target is None and self._trip.boards(_feet(me))
         if self._trip is not None and (me.riding is not None or boards):
@@ -549,6 +568,7 @@ class Fighter:
             self._barren = 0 if self._kills else self._barren + 1
             self._rise = tick + round(self.dice.uniform(*RESPAWN_SECONDS) * TICK_RATE)
             self.target = self._noticed = self._goal = self._route = self._trip = self._scrap = self._hop = None
+            self._charge = None
         return []
 
     def _hops(self, me: Player, tick: int) -> bool:
@@ -560,6 +580,19 @@ class Fighter:
             ground = self.solids.ground_at(feet.x, feet.z, feet.y)
             self._hop = flight.Hop(Vec3(feet.x, ground, feet.z), feet.y, _leg="down")
         return self._hop is not None
+
+    def _run_down(self, state: WorldState, me: Player, tick: int, controls: Controls) -> list[str]:
+        """Its charge has the controls, from getting into its kart to getting out of it, which it's
+        done with from then."""
+        run = self._charge
+        assert run is not None
+        asks = run.ride(state, me, controls)
+        if run.over:
+            self._charge = None
+            self._next_charge = tick + round(CHARGE_EVERY * TICK_RATE)
+            if run.kart is not None:
+                self._scrap = (run.kart, tick + round(SCRAP_SECONDS * TICK_RATE))
+        return asks
 
     def _ride(self, state: WorldState, me: Player, foes: list[Player], controls: Controls) -> list[str]:
         """Its trip has the controls, from where it boards to getting out: at the road's far end,
@@ -806,10 +839,12 @@ class Fighter:
         brawl = target is not None and _apart(me.pos, target.pos) <= ARMS["gun"].reach
         if self.elusive and foes and not brawl and self._lurk(me, foes, target is not None, tick):
             return
+        quarry = target or (foes[0] if foes else None)
+        if foes and not self.elusive and self._charges(me, foes, allies, tick):
+            return
         if target is not None and self._in_reach(me, target):
             self._goal = self._route = None  # a fight where it stands: its steps are the fight's
             return
-        quarry = target or (foes[0] if foes else None)
         near_fight = quarry is not None and _apart(me.pos, quarry.pos) <= FAR_FIGHT
         if allies and not near_fight:
             buddy = min(allies, key=lambda p: _apart(me.pos, p.pos))
@@ -885,6 +920,34 @@ class Fighter:
         sample = [i for i in weighed if fit(self.ground.nodes[i])][:PERCH_PICKS]
         seeing = vantage(self.ground, self.solids, sample, me.pos, [self._chest(foe) for foe in near])
         return None if seeing is None else self.ground.nodes[seeing]
+
+    def _charges(self, me: Player, foes: list[Player], allies: list[Player], tick: int) -> bool:
+        """Whether it takes a kart to one of ``foes`` now, to run them down: the nearest of the
+        nearest few on foot across floor a kart drives straight over, with none of its own side
+        in the way, for a fighter as keen on it as its nerve and its wits make it (and whoever
+        has it stung, for the cover a kart is), not long after it last weighed one."""
+        if tick < self._next_charge:
+            return False
+        self._next_charge = tick + round(CHARGE_LOOK * TICK_RATE)
+        feet = _feet(me)
+
+        def open_to(foe: Player) -> bool:
+            there = _feet(foe)
+            clear = not any(charge.in_way(feet, there, _feet(ally)) for ally in allies)
+            return foe.riding is None and clear and charge.open_to(self.solids, feet, there)
+
+        mark = next((foe for foe in foes[:CHARGE_FOES] if open_to(foe)), None)
+        if mark is None:
+            return False
+        self._next_charge = tick + round(CHARGE_EVERY * TICK_RATE)
+        keen = DRIVES * self.nerve * (WITLESS + (1 - WITLESS) * self.skill.wits)
+        if mark.id != self._smarting(tick) and self.dice.random() >= keen:
+            return False
+        there = _feet(mark)
+        heading = math.atan2(there.x - feet.x, there.z - feet.z)
+        self._charge = charge.Charge(feet, mark.id, heading, self.solids, self.skill.lead)
+        self._goal = self._route = None
+        return True
 
     def _drives(self, me: Player, quarry: Player, tick: int) -> bool:
         """Whether it's on its way to board a kart to go for ``quarry`` in: a long way off, along
