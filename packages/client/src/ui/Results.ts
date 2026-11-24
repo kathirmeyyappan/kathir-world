@@ -3,7 +3,7 @@
 // race's, between one race and the next: the client's `MODE_HUD`). Whoever won, or leads, stands
 // big at the top with a crown, apart from everyone else, small under them in their order. Nothing
 // on it is pressed: the world goes on under it.
-import type { Appearance, Standing } from '@world/shared';
+import type { Appearance, Side, Standing } from '@world/shared';
 import { nameColour } from '../render/liveries';
 import { named } from './emblem';
 import { CROWN, pixelSvg } from './pixelIcons';
@@ -18,8 +18,9 @@ export interface Leaderboard {
 }
 
 // A game's results as its standings give them (the shared package's `Rules.standings`), with
-// `seconds` to go before the lobby.
-export function resultsOf(standings: Standing[], seconds: number): Leaderboard {
+// `seconds` to go before the lobby. To someone on a team (`mine`, their side; null: none) it's whether
+// they won, tied for the win or lost; to anyone else it's the winner's by name.
+export function resultsOf(standings: Standing[], mine: Side | null, seconds: number): Leaderboard {
   const lines = standings.map((s) => {
     const who = s.side.avatar ? { avatar: s.side.avatar, color: s.side.colour } : null;
     return {
@@ -32,8 +33,12 @@ export function resultsOf(standings: Standing[], seconds: number): Leaderboard {
     };
   });
   const winners = lines.filter((line) => line.won);
+  const team = mine && !mine.avatar ? mine.name : null;
+  const tie = winners.length !== 1;
+  const theirs = winners.some((line) => line.name === team);
+  const named = tie ? "IT'S A TIE!" : `${winners[0].name} WINS!`;
   return {
-    title: winners.length === 1 ? `${winners[0].name} WINS!` : "IT'S A TIE!",
+    title: team === null ? named : !theirs ? 'YOU LOSE!' : tie ? 'YOU TIED!' : 'YOU WIN!',
     colour: winners.length === 1 ? winners[0].colour : null,
     lines,
     footer: `back to the lobby in ${seconds}`,
