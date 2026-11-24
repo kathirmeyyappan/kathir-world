@@ -549,7 +549,16 @@ scope, moves about with the scope down between stands as far as its skill has it
 bold one comes on between them, puts the rifle away once it's near enough to close in, and gives
 it up for a while when a couple of stands running get it no shot. On its
 way across open floor with someone it's against in its sight, or just hurt from out of reach, it
-weaves to one side of its way and the other, with a jump now and then. In a game with sides it
+weaves to one side of its way and the other, with a jump now and then. Each life it's given has a
+stance, drawn as the life begins: for a fighter that would use a rifle, an elusive one the
+likelier the shyer it is (7 lives in 10 for the shyest, 3 in 20 for the boldest) and the more
+lives it has just ended with nobody killed. Through one it has little nerve, holds its rifle, and
+takes a perch: of the lookouts and the floors indoors within 90 m of it and 30 m clear of whoever
+it's against, the nearest that sees one of them (`vantage`, `common/fighting.py`, which the sniper
+bot picks its spots by too). It stands right on it for each shot, steps off to one side between
+shots and back on, and moves to another once this one has got it hurt or shown it nobody for
+about ten seconds; with no perch that sees anyone it closes in, as the shy do, until they're in
+its sight. In a game with sides it
 leaves its own side alone, holds its fire while one of them is in the way, keeps with them
 when there's nobody near to fight, and with the wits goes for whoever in reach is nearest dead.
 With nobody to go for it wanders, the shy from lookout to lookout and the bold anywhere. Whoever

@@ -9,6 +9,7 @@ at the roads out of that floor: a spot beyond has no node.
 
 from __future__ import annotations
 
+import functools
 import heapq
 import math
 import random
@@ -252,6 +253,11 @@ class Ground:
                 if distance < best_distance:
                     best, best_distance = i, distance
         return best
+
+    @functools.cached_property
+    def floor_spots(self) -> tuple[int, ...]:
+        """Every spot on the floors indoors (``insides``)."""
+        return tuple(i for region in self.insides for i in self.nodes_in(region))
 
     def nodes_in(self, region: Region, rise: float = 0.6) -> list[int]:
         """Every node standing on ``region``: over it and within ``rise`` of its height."""

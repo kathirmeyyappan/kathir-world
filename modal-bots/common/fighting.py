@@ -23,6 +23,8 @@ from dataclasses import astuple, dataclass
 
 from .controls import MAX_PITCH, TICK_SECONDS
 from .map.bodies import EYE_HEIGHT, Hitbox
+from .map.ground import Ground
+from .map.solids import Solids
 from .protocol import Vec3
 
 # How far anyone sees, and how far down a scope (SIGHT and SCOPED_SIGHT in
@@ -184,6 +186,21 @@ def believed(seen: Sequence[Mapping[str, Vec3]], who: str, lag: float, lead: flo
         then.y + (then.y - before.y) * on,
         then.z + (then.z - before.z) * on,
     )
+
+
+def vantage(ground: Ground, solids: Solids, spots: Sequence[int], near: Vec3, marks: Sequence[Vec3]) -> int | None:
+    """Where to shoot from: of ``spots`` (the ground's), the nearest to ``near`` (an eye point)
+    whose own eye point sees one of ``marks``; None where none of them does."""
+
+    def eye(spot: int) -> Vec3:
+        node = ground.nodes[spot]
+        return Vec3(node.x, node.y + EYE_HEIGHT, node.z)
+
+    def off(spot: int) -> float:
+        at = eye(spot)
+        return math.dist((at.x, at.y, at.z), (near.x, near.y, near.z))
+
+    return next((spot for spot in sorted(spots, key=off) if any(solids.clear(eye(spot), mark) for mark in marks)), None)
 
 
 def mark_on(eyes: Vec3, hitbox: Hitbox, height: float) -> Vec3:
