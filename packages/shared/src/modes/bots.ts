@@ -7,7 +7,9 @@ import type { BotWorker } from '../sim/bots';
 
 // A bot's level: the least skilled there is and the most, and the one the first is added at.
 export const BOT_LEVELS = { least: 1, most: 5, first: 3 };
-export const MOST_BOTS = 8; // how many bots a game can be set to bring
+// How many bots a game can be set to bring: with the lobby's own still lying dead as they come, inside the
+// bots a room seats (MAX_BOTS).
+export const MOST_BOTS = 16;
 // The looks a game's bots play in, one drawn for each as it's added: every look on foot a person
 // can take but the standard body, which is nobody's.
 export const BOT_LOOKS: readonly AvatarId[] = AVATAR_IDS.filter(
