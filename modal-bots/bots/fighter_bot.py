@@ -54,19 +54,29 @@ hurt it. How well it does all of it is its ``Skill``, and what it's like is its 
    keeps with its own. With nobody to go for at all it wanders: the shy from one lookout to
    another, the bold anywhere, staying a while at each.
 
-8. A long way. Whoever it's going for a long way off along the roads, it takes a kart
+8. An elusive life. Each life it's given has a stance, drawn as it begins: for a fighter that
+   would use a rifle, an elusive one the likelier the shyer it is and the more lives it has just
+   ended with nobody killed. Through one it has little nerve and its rifle is the weapon it
+   holds. It takes a perch (``vantage``): of the lookouts and the floors indoors within its
+   reach and clear of whoever it's against, the nearest that sees one of them. It stands right
+   on it for each shot, since a doorway shows what it shows from one spot, steps off to one side
+   between shots and back on, and moves to another once this one has got it hurt or shown it
+   nobody for a while. With no perch that sees anyone, it's as shy a fighter as any: toward
+   them until they're in its sight, and no nearer. A fight right on top of it, it fights.
+
+9. A long way. Whoever it's going for a long way off along the roads, it takes a kart
    (``common.trip``): it walks to the end of a road, gets into an empty one standing there,
    anyone's, or asks for one, drives it as a racer of its rating drives a track, and gets out at
    the far end, or sooner once they're near. Done with it and with nobody to fight, it stands
    clear and shoots it until it blows up, so the room's karts aren't used up; with whoever it's
    after a drive away again, it keeps it for that.
 
-9. A hop. Somewhere it has no way to over the ground, or only one much longer than the hop,
+10. A hop. Somewhere it has no way to over the ground, or only one much longer than the hop,
    one with the wits flies to by jetpack (``common.flight``): straight up, across and down,
    where nothing is in the way, and not again for a while. Falling far, it straps one on to
    brake with.
 
-10. Dying. Where its game brings the dead back, it asks to be after a few seconds and takes up its
+11. Dying. Where its game brings the dead back, it asks to be after a few seconds and takes up its
    weapon again; anywhere else it lies there until the room drops its seat, which ends its run.
 """
 
@@ -289,10 +299,10 @@ async def run_fighter_bot(
                         log_death(name, shooter.name if shooter else "?", item=message.data["item"])
                 if not isinstance(message, Snapshot):
                     continue
-                life = me.body, fighter.elusive
+                lives = fighter.lives
                 for command in fighter.decide(state, controls):
                     await controls.command(command)
-                if (me.body, fighter.elusive) != life and not me.dead:
+                if fighter.lives != lives:
                     log_message(name, "a new life", elusive=fighter.elusive)
                 if fighter.rises(state.tick):
                     await controls.respawn()
@@ -412,7 +422,8 @@ class Fighter:
         self._next_trip = 0  # the tick from which it may plan another
         self._scrap: tuple[str, int] | None = None  # the kart it's done with, and the tick it gives up on it
         self._body: int | None = None  # the body it's in: a new one is a new life
-        self.elusive = False  # whether this life is an elusive one
+        self.lives = 0  # how many lives it has begun
+        self.elusive = False  # whether this one is an elusive one
         self._barren = 0  # the lives in a row it has ended with nobody killed
         self._kills = 0  # how many it has killed this life
         self._perch: Vec3 | None = None  # where an elusive life means to shoot from (feet)
@@ -621,6 +632,7 @@ class Fighter:
         chance = shy + (bold - shy) * self.temper.nerve + sore * min(self._barren, most)
         marksman = self._sharp or ARMS[self.temper.arms[0]].scoped
         self.elusive = marksman and self.dice.random() < chance
+        self.lives += 1
         self._kills = 0
         self._perch = self._perched = None
 

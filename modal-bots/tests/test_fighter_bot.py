@@ -5,7 +5,7 @@ from dataclasses import astuple
 
 from bots.fighter_bot import sides_of
 from common import Vec3, driving, flight, load_ground, load_karts, load_roads, load_solids, trip
-from common.fighting import ARMS, BEST, WORST, Aim, believed, skill, temper
+from common.fighting import ARMS, BEST, WORST, Aim, believed, skill, temper, vantage
 
 
 def test_a_fighter_is_as_good_as_its_rating_and_its_own_kind_every_time() -> None:
@@ -96,3 +96,23 @@ def test_a_hop_goes_up_over_and_down_where_nothing_is_in_its_way() -> None:
     # From under the roof there's none, nor to anywhere a tank won't reach.
     assert flight.plan(solids, Vec3(-52, 0, 76), roof) is None
     assert flight.plan(solids, Vec3(40, 0, 0), roof) is None
+
+
+def test_a_vantage_is_the_nearest_spot_that_sees_them() -> None:
+    ground, solids = load_ground(), load_solids()
+    spots = random.Random(7).sample(ground.lookouts, 400)
+    middle, me = Vec3(0, 1.1, 0), Vec3(60, 21.7, 60)
+
+    def eye(spot: int) -> Vec3:
+        return Vec3(ground.nodes[spot].x, ground.nodes[spot].y + 1.7, ground.nodes[spot].z)
+
+    def off(spot: int) -> float:
+        return sum(
+            (a - b) ** 2 for a, b in zip((eye(spot).x, eye(spot).y, eye(spot).z), (me.x, me.y, me.z), strict=True)
+        )
+
+    seeing = [spot for spot in spots if solids.clear(eye(spot), middle)]
+    assert seeing and len(seeing) < len(spots), "some of them see the middle of the floor, and most don't"
+    assert vantage(ground, solids, spots, me, [middle]) == min(seeing, key=off)
+    blind = [spot for spot in spots if spot not in seeing]
+    assert vantage(ground, solids, blind, me, [middle]) is None

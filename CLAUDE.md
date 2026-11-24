@@ -1911,7 +1911,9 @@ Bots must use the modules under `modal-bots/common/`:
   `ItemSpec`: a new weapon, or a change to one's range, its cooldown or what it does to whoever
   it touches, goes in both. `Arm.suits` is which weapon is for which range and target, which a
   fighter with the wits holds to. It sees no further than anyone does (`SIGHT`, and with a rifle
-  `SCOPED_SIGHT`, mirrored there from `sim/constants.ts`).
+  `SCOPED_SIGHT`, mirrored there from `sim/constants.ts`). `vantage(ground, solids, spots, near,
+  marks)` is where to shoot from: of those spots, the nearest that sees one of the marks, which
+  the sniper bot picks its lookouts by and a fighter, through a life it's elusive for, its perch.
 - A kart is driven by a `Driver(line, skill, kart, dice)` (`common/driving.py`) along the
   `racing_line(middle, shape, kart)` of a way along the roads (`common/racing_line.py`):
   `driver.keys(kart, late, mood, others)` is the gas, the wheel and the drift key to hold next,
