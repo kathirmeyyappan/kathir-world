@@ -82,6 +82,7 @@ from common import (
 )
 from common.controls import TICK_RATE
 from common.deployment import validate_duration
+from common.fighting import vantage
 from common.map.bodies import EYE_HEIGHT, Hitbox
 
 GRACE_TICKS = (3, 10)  # a target must stay in sight this long (inclusive range) before a shot
@@ -272,7 +273,6 @@ class Sniper:
     kills: int = 0
     hurt: bool = False  # something hit it since it last picked a spot
     hurt_at: int = -(10**9)  # the tick something last hit it
-    floor_spots: tuple[int, ...] = field(init=False)  # the spots on the floors indoors (ground.insides)
     in_sight: str | None = None  # who it's watching, if anyone
     last_in_sight: int = 0  # the tick it last had anyone in sight
     fire_at: int = 0  # the tick it may shoot them: its grace delay's end
@@ -287,9 +287,6 @@ class Sniper:
     replan_at: int = 0  # the tick it may pick a spot or find a way again (a second after the last)
     _sighted: Player | None = None
     _next_sight_check: int = 0
-
-    def __post_init__(self) -> None:
-        self.floor_spots = tuple(i for region in self.ground.insides for i in self.ground.nodes_in(region))
 
     def decide(self, state: WorldState, controls: Controls) -> None:
         me = state.me
@@ -439,20 +436,22 @@ class Sniper:
         options = [i for i in pool if self._floor(i) != floor] or pool
         sample = self.rng.sample(options, min(SPOT_CHOICES, len(options)))
         wanted = quarry[:SPOT_TARGETS]
-        seeing = [i for i in sample if any(self.solids.clear(_eye(self.ground.nodes[i]), chest(p)) for p in wanted)]
-        if seeing:
-            self.spot = min(seeing, key=lambda i: _distance(me.pos, _eye(self.ground.nodes[i])))
+        seeing = vantage(self.ground, self.solids, sample, me.pos, [chest(p) for p in wanted])
+        if seeing is not None:
+            self.spot = seeing
         elif wanted:
             self.spot = min(sample, key=lambda i: _distance(wanted[0].pos, _eye(self.ground.nodes[i])))
         else:
             self.spot = self.rng.choice(sample)
         self.hurt = False
-        log_message(self.name, "heading to a lookout", node=self.spot, floor=self._floor(self.spot), sees=bool(seeing))
+        log_message(
+            self.name, "heading to a lookout", node=self.spot, floor=self._floor(self.spot), sees=seeing is not None
+        )
         self._route_to_spot(me, tick)
 
     def _spots(self, place: str) -> tuple[int, ...]:
         """The spots a place offers: every spot on the floors indoors, or a place's lookouts."""
-        return self.floor_spots if place == "indoors" else self.ground.places.get(place, ())
+        return self.ground.floor_spots if place == "indoors" else self.ground.places.get(place, ())
 
     def _floor(self, node: int) -> int:
         return round(self.ground.nodes[node].y / FLOOR) * FLOOR

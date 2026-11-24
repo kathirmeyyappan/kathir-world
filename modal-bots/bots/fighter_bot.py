@@ -123,6 +123,7 @@ from common.fighting import (
     mark_on,
     skill,
     temper,
+    vantage,
 )
 from common.map.bodies import EYE_HEIGHT
 from common.trip import Trip
@@ -173,6 +174,23 @@ SHIFT_SECONDS = (0.7, 1.5)
 BLANKS = 2
 CHARGE_SECONDS = 12.0
 WEAVE = 0.6  # radians off its way, to one side and the other, that it weaves coming in under fire
+# How likely a life is an elusive one, for the shyest and the boldest of those who would use a
+# rifle, how much likelier each life in a row that ended with nobody killed makes the next, and
+# the most nerve it has through one.
+LURKS = (0.7, 0.15)
+GRUDGE = (0.15, 2)  # for each such life, up to so many of them
+LURK_NERVE = 0.2
+# An elusive life's perch: how far off it looks for one, how near whoever it's against it won't
+# take one, how many spots it weighs against how many of them, how far off it a step aside is
+# walked straight back from, and how long it gives one that shows it nobody before it tries
+# another.
+PERCH_REACH = 90.0
+PERCH_CLEAR = 30.0
+PERCH_PICKS = 48
+PERCH_FOES = 3
+PERCH_HOLD = 10.0
+PERCH_PATIENCE = (8.0, 14.0)
+PERCH_EVERY = 4.0  # seconds between its looks for a perch, with none
 JUMP_CARRIES = 2.0  # seconds of its walk that a jump can carry it: the ground it wants ahead of one
 CHILL_LEFT = 1.0  # seconds of chill left on someone, under which they're as good as thawed
 FINISH = 3.0  # hearts fewer than the nearest that someone in reach has, to be gone for first
@@ -189,6 +207,7 @@ FOOT_SAMPLE = 0.5
 REPLAN = 4.0  # metres its goal has to move for it to find its way again
 REPLAN_EVERY = TICK_RATE // 2  # ticks, at the least, between findings of a way
 ARRIVED = 1.5  # metres from where it was going that count as there
+ON_SPOT = 0.4  # and from a spot it has to stand right on: a perch sees what it sees from there
 OFF_FLOOR = 12.0  # metres off the walked floor that somewhere can be and still be gone to by a way over it
 HEART_REACH = 70.0  # metres it will go for a heart
 NEARBY_HEART = 8.0  # metres: a heart this close is worth a detour for anyone not at full health
@@ -270,8 +289,11 @@ async def run_fighter_bot(
                         log_death(name, shooter.name if shooter else "?", item=message.data["item"])
                 if not isinstance(message, Snapshot):
                     continue
+                life = me.body, fighter.elusive
                 for command in fighter.decide(state, controls):
                     await controls.command(command)
+                if (me.body, fighter.elusive) != life and not me.dead:
+                    log_message(name, "a new life", elusive=fighter.elusive)
                 if fighter.rises(state.tick):
                     await controls.respawn()
                 await controls.send_input()
@@ -357,6 +379,7 @@ class Fighter:
         self._noticed: tuple[str, int] | None = None  # who has come into its sight, and the tick it goes for them
         self._last_seen: dict[str, int] = {}  # the tick each was last in its sight
         self._hurt_by: str | None = None
+        self._hurt_at = -FOREVER  # the tick someone last hurt it
         self._stung: tuple[str, int] | None = None  # who last hurt it from out of its weapon's reach, and when
         self._ready = 0  # the tick it may next fire
         self._steady: tuple[str, int, tuple[float, float, float]] | None = (
@@ -375,6 +398,7 @@ class Fighter:
         self._next_step = 0
         self._next_think = 0
         self._goal: Vec3 | None = None  # where it's going (feet), with nobody to fight where it is
+        self._within = ARRIVED  # and how near it counts as there
         self._route: Route | None = None
         self._finding: asyncio.Task[list[int] | None] | None = None
         self._found_for: Vec3 | None = None  # where the way it has, or is finding, leads
@@ -387,6 +411,15 @@ class Fighter:
         self._planning: asyncio.Task[trip.Plan | None] | None = None
         self._next_trip = 0  # the tick from which it may plan another
         self._scrap: tuple[str, int] | None = None  # the kart it's done with, and the tick it gives up on it
+        self._body: int | None = None  # the body it's in: a new one is a new life
+        self.elusive = False  # whether this life is an elusive one
+        self._barren = 0  # the lives in a row it has ended with nobody killed
+        self._kills = 0  # how many it has killed this life
+        self._perch: Vec3 | None = None  # where an elusive life means to shoot from (feet)
+        self._perched: int | None = None  # the tick it got there
+        self._showed = 0  # the tick its perch last showed it someone
+        self._patience = 0  # ticks it gives a perch that shows it nobody
+        self._next_perch = 0  # the tick from which, with no perch, it looks for one again
         self._died: int | None = None  # the tick it was first seen dead
         self._rise: int | None = None  # the tick it asks to be brought back
 
@@ -400,6 +433,7 @@ class Fighter:
         if event.t == "hit":
             if event.data["victim"] == me.id and event.data.get("shooter") not in (None, me.id):
                 self._hurt_by = str(event.data["shooter"])
+                self._hurt_at = state.tick
                 shooter = state.players.get(self._hurt_by)
                 if shooter is not None and _apart(me.pos, shooter.pos) > ARMS[self.arm].reach:
                     self._stung = (shooter.id, state.tick)
@@ -409,6 +443,7 @@ class Fighter:
             self.shots += 1
         elif event.t == "kill" and event.data["shooter"] == me.id:
             self.kills += 1
+            self._kills += 1
 
     def rises(self, tick: int) -> bool:
         """Whether to ask now to be brought back from the dead: once, a few seconds after dying."""
@@ -431,6 +466,9 @@ class Fighter:
             return self._lie(tick, controls)
         self._died = None
         self._rate(state)
+        if me.body != self._body:
+            self._body = me.body
+            self._live()
         sides = sides_of(state.game)
         # One a game brought fights in that game, and stands by through its countdown and results.
         idle = state.brought is not None and state.game.get("phase") != "playing"
@@ -495,6 +533,7 @@ class Fighter:
         if self._died is None:
             self._died = tick
             self.deaths += 1
+            self._barren = 0 if self._kills else self._barren + 1
             self._rise = tick + round(self.dice.uniform(*RESPAWN_SECONDS) * TICK_RATE)
             self.target = self._noticed = self._goal = self._route = self._trip = self._scrap = self._hop = None
         return []
@@ -573,6 +612,28 @@ class Fighter:
         self.rating = rating
         self.skill = skill(rating + self.talent)
         self.aim = Aim(self.skill, self.dice, self.aim.yaw, self.aim.pitch)
+
+    def _live(self) -> None:
+        """A new life, and its stance for it: an elusive one the likelier the shyer it is and the
+        more lives it has just ended with nobody killed, for a fighter that would use a rifle."""
+        shy, bold = LURKS
+        sore, most = GRUDGE
+        chance = shy + (bold - shy) * self.temper.nerve + sore * min(self._barren, most)
+        marksman = self._sharp or ARMS[self.temper.arms[0]].scoped
+        self.elusive = marksman and self.dice.random() < chance
+        self._kills = 0
+        self._perch = self._perched = None
+
+    @property
+    def nerve(self) -> float:
+        """How bold it is this life: its temper's nerve, and little of that through an elusive one."""
+        return min(self.temper.nerve, LURK_NERVE) if self.elusive else self.temper.nerve
+
+    @property
+    def _favourite(self) -> str:
+        """The weapon it would rather hold this life: its rifle through an elusive one."""
+        rifle = next((arm for arm in self.temper.arms if ARMS[arm].scoped), None)
+        return rifle if self.elusive and rifle is not None else self.temper.arms[0]
 
     def _foes(self, state: WorldState, me: Player, sides: Mapping[str, int], tick: int) -> list[Player]:
         """Those it's against, nearest first."""
@@ -657,7 +718,7 @@ class Fighter:
             arm for arm in self.temper.arms if tick - self._dried.get(arm, -FOREVER) > REFILLED_SECONDS * TICK_RATE
         ]
         arms = filled or list(self.temper.arms)
-        wanted = arms[0]
+        wanted = self._favourite if self._favourite in arms else arms[0]
         if quarry is not None and self._sharp:
             apart, chilled = _apart(me.pos, quarry.pos), quarry.chilled > CHILL_LEFT
             wanted = next((arm for arm in arms if self._suits(arm, apart, chilled, tick)), wanted)
@@ -683,9 +744,9 @@ class Fighter:
         the bolder it is the further, and while it's stung for anyone the shyest would shoot;
         for nobody while it has given it up to close in."""
         held = arm == self.arm
-        if ARMS[arm].scoped and arm != self.temper.arms[0]:
+        if ARMS[arm].scoped and arm != self._favourite:
             shy, bold = LONG
-            long = shy if self._smarting(tick) else shy + (bold - shy) * self.temper.nerve
+            long = shy if self._smarting(tick) else shy + (bold - shy) * self.nerve
             if tick < self._charging or apart < long * (LONG_KEPT if held else 1):
                 return False
         return ARMS[arm].suits(apart, chilled, 1 if held else TO_DRAW)
@@ -693,7 +754,7 @@ class Fighter:
     @property
     def _coming(self) -> bool:
         """Whether it's on its way in with a rifle it took up only for the range: the bold are."""
-        return ARMS[self.arm].scoped and self.arm != self.temper.arms[0] and self.temper.nerve >= 0.5
+        return ARMS[self.arm].scoped and self.arm != self._favourite and self.nerve >= 0.5
 
     @property
     def _sharp(self) -> bool:
@@ -727,6 +788,10 @@ class Fighter:
         if heart is not None:
             self._go(me, heart, tick)
             return
+        # An elusive life keeps to its perch, but for a fight right on top of it.
+        brawl = target is not None and _apart(me.pos, target.pos) <= ARMS["gun"].reach
+        if self.elusive and foes and not brawl and self._lurk(me, foes, target is not None, tick):
+            return
         if target is not None and self._in_reach(me, target):
             self._goal = self._route = None  # a fight where it stands: its steps are the fight's
             return
@@ -746,13 +811,66 @@ class Fighter:
         # The shy stop where they can see whoever it is from as far as their weapon likes; the
         # bold go right up.
         arm = ARMS[self.arm]
-        hold = self._far(arm) if self.temper.nerve < 0.5 else self._near(arm)
+        hold = self._far(arm) if self.nerve < 0.5 else self._near(arm)
         if self._sighted.get(quarry.id) and _across(feet, _feet(quarry)) <= hold:
             self._goal = self._route = None
             return
         if target is None and self._drives(me, quarry, tick):
             return
         self._go(me, _feet(quarry), tick)
+
+    def _lurk(self, me: Player, foes: list[Player], sighted: bool, tick: int) -> bool:
+        """An elusive life's place, where it has one: a perch that sees whoever it's against, kept
+        until it gets it hurt or has shown it nobody (``sighted``) for too long, stood right on
+        for each shot and stepped off between them. False with none in its reach, when it's as
+        shy a fighter as any: toward them until they're in its sight."""
+        feet = _feet(me)
+        if sighted:
+            self._showed = tick
+        perch = self._perch
+        level = perch is not None and abs(feet.y - perch.y) <= 2
+        on = perch is not None and level and _across(feet, perch) <= 2 * ON_SPOT
+        if on and self._perched is None:
+            self._perched = self._showed = self._shift_until = tick
+            self._stand_until = tick + round(self.dice.uniform(*STAND_SECONDS) * TICK_RATE)
+        spent = self._perched is not None and (
+            self._hurt_at > self._perched or tick - max(self._perched, self._showed) > self._patience
+        )
+        if spent or (perch is None and tick >= self._next_perch):
+            perch = self._perch = self._perch_for(me, foes)
+            self._perched = None
+            self._next_perch = tick + round(PERCH_EVERY * TICK_RATE)
+            self._patience = round(self.dice.uniform(*PERCH_PATIENCE) * TICK_RATE)
+        if perch is None:
+            return False
+        if self._perched is not None and (on or tick < self._shift_until):
+            self._goal = self._route = None  # on it, or off to one side of it between its stands
+        elif self._perched is not None and level and _across(feet, perch) <= PERCH_HOLD:
+            self._goal, self._route, self._within = perch, None, ON_SPOT  # a step back onto it
+        else:
+            self._go(me, perch, tick, ON_SPOT)
+            if self._goal is None:
+                self._perch = None  # no way there
+        return True
+
+    def _perch_for(self, me: Player, foes: list[Player]) -> Vec3 | None:
+        """Somewhere to shoot from: of a sample of the lookouts and the floors indoors within its
+        reach, clear of whoever it's against and off the perch it has, the nearest that sees one
+        of the nearest of them, if any does."""
+        feet, near = _feet(me), foes[:PERCH_FOES]
+
+        def fit(spot: Vec3) -> bool:
+            return (
+                _across(feet, spot) <= PERCH_REACH
+                and all(_apart(spot, _feet(foe)) >= PERCH_CLEAR for foe in near)
+                and (self._perch is None or _apart(spot, self._perch) > PERCH_HOLD)
+            )
+
+        spots = (*self.ground.lookouts, *self.ground.floor_spots)
+        weighed = self.dice.sample(spots, min(PERCH_PICKS * 5, len(spots)))
+        sample = [i for i in weighed if fit(self.ground.nodes[i])][:PERCH_PICKS]
+        seeing = vantage(self.ground, self.solids, sample, me.pos, [self._chest(foe) for foe in near])
+        return None if seeing is None else self.ground.nodes[seeing]
 
     def _drives(self, me: Player, quarry: Player, tick: int) -> bool:
         """Whether it's on its way to board a kart to go for ``quarry`` in: a long way off, along
@@ -793,7 +911,7 @@ class Fighter:
         nearest = min(hearts, key=lambda p: math.dist((p.x, p.y, p.z), (me.pos.x, me.pos.y, me.pos.z)))
         away = math.dist((nearest.x, nearest.y, nearest.z), (me.pos.x, me.pos.y, me.pos.z))
         boldest, shyest = HURT
-        under = full * (boldest + (shyest - boldest) * (1 - self.temper.nerve)) * self.skill.wits
+        under = full * (boldest + (shyest - boldest) * (1 - self.nerve)) * self.skill.wits
         wanted = me.hearts <= under and away <= HEART_REACH
         handy = away <= NEARBY_HEART and not fighting and self.skill.wits > 0.2
         if not (wanted or handy):
@@ -811,16 +929,16 @@ class Fighter:
             return
         feet = _feet(me)
         nearest, furthest = ROAM
-        spots = self.ground.lookouts if self.temper.nerve < 0.5 else range(len(self.ground.nodes))
+        spots = self.ground.lookouts if self.nerve < 0.5 else range(len(self.ground.nodes))
         picks = [self.ground.nodes[self.dice.choice(spots)] for _ in range(ROAM_PICKS)]
         within = [spot for spot in picks if nearest <= _across(feet, spot) <= furthest]
         if within:
             self._go(me, self.dice.choice(within), tick)
 
-    def _go(self, me: Player, goal: Vec3, tick: int) -> None:
-        """Make for ``goal`` (feet): along the way it has while that still leads there, and
-        otherwise along one it finds, off the event loop."""
-        self._goal = goal
+    def _go(self, me: Player, goal: Vec3, tick: int, within: float = ARRIVED) -> None:
+        """Make for ``goal`` (feet), to ``within`` that of it: along the way it has while that
+        still leads there, and otherwise along one it finds, off the event loop."""
+        self._goal, self._within = goal, within
         if self._finding is not None and self._finding.done():
             path, self._finding = (None if self._finding.cancelled() else self._finding.result()), None
             self._route = Route(self.ground, path, tick, me.avatar, self._doors) if path else None
@@ -882,7 +1000,7 @@ class Fighter:
         where it's facing."""
         if self._route is not None and not self._route.done:
             return self._route.ahead(me.pos)
-        if self._goal is not None and _across(_feet(me), self._goal) > ARRIVED:
+        if self._goal is not None and _across(_feet(me), self._goal) > self._within:
             return Vec3(self._goal.x, self._goal.y + EYE_HEIGHT, self._goal.z)
         if foes:
             return foes[0].pos
@@ -895,7 +1013,7 @@ class Fighter:
         feet = _feet(me)
         controls.run(False)
         if self._goal is not None:
-            if _across(feet, self._goal) <= ARRIVED and abs(feet.y - self._goal.y) <= 2:
+            if _across(feet, self._goal) <= self._within and abs(feet.y - self._goal.y) <= 2:
                 self._goal = self._route = None
             elif self._route is not None and not self._route.done:
                 # At a run only over open floor: round what stands, a run overshoots the way.
@@ -942,7 +1060,8 @@ class Fighter:
                 return (0.0, 0.0)  # a rifle is fired from a stand
         else:
             self._sways(tick)
-        radial = 1.0 if self._coming or apart > min(self._far(arm), arm.reach * 0.9) else -1.0 if apart < near else 0.0
+        far = math.inf if self.elusive else min(self._far(arm), arm.reach * 0.9)  # a perch isn't left to close in
+        radial = 1.0 if self._coming or apart > far else -1.0 if apart < near else 0.0
         return (tx * radial + tz * self._sway, tz * radial - tx * self._sway)
 
     def _shift(self, tick: int) -> None:
@@ -1086,10 +1205,10 @@ class Fighter:
 
     def _near(self, arm: Arm) -> float:
         """The nearest it likes to use a weapon from, the bolder the nearer."""
-        return arm.near * (1.4 - 0.8 * self.temper.nerve)
+        return arm.near * (1.4 - 0.8 * self.nerve)
 
     def _far(self, arm: Arm) -> float:
-        return arm.far * (1.3 - 0.6 * self.temper.nerve)
+        return arm.far * (1.3 - 0.6 * self.nerve)
 
     def _chest(self, p: Player) -> Vec3:
         return mark_on(p.pos, self.bodies.hitbox(p.avatar), CHEST)
