@@ -74,12 +74,13 @@ export function rulesOf(game: GameState): Rules {
   return RULES[game.mode];
 }
 
-// Why `command` is refused of `player` as `game` stands, or null: a ghost's own limits, then the
-// game's rules. What the Room enforces and the client greys by.
+// Why `command` is refused of `player` as `game` stands, or null: a ghost's by its own limits, which
+// stand in for the game's since it isn't playing, and anyone else's by the game's rules. What the
+// Room enforces and the client greys by.
 export function refusal(game: GameState, player: { ghost: boolean }, command: Command): string | null {
+  if (!player.ghost) return rulesOf(game).refuses(game, command);
   const kind = kindOf(command);
-  if (player.ghost && kind !== null && !GHOST_ALLOWS[kind]) return 'not as a ghost';
-  return rulesOf(game).refuses(game, command);
+  return kind !== null && !GHOST_ALLOWS[kind] ? 'not as a ghost' : null;
 }
 
 // A room's game as everyone in it is told of it.

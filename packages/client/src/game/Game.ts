@@ -217,6 +217,7 @@ const THEME_HYSTERESIS = 15;
 
 // A living player as the music and a dragon's cries take them: who, in what look, where (the eye
 // point), and for a dragon whether it has risen out of the ground yet (null for anyone on foot).
+// The player themselves and everyone else heard: no ghost but them.
 interface Living {
   id: string;
   avatar: AvatarId;
@@ -850,7 +851,8 @@ export class Game {
         const actor = m.id === this.myId ? this.ownAvatar : this.avatars.get(m.id);
         const call = actor && voiceOf(actor.kind)?.roars[m.action];
         const at = this.headOf(m.id);
-        if (call && at) {
+        const ghost = m.id === this.myId ? this.prediction?.state.ghost : this.drawn(m.id)?.ghost;
+        if (call && at && !ghost) {
           this.sfx.call(call, at);
           this.sfx.call(call, at, { delay: ECHO_DELAY, level: ECHO_LEVEL });
         }
@@ -1563,7 +1565,7 @@ export class Game {
     const living: Living[] = [
       ...(this.dead ? [] : [{ id: this.myId, avatar: self.avatar, at: self.pos, risen: self.dragon?.risen ?? null }]),
       ...sampled.players.flatMap((rp) =>
-        rp.dead
+        rp.dead || rp.ghost
           ? []
           : [{ id: rp.id, avatar: rp.avatar, at: { x: rp.x, y: rp.y, z: rp.z }, risen: rp.dragon?.risen ?? null }],
       ),

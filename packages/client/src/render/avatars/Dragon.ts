@@ -27,7 +27,7 @@ import type { RemotePlayer } from '../../net/Interpolation';
 import type { Engine } from '../Engine';
 import { coneAngle, createJet, type Jet } from '../Jet';
 import { shards } from '../Poof';
-import type { Avatar } from './common';
+import { seeThrough, type Avatar } from './common';
 import type { DragonLook, DragonModel, MeshData, Rise, Wave } from './dragons';
 import { HitFlash } from './HitFlash';
 import { bytes, skinMaterial } from './skinned';
@@ -66,6 +66,7 @@ export class DragonAvatar implements Avatar {
   private readonly breath: ItemId | null; // the look's own hold item, breathed from the mouth
   private readonly jet: Jet | null;
   private readonly rise: Rise;
+  private ghost = false; // drawn as a ghost last frame
   private readonly links: readonly number[]; // the sim's spine: metres between its points
   private readonly size: number; // how many times the model's size the body is drawn
   private model: DragonModel | null = null;
@@ -226,12 +227,14 @@ export class DragonAvatar implements Avatar {
     const breathing = now < this.breathUntil;
     const rising = !!d && !d.risen && !this.dead;
     const ground = WORLD_STRUCTURES.groundAt(this.at.x, this.at.z, this.at.y);
-    this.rise.update(this.at, ground, rising, dt);
+    this.rise.update(this.at, ground, rising && !p.ghost, dt); // nothing of the world stirs for a ghost
     this.ground.d = rising ? ground : -CLEAR; // a plane (0, -1, 0, d) clips everything under y = d
     if (d) this.shatter(p, d);
     if (this.model) this.pose(this.model, p, now, dt, breathing);
     this.jet?.set(breathing);
     this.jet?.update(dt);
+    if (p.ghost || this.ghost) seeThrough(this.root, p.ghost);
+    this.ghost = p.ghost;
     this.root.setEnabled(true);
   }
 

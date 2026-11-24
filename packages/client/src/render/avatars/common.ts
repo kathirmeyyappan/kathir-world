@@ -61,7 +61,9 @@ const ghostGroup = perScene((scene) => {
     const active = scene.getActiveMeshes();
     for (let i = 0; i < active.length; i++) {
       const mesh = active.data[i];
-      if (mesh.renderingGroupId === GHOST_GROUP) for (const subMesh of mesh.subMeshes) subMesh.render(false);
+      // A mesh with no geometry (a jet's emitter) has no subMeshes at all.
+      if (mesh.renderingGroupId === GHOST_GROUP && mesh.getTotalVertices() > 0)
+        for (const subMesh of mesh.subMeshes) subMesh.render(false);
     }
     engine.setColorWrite(true);
   };
