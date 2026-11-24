@@ -71,7 +71,8 @@ which is null in freeplay, where there's no game to be anywhere in).
    bots (A game's bots, below) are asked of the host now, each by the name it's to come as
    (`Game.gather`, `ModeRoom.call`); one that comes by one of those names is taken in (`awaits`)
    and, once counted down, the start waits for the ones still to come (`gathered`: `until` is null
-   meanwhile, and the banner says the game's bots are joining) until it gives up on them.
+   meanwhile, and the banner says "Waiting for the game's bots to join...") for a minute more
+   (`BOT_WAIT`: a host starting them cold can take most of that), and then begins without them.
 3. **Playing.** The world is cleared (karts, frost, hearts left lying, the bots' seats) and every
    player gets a new body: full hearts, nothing held or worn, in the look they had if it's one on
    foot and the standard body if it isn't. The roster's kills and deaths start from nothing. The
@@ -93,9 +94,9 @@ who joins through the countdown is in the game it's counting down to.
 What a game does to its room it does through `ModeRoom` (`modes/mode.ts`): a new body for a player
 somewhere (`embody`, the Room's `rebody`, which is also what brings the dead back, and counts
 `PlayerState.body` up so every client knows the body for a new one), the world cleared (`clear`,
-dead bots' seats with it), the bots dropped dead (`dropBots`), a bot of its own asked of the host
-(`call`), and everyone it's played with (`everyone`: the people, and the bots alive, which once a
-game has begun are its own). The master asks for the start and the end with a `game`
+with the seats of the bots dead for good), the bots dropped dead (`dropBots`), a bot of its own
+asked of the host (`call`), and everyone it's played with (`everyone`: all but the bots dead for
+good, which once a game has begun is those in it). The master asks for the start and the end with a `game`
 message (`GameAction`), which the Room hands its mode (`asked`); the mode is stepped with the room
 (`step`) and says what a join is made: a player, a ghost, or turned away (`joining`).
 
@@ -201,6 +202,15 @@ which are killed at the start: asked for as the game starts, called bot 1, bot 2
 game as anyone is (a dead one is brought back as a person is until the lobby is back,
 `GameMode.revives`), and gone with it, still set for the next. A bot reads what it was brought as
 off the game's state, by its id (`WorldState.brought` and `rating`, `modal-bots/common/state.py`).
+
+A bot the game asked for is taken in whenever it comes, from the start until the game is over
+(`Game.awaited`: the ones asked for that aren't here, by name). The host can be slow to start one
+(a container starting cold), and can lose one and run it again (a container that died), so one
+that comes once the game is being played is taken into it as its start took everyone
+(`Game.enter`, each mode's own way in: a fighter onto its team in its colour, a racer off the grid
+of the race being run, or out until the next with that one's leaderboard up), and one that leaves
+is awaited again. One that comes once the game is over, or its start was called off, has missed
+it and is turned away, so none is left in the lobby as a bot of nobody's.
 
 ### Leaving mid-game
 

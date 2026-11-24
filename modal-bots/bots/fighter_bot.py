@@ -209,12 +209,9 @@ async def run_fighter_bot(
     avatar: str | None = None,
 ) -> dict[str, Any]:
     validate_duration(seconds)
-    connect_started = time.monotonic()
-    connection = await connect(lobby_url, room, name, direct_url=direct_ws_url, spawn=spawn, avatar=avatar)
-    connected_at = time.monotonic()
-    state = WorldState(connection.welcome, connection.room)
-    controls = Controls(connection)
-    # Its maps off the event loop, where every other bot of this process is being stepped.
+    # Its maps off the event loop, where every other bot of this process is being stepped, and
+    # before it joins: a game that waits for it begins as it's seated, and a seat's messages have
+    # to be read as they come (one left unread for half a minute is dropped by the room).
     ground, solids, bodies, roads, karts = await asyncio.gather(
         asyncio.to_thread(load_ground),
         asyncio.to_thread(load_solids),
@@ -222,6 +219,11 @@ async def run_fighter_bot(
         asyncio.to_thread(load_roads),
         asyncio.to_thread(load_karts),
     )
+    connect_started = time.monotonic()
+    connection = await connect(lobby_url, room, name, direct_url=direct_ws_url, spawn=spawn, avatar=avatar)
+    connected_at = time.monotonic()
+    state = WorldState(connection.welcome, connection.room)
+    controls = Controls(connection)
     fighter = Fighter(ground, solids, bodies, roads, karts, f"{connection.room}/{name}", targets)
     completed = False
     log_message(name, "joined room", player_id=connection.id, room=connection.room, arms=list(fighter.temper.arms))

@@ -81,6 +81,16 @@ export class Racing extends Game {
     super.begin();
   }
 
+  // One of its bots that comes once the game has begun is a racer from then, the last listed: off
+  // the grid of the race being run, however far on that is, or with its leaderboard up, watching
+  // until the next.
+  protected override enter(player: PlayerState): PlayerState {
+    if (this.racers.some((racer) => racer.id === player.id)) return super.enter(player);
+    this.racers.push(this.racerOf(player));
+    this.points.push(0);
+    return this.round!.over === null ? super.enter(player) : this.room.haunt(player);
+  }
+
   // A racer starts a race sat in a kart of their own on its grid, in the order they're listed.
   protected override place(player: PlayerState): PlayerState {
     const here = this.racers.filter((r) => !r.gone);

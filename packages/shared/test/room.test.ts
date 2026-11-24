@@ -635,7 +635,7 @@ test("a race: racers start held on the grid in karts there's no getting out of; 
   );
 });
 
-test("a game's bots: each added at the last one's level in a look of its own and stepped by its place; asked of the host as the game starts by the name it's to come as, in that look; the start waits for them, taking them in and no other bot, and gives up on one that doesn't come; they play beside everyone, and go with the game", () => {
+test("a game's bots: each added at the last one's level in a look of its own and stepped by its place; asked of the host as the game starts by the name it's to come as, in that look; the start waits for them, taking them in and no other bot, and begins without one that's slow, which is taken in as it comes, as one that was lost is; they play beside everyone, go with the game, and have missed it once it's over", () => {
   const asked: BotRequest[] = [];
   const room = new Room('derby', {
     seed: 5,
@@ -699,7 +699,7 @@ test("a game's bots: each added at the last one's level in a look of its own and
     'which of its bots has come, for the bot to read its level by',
   );
   while (game().phase === 'starting') room.step();
-  assert.ok(room.tick >= (START_SECONDS + BOT_WAIT) * TICK_RATE, 'bot 2, which never came, was given up on');
+  assert.ok(room.tick >= (START_SECONDS + BOT_WAIT) * TICK_RATE, 'begun without bot 2, which was slow');
   assert.deepEqual(
     game().racers.map((racer) => racer.name),
     ['alice', 'bot 1'],
@@ -707,13 +707,26 @@ test("a game's bots: each added at the last one's level in a look of its own and
   );
   const seated = room.players.find((p) => p.id === bot)!;
   assert.ok(seated.riding && seated.bot, 'on the grid with everyone, a bot still');
-  assert.equal(room.join('bot 2', link(), { bot: true }), null, 'too late');
+  const late = room.join('bot 2', link(), { bot: true })!;
+  assert.deepEqual(
+    [game().racers.map((racer) => racer.name), game().bots.map(({ id }) => id)],
+    [
+      ['alice', 'bot 1', 'bot 2'],
+      [bot, late],
+    ],
+    'the slow one races from when it comes',
+  );
+  assert.ok(room.players.find((p) => p.id === late)!.riding, 'off the grid');
+  room.leave(late);
+  assert.ok(room.join('bot 2', link(), { bot: true }), 'and one that was lost is let back in');
+  room.leave(bot);
   room.receive(ida, { t: 'game', do: 'end' });
   assert.deepEqual(
     room.players.map((p) => p.name),
     ['alice'],
     'gone with the game',
   );
+  assert.equal(room.join('bot 1', link(), { bot: true }), null, 'one that comes once it is over has missed it');
   assert.deepEqual(
     game().bots.map(({ level, id }) => [level, id]),
     [
@@ -724,7 +737,7 @@ test("a game's bots: each added at the last one's level in a look of its own and
   );
 });
 
-test("a shootout's bots: each goes on the team with the fewest as it's added and is moved like anyone, and the one taken away is the last on the team with the most; they count toward even teams, are asked for as fighters, take their team's side and colour, come back from the dead while it's played, and are on their teams still when it's over", () => {
+test("a shootout's bots: each goes on the team with the fewest as it's added and is moved like anyone, and the one taken away is the last on the team with the most; they count toward even teams, are asked for as fighters, take their team's side and colour, one lying dead as it begins too, come back from the dead while it's played, and are on their teams still when it's over", () => {
   const asked: BotRequest[] = [];
   const room = new Room('melee', {
     seed: 3,
@@ -769,12 +782,13 @@ test("a shootout's bots: each goes on the team with the fewest as it's added and
     ],
   );
   const [bot1, bot2] = ['bot 1', 'bot 2'].map((name) => room.join(name, link(), { bot: true })!);
+  player(bot2).dead = true; // shot through the countdown
   while (game().phase !== 'playing') room.step();
   assert.deepEqual(
-    [bot1, bot2].map((id) => [rulesOf(game()).side(game(), id), player(id).color]),
+    [bot1, bot2].map((id) => [rulesOf(game()).side(game(), id), player(id).color, player(id).dead]),
     [
-      [TEAMS[1], TEAMS[1].colour],
-      [TEAMS[0], TEAMS[0].colour],
+      [TEAMS[1], TEAMS[1].colour, false],
+      [TEAMS[0], TEAMS[0].colour, false],
     ],
     "each on its team, in its team's colour",
   );

@@ -77,7 +77,7 @@ export class Shootout extends Game {
   }
 
   // The fight begins: the rooms indoors are dealt round the teams, everyone starts in one of their
-  // team's, spread over them, in their team's colour, and every team has no points.
+  // team's, spread over them, and every team has no points.
   protected override begin(): void {
     const rooms = [...INDOOR_ROOMS];
     for (let i = rooms.length - 1; i > 0; i--) {
@@ -87,12 +87,17 @@ export class Shootout extends Game {
     this.sites = this.teams.map((_, team) => rooms.filter((_, i) => i % this.teams.length === team));
     this.points = this.teams.map(() => 0);
     super.begin();
-    for (const player of this.room.everyone()) {
-      const team = this.teamOf(player.id);
-      if (team < 0) continue;
-      this.own.set(player.id, player.color);
-      player.color = TEAMS[team].colour;
+  }
+
+  // Whoever is in the fight wears their team's colour, their own kept for the lobby.
+  protected override enter(player: PlayerState): PlayerState {
+    const body = super.enter(player);
+    const team = this.teamOf(body.id);
+    if (team >= 0) {
+      this.own.set(body.id, body.color);
+      body.color = TEAMS[team].colour;
     }
+    return body;
   }
 
   protected override place(player: PlayerState): PlayerState {

@@ -168,7 +168,7 @@ export class Room {
       publish: () => this.broadcast({ t: 'game', game: this.mode.state }),
       close: (reason) => this.end(reason),
       people: () => this.players.filter((p) => !p.bot),
-      everyone: () => this.players.filter((p) => !p.bot || !p.dead),
+      everyone: () => this.players.filter((p) => !p.dead || this.mode.revives(p)),
       call: ({ bot, worker }, name, avatar) => {
         if (!this.spawnBot || !this.publicName) return false;
         const call = { bot, room: this.publicName, seconds: BOT_MAX_SECONDS, caller: 'room', name, avatar };
@@ -422,11 +422,11 @@ export class Room {
     this.history.forget(was.id);
   }
 
-  // The world as a room starts with it: no karts, no frost, no hearts left lying, and no dead
-  // bots, whose seats go at once.
+  // The world as a room starts with it: no karts, no frost, no hearts left lying, and no bots
+  // dead for good, whose seats go at once.
   private clear(): void {
     for (const [id, seat] of [...this.seats]) {
-      if (!seat.state.bot || !seat.state.dead) continue;
+      if (!seat.state.dead || this.mode.revives(seat.state)) continue;
       this.leave(id);
       seat.link.close?.('dead');
     }
