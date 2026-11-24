@@ -186,7 +186,7 @@ door.
 ### A game's bots
 
 Every game brings bots of its own the one way (`Game`, with `modes/bots.ts`). Its master adds and
-takes them away in its settings, up to eight (`MOST_BOTS`), and steps each one's level, 1 to 5
+takes them away in its settings, up to sixteen (`MOST_BOTS`), and steps each one's level, 1 to 5
 (`BOT_LEVELS`; a new one is at the last one's). Each is a `GameBot` in the game's state
 (`GameState.bots`, the first of them bot 1): its `key`, which its mode lists it by among its
 players, its level, the look the room drew for it as it was added (`BOT_LOOKS`: one nobody there
