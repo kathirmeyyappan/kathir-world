@@ -18,7 +18,9 @@ hurt it. How well it does all of it is its ``Skill``, and what it's like is its 
    it by command until it has it, and its other while a spray's tank that ran dry fills. With the
    wits to, it holds whichever of them suits (``Arm.suits``): a gun for someone a rifle is too
    near for or a spray can't reach, a spray for someone right on top of a gun, and once its ice
-   has chilled someone, the gun to finish them with.
+   has chilled someone, the gun to finish them with. And its rifle, which every fighter carries,
+   for someone in its sight too far off to close in on, the bolder it is the further (``LONG``),
+   and for whoever has just hurt it from out of its weapon's reach, wherever they are.
 
 4. Seeing. Someone is in its sight when nothing stands between its eyes and their chest and
    they're no further off than anyone sees through the fog, or with a rifle, down a scope. It
@@ -30,21 +32,27 @@ hurt it. How well it does all of it is its ``Skill``, and what it's like is its 
 5. Aiming and firing. Its aim swings toward where it believes its target is (``Aim``), and it
    fires when that's on them and they're in its weapon's reach: a shot as often as the weapon
    allows and its skill keeps up with; a spray in bursts, while they're in its cone and there's
-   fuel; a rifle from a stand, scoped, at the chest, and only at someone who has gone on as they
-   were for a while (stood, or walked one way), so whoever keeps changing their mind isn't shot
-   from across the map. It holds its fire while one of its own side is in the way.
+   fuel; a rifle from a stand, scoped, and only at someone who has gone on as they were for a
+   while (stood, or walked one way), so whoever keeps changing their mind isn't shot from across
+   the map. It holds its fire while one of its own side is in the way.
 
 6. Moving in a fight. It keeps the range its weapon and its nerve like, closing in from further
    and backing off from nearer, and as far as its skill has it moving at all it circles its
    target, changing its mind about which way and jumping now and then. It takes no step that
-   leaves the ground it's on.
+   leaves the ground it's on. With a rifle it stands for its shot, and with that taken, or its
+   patience for one out, its scope is down and it's off to one side a while before its next
+   stand; with one it took up only for the range, a bold fighter comes on between its stands,
+   puts it away for the weapon it likes once it's near enough to close in, and gives it up for a
+   while when a couple of stands running get it no shot: whoever it is won't keep still.
 
 7. Getting somewhere. With nobody in sight it makes for the nearest of those it's against, the
    bolder the nearer: along a way over the ground (``Route``), found off its event loop and found
-   again as they move, or straight across open floor. Hurt enough, by its nerve and its wits, it
-   breaks off for the nearest heart. In a game with sides and nobody to fight near, it keeps with
-   its own. With nobody to go for at all it wanders: the shy from one lookout to another, the
-   bold anywhere, staying a while at each.
+   again as they move, or straight across open floor, where with someone it's against in its
+   sight, or just hurt from out of its reach, it comes on weaving: to one side of its way and the
+   other, with a jump now and then where there's room to land. Hurt enough, by its nerve and its
+   wits, it breaks off for the nearest heart. In a game with sides and nobody to fight near, it
+   keeps with its own. With nobody to go for at all it wanders: the shy from one lookout to
+   another, the bold anywhere, staying a while at each.
 
 8. A long way. Whoever it's going for a long way off along the roads, it takes a kart
    (``common.trip``): it walks to the end of a road, gets into an empty one standing there,
@@ -131,7 +139,7 @@ FRESH_SECONDS = 2.0  # someone in a new body is left alone this long
 LOST_SECONDS = 1.0  # out of its sight this long, a target is someone new to it when they're back
 CHEST = 0.55  # how far up a body it aims: its chest, and for the best shots now and then its head
 HEAD = 0.92
-HEADS = 0.12  # the share of its marks that are a head, for the most skilled there is: never a rifle's
+HEADS = 0.12  # the share of its marks that are a head, for the most skilled there is
 TRIGGER = 1.2  # it fires with its aim within this many of the body's widths of its mark
 CONE = 0.7  # and a spray with its mark within this share of its cone
 STEADY = {"scoped": 0.15, "air": 1.3}  # how its aim's slack scales down a scope, and off the ground
@@ -148,6 +156,24 @@ TO_DRAW = 1.4  # the room to spare a weapon has to suit with for it to be drawn 
 # How much further than its weapon reaches the one with no wits takes it to: it fires from there,
 # and a spray's tank is half gone by the time it's any use.
 MISJUDGED = 0.4
+# A rifle that isn't the weapon it likes best is for someone too far off to close in on: how far
+# that is for the shyest and for the boldest, and the share of it from which, coming in with the
+# rifle out, it puts it away.
+LONG = (25.0, 60.0)
+LONG_KEPT = 0.7
+# Seconds it's stung for by a hit from out of its weapon's reach: it looks for whoever it was,
+# answers them from as near as the shyest would, and comes on as under fire.
+STUNG_SECONDS = 6.0
+# With a rifle: the longest it stands down its scope for a shot that doesn't come, and how long it
+# moves about before its next stand.
+STAND_SECONDS = (2.0, 3.5)
+SHIFT_SECONDS = (0.7, 1.5)
+# And for one on its way in with it: the stands in a row that get it no shot after which it gives
+# the rifle up, and for how long it closes in with what it likes best.
+BLANKS = 2
+CHARGE_SECONDS = 12.0
+WEAVE = 0.6  # radians off its way, to one side and the other, that it weaves coming in under fire
+JUMP_CARRIES = 2.0  # seconds of its walk that a jump can carry it: the ground it wants ahead of one
 CHILL_LEFT = 1.0  # seconds of chill left on someone, under which they're as good as thawed
 FINISH = 3.0  # hearts fewer than the nearest that someone in reach has, to be gone for first
 SWAP_SECONDS = (1.2, 0.4)  # how long drawing another weapon keeps it from firing, least skill to most
@@ -323,6 +349,7 @@ class Fighter:
         self._fumbling = 0  # the tick until which a weapon just drawn isn't ready
         self._dried: dict[str, int] = {}  # the tick each of its sprays last ran dry
         self._kept_until = 0  # the tick until which it keeps to the weapon it has drawn
+        self._weighed = -FOREVER  # the tick it last had someone to weigh its weapons for
         self._linger = 0  # the tick until which it stays where it wandered to
         self._seen: deque[dict[str, Vec3]] = deque(maxlen=HISTORY)
         self._bodies: dict[str, tuple[int, int]] = {}  # each player's body, and the tick it was first seen in it
@@ -332,12 +359,17 @@ class Fighter:
         self._noticed: tuple[str, int] | None = None  # who has come into its sight, and the tick it goes for them
         self._last_seen: dict[str, int] = {}  # the tick each was last in its sight
         self._hurt_by: str | None = None
+        self._stung: tuple[str, int] | None = None  # who last hurt it from out of its weapon's reach, and when
         self._ready = 0  # the tick it may next fire
         self._steady: tuple[str, int, tuple[float, float, float]] | None = (
             None  # who it's watching move, since when they've gone on as they were, and how they were moving
         )
         self._burst_until = 0  # the tick a spray's burst runs to
         self._next_burst = 0  # and the tick its next begins
+        self._shift_until = 0  # with a rifle, the tick until which it's moving about between stands
+        self._stand_until = 0  # and the tick its patience with the stand it takes then runs out
+        self._blanks = 0  # its stands in a row that got it no shot
+        self._charging = 0  # the tick until which it has given up a rifle that was getting it nowhere
         self._head = False  # whether its mark on this target is their head
         self._sway = 0  # which way it's circling: 1, -1, or 0 stood
         self._sway_until = 0
@@ -370,6 +402,9 @@ class Fighter:
         if event.t == "hit":
             if event.data["victim"] == me.id and event.data.get("shooter") not in (None, me.id):
                 self._hurt_by = str(event.data["shooter"])
+                shooter = state.players.get(self._hurt_by)
+                if shooter is not None and _apart(me.pos, shooter.pos) > ARMS[self.arm].reach:
+                    self._stung = (shooter.id, state.tick)
             elif event.data.get("shooter") == me.id:
                 self.hits += 1
         elif event.t == "shot" and event.data["id"] == me.id:
@@ -407,7 +442,8 @@ class Fighter:
             for p in state.players.values()
             if p.id != me.id and not p.dead and sides.get(p.id, -1) == sides.get(me.id, -2)
         ]
-        target = self._watch(state, me, foes, me.id in sides, tick)
+        stinger = self._stinger(foes, tick)
+        target = self._watch(state, me, foes, stinger, me.id in sides, tick)
         if self._hops(me, tick):
             assert self._hop is not None
             asks = self._hop.fly(self.solids, me, tick, controls)
@@ -423,7 +459,7 @@ class Fighter:
             controls.get_out()  # sat in a kart with nowhere to drive it
             return []
         wreck = self._done_with(state, me, foes, target, tick)
-        asks = self._hold(me, target, tick, None if wreck is None else "gun")
+        asks = self._hold(me, target or stinger, tick, None if wreck is None else "gun")
         if wreck is not None:
             self._wreck(me, wreck, tick, controls)
             return asks
@@ -448,7 +484,7 @@ class Fighter:
             controls.shoot(False)
             return asks
         controls.look(self.aim.yaw + (math.pi / 2 if tick < self._aside_until and mark is None else 0), self.aim.pitch)
-        self._move(state, me, target, tick, controls)
+        self._move(me, target, stinger is not None, tick, controls)
         self._fire(me, target, mark, allies, tick, controls)
         return asks
 
@@ -555,20 +591,37 @@ class Fighter:
 
         return sorted(filter(against, state.players.values()), key=lambda p: _apart(me.pos, p.pos))
 
-    def _watch(self, state: WorldState, me: Player, foes: list[Player], sided: bool, tick: int) -> Player | None:
+    def _smarting(self, tick: int) -> str | None:
+        """Who it's stung by: whoever hurt it from out of its weapon's reach a moment ago."""
+        if self._stung is None or tick - self._stung[1] > STUNG_SECONDS * TICK_RATE:
+            return None
+        return self._stung[0]
+
+    def _stinger(self, foes: list[Player], tick: int) -> Player | None:
+        """Whoever it's stung by, of those it's against."""
+        by = self._smarting(tick)
+        return next((p for p in foes if p.id == by), None)
+
+    def _watch(
+        self, state: WorldState, me: Player, foes: list[Player], stinger: Player | None, sided: bool, tick: int
+    ) -> Player | None:
         """Who it's fighting this tick: the nearest of those it's against in its sight, once it has
         had its reaction to them. In a game with sides (``sided``), whoever its side would rather
-        it went for."""
+        it went for. It looks among the nearest few, and for whoever has stung it (``stinger``)."""
+        checked = foes[:SIGHT_CHECKS]
+        if stinger is not None and stinger not in checked:
+            checked = [*checked, stinger]
         if tick >= self._next_sight:
             self._next_sight = tick + SIGHT_EVERY
             eye = self.bodies.eye_of(me)
-            near = foes[:SIGHT_CHECKS]
             far = SCOPED_SIGHT if ARMS[self.arm].scoped else SIGHT
-            self._sighted = {p.id: _apart(eye, p.pos) <= far and self.solids.clear(eye, self._chest(p)) for p in near}
-            for p in near:
+            self._sighted = {
+                p.id: _apart(eye, p.pos) <= far and self.solids.clear(eye, self._chest(p)) for p in checked
+            }
+            for p in checked:
                 if self._sighted[p.id]:
                     self._last_seen[p.id] = tick
-        in_sight = [p for p in foes[:SIGHT_CHECKS] if self._sighted.get(p.id)]
+        in_sight = [p for p in checked if self._sighted.get(p.id)]
         # Someone it lost sight of a moment ago it's still on, and anyone else takes its reaction.
         if self.target is not None and tick - self._last_seen.get(self.target, tick) > LOST_SECONDS * TICK_RATE:
             self.target = None
@@ -588,14 +641,15 @@ class Fighter:
             known = self.target == chosen.id
             delay = 0 if known else round(self.skill.reaction * self.dice.uniform(0.6, 1.4) * TICK_RATE)
             self._noticed = (chosen.id, tick + delay)
-            self._head = not ARMS[self.arm].scoped and self.dice.random() < HEADS * self.skill.wits
+            self._head = self.dice.random() < HEADS * self.skill.wits
         if tick < self._noticed[1]:
             return current
         self.target = chosen.id
         return chosen
 
-    def _hold(self, me: Player, target: Player | None, tick: int, only: str | None = None) -> list[str]:
-        """The weapon it means to hold as things stand (``only``, where one alone will do), and
+    def _hold(self, me: Player, quarry: Player | None, tick: int, only: str | None = None) -> list[str]:
+        """The weapon it means to hold as things stand, for ``quarry`` (whoever it's fighting, or
+        with nobody in its sight whoever has stung it) or ``only``, where one alone will do, and
         the command for it while it isn't holding it."""
         held = me.item.id if me.item is not None else None
         if me.item is not None and held == self.arm and me.item.fuel is not None and me.item.fuel < DRY:
@@ -606,11 +660,12 @@ class Fighter:
         ]
         arms = filled or list(self.temper.arms)
         wanted = arms[0]
-        if target is not None and self._sharp:
-            apart, chilled = _apart(me.pos, target.pos), target.chilled > CHILL_LEFT
-            # The one in its hand as far as it goes, and another only where that one is well suited.
-            suited = (arm for arm in arms if ARMS[arm].suits(apart, chilled, 1 if arm == self.arm else TO_DRAW))
-            wanted = next(suited, wanted)
+        if quarry is not None and self._sharp:
+            apart, chilled = _apart(me.pos, quarry.pos), quarry.chilled > CHILL_LEFT
+            wanted = next((arm for arm in arms if self._suits(arm, apart, chilled, tick)), wanted)
+            self._weighed = tick
+        elif self.arm in arms and tick - self._weighed <= LOST_SECONDS * TICK_RATE:
+            wanted = self.arm  # whoever it drew this for is only just out of its sight
         wanted = only or wanted
         if wanted != self.arm and (tick >= self._kept_until or self.arm not in arms or only is not None):
             self.arm = wanted
@@ -622,6 +677,25 @@ class Fighter:
             self._asked = tick
             return [self.arm]
         return []
+
+    def _suits(self, arm: str, apart: float, chilled: bool, tick: int) -> bool:
+        """Whether ``arm`` is the weapon for someone ``apart`` metres off, as it weighs them: the
+        one in its hand as far as that goes, and another only where it suits with room to spare.
+        A rifle that isn't the weapon it likes best is for someone too far off to close in on,
+        the bolder it is the further, and while it's stung for anyone the shyest would shoot;
+        for nobody while it has given it up to close in."""
+        held = arm == self.arm
+        if ARMS[arm].scoped and arm != self.temper.arms[0]:
+            shy, bold = LONG
+            long = shy if self._smarting(tick) else shy + (bold - shy) * self.temper.nerve
+            if tick < self._charging or apart < long * (LONG_KEPT if held else 1):
+                return False
+        return ARMS[arm].suits(apart, chilled, 1 if held else TO_DRAW)
+
+    @property
+    def _coming(self) -> bool:
+        """Whether it's on its way in with a rifle it took up only for the range: the bold are."""
+        return ARMS[self.arm].scoped and self.arm != self.temper.arms[0] and self.temper.nerve >= 0.5
 
     @property
     def _sharp(self) -> bool:
@@ -816,8 +890,9 @@ class Fighter:
             return foes[0].pos
         return Vec3(me.pos.x + math.sin(self.aim.yaw), me.pos.y, me.pos.z + math.cos(self.aim.yaw))
 
-    def _move(self, state: WorldState, me: Player, target: Player | None, tick: int, controls: Controls) -> None:
-        """Its step this tick: along its way where it has somewhere to go, and the fight's own
+    def _move(self, me: Player, target: Player | None, stung: bool, tick: int, controls: Controls) -> None:
+        """Its step this tick: along its way where it has somewhere to go, weaving where someone
+        it's against has it in their sight or has just hurt it (``stung``), and the fight's own
         where it's fighting."""
         feet = _feet(me)
         controls.run(False)
@@ -826,11 +901,15 @@ class Fighter:
                 self._goal = self._route = None
             elif self._route is not None and not self._route.done:
                 # At a run only over open floor: round what stands, a run overshoots the way.
-                controls.run(_across(feet, self._goal) > RUN_FROM and self.ground.area_at(feet) is not None)
+                open_floor = self.ground.area_at(feet) is not None
+                controls.run(_across(feet, self._goal) > RUN_FROM and open_floor)
                 self._route.steer(me.pos, tick, controls)
+                if open_floor and self._route.plain and (target is not None or stung):
+                    self._weave(feet, self._route.ahead(me.pos), me, tick, controls)
                 return
             elif self._finding is None:
                 # No way over the ground to follow: straight there, as far as there's footing.
+                controls.run(_across(feet, self._goal) > RUN_FROM)
                 self._walk(feet, (self._goal.x - feet.x, self._goal.z - feet.z), me, controls)
                 return
         if target is None:
@@ -840,26 +919,76 @@ class Fighter:
             self._next_step = tick + MOVE_EVERY
             self._step = self._dance(me, target, tick)
         self._walk(feet, self._step, me, controls)
-        jumps = JUMPS * self.temper.hops * self.skill.dodge / TICK_RATE
-        if not me.scoped and self._sway != 0 and self.dice.random() < jumps:
-            controls.jump()
+        if self._sway != 0:
+            self._spring(feet, self._step, me, controls)
 
     def _dance(self, me: Player, target: Player, tick: int) -> tuple[float, float]:
         """The step a fight asks for, across the floor: in toward its target from further than its
-        weapon likes and back from nearer, and round them, the way it's circling."""
+        weapon likes and back from nearer, and round them, the way it's circling. With a rifle,
+        none while it stands to shoot, and between stands off to one side."""
         arm = ARMS[self.arm]
         dx, dz = target.pos.x - me.pos.x, target.pos.z - me.pos.z
         apart = math.hypot(dx, dz) or 1.0
         tx, tz = dx / apart, dz / apart
-        if arm.scoped and self._near(arm) <= apart <= arm.reach:
-            return (0.0, 0.0)  # a rifle is fired from a stand
-        if tick >= self._sway_until:
-            low, high = SWAY_SECONDS
-            self._sway_until = tick + round(self.dice.uniform(low, high) * TICK_RATE)
-            still = self.dice.random() >= self.skill.dodge
-            self._sway = 0 if still else self.temper.way * (1 if self.dice.random() < 0.65 else -1)
-        radial = 1.0 if apart > min(self._far(arm), arm.reach * 0.9) else -1.0 if apart < self._near(arm) else 0.0
+        near = self._near(arm)
+        if arm.scoped and apart >= near:
+            if tick >= max(self._shift_until, self._stand_until):
+                # Out of patience with a stand that got it no shot: whoever it is won't keep still,
+                # and one on its way in closes in on them without the rifle.
+                self._blanks += 1 if self._stand_until else 0
+                if self._coming and self._blanks >= BLANKS:
+                    self._blanks = 0
+                    self._charging = tick + round(CHARGE_SECONDS * TICK_RATE)
+                self._shift(tick)
+            if tick >= self._shift_until:
+                return (0.0, 0.0)  # a rifle is fired from a stand
+        else:
+            self._sways(tick)
+        radial = 1.0 if self._coming or apart > min(self._far(arm), arm.reach * 0.9) else -1.0 if apart < near else 0.0
         return (tx * radial + tz * self._sway, tz * radial - tx * self._sway)
+
+    def _shift(self, tick: int) -> None:
+        """With a rifle, done with a stand, its shot taken or its patience out: a spell of moving
+        about before the next, for one on its way in and as far as its skill has any moving."""
+        moves = self._coming or self.dice.random() < self.skill.dodge
+        self._shift_until = tick + (round(self.dice.uniform(*SHIFT_SECONDS) * TICK_RATE) if moves else 0)
+        self._stand_until = self._shift_until + round(self.dice.uniform(*STAND_SECONDS) * TICK_RATE)
+        self._sway = self._side()
+
+    def _sways(self, tick: int) -> None:
+        """Which way it's moving about, picked again every little while: to one side or the other,
+        or for as much of the time as its skill leaves it stood, neither."""
+        if tick < self._sway_until:
+            return
+        low, high = SWAY_SECONDS
+        self._sway_until = tick + round(self.dice.uniform(low, high) * TICK_RATE)
+        self._sway = self._side() if self.dice.random() < self.skill.dodge else 0
+
+    def _side(self) -> int:
+        """A side to move to: the one it would rather, more often than not."""
+        return self.temper.way * (1 if self.dice.random() < 0.65 else -1)
+
+    def _weave(self, feet: Vec3, toward: Vec3, me: Player, tick: int, controls: Controls) -> None:
+        """Its walk for ``toward`` across open floor, under someone's eye: turned off its way to
+        one side and the other by turns, as far as its skill has it moving about at all, with a
+        jump now and then."""
+        self._sways(tick)
+        dx, dz = toward.x - feet.x, toward.z - feet.z
+        turn = WEAVE * self._sway
+        step = (dx * math.cos(turn) + dz * math.sin(turn), dz * math.cos(turn) - dx * math.sin(turn))
+        if self._sway == 0 or not self._footing(feet, *step):
+            return
+        controls.walk_toward(me.pos, Vec3(me.pos.x + step[0], me.pos.y, me.pos.z + step[1]))
+        self._spring(feet, step, me, controls)
+
+    def _spring(self, feet: Vec3, step: tuple[float, float], me: Player, controls: Controls) -> None:
+        """A jump now and then as it moves about along ``step``, as its temper likes them and its
+        skill has it moving, where there's ground ahead for as far as one could carry it."""
+        often = JUMPS * self.temper.hops * self.skill.dodge / TICK_RATE
+        if me.scoped or math.hypot(*step) < 1e-6 or self.dice.random() >= often:
+            return
+        if self._footing(feet, *step, self.bodies.walk_speed(me.avatar) * JUMP_CARRIES):
+            controls.jump()
 
     def _walk(self, feet: Vec3, step: tuple[float, float], me: Player, controls: Controls) -> None:
         """Take ``step`` across the floor if there's footing that way, or what of it there is
@@ -875,13 +1004,13 @@ class Fighter:
             self._sway = -self._sway
         controls.stop()
 
-    def _footing(self, feet: Vec3, dx: float, dz: float) -> bool:
-        """Whether there's ground to walk on for AHEAD metres along (dx, dz): no more than a drop
-        under its feet all the way."""
+    def _footing(self, feet: Vec3, dx: float, dz: float, reach: float = AHEAD) -> bool:
+        """Whether there's ground to walk on for ``reach`` metres along (dx, dz): no more than a
+        drop under its feet all the way."""
         length = math.hypot(dx, dz)
-        steps = round(AHEAD / FOOT_SAMPLE)
+        steps = round(reach / FOOT_SAMPLE)
         for i in range(1, steps + 1):
-            d = AHEAD * i / steps
+            d = reach * i / steps
             x, z = feet.x + dx / length * d, feet.z + dz / length * d
             if feet.y - self.solids.ground_at(x, z, feet.y + STEP) > DROP:
                 return False
@@ -893,9 +1022,12 @@ class Fighter:
         """Its trigger this tick."""
         arm = ARMS[self.arm]
         holding = me.item is not None and me.item.id == self.arm
-        controls.scope(arm.scoped and holding and target is not None and self._in_reach(me, target))
+        reached = target is not None and self._in_reach(me, target)
+        # A scope is for the stand a rifle is shot from: it's down while it's going somewhere, and
+        # between stands.
+        controls.scope(arm.scoped and holding and reached and self._goal is None and tick >= self._shift_until)
         controls.shoot(False)
-        if target is None or mark is None or not holding or tick < self._fumbling or not self._in_reach(me, target):
+        if target is None or mark is None or not holding or tick < self._fumbling or not reached:
             return
         eye = self.bodies.eye_of(me)
         apart = _apart(eye, mark)
@@ -920,6 +1052,9 @@ class Fighter:
             return
         controls.fire_once()
         self._ready = tick + arm.every + round(self.dice.uniform(0, self.skill.idle) * TICK_RATE)
+        if arm.scoped:
+            self._blanks = 0
+            self._shift(tick)
 
     def _steadied(self, target: Player, tick: int) -> int:
         """How many ticks ``target`` has gone on as they were: stood, or moving the one way."""

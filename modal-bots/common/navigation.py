@@ -62,6 +62,12 @@ class Route:
     def done(self) -> bool:
         return self.next >= len(self.path)
 
+    @property
+    def plain(self) -> bool:
+        """Whether the way to the next node is a plain walk: no jump to line up for, and no shut
+        door to stop at."""
+        return not self.done and not self._jumping and self._shut(self.next) is None
+
     def stuck(self, tick: int) -> bool:
         """No closer to the next node for STUCK_SECONDS: plan again from where the bot is."""
         return not self.done and tick - self._since > STUCK_SECONDS * TICK_RATE

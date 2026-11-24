@@ -21,6 +21,7 @@ def test_a_fighter_is_as_good_as_its_rating_and_its_own_kind_every_time() -> Non
     tempers = [temper(random.Random(f"room/bot {n}")) for n in range(60)]
     assert {t.arms[0] for t in tempers} == set(ARMS)
     assert all(arm in ARMS for t in tempers for arm in t.arms)
+    assert all("sniper" in t.arms for t in tempers), "each with a rifle for someone out of reach"
     assert min(t.nerve for t in tempers) < 0.3 and max(t.nerve for t in tempers) > 0.8
     # Each weapon suits its own range and target: a bullet not from right on top of someone, a
     # rifle from further still, nothing past its reach, and ice only someone who isn't chilled.
