@@ -879,12 +879,13 @@ export class Room {
   }
 
   // A dragon that rises in a storm (its shape's `rising`): the floor under it ices over, and the
-  // gale throws everyone on foot near it back and up, hurt, with the rider to thank for it.
+  // gale throws everyone on foot near it back and up, hurt, with the rider to thank for it. A
+  // ghost's rises in none.
   private storm(seat: Seat): void {
     const me = seat.state;
     const look = AVATARS[me.avatar];
     const rising = look.class === 'asian-dragon' ? look.dragon.rising : null;
-    if (!rising) return;
+    if (!rising || me.ghost) return;
     const feet = me.pos.y - EYE_HEIGHT;
     if (Math.abs(feet) < 0.01) {
       const on = frostDisc(this.structures, me.pos.x, me.pos.z, rising.ice);

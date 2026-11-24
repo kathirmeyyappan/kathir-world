@@ -404,6 +404,13 @@ test('a ghost: who joins a game being played comes in beside someone in it, and 
   assert.equal(room.structures.frost.size, 0, 'her spray frosts nothing');
   room.receive(idc, { t: 'chat', text: '/kart' });
   assert.deepEqual(c.inbox.at(-1), { t: 'refused', text: 'not as a ghost' });
+  const near = player(ida).hearts;
+  room.receive(idc, { t: 'chat', text: '/colgera' });
+  room.step();
+  assert.equal(player(idc).avatar, 'colgera', 'she may be a dragon');
+  assert.equal(room.structures.frost.size, 0, 'that rises in no storm');
+  assert.equal(player(ida).hearts, near);
+  room.receive(idc, { t: 'chat', text: '/standard' });
   player(idc).pos.y += 100;
   for (let i = 0; i < 6 * TICK_RATE; i++) room.step();
   assert.deepEqual([player(idc).hearts, player(idc).dead], [MAX_HEARTS, false], 'no fall hurts her');

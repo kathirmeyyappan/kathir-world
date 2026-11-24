@@ -153,9 +153,9 @@ playing, or a racer who is out.
 - Everyone sees a ghost, translucent, and a ghost sees itself the same way. Nobody else hears one.
   The roster shows a ghost's icon in place of hearts.
 - A spectator appears 10 m from a player picked at random.
-- A ghost walks, jumps, flies a jetpack, changes between looks on foot and holds weapons, and
-  touches nothing: it can't hurt or be hurt, its shots and sprays do nothing (no frost, nothing
-  melted), it takes no pickup, opens no door (it walks through a shut one), scores nothing, and has
+- A ghost walks, jumps, flies a jetpack, changes between looks (a dragon's too) and holds weapons,
+  and touches nothing: it can't hurt or be hurt, its shots, sprays and breath do nothing (no frost,
+  nothing melted), a dragon it becomes rises in no storm and out of no rippling ground, it takes no pickup, opens no door (it walks through a shut one), scores nothing, and has
   nothing to do with karts (it can't drop one, get in one or be hit by one).
 - A ghost sees everyone, whatever a mode hides from its players: every name, pin and mark.
 
@@ -167,7 +167,7 @@ ask the same). What a ghost does comes to nothing: its step lands on nothing and
 `resolveFire` for the client's crosshair), it swings no door (`use`) and no door stops it
 (`Structures.throughDoors`, taken in `stepPlayer`, so prediction agrees), and `damage` turns it
 away whatever got that far, so nothing can kill one into a player's body. What it may ask for is a
-table of its own (`GHOST_ALLOWS`: no kart, no dragon), checked before the game's
+table of its own (`GHOST_ALLOWS`: no kart), in place of the game's, since it isn't playing
 (`refusal`, which the Room enforces and the client greys by). What a join is made is the mode's to
 say (`GameMode.joining`: a player, a ghost, or turned away): a game being played makes a person a
 ghost, who comes in 10 m across the floor from someone in it (`Room.besideSomeone`), and every new

@@ -113,15 +113,15 @@ export function kindOf(command: Command): CommandKind | null {
 // Whether each kind of command is allowed.
 export type Allowed = Record<CommandKind, boolean>;
 
-// What a ghost may ask for, in whatever game: what's a body's own to do (a look on foot, something
-// in hand or worn), and nothing that puts a thing in the world or takes up room in it.
+// What a ghost may ask for, in whatever game: what's a body's own to do (a look, a dragon's among
+// them, something in hand or worn), and nothing that puts a thing in the world.
 export const GHOST_ALLOWS: Allowed = {
   speedy: true,
   weapon: true,
   gear: true,
   unequip: true,
   look: true,
-  dragon: false,
+  dragon: true,
   colour: true,
   bot: false,
   'kill-bots': false,
