@@ -1870,6 +1870,9 @@ Bots must use the modules under `modal-bots/common/`:
 - The maps of the world (`common/map/`, see Checking a change) are a loader each, read once per
   process and shared by every bot in it. Load the ones a bot needs as it starts, and no others:
   the circle bot takes all three below, the sniper the same, and a bot that only watches none.
+  Whatever takes more than a moment is loaded before `connect`, or while the bot keeps receiving:
+  a game that waits for its bots begins as the last is seated, and a seat whose messages go
+  unread for half a minute is dropped (the room server's heartbeat).
   - `load_solids()`: `solids.clear(a, b)` is the sim's line of sight (what a shot can pass), and
     `solids.ground_at(x, z, reach)` the ground under a spot for feet that reach that high (a
     structure's top, the floor, or the ground past its edge), both anywhere in the world.

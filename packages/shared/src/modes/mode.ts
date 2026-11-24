@@ -16,7 +16,7 @@ export interface ModeRoom {
   publish(): void; // tells everyone in the room the game's state as it stands
   close(reason: string): void; // ends the room for everyone in it, who are told why
   people(): PlayerState[]; // everyone seated who isn't a bot
-  everyone(): PlayerState[]; // the people, and the bots alive: once a game has begun, its own
+  everyone(): PlayerState[]; // all but the bots dead for good: once a game has begun, those in it
   // Asks the host for one of the bots app's bots to join as `name`, wearing `avatar`: a bot of
   // the game's own, apart from the ones a player calls. False where the host can start none.
   call(bot: Plays, name: string, avatar: AvatarId): boolean;
@@ -31,8 +31,8 @@ export interface ModeRoom {
   haunt(player: PlayerState): PlayerState;
   kartOf(player: PlayerState): { pos: Vec3 } | null; // the kart they drive, where it is; null on foot
   dropBots(): void; // every living bot drops dead where it stands, as /kill-bots does
-  // The world as a room starts with it: no karts, no frost, no hearts left lying, and no dead
-  // bots, whose seats go at once.
+  // The world as a room starts with it: no karts, no frost, no hearts left lying, and no bots
+  // dead for good, whose seats go at once.
   clear(): void;
 }
 

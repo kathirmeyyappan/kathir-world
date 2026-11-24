@@ -70,8 +70,8 @@ export abstract class Game extends GameMode {
   private master: string | null = null;
   private phase: Phase = 'lobby';
   private until: number | null = null; // the tick the phase runs out at, where it's on a clock
-  // The bots it brings (bots.ts), as set: the first is bot 1. And through a start, the ones asked
-  // for and still to come, each by the name it's to come as.
+  // The bots it brings (bots.ts), as set: the first is bot 1. And of those its last start asked
+  // for, the ones that aren't here, each by the name it's to come as: still to come, or gone since.
   protected bots: GameBot[] = [];
   private readonly awaited = new Map<string, GameBot>();
   private givenUp = 0; // the tick from which the start no longer waits for them
@@ -90,32 +90,38 @@ export abstract class Game extends GameMode {
     };
   }
 
-  // A game is those who were there as it began, and the bots it asked for itself: the lobby's
-  // bots die as it starts and no other is seated until it's over, and a person who comes once it
-  // has begun watches it as a ghost until the lobby is back.
+  // A game is those who were there as it began, and the bots it asked for itself, whenever each
+  // comes until it's over: the lobby's bots die as it starts and no other is seated meanwhile, and
+  // a person who comes once it has begun watches it as a ghost until the lobby is back. One of its
+  // own bots that comes once it's over has missed the game it was asked for.
   override joining({ bot, name }: Joiner): Joining {
-    if (this.phase === 'lobby') return 'player';
-    if (bot) return this.awaits(name) ? 'player' : { away: 'a game is on' };
-    return this.phase === 'starting' ? 'player' : 'ghost';
+    const lobby = this.phase === 'lobby';
+    if (!bot) return lobby || this.phase === 'starting' ? 'player' : 'ghost';
+    if (this.awaits(name)) return lobby || this.phase === 'results' ? { away: 'its game is over' } : 'player';
+    return lobby ? 'player' : { away: 'a game is on' };
   }
 
-  // Whoever made the room is its master, and a bot the game asked for has come.
+  // Whoever made the room is its master, and a bot the game asked for has come: into the game, if
+  // that's begun without it.
   override joined(player: PlayerState, made: boolean): void {
     const bot = player.bot ? this.awaited.get(player.name) : undefined;
     if (bot) {
       this.awaited.delete(player.name);
       bot.id = player.id;
+      if (this.playing) this.enter(player);
     } else if (made && this.master === null && !player.bot) this.master = player.id;
     else return;
     this.room.publish();
   }
 
   // The room is its master's: it goes when they do, however they went. A bot of the game's that
-  // goes is still one of its bots, to come again with the next game.
+  // goes is still one of its bots: let back in for as long as the game lasts, and to come again
+  // with the next.
   override left(player: PlayerState): void {
     const bot = this.botOf(player.id);
     if (bot) {
       bot.id = null;
+      this.awaited.set(player.name, bot);
       this.room.publish();
     }
     if (player.id === this.master) this.room.close(MASTER_LEFT);
@@ -213,12 +219,13 @@ export abstract class Game extends GameMode {
     this.givenUp = this.room.tick() + (START_SECONDS + BOT_WAIT) * TICK_RATE;
   }
 
-  // Whether a bot called `name` is one the game asked for that hasn't come yet.
+  // Whether a bot called `name` is one the game asked for that isn't here.
   private awaits(name: string): boolean {
     return this.awaited.has(name);
   }
 
-  // Whether every bot the game asked for has come, or been given up on: its start waits for them.
+  // Whether every bot the game asked for has come, or been waited for long enough: its start
+  // waits for them.
   private gathered(): boolean {
     return this.awaited.size === 0 || this.room.tick() >= this.givenUp;
   }
@@ -246,6 +253,14 @@ export abstract class Game extends GameMode {
     return this.phase === 'playing';
   }
 
+  // Takes `player` into the game: in a new body where it starts them, their kills and deaths
+  // counted from nothing. Returns them in it.
+  protected enter(player: PlayerState): PlayerState {
+    const body = this.place(player);
+    body.kills = body.deaths = 0;
+    return body;
+  }
+
   // Puts `player` where they start the game, in a new body: where anyone comes in, unless the mode
   // has somewhere of its own. Returns them in it.
   protected place(player: PlayerState): PlayerState {
@@ -263,24 +278,19 @@ export abstract class Game extends GameMode {
     this.gather();
   }
 
-  // The game begins: on a world with nothing left on it from the lobby, everyone in a new body
-  // where its mode starts them, their kills and deaths counted from nothing. A bot that hasn't
-  // come by now isn't in it.
+  // The game begins: on a world with nothing left on it from the lobby, with everyone here taken
+  // into it. A bot of its own still to come is taken in as it does.
   protected begin(): void {
-    this.awaited.clear();
     this.room.clear();
-    for (const player of this.room.everyone()) {
-      const body = this.place(player);
-      body.kills = body.deaths = 0;
-    }
+    for (const player of this.room.everyone()) this.enter(player);
     const seconds = this.runs();
     this.to('playing', seconds === null ? null : this.room.tick() + seconds * TICK_RATE);
   }
 
   // Back to the lobby, as everyone comes back from the dead: a new body each, on a world with
-  // nothing left on it from the game, its own bots gone with it.
+  // nothing left on it from the game, its own bots gone with it. Those of them that never came
+  // stay awaited, and are turned away if they come once it's over.
   protected toLobby(): void {
-    this.awaited.clear();
     for (const bot of this.bots) bot.id = null;
     this.room.dropBots();
     this.room.clear();
