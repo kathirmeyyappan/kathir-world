@@ -557,7 +557,12 @@ stand on), it takes a kart (`common/trip.py`): it walks to where a road leaves t
 gets into an empty one standing there with its nose down the road, anyone's, or asks for one,
 drives it as a racer of its level drives a track, gets out at the far end, and with
 nobody to fight stands clear of it and shoots it until it blows up, so the room's karts aren't
-used up. It sees no further than anyone does through the fog, or down a scope with a rifle. And
+used up. And through a life it hunts, it sometimes runs someone down (`common/charge.py`): one of
+the nearest three it's against, on foot 35 to 130 m off across level floor with nothing standing
+on it and room past them to stop, the bolder and sharper it is the oftener and whoever has just
+hurt it from out of reach always. It gets into a kart where it stands (`trip.Boarding`, as a trip
+does), drives flat out at where they'll be, brakes once it has been at them or the floor ahead
+gives out, and gets out to fight on. It sees no further than anyone does through the fog, or down a scope with a rifle. And
 one with the wits takes a hop by jetpack (`common/flight.py`) where it has no way over the ground
 to whoever it's after, or only one two and a half times as long as the hop (up onto a keep's roof
 from its foot, down off the terrace): straight up, across and down where nothing is in the way,

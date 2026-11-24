@@ -1939,6 +1939,9 @@ Bots must use the modules under `modal-bots/common/`:
   road, anyone's, or with none asks for one facing that way, gets in by using it, drives it
   as a racer of that `skill` would, brakes at the far end (or wherever it's told to `leave`) and
   gets out, `over` from then.
+- Someone is run down by kart with `common/charge.py`: `charge.open_to(solids, feet, mark)` is
+  whether there's level floor to them and past them, and a `Charge` has the controls from getting
+  into the kart (`trip.Boarding`) to getting out, having been at them.
 - A hop by jetpack is `common/flight.py`: `flight.plan(solids, feet, goal)` is the hop there,
   straight up, across and down with nothing in a body's way and inside a tank of fuel, or None;
   `hop.fly(solids, me, tick, controls)` has the controls on every snapshot from then (it asks for

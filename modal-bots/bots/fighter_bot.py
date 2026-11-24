@@ -64,7 +64,13 @@ hurt it. How well it does all of it is its ``Skill``, and what it's like is its 
    nobody for a while. With no perch that sees anyone, it's as shy a fighter as any: toward
    them until they're in its sight, and no nearer. A fight right on top of it, it fights.
 
-9. A long way. Whoever it's going for a long way off along the roads, it takes a kart
+9. Running someone down. Through a life it hunts, with one of the nearest few it's against on
+   foot across floor a kart drives straight over (``common.charge``), it sometimes takes a kart
+   to them, the bolder and sharper the oftener, and whoever has it stung always: into one
+   where it stands, flat out at them, on the brake once it has been at them, and out, to fight
+   on from there on foot. It blows the kart up later, as after a trip.
+
+   A long way. Whoever it's going for a long way off along the roads, it takes a kart
    (``common.trip``): it walks to the end of a road, gets into an empty one standing there,
    anyone's, or asks for one, drives it as a racer of its rating drives a track, and gets out at
    the far end, or sooner once they're near. Done with it and with nobody to fight, it stands
