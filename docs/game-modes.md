@@ -71,8 +71,8 @@ which is null in freeplay, where there's no game to be anywhere in).
    bots (A game's bots, below) are asked of the host now, each by the name it's to come as
    (`Game.gather`, `ModeRoom.call`); one that comes by one of those names is taken in (`awaits`)
    and, once counted down, the start waits for the ones still to come (`gathered`: `until` is null
-   meanwhile, and the banner says the game's bots are joining) for thirty seconds more
-   (`BOT_WAIT`), and then begins without them.
+   meanwhile, and the banner says "Waiting for the game's bots to join...") for a minute more
+   (`BOT_WAIT`: a host starting them cold can take most of that), and then begins without them.
 3. **Playing.** The world is cleared (karts, frost, hearts left lying, the bots' seats) and every
    player gets a new body: full hearts, nothing held or worn, in the look they had if it's one on
    foot and the standard body if it isn't. The roster's kills and deaths start from nothing. The
