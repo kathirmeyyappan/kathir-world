@@ -9,6 +9,7 @@ export interface Tally {
   headline: string | null; // drawn huge over the rest
   caption: string | null; // a small line under it: what it's of, or which part of the game this is
   standings: Standing[];
+  mine: string | null; // the side the player is on, by name, marked YOU among the standings
   seconds: number | null; // left on the clock; null: it has none
   urgent: boolean; // the clock's last seconds: it flashes
 }
@@ -34,7 +35,9 @@ export class Scores {
       ...tally.standings.map((s) => {
         const li = document.createElement('li');
         li.style.color = s.side.colour;
-        const name = Object.assign(document.createElement('span'), { textContent: s.side.name });
+        const name = Object.assign(document.createElement('span'), { className: 'side', textContent: s.side.name });
+        if (s.side.name === tally.mine)
+          name.append(Object.assign(document.createElement('small'), { className: 'you', textContent: 'YOU' }));
         const points = Object.assign(document.createElement('span'), {
           className: 'points',
           textContent: String(s.points),

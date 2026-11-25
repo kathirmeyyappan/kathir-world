@@ -7,9 +7,9 @@ import type { GameState } from '../index';
 // The teams there can be, in the order they're added: each one's name and the colour its players go
 // by in a game.
 export const TEAMS = [
-  { name: 'TEAM A', colour: NAMED_COLORS.red },
-  { name: 'TEAM B', colour: NAMED_COLORS.green },
-  { name: 'TEAM C', colour: NAMED_COLORS.blue },
+  { name: 'TEAM A', colour: NAMED_COLORS.green },
+  { name: 'TEAM B', colour: NAMED_COLORS.blue },
+  { name: 'TEAM C', colour: NAMED_COLORS.red },
   { name: 'TEAM D', colour: NAMED_COLORS.yellow },
 ];
 export const MIN_TEAMS = 2;

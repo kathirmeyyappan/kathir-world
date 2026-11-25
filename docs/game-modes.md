@@ -223,7 +223,7 @@ Teams, a clock, and the most points when it runs out.
 **Settings.**
 
 - The clock: 5:00, moved 30 seconds at a time with + and -.
-- Teams: two to four, named A, B, C and D and coloured red, green, blue and yellow. + adds an
+- Teams: two to four, named A, B, C and D and coloured green, blue, red and yellow. + adds an
   empty team. - takes the last one away and deals its players round the others in turn. Someone who
   joins the lobby goes on the team with the fewest. The master drags players from team to team.
 - Bots (A game's bots, above): + adds one to the team with the fewest, and - takes away the last

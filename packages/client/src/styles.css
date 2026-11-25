@@ -1493,6 +1493,14 @@ body {
   gap: 28px;
   text-shadow: 3px 3px 0 #000;
 }
+/* The player's own side: a small YOU under its name. */
+#scores .side .you {
+  display: block;
+  font-size: 18px;
+  line-height: 1;
+  letter-spacing: 2px;
+  color: rgba(255, 255, 255, 0.85);
+}
 #scores .points {
   font-size: 44px;
   line-height: 1.1;

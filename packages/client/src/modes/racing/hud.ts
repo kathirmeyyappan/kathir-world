@@ -50,6 +50,7 @@ export function racingHud(game: GameState, at: Moment): Showing {
       headline: placed === null ? null : ordinal(placed),
       caption: placed === null ? race : `of ${game.racers.length} · ${race}`,
       standings: [],
+      mine: null,
       seconds: left,
       urgent: left !== null && left <= RACE.hurry,
     },
