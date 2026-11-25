@@ -1668,6 +1668,9 @@ body {
 /* One read at a glance (a count, GO!): its first line of text big, steady. */
 #game-banner .line.big {
   animation: none;
+  /* The big line's pixel font leaves an eighth of each glyph's cell empty at its right, and the
+     letter spacing comes after it, so the same again before it centres the ink in the box. */
+  text-indent: 7px;
 }
 #game-banner .line.big::first-line {
   font-size: 44px;
