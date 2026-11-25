@@ -339,7 +339,7 @@ the
 `round` being run: its track (a place in `routes()`), the tick it's let `go`, the tick it `closes`
 once someone has finished, who has `finished` in order, who's `out`, and once it's run the tick
 the next begins. The referee (`Racing`, `referee.ts`) deals the tracks as the game begins, seats
-every racer in a kart on the grid (`ModeRoom.seat`, the garage's `park`), and each tick asks the
+every racer in a kart on the grid, the game's bots in front and the people behind them (`ModeRoom.seat`, the garage's `park`), and each tick asks the
 track where every racer's kart is (`onTrack`): over the line is finished, in no kart is out
 (`ModeRoom.haunt`: a ghost until the next race), and when the clock on the rest runs out, or
 nobody is left racing, the places are scored (`pointsFor`) and the leaderboard stands. Its rules

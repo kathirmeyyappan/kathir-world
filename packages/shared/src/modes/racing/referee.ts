@@ -72,7 +72,11 @@ export class Racing extends Game {
   // now, each race is dealt a track of its own, and the first is set up for everyone to be put on
   // its grid.
   protected override begin(): void {
-    this.racers = this.room.everyone().map((player) => this.racerOf(player));
+    // The game's bots are listed first, so the people start every race behind them.
+    const everyone = this.room.everyone();
+    this.racers = [...everyone.filter((p) => p.bot), ...everyone.filter((p) => !p.bot)].map((player) =>
+      this.racerOf(player),
+    );
     this.points = this.racers.map(() => 0);
     const dealt = new Set<number>();
     while (dealt.size < this.races) dealt.add(Math.floor(this.room.random() * routes().length));

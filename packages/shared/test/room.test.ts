@@ -702,8 +702,8 @@ test("a game's bots: each added at the last one's level in a look of its own and
   assert.ok(room.tick >= (START_SECONDS + BOT_WAIT) * TICK_RATE, 'begun without bot 2, which was slow');
   assert.deepEqual(
     game().racers.map((racer) => racer.name),
-    ['alice', 'bot 1'],
-    'it races',
+    ['bot 1', 'alice'],
+    'it races, in front of the people',
   );
   const seated = room.players.find((p) => p.id === bot)!;
   assert.ok(seated.riding && seated.bot, 'on the grid with everyone, a bot still');
@@ -711,7 +711,7 @@ test("a game's bots: each added at the last one's level in a look of its own and
   assert.deepEqual(
     [game().racers.map((racer) => racer.name), game().bots.map(({ id }) => id)],
     [
-      ['alice', 'bot 1', 'bot 2'],
+      ['bot 1', 'alice', 'bot 2'],
       [bot, late],
     ],
     'the slow one races from when it comes',
