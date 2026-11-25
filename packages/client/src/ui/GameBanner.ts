@@ -23,9 +23,11 @@ export class GameBanner {
     this.line.classList.toggle('urgent', line?.tone === 'urgent');
   }
 
-  say(text: string): void {
+  // A line over the standing one for a moment, in `colour` if it has one of its own.
+  say(text: string, colour = ''): void {
     clearTimeout(this.timer);
     this.said.textContent = text;
+    this.said.style.color = colour;
     this.timer = window.setTimeout(() => (this.said.textContent = ''), SAID_MS);
   }
 }

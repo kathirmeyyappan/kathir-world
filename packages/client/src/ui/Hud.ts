@@ -52,6 +52,13 @@ function keyed(text: string): (string | HTMLElement)[] {
   });
 }
 
+// The looks whose moves this tab has been given the hint of, by the hint's title.
+const HINTED_LOOKS = 'world.moves-hinted';
+function hintedLooks(): string[] {
+  const kept: unknown = JSON.parse(sessionStorage.getItem(HINTED_LOOKS) ?? '[]');
+  return Array.isArray(kept) ? kept.filter((look): look is string => typeof look === 'string') : [];
+}
+
 export class Hud {
   private readonly roomCode = document.getElementById('room-code') as HTMLButtonElement;
   private readonly panel = document.getElementById('room-panel')!;
@@ -391,7 +398,8 @@ export class Hud {
 
   // The moves the player's look has of its own: the look's name, then how each is done, a cell
   // each, stacked at the top; none hides it. A banner of its own, up for MOVE_HINT_MS from when
-  // its words are first given (the look being taken), whatever is held meanwhile.
+  // its words are first given (the look being taken), whatever is held meanwhile, and once a look
+  // for as long as the tab lasts: a body taken again in a look already read about gets none.
   setMoveHint(title: string, moves: string[]): void {
     const text = moves.length > 0 ? [title, ...moves].join('\n') : '';
     if (text !== this.moveHintText) {
@@ -408,8 +416,11 @@ export class Hud {
       // Its life is a CSS animation (#move-hint), which starts over as the element is shown again.
       this.moveHint.classList.add('hidden');
       void this.moveHint.offsetWidth;
-      this.moveHint.classList.toggle('hidden', !text);
-      if (text) this.moveHintTimer = window.setTimeout(() => this.moveHint.classList.add('hidden'), MOVE_HINT_MS);
+      const read = hintedLooks();
+      const show = text !== '' && !read.includes(title);
+      if (show) sessionStorage.setItem(HINTED_LOOKS, JSON.stringify([...read, title]));
+      this.moveHint.classList.toggle('hidden', !show);
+      if (show) this.moveHintTimer = window.setTimeout(() => this.moveHint.classList.add('hidden'), MOVE_HINT_MS);
     }
     const up = !this.moveHint.classList.contains('hidden');
     if (up) this.placeMoveHint();

@@ -271,7 +271,9 @@ with whatever is made out in their name), their own kept for the lobby. The Room
 every death (`GameMode.died`, from its one `damage`), and the referee keeps each team's points
 (`ShootoutState.points`, `POINTS`) while the game is being played. A player's team is their side
 (`Rules.side`, null in the lobby), which is how the client knows a teammate's kill for friendly
-fire, and the teams by their points are its standings (`Rules.standings`).
+fire, and the teams by their points are its standings (`Rules.standings`). Each new body of a player's on a
+team (the game's start, every respawn) is told its team over the view, in the team's colour
+(`Game.sayTeam`, from `Rules.side`).
 
 Who's shown to whom is a rule too (`Rules.sees`: `plain`, `side` or `hidden`; shootout's is `side`
 for a teammate and `plain` for everyone else, and `hidden` is there for a mode that hides its
