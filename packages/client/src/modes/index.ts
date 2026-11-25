@@ -4,7 +4,7 @@
 import type { GameModeId, GameState, Kart } from '@world/shared';
 import type { Start } from '../render/lakitu/Starter';
 import type { Listed } from '../ui/emblem';
-import type { BannerLine } from '../ui/GameBanner';
+import type { BannerLine, Said } from '../ui/GameBanner';
 import type { Row } from '../ui/menu/rows';
 import type { Leaderboard } from '../ui/Results';
 import type { Tally } from '../ui/Scores';
@@ -63,8 +63,8 @@ export const MODE_HUD: Record<GameModeId, (game: GameState, at: Moment) => Showi
 };
 
 // What each mode's game tells its players as they come into it, after which side they're on: its
-// rules in a line. Null: nothing.
-export const MODE_BRIEFING: Record<GameModeId, string | null> = {
+// rules. Null: nothing.
+export const MODE_BRIEFING: Record<GameModeId, Said | null> = {
   freeplay: null,
   racing: null,
   shootout: SHOOTOUT_BRIEFING,

@@ -1652,6 +1652,18 @@ body {
   color: #ffd24a;
   border-color: rgba(255, 210, 74, 0.6);
 }
+/* A few rows to read (a game's rules), in the narrow font, left to right from one edge. */
+#game-banner .said.compact {
+  font: 24px/26px var(--mono);
+  letter-spacing: 0.5px;
+  text-align: left;
+}
+#game-banner .said .gain {
+  color: #6ee07a;
+}
+#game-banner .said .loss {
+  color: #ff5a4e;
+}
 #game-banner .line {
   white-space: pre-line;
   animation: game-banner-flash 1.6s steps(4) infinite alternate;

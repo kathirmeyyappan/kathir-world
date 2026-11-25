@@ -131,7 +131,7 @@ import { KartGauge } from '../ui/KartGauge';
 import { EdgeFlash } from '../ui/EdgeFlash';
 import { Death } from '../ui/Death';
 import { secondsUntil } from '../ui/clock';
-import { GameBanner, type BannerLine, type Said } from '../ui/GameBanner';
+import { GameBanner, saying, type BannerLine, type Said } from '../ui/GameBanner';
 import { Results, resultsOf } from '../ui/Results';
 import { Scores } from '../ui/Scores';
 import { TrackPreview } from '../ui/TrackPreview';
@@ -914,7 +914,7 @@ export class Game {
     this.hud.setMaster(game.master);
     this.hud.sided = rulesOf(game).standings(game).length > 0;
     this.commandsMenu.refresh();
-    if (ended) this.banner.say({ text: 'room master ended the game!' });
+    if (ended) this.banner.say(saying('room master ended the game!'));
   }
 
   // What the game has standing over the view right now (ui/GameBanner.ts): in its lobby, what
@@ -948,9 +948,9 @@ export class Game {
     }
     if (this.body === this.teamSaidFor) return;
     this.teamSaidFor = this.body;
-    const lines: Said[] = side.avatar ? [] : [{ text: `You're on ${side.name}`, colour: side.colour }];
+    const lines: Said[] = side.avatar ? [] : [saying(`You're on ${side.name}`, side.colour)];
     const briefing = MODE_BRIEFING[this.game.mode];
-    if (!this.briefed && briefing) lines.push({ text: briefing });
+    if (!this.briefed && briefing) lines.push(briefing);
     this.briefed = true;
     if (lines.length) this.banner.say(...lines);
   }

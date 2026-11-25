@@ -24,19 +24,47 @@ export class GameBanner {
     this.line.classList.toggle('urgent', line?.tone === 'urgent');
   }
 
-  // Lines over the standing one, each for a moment in turn, in its `colour` if it has one of its own;
-  // whatever was being said is cut short.
-  say(...lines: Said[]): void {
+  // Things over the standing line, each for a moment in turn; whatever was being said is cut short.
+  say(...said: Said[]): void {
     clearTimeout(this.timer);
-    const [first, ...rest] = lines;
-    this.said.textContent = first?.text ?? '';
+    const [first, ...rest] = said;
+    this.said.replaceChildren(...(first?.rows ?? []).map(row));
     this.said.style.color = first?.colour ?? '';
+    this.said.classList.toggle('compact', first?.compact ?? false);
     this.timer = window.setTimeout(() => this.say(...rest), SAID_MS);
   }
 }
 
-// A line said over the standing one.
+// Something said over the standing line: its rows, one under another, in its `colour` if it has one
+// of its own; `compact`, in the narrow font, for a few rows to read (a game's rules) rather than a
+// line to catch at a glance.
 export interface Said {
-  text: string;
+  rows: Span[][];
   colour?: string;
+  compact?: boolean;
+}
+
+// Words in a row, plain or in a tone: a gain in green, a loss in red.
+export type Span = string | { text: string; tone: 'gain' | 'loss' };
+
+export const gain = (text: string): Span => ({ text, tone: 'gain' });
+export const loss = (text: string): Span => ({ text, tone: 'loss' });
+
+// One row of plain words, in `colour` if given: the most that's said.
+export function saying(text: string, colour?: string): Said {
+  return { rows: [[text]], colour };
+}
+
+function row(spans: Span[]): HTMLElement {
+  const el = document.createElement('div');
+  for (const span of spans) {
+    if (typeof span === 'string') el.append(span);
+    else {
+      const toned = document.createElement('span');
+      toned.className = span.tone;
+      toned.textContent = span.text;
+      el.append(toned);
+    }
+  }
+  return el;
 }
