@@ -14,6 +14,7 @@ export function shootoutHud(game: GameState, at: Moment): Showing {
       headline: null,
       caption: null,
       standings: rulesOf(game).standings(game),
+      mine: rulesOf(game).side(game, at.me)?.name ?? null,
       seconds: game.until === null ? null : secondsUntil(game.until, at.tick),
       urgent: false,
     },
