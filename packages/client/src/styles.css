@@ -1648,9 +1648,18 @@ body {
   background: rgba(11, 13, 20, 0.5);
   border: 2px solid rgba(var(--accent-rgb), 0.5);
 }
+/* Said for a moment, in the narrow font the move hint has, bigger. */
 #game-banner .said {
+  font: 30px/30px var(--mono);
+  letter-spacing: 1px;
   color: #ffd24a;
   border-color: rgba(255, 210, 74, 0.6);
+}
+#game-banner .said .gain {
+  color: #5cff7a;
+}
+#game-banner .said .loss {
+  color: #ff5a4e;
 }
 #game-banner .line {
   white-space: pre-line;

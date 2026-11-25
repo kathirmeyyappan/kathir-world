@@ -4,13 +4,14 @@
 import type { GameModeId, GameState, Kart } from '@world/shared';
 import type { Start } from '../render/lakitu/Starter';
 import type { Listed } from '../ui/emblem';
-import type { BannerLine } from '../ui/GameBanner';
+import type { BannerLine, Said } from '../ui/GameBanner';
 import type { Row } from '../ui/menu/rows';
 import type { Leaderboard } from '../ui/Results';
 import type { Tally } from '../ui/Scores';
 import { racingFacts } from './racing/facts';
 import { racingHud } from './racing/hud';
 import { racingSettings } from './racing/settings';
+import { SHOOTOUT_BRIEFING } from './shootout/briefing';
 import { shootoutFacts } from './shootout/facts';
 import { shootoutHud } from './shootout/hud';
 import { shootoutSettings } from './shootout/settings';
@@ -59,6 +60,14 @@ export const MODE_HUD: Record<GameModeId, (game: GameState, at: Moment) => Showi
   freeplay: () => NOTHING,
   racing: racingHud,
   shootout: shootoutHud,
+};
+
+// What each mode's game tells its players as they come into it, after which side they're on: its
+// rules. Null: nothing.
+export const MODE_BRIEFING: Record<GameModeId, Said | null> = {
+  freeplay: null,
+  racing: null,
+  shootout: SHOOTOUT_BRIEFING,
 };
 
 // Each mode's numbers as the guide gives them, worked out from what the game runs on.
