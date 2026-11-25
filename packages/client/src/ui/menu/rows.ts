@@ -124,6 +124,10 @@ export interface Button {
   // What a press has to be warned of first, right now, if anything: said under the buttons, the
   // press then to be made again (pressTwice.ts).
   warning?: () => string | null;
+  // Why a press can't go through right now, if it can't: said under the buttons at a press, in its
+  // place, and taken back once it no longer holds, so a reason that comes and goes as the room
+  // changes never moves the row.
+  refused?: () => string | null;
   danger?: boolean; // red: a way out of the room
 }
 
@@ -426,15 +430,26 @@ function buttons(row: Buttons): Drawn {
     warning.textContent = text;
     if (text) warning.scrollIntoView({ block: 'nearest' });
   };
-  const live: (() => void)[] = []; // each button that comes and goes or greys, brought up to date
+  const live: (() => void)[] = []; // each button that comes and goes, greys or refuses, brought up to date
   for (const b of row.buttons) {
     const button = element('button', '', b.label);
     if (b.danger) button.classList.add('danger');
-    pressTwice(button, b.warning ?? (() => null), say, b.press);
-    if (b.shown || b.enabled)
+    let refusing = false; // its refusal is what's said under the buttons
+    const press = () => {
+      const why = b.refused?.() ?? null;
+      refusing = why !== null;
+      if (why === null) b.press();
+      else say(why);
+    };
+    pressTwice(button, b.warning ?? (() => null), say, press);
+    if (b.shown || b.enabled || b.refused)
       live.push(() => {
         button.hidden = !(b.shown?.() ?? true);
         button.disabled = !(b.enabled?.() ?? true);
+        if (refusing && b.refused?.() === null) {
+          refusing = false;
+          say('');
+        }
       });
     line.append(button);
   }

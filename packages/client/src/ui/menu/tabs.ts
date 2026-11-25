@@ -96,8 +96,8 @@ function settings(hooks: MenuHooks): Section[] {
 
 // The room's game (docs/game-modes.md): what it is, and the START that begins it from its lobby and
 // the END GAME that takes it back there. Everyone sees them; they're the room master's to press,
-// START once the game is set up to (the mode's rule, which the Room holds it to), and greyed for
-// everyone else.
+// START once the game is set up to (the mode's rule, which the Room holds it to; a press before then
+// says what's missing), and greyed for everyone else.
 function theGame(hooks: MenuHooks): Section {
   const lobby = () => hooks.game().phase === 'lobby';
   const unready = () => (lobby() ? rulesOf(hooks.game()).starts(hooks.game()) : null);
@@ -113,7 +113,11 @@ function theGame(hooks: MenuHooks): Section {
             label: 'START GAME',
             press: () => hooks.act('start'),
             shown: lobby,
-            enabled: () => hooks.master() && unready() === null,
+            enabled: hooks.master,
+            refused: () => {
+              const why = unready();
+              return why === null ? null : `To start, ${why}.`;
+            },
           },
           {
             label: 'END GAME',
@@ -126,12 +130,7 @@ function theGame(hooks: MenuHooks): Section {
       },
       {
         kind: 'words',
-        text: () =>
-          !hooks.master()
-            ? 'Only the room master can set up, start and end the game.'
-            : unready() !== null
-              ? `To start, ${unready()}.`
-              : '',
+        text: () => (hooks.master() ? '' : 'Only the room master can set up, start and end the game.'),
       },
     ],
   };
