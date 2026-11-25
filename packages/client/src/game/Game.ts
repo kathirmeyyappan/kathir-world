@@ -152,6 +152,7 @@ import { toggleBareView } from '../ui/bareView';
 import { rideGround } from './ride';
 import { KART_VIEW, VIEWS, View, boomOf, kartBoom, kartFov, screenBoom, screenFov, type Boom } from './View';
 
+const FINAL_COUNT = 10; // seconds of a game's clock counted down in the middle of the view
 const CORRECTION_HALF_LIFE = 0.06;
 // Seconds for the camera to catch up when it goes from riding the ground (ride.ts) to following the
 // body through the air, or back.
@@ -933,6 +934,11 @@ export class Game {
             ? "Waiting for the game's bots to join..."
             : `Game is starting in ${Math.max(1, secondsUntil(until, this.tick))}`,
       };
+    // A game on a clock counts its last seconds down, big, over whatever its mode would say.
+    if (phase === 'playing' && until !== null) {
+      const left = secondsUntil(until, this.tick);
+      if (left <= FINAL_COUNT) return { text: String(Math.max(1, left)), tone: 'big' };
+    }
     if (showing.line || showing.board) return showing.line;
     return this.prediction?.state.ghost ? { text: 'Spectating as a ghost until this game ends.' } : null;
   }
