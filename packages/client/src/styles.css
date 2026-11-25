@@ -808,29 +808,58 @@ body {
 #hud .tip.gone {
   opacity: 0;
 }
-#player-list {
+/* The roster: your own row, then everyone else scrolling under it beside a slim rail (Hud.ts), a
+   rule between rows, and a row's extras (a driver's wrenches) on a line of their own under it. */
+.roster {
   list-style: none;
-  margin-bottom: 8px;
 }
-#player-list li {
-  display: flex;
-  align-items: center;
+#roster-scroller {
   gap: 6px;
+  margin-bottom: 8px;
+  pointer-events: auto;
+}
+#player-list {
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+#player-list::-webkit-scrollbar {
+  display: none;
+}
+#roster-scroller .scroll-rail {
+  width: 8px;
+}
+#roster-scroller .scroll-rail .arrow {
+  display: none;
+}
+#roster-scroller .scroll-rail .track {
+  margin: 0;
+  border-width: 1px;
+  box-shadow: none;
+}
+#roster-scroller .scroll-rail.idle {
+  visibility: hidden;
+}
+.roster li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 6px;
   line-height: 20px;
   color: rgba(255, 255, 255, 0.9);
+  border-bottom: 1px solid rgba(100, 181, 246, 0.18);
 }
-#player-list li .dot {
+.roster li .dot {
   width: 8px;
   height: 8px;
   display: inline-block;
 }
-#player-list li.me {
+.roster li.me {
   color: var(--accent);
 }
-#player-list li.dead {
+.roster li.dead {
   opacity: 0.45;
 }
-#player-list li.ghost {
+.roster li.ghost {
   opacity: 0.7;
 }
 .ping-line {
@@ -838,13 +867,6 @@ body {
   align-items: center;
   gap: 6px;
   color: rgba(255, 255, 255, 0.6);
-}
-#roster-page {
-  margin-left: auto;
-  color: var(--accent-soft);
-}
-#roster-page[hidden] {
-  display: none;
 }
 
 #chat {
@@ -1927,7 +1949,7 @@ body {
     linear-gradient(rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0.35)) center/100% 1px no-repeat,
     linear-gradient(rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0.35)) center/1px 100% no-repeat;
 }
-#player-list .stats {
+.roster .stats {
   margin-left: auto;
   padding-left: 10px;
   display: inline-flex;
@@ -1936,46 +1958,63 @@ body {
   font-size: 12px;
   color: rgba(255, 255, 255, 0.7);
 }
-#player-list .stats svg {
+.roster .stats svg {
   width: 12px;
   height: 12px;
   shape-rendering: crispEdges;
 }
-#player-list .stats svg + svg {
+.roster .stats > * + svg,
+.roster .stats > * + .heart {
   margin-left: 4px;
 }
-#player-list .stats .heart rect {
+/* A life's icon, as the bar draws its hearts (Hearts.ts `lifeIcon`), at the row's size. */
+.roster .stats .heart {
+  width: 13px;
+  height: 12px;
+  opacity: 1;
+  filter: none;
+}
+.roster .stats .heart.wrench {
+  width: 12px;
+}
+.roster .stats .heart:not(.crystal, .wrench) svg rect {
   fill: #c8303e;
 }
-#player-list .stats .heart rect.hi {
+.roster .stats .heart:not(.crystal, .wrench) svg rect.hi {
   fill: #e05a66;
 }
-#player-list .stats .knife rect {
+/* Extras under a row, at its right end. */
+.roster .stats.extra {
+  flex-basis: 100%;
+  justify-content: flex-end;
+  line-height: 18px;
+}
+.roster .stats .knife rect {
   fill: #cfd4dc;
 }
-#player-list .stats .knife rect.guard {
+.roster .stats .knife rect.guard {
   fill: #8a9099;
 }
-#player-list .stats .knife rect.hilt {
+.roster .stats .knife rect.hilt {
   fill: #6b4a2e;
 }
-#player-list .stats .skull rect {
+.roster .stats .skull rect {
   fill: #e8e8ee;
 }
-#player-list .stats .ghost rect {
+.roster .stats .ghost rect {
   fill: #b9d7ff;
 }
-#player-list .robot,
-#player-list .crown {
+.roster .robot,
+.roster .crown {
   width: 12px;
   height: 12px;
   shape-rendering: crispEdges;
   flex: none;
 }
-#player-list .robot rect {
+.roster .robot rect {
   fill: var(--accent);
 }
-#player-list .crown rect {
+.roster .crown rect {
   fill: #ffd24a;
 }
 

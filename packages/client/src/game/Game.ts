@@ -141,7 +141,7 @@ import { Fuel } from '../ui/Fuel';
 import { GearHud } from '../ui/GearHud';
 import { Hearts } from '../ui/Hearts';
 import { HitNotice } from '../ui/HitNotice';
-import { Hud } from '../ui/Hud';
+import { Hud, type Wrenches } from '../ui/Hud';
 import { legendOf } from '../ui/legend';
 import { Minimap } from '../ui/Minimap';
 import { Overlay } from '../ui/Overlay';
@@ -792,6 +792,7 @@ export class Game {
             ...p,
             colour: colourOf(this.game, p),
             side: rulesOf(this.game).side(this.game, p.id)?.name ?? null,
+            kart: wrenchesOf(m.karts.find((k) => k.driver === p.id)),
           })),
         );
         this.hearShots(m.players);
@@ -1918,4 +1919,9 @@ function targets(players: RemotePlayer[]) {
 // An angle brought within [-π, π].
 function wrapAngle(a: number): number {
   return a - 2 * Math.PI * Math.round(a / (2 * Math.PI));
+}
+
+// A kart's wrenches as its driver's row on the roster shows them; null with no kart.
+function wrenchesOf(kart: Kart | undefined): Wrenches | null {
+  return kart ? { wrenches: kart.wrenches, full: KARTS[kart.kart].wrenches } : null;
 }
