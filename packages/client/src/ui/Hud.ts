@@ -14,7 +14,6 @@ import {
 } from '@world/shared';
 import { lifeIcon } from './Hearts';
 import { CROWN, GHOST, KNIFE, ROBOT, SKULL, pixelSvg } from './pixelIcons';
-import { railScroll } from './scrollRail';
 
 import { IS_TOUCH } from '../input/touch';
 import { roomLink } from '../net/lobby';
@@ -37,10 +36,11 @@ const HINT_GAP = 8; // CSS pixels between the move hint and what it stacks again
 // The layout where the item hint is at the top of the screen, under the touch buttons (styles.css).
 const COARSE = window.matchMedia('(pointer: coarse)');
 // The roster reaches no further down the view than this share of its height: your own row stands
-// first, and everyone else scrolls under it, a row at a time on its own (the mouse is the view's
-// while playing and can't scroll it), resting at each end, and by hand while the mouse is free.
+// first, in a cell apart, and everyone else's cells scroll under it, a row at a time on their own
+// (the mouse is the view's while playing and can't scroll them), resting at each end, and by hand
+// while the mouse is free.
 const ROSTER_SHARE = 0.5;
-const ROSTER_ROW = 21; // CSS pixels, a roster row with its rule
+const ROSTER_ROW = 29; // CSS pixels, a roster cell and the gap under it
 const ROSTER_MIN_ROWS = 2; // two others, however short the view
 const ROSTER_STEP_MS = 2_500; // between one row scrolling into view and the next
 const ROSTER_REST_STEPS = 2; // steps it waits at either end before turning back
@@ -131,10 +131,9 @@ export class Hud {
       navigator.clipboard?.writeText(roomLink(roomId)).then(() => this.tip(this.roomCode, 'copied'));
     });
 
-    railScroll(this.playerList);
     const hold = () => (this.rosterHeld = performance.now() + ROSTER_HELD_MS);
     for (const type of ['wheel', 'pointerdown', 'pointermove'] as const)
-      this.playerList.parentElement!.addEventListener(type, hold, { passive: true });
+      this.playerList.addEventListener(type, hold, { passive: true });
     window.setInterval(() => this.scrollRoster(), ROSTER_STEP_MS);
     window.addEventListener('resize', () => this.fitRoster());
 
