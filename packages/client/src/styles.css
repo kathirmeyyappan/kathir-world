@@ -854,9 +854,6 @@ body {
 .roster li:not([hidden]) ~ li {
   margin-top: 3px;
 }
-#player-me li {
-  border-color: rgba(100, 181, 246, 0.6);
-}
 .roster li .dot {
   width: 8px;
   height: 8px;
