@@ -9,5 +9,4 @@ export const SHOOTOUT_BRIEFING: Said = {
     ['Kill an opponent: ', gain(`+${points(POINTS.kill)}`)],
     ['Die: ', loss(`-${points(POINTS.death)}`)],
   ],
-  compact: true,
 };

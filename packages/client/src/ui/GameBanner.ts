@@ -30,18 +30,15 @@ export class GameBanner {
     const [first, ...rest] = said;
     this.said.replaceChildren(...(first?.rows ?? []).map(row));
     this.said.style.color = first?.colour ?? '';
-    this.said.classList.toggle('compact', first?.compact ?? false);
     this.timer = window.setTimeout(() => this.say(...rest), SAID_MS);
   }
 }
 
 // Something said over the standing line: its rows, one under another, in its `colour` if it has one
-// of its own; `compact`, in the narrow font, for a few rows to read (a game's rules) rather than a
-// line to catch at a glance.
+// of its own.
 export interface Said {
   rows: Span[][];
   colour?: string;
-  compact?: boolean;
 }
 
 // Words in a row, plain or in a tone: a gain in green, a loss in red.
