@@ -1,6 +1,6 @@
 // A leaderboard standing over the view (docs/game-modes.md): a game's results, every side with its
 // points, the best first, until the lobby; or what a mode puts up while its game is played (a
-// race's, between one race and the next: the client's `MODE_HUD`). Whoever won, or leads, stands
+// race's, between one race and the next: the client's `MODE_HUD`). Whoever won stands
 // big at the top with a crown, apart from everyone else, small under them in their order. Nothing
 // on it is pressed: the world goes on under it.
 import type { Appearance, Side, Standing } from '@world/shared';
