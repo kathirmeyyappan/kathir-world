@@ -273,7 +273,8 @@ every death (`GameMode.died`, from its one `damage`), and the referee keeps each
 (`Rules.side`, null in the lobby), which is how the client knows a teammate's kill for friendly
 fire, and the teams by their points are its standings (`Rules.standings`). Each new body of a player's on a
 team (the game's start, every respawn) is told its team over the view, in the team's colour
-(`Game.sayTeam`, from `Rules.side`).
+(`Game.sayTeam`, from `Rules.side`), and the first of a game is told after it the mode's rules in a
+line (`MODE_BRIEFING`, shootout's from `POINTS`), the banner saying one and then the other.
 
 Who's shown to whom is a rule too (`Rules.sees`: `plain`, `side` or `hidden`; shootout's is `side`
 for a teammate and `plain` for everyone else, and `hidden` is there for a mode that hides its

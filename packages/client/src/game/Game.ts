@@ -95,7 +95,7 @@ import { InputManager } from '../input/InputManager';
 import { MobileActions, type MobileActionState } from '../input/MobileActions';
 import { MobileControls } from '../input/MobileControls';
 import { IS_TOUCH, onTap } from '../input/touch';
-import { MODE_HUD, NOTHING, type Showing } from '../modes';
+import { MODE_BRIEFING, MODE_HUD, NOTHING, type Showing } from '../modes';
 import type { Connection } from '../net/Connection';
 import { Interpolation, type RemotePlayer } from '../net/Interpolation';
 import { Prediction } from '../net/Prediction';
@@ -131,7 +131,7 @@ import { KartGauge } from '../ui/KartGauge';
 import { EdgeFlash } from '../ui/EdgeFlash';
 import { Death } from '../ui/Death';
 import { secondsUntil } from '../ui/clock';
-import { GameBanner, type BannerLine } from '../ui/GameBanner';
+import { GameBanner, type BannerLine, type Said } from '../ui/GameBanner';
 import { Results, resultsOf } from '../ui/Results';
 import { Scores } from '../ui/Scores';
 import { TrackPreview } from '../ui/TrackPreview';
@@ -339,6 +339,7 @@ export class Game {
   private dead = false;
   private body = 0; // which of the player's bodies they're in (sim/types.ts): a new one is taken up as it's seen
   private teamSaidFor = -1; // the body of theirs whose team they were last told
+  private briefed = false; // they've been told the rules of the game they're on a side in
   private readonly bodies = new Map<string, number>(); // and which of theirs everyone else was last drawn in
   private scoped = false;
   private canHit = false;
@@ -913,7 +914,7 @@ export class Game {
     this.hud.setMaster(game.master);
     this.hud.sided = rulesOf(game).standings(game).length > 0;
     this.commandsMenu.refresh();
-    if (ended) this.banner.say('room master ended the game!');
+    if (ended) this.banner.say({ text: 'room master ended the game!' });
   }
 
   // What the game has standing over the view right now (ui/GameBanner.ts): in its lobby, what
@@ -936,14 +937,22 @@ export class Game {
     return this.prediction?.state.ghost ? { text: 'Spectating as a ghost until this game ends.' } : null;
   }
 
-  // Each new body of the player's, on a team: which team that is. A side that is one player (it has
-  // their look) is no team.
+  // Each new body of the player's on a side in a game: which team that is (a side that is one player,
+  // with their look, is no team), and with the first of the game, its rules.
   private sayTeam(): void {
-    if (this.body === this.teamSaidFor || !this.prediction) return;
+    if (!this.prediction) return;
     const side = rulesOf(this.game).side(this.game, this.prediction.state.id);
-    if (!side || side.avatar) return;
+    if (!side) {
+      this.briefed = false;
+      return;
+    }
+    if (this.body === this.teamSaidFor) return;
     this.teamSaidFor = this.body;
-    this.banner.say(`You're on ${side.name}`, side.colour);
+    const lines: Said[] = side.avatar ? [] : [{ text: `You're on ${side.name}`, colour: side.colour }];
+    const briefing = MODE_BRIEFING[this.game.mode];
+    if (!this.briefed && briefing) lines.push({ text: briefing });
+    this.briefed = true;
+    if (lines.length) this.banner.say(...lines);
   }
 
   // Frost comes and goes for the sim (so prediction slides where the server does) and the eye alike.
