@@ -818,14 +818,23 @@ body {
   margin-bottom: 8px;
 }
 #player-list {
-  position: relative; /* where its cells' offsets are measured from, for its scrolling */
   margin-bottom: 8px;
-  overflow-y: auto;
-  scrollbar-width: none;
   pointer-events: auto;
 }
-#player-list::-webkit-scrollbar {
-  display: none;
+/* A cell out of view keeps its width, so the panel stays as wide as its widest cell however they
+   step, and takes no height. */
+#player-list li[hidden] {
+  display: flex;
+  visibility: hidden;
+  height: 0;
+  margin-top: 0;
+  padding-block: 0;
+  border-block-width: 0;
+  overflow: hidden;
+}
+#roster-more {
+  margin-left: auto;
+  color: var(--accent-soft);
 }
 .roster li {
   display: flex;
@@ -838,7 +847,7 @@ body {
   background: rgba(100, 181, 246, 0.06);
   border: 1px solid rgba(100, 181, 246, 0.22);
 }
-.roster li + li {
+.roster li:not([hidden]) ~ li {
   margin-top: 3px;
 }
 #player-me li {

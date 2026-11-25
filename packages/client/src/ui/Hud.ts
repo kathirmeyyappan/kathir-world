@@ -36,13 +36,12 @@ const HINT_GAP = 8; // CSS pixels between the move hint and what it stacks again
 // The layout where the item hint is at the top of the screen, under the touch buttons (styles.css).
 const COARSE = window.matchMedia('(pointer: coarse)');
 // The roster reaches no further down the view than this share of its height: your own row stands
-// first, in a cell apart, and everyone else's cells scroll under it, a row at a time on their own
-// (the mouse is the view's while playing and can't scroll them), resting at each end, and by hand
-// while the mouse is free.
+// first, in a cell apart, and under it as many of everyone else's cells as fit whole, stepping on a
+// cell at a time on their own (the mouse is the view's while playing and can't move them), resting
+// at each end, and with the wheel while the mouse is free; how many are above and below them is
+// said by the ping.
 const ROSTER_SHARE = 0.5;
-const ROSTER_ROW = 29; // CSS pixels, a roster cell and the gap under it
-const ROSTER_MIN_ROWS = 2; // two others, however short the view
-const ROSTER_STEP_MS = 2_500; // between one row scrolling into view and the next
+const ROSTER_STEP_MS = 2_500; // between one cell stepping into view and the next
 const ROSTER_REST_STEPS = 2; // steps it waits at either end before turning back
 const ROSTER_HELD_MS = 8_000; // how long a hand on the list keeps it from scrolling itself
 
@@ -71,6 +70,8 @@ export class Hud {
   private readonly playerMe = document.getElementById('player-me')!;
   private readonly playerList = document.getElementById('player-list')!;
   private readonly ping = document.getElementById('ping')!;
+  private readonly rosterMore = document.getElementById('roster-more')!;
+  private rosterFirst = 0; // the first of everyone else's cells shown
   private rosterRest = 0; // steps left to wait at the end the list has scrolled to
   private rosterHeld = 0; // performance.now() until which a hand on the list keeps it still
   private readonly chatLog = document.getElementById('chat-log')!;
@@ -132,8 +133,16 @@ export class Hud {
     });
 
     const hold = () => (this.rosterHeld = performance.now() + ROSTER_HELD_MS);
-    for (const type of ['wheel', 'pointerdown', 'pointermove'] as const)
+    for (const type of ['pointerdown', 'pointermove'] as const)
       this.playerList.addEventListener(type, hold, { passive: true });
+    this.playerList.addEventListener(
+      'wheel',
+      (e) => {
+        hold();
+        this.stepRoster(Math.sign(e.deltaY));
+      },
+      { passive: true },
+    );
     window.setInterval(() => this.scrollRoster(), ROSTER_STEP_MS);
     window.addEventListener('resize', () => this.fitRoster());
 
@@ -542,29 +551,49 @@ export class Hud {
     setTimeout(() => li.classList.add('faded'), CHAT_FADE_MS);
   }
 
-  // The list of everyone else as tall as fits between its top and ROSTER_SHARE of the way down the
-  // view, and never under ROSTER_MIN_ROWS.
+  // Shows everyone else's cells from the first on, as many as fit whole between the list's top and
+  // ROSTER_SHARE of the way down the view (one at the least), and says how many are left out.
   private fitRoster(): void {
+    const cells = [...this.playerList.children] as HTMLElement[];
+    this.rosterFirst = Math.max(0, Math.min(this.rosterFirst, cells.length - 1));
+    cells.forEach((cell, i) => (cell.hidden = i < this.rosterFirst));
     const top = this.playerList.getBoundingClientRect().top;
-    const room = Math.max(ROSTER_MIN_ROWS * ROSTER_ROW, window.innerHeight * ROSTER_SHARE - top);
-    this.playerList.style.maxHeight = `${Math.floor(room / ROSTER_ROW) * ROSTER_ROW}px`;
+    const room = window.innerHeight * ROSTER_SHARE - top;
+    let shown = 0;
+    let full = false;
+    for (const cell of cells.slice(this.rosterFirst)) {
+      full ||= shown > 0 && cell.getBoundingClientRect().bottom - top > room;
+      cell.hidden = full;
+      if (!full) shown++;
+    }
+    const above = this.rosterFirst;
+    const below = cells.length - this.rosterFirst - shown;
+    this.rosterMore.textContent = [above && `▲${above}`, below && `▼${below}`].filter(Boolean).join(' ');
   }
 
-  // One step of the list scrolling itself: the next row up into view, or, having rested at the
-  // bottom, back to the top. Not while it's put away, all fits, or a hand is on it.
+  // Moves the cells shown a cell along (`by` 1) or back (-1), no further than shows the last.
+  private stepRoster(by: number): void {
+    const last = this.playerList.lastElementChild as HTMLElement | null;
+    if (by > 0 && (!last || !last.hidden)) return;
+    this.rosterFirst = Math.max(0, this.rosterFirst + by);
+    this.fitRoster();
+  }
+
+  // One step of the cells moving on their own: the next one in, or, having rested with the last one
+  // shown, back to the first. Not while they're put away, all fit, or a hand is on them.
   private scrollRoster(): void {
-    const list = this.playerList;
-    const more = list.scrollHeight - list.clientHeight;
-    if (more <= 1 || this.panel.classList.contains('collapsed') || performance.now() < this.rosterHeld) return;
+    if (this.panel.classList.contains('collapsed') || performance.now() < this.rosterHeld) return;
+    if (!this.rosterMore.textContent) return;
     if (this.rosterRest > 0) {
       this.rosterRest--;
       return;
     }
-    const atEnd = list.scrollTop >= more - 1;
-    const next = [...list.children].find((row) => (row as HTMLElement).offsetTop > list.scrollTop + 1);
-    list.scrollTo({ top: atEnd ? 0 : ((next as HTMLElement | undefined)?.offsetTop ?? more), behavior: 'smooth' });
-    const arrives = atEnd ? 0 : Math.min(more, (next as HTMLElement | undefined)?.offsetTop ?? more);
-    if (atEnd || arrives >= more - 1) this.rosterRest = ROSTER_REST_STEPS;
+    const last = this.playerList.lastElementChild as HTMLElement | null;
+    if (last && !last.hidden) this.rosterFirst = 0;
+    else this.rosterFirst++;
+    this.fitRoster();
+    const end = this.playerList.lastElementChild as HTMLElement | null;
+    if (this.rosterFirst === 0 || (end && !end.hidden)) this.rosterRest = ROSTER_REST_STEPS;
   }
 
   private renderPlayers(): void {
