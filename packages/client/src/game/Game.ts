@@ -1418,7 +1418,11 @@ export class Game {
     this.hud.setMoveHint(self.avatar.toUpperCase(), moves);
     this.results.set(
       this.game.phase === 'results' && this.game.until !== null
-        ? resultsOf(rulesOf(this.game).standings(this.game), secondsUntil(this.game.until, this.tick))
+        ? resultsOf(
+            rulesOf(this.game).standings(this.game),
+            rulesOf(this.game).side(this.game, self.id),
+            secondsUntil(this.game.until, this.tick),
+          )
         : showing.board,
     );
     this.scores.set(showing.scores);
