@@ -163,7 +163,7 @@ CONE = 0.7  # and a spray with its mark within this share of its cone
 STEADY = {"scoped": 0.15, "air": 1.3}  # how its aim's slack scales down a scope, and off the ground
 # Seconds a rifle's target has to have gone on as they were before a shot at them, least skill to
 # most: someone who keeps changing their mind is never shot, and someone stood still is.
-SETTLE_SECONDS = (1.6, 0.7)
+SETTLE_SECONDS = (1.6, 0.25)
 JOLT = 3.0  # m/s of change in how someone is moving that is them changing their mind
 SCOPED_LEAD = 0.5  # the least of the lead its aim gives someone down a scope, for the least skilled
 BURST_SECONDS = (0.6, 2.0)  # how long it holds a spray at a go
@@ -207,6 +207,10 @@ PERCH_PICKS = 48
 PERCH_FOES = 3
 PERCH_HOLD = 10.0
 PERCH_PATIENCE = (8.0, 14.0)
+# From a perch it looks further down the list of those it's against than the nearest few, and after
+# a shot the sharpest turn to someone else in its sight as often as not.
+PERCH_CHECKS = 8
+PERCH_TURNS = 0.6
 PERCH_EVERY = 4.0  # seconds between its looks for a perch, with none
 JUMP_CARRIES = 2.0  # seconds of its walk that a jump can carry it: the ground it wants ahead of one
 CHILL_LEFT = 1.0  # seconds of chill left on someone, under which they're as good as thawed
@@ -449,6 +453,7 @@ class Fighter:
         self._perched: int | None = None  # the tick it got there
         self._showed = 0  # the tick its perch last showed it someone
         self._patience = 0  # ticks it gives a perch that shows it nobody
+        self._turns = False  # whether its next mark from its perch is to be someone else
         self._next_perch = 0  # the tick from which, with no perch, it looks for one again
         self._died: int | None = None  # the tick it was first seen dead
         self._rise: int | None = None  # the tick it asks to be brought back
@@ -713,8 +718,9 @@ class Fighter:
     ) -> Player | None:
         """Who it's fighting this tick: the nearest of those it's against in its sight, once it has
         had its reaction to them. In a game with sides (``sided``), whoever its side would rather
-        it went for. It looks among the nearest few, and for whoever has stung it (``stinger``)."""
-        checked = foes[:SIGHT_CHECKS]
+        it went for, and from a perch, now and then, someone else than it last shot at. It looks
+        among the nearest few, and for whoever has stung it (``stinger``)."""
+        checked = foes[: PERCH_CHECKS if self._perched is not None else SIGHT_CHECKS]
         if stinger is not None and stinger not in checked:
             checked = [*checked, stinger]
         if tick >= self._next_sight:
@@ -739,7 +745,16 @@ class Fighter:
         hurt = next((p for p in in_sight if p.id == self._hurt_by), None)
         weak = self._weakest(me, in_sight) if sided else None
         stays = weak is None or weak is current
-        if current is not None and stays and _apart(me.pos, nearest.pos) >= STICK * _apart(me.pos, current.pos):
+        others = [p for p in in_sight if p is not current]
+        turn, self._turns = self._turns and self._perched is not None and bool(others), False
+        if turn:
+            stays, weak = False, self.dice.choice(others)
+        if (
+            current is not None
+            and not turn
+            and stays
+            and _apart(me.pos, nearest.pos) >= STICK * _apart(me.pos, current.pos)
+        ):
             return current
         chosen = hurt or weak or nearest
         self._hurt_by = None
@@ -1248,6 +1263,7 @@ class Fighter:
         self._ready = tick + arm.every + round(self.dice.uniform(0, self.skill.idle) * TICK_RATE)
         if arm.scoped:
             self._blanks = 0
+            self._turns = self.dice.random() < PERCH_TURNS * self.skill.wits
             self._shift(tick)
 
     def _steadied(self, target: Player, tick: int) -> int:
