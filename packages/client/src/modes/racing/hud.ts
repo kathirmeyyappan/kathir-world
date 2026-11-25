@@ -113,9 +113,8 @@ function lineOf(
 }
 
 // A run race's leaderboard: every racer by their points in the game so far, with what this race
-// gave them, until the next begins.
+// gave them, until the next begins. Nobody on it has won: that's the game's results to say.
 function boardOf(game: RacingState, round: Round, tick: number): Leaderboard {
-  const most = Math.max(...game.points);
   const last = round.number + 1 >= game.races;
   return {
     title: `RACE ${round.number + 1} OF ${game.races}`,
@@ -130,7 +129,7 @@ function boardOf(game: RacingState, round: Round, tick: number): Leaderboard {
           emblem: who,
           note: place > 0 ? `+${pointsFor(place, game.racers.length)}` : 'OUT',
           points: game.points[i],
-          won: game.points[i] === most,
+          won: false,
         };
       })
       .sort((a, b) => b.points - a.points),

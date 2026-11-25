@@ -2045,7 +2045,7 @@ body {
   border: 2px solid var(--side);
   opacity: 0.7;
 }
-/* Whoever won, or leads: big, crowned, and set apart from the rest. */
+/* Whoever won: big, crowned, and set apart from the rest. */
 #results li.won {
   padding: 10px 16px;
   font-size: 36px;
