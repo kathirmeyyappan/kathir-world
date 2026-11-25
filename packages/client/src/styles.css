@@ -815,7 +815,7 @@ body {
   list-style: none;
 }
 #player-me {
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 #player-list {
   margin-bottom: 8px;
@@ -832,8 +832,12 @@ body {
   border-block-width: 0;
   overflow: hidden;
 }
+/* How many of everyone else's cells are above and below those shown, between yours and theirs. */
 #roster-more {
-  margin-left: auto;
+  margin-bottom: 4px;
+  text-align: right;
+  font-size: 11px;
+  line-height: 14px;
   color: var(--accent-soft);
 }
 .roster li {

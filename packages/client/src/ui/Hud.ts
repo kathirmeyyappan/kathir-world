@@ -39,7 +39,7 @@ const COARSE = window.matchMedia('(pointer: coarse)');
 // first, in a cell apart, and under it as many of everyone else's cells as fit whole, stepping on a
 // cell at a time on their own (the mouse is the view's while playing and can't move them), resting
 // at each end, and with the wheel while the mouse is free; how many are above and below them is
-// said by the ping.
+// said between your cell and theirs.
 const ROSTER_SHARE = 0.5;
 const ROSTER_STEP_MS = 2_500; // between one cell stepping into view and the next
 const ROSTER_REST_STEPS = 2; // steps it waits at either end before turning back
