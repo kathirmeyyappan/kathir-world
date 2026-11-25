@@ -6,8 +6,7 @@ drift after drift down the straights and a trick off every flight.
 No two racers of one rating race alike. Each has a talent of its own, the same all through a
 lobby, that sets it a little above or below its rating, so one of them is the one to beat; a day
 it's having, from one race to the next; a mood that warms and cools through a race, and with it
-its pace and how many of its chances it takes; a line a little its own; and its own time off the
-lights. All of it comes from dice seeded by where it is and what it's called, so a race could be
+its pace and how many of its chances it takes; and a line a little its own. All of it comes from dice seeded by where it is and what it's called, so a race could be
 run again as it was.
 
 The room seats its racers and holds them on the grid, lets them go, sets a kart that leaves the
@@ -54,8 +53,6 @@ UNRATED = 0.5  # the rating of a racer no game brought
 TALENT = 0.1
 DAY = 0.05
 NARROWER = (0, 0.5, 1)  # metres its line may keep nearer the middle than its skill's
-REACTION = 0.2  # seconds from the lights to the gas, at the most, for the least of racers
-ON_IT = 0.7  # the rating from which a racer is on the gas as the grid is let go, whatever its form
 # A mood is two waves, a long one and a short one over it: the seconds each takes, least and most.
 LONG = (14, 26)
 SHORT = (5, 9)
@@ -77,16 +74,16 @@ def line_of(track: int, shape: Shape, kart: str) -> Line:
 
 @dataclass(frozen=True, slots=True)
 class Race:
-    """A race as one racer drives it: its driver, the tick it gets on the gas, and its mood's two
+    """A race as one racer drives it: its driver, the tick the grid is let go, and its mood's two
     waves, each the seconds it takes and where in it the race begins."""
 
     driver: Driver
-    off: int
+    go: int
     waves: tuple[tuple[float, float], tuple[float, float]]
 
     def mood(self, tick: int) -> float:
         """Its mood at ``tick``, from -1 (cold) to 1 (hot)."""
-        t = (tick - self.off) / TICK_RATE
+        t = (tick - self.go) / TICK_RATE
         (long, a), (short, b) = self.waves
         return 0.6 * math.sin(2 * math.pi * (t / long + a)) + 0.4 * math.sin(2 * math.pi * (t / short + b))
 
@@ -103,9 +100,8 @@ def race_of(seed: str, track: int, go: int, kart: str, rating: float) -> Race:
     shape = replace(skilled.shape, width=skilled.shape.width - dice.choice(NARROWER))
     skilled = replace(skilled, shape=shape, chains=chains)
     waves = ((dice.uniform(*LONG), dice.random()), (dice.uniform(*SHORT), dice.random()))
-    reaction = dice.uniform(0, REACTION) * max(0.0, 1 - max(0.0, rating) / ON_IT)
     driver = Driver(line_of(track, skilled.shape, kart), skilled, load_karts().of(kart), dice)
-    return Race(driver, go + int(reaction * TICK_RATE), waves)
+    return Race(driver, go, waves)
 
 
 class Racer:
@@ -132,14 +128,14 @@ class Racer:
             self._race = asyncio.create_task(
                 asyncio.to_thread(race_of, self._seed, race["track"], race["go"], kart.kart, rating)
             )
+        late = max(0, min(MOST_LATE, sent - me.last_seq))
+        if state.tick + late < race["go"]:
+            # On the gas through the count, as a person is: the room lets every kart with it down
+            # go on the same tick, however late its keys.
+            return Keys(gas=1)
         if not self._race.done():
             return Keys()
         mine = self._race.result()
-        late = max(0, min(MOST_LATE, sent - me.last_seq))
-        if state.tick + late < mine.off:
-            # One that's on the gas as the grid is let go holds it through the count, as a person
-            # does: the room lets every kart with it down go on the same tick, however late its keys.
-            return Keys(gas=1) if mine.off == race["go"] else Keys()
         others = tuple(other.pos for other in state.karts.values() if other is not kart)
         return mine.driver.keys(kart, late, mine.mood(state.tick), others)
 
