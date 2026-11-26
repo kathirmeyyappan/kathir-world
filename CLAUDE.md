@@ -1692,7 +1692,7 @@ skin on it.
 The home screen (`app/home.ts`) is the room on the left (a JOIN tab, the default, with JOIN GLOBAL over a code, and a CREATE tab;
 the lobby, or Node in dev, turns away a create on a running room and a join on none, back to home
 with `?error=`; global is always there to join, and so never anyone's to create; the CREATE tab
-picks the room's game mode from a dropdown with the mode's line under it, `GAME_MODES` in the shared
+picks the room's game mode from a row of them all (`app/Choice.ts`) with the picked mode's line under it, `GAME_MODES` in the shared
 package's `modes/index.ts`, and the pick rides the create as `?game=`: the lobby keeps it with the room's session and
 hands it to every join, the room server makes the Room in it (`RoomOptions.mode`), and `welcome.game`
 tells everyone)

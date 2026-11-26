@@ -38,12 +38,12 @@ export const GAME_MODES: Record<GameModeId, GameModeSpec> = {
   racing: {
     id: 'racing',
     name: 'Racing',
-    blurb: 'Race against other players in a 3 round competition.',
+    blurb: 'Race against other players (and bots) across 1000+ unique routes on the map.',
   },
   shootout: {
     id: 'shootout',
     name: 'Shootout',
-    blurb: 'Split up into even teams and get as many kills as you can. Team with the most kills wins.',
+    blurb: 'Go head to head against players and AI bots in a team-based killing competition.',
   },
 };
 

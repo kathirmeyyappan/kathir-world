@@ -274,6 +274,34 @@ body {
   border-top: 2px solid rgba(var(--accent-rgb), 0.3);
 }
 
+/* One of a few options (app/Choice.ts): a row of buttons, the picked one lit. */
+.choices {
+  display: flex;
+}
+.card .choices button {
+  padding: 7px 10px;
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.6);
+  background: var(--panel);
+  border: 2px solid rgba(var(--accent-rgb), 0.5);
+  box-shadow: none;
+}
+.card .choices button + button {
+  border-left: 0;
+}
+.card .choices button.on,
+.card .choices button:hover {
+  color: var(--panel);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+/* A choice the width of its field, its options sharing it. */
+.card .field .choices button {
+  flex: 1;
+  padding: 12px 6px;
+  font-size: 10px;
+}
+
 /* Home: the room on the left, the player on the right; stacked on a phone, the player between. */
 .card.home-card {
   max-width: 880px;
@@ -450,24 +478,6 @@ body {
   position: absolute;
   left: 8px;
   bottom: 8px;
-  display: flex;
-}
-.card #home-view .home-seat button {
-  padding: 7px 10px;
-  font-size: 9px;
-  color: rgba(255, 255, 255, 0.6);
-  background: var(--panel);
-  border: 2px solid rgba(var(--accent-rgb), 0.5);
-  box-shadow: none;
-}
-.card #home-view .home-seat button + button {
-  border-left: 0;
-}
-.card #home-view .home-seat button.on,
-.card #home-view .home-seat button:hover {
-  color: var(--panel);
-  background: var(--accent);
-  border-color: var(--accent);
 }
 #home-view .hint {
   position: absolute;

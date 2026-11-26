@@ -14,10 +14,10 @@ tense. **Only what's ticked there is built.**
 | Mode      | What the home screen says of it                                                            |
 | --------- | ------------------------------------------------------------------------------------------ |
 | Freeplay | No rules. Do whatever you want with friends!                                               |
-| Racing    | Race against other players in a 3 round competition.                                       |
-| Shootout  | Split up into even teams and get as many kills as you can. Team with the most kills wins. |
+| Racing | Race against other players (and bots) across 1000+ unique routes on the map. |
+| Shootout | Go head to head against players and AI bots in a team-based killing competition. |
 
-The home screen's CREATE tab has a GAME MODE dropdown, freeplay unless another is picked, with the
+The home screen's CREATE tab has a GAME MODE row of them all, freeplay unless another is picked, with the
 mode's line under it. The modes are `GAME_MODES` (`packages/shared/src/modes/index.ts`: each one's
 id, name and line). `global` is always freeplay, and so is an offline room. Freeplay has
 no room master, no GAME tab and no banner: it is the game as it stands, and stays so.
