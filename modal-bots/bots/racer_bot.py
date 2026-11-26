@@ -92,13 +92,14 @@ def race_of(seed: str, track: int, go: int, kart: str, rating: float) -> Race:
     """The race the racer seeded ``seed`` (where it is and what it's called) drives on race track
     ``track``, let go at tick ``go``, rated ``rating`` (0 the least there is to 1 the most)."""
     dice = random.Random(f"{seed}/{track}/{go}")
-    # Chaining drifts is its rating's to do or not, the same for every racer rated so: its talent
-    # and its day move how well it drives, not what it has learned to do.
-    chains = skill(rating).chains
+    # Its line and whether it chains drifts are its rating's, the same for every racer rated so
+    # (but for how much of the road's width it leaves): its talent and its day move how well it
+    # drives, not what it has learned to do, and a grid of one level works out a few lines between
+    # them, not one each.
+    rated = skill(rating)
+    shape = replace(rated.shape, width=rated.shape.width - dice.choice(NARROWER))
     rating += random.Random(seed).uniform(-TALENT, TALENT) + dice.uniform(-DAY, DAY)
-    skilled = skill(rating)
-    shape = replace(skilled.shape, width=skilled.shape.width - dice.choice(NARROWER))
-    skilled = replace(skilled, shape=shape, chains=chains)
+    skilled = replace(skill(rating), shape=shape, chains=rated.chains)
     waves = ((dice.uniform(*LONG), dice.random()), (dice.uniform(*SHORT), dice.random()))
     driver = Driver(line_of(track, skilled.shape, kart), skilled, load_karts().of(kart), dice)
     return Race(driver, go, waves)
