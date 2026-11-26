@@ -1,6 +1,8 @@
 """The lobby's /healthz is the launcher's warm-up ping: it answers at once and boots a Room behind it."""
 
 import asyncio
+import time
+from collections.abc import AsyncIterator
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
@@ -56,9 +58,9 @@ def test_join_starts_a_room_only_when_asked(monkeypatch: pytest.MonkeyPatch) -> 
     async def live_session(room_id: str, room_url: str) -> dict[str, str] | None:
         return sessions.get(room_id)
 
-    async def start_session(room_id: str, game: str) -> dict[str, str]:
+    async def start_session(room_id: str, game: str, public: str) -> dict[str, str]:
         started.append(room_id)
-        sessions[room_id] = {"session_id": "sd-1", "token": "tok", "game": game}
+        sessions[room_id] = {"session_id": "sd-1", "token": "tok", "game": game, "public": public}
         return sessions[room_id]
 
     monkeypatch.setattr(lobby, "room_server", lambda: Server())
@@ -99,5 +101,59 @@ def test_join_starts_a_room_only_when_asked(monkeypatch: pytest.MonkeyPatch) -> 
                 assert parse_qs(urlparse(seated.headers["location"]).query)["game"] == ["racing"]
             # Only the join that started the room is told it made it.
             assert "made=1" in made.headers["location"] and "made" not in joined.headers["location"]
+            # A room is public if its creator said so, which every join is handed; global never is.
+            await client.get("/join/open", params={"mode": "create", "public": "1"})
+            joined = await client.get("/join/open", params={"mode": "join"})
+            assert parse_qs(urlparse(joined.headers["location"]).query)["public"] == ["1"]
+            assert not sessions["derby"]["public"] and not sessions["global"]["public"]
+
+    asyncio.run(run())
+
+
+def test_rooms_lists_the_public_rooms_running_and_forgets_the_closed(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Only public rooms' servers are asked. One that says nothing is forgotten once it has had time
+    to boot, so it's never asked again, and a new one is left to."""
+    from infra import lobby
+
+    kept = {
+        "open": {"token": "a", "public": "1", "started": "0"},
+        "closed": {"token": "b", "public": "1", "started": "0"},
+        "booting": {"token": "c", "public": "1", "started": str(time.time())},
+        "secret": {"token": "d", "public": "", "started": "0"},
+    }
+    asked: list[str] = []
+
+    class Rooms:
+        class items:
+            @staticmethod
+            async def aio() -> AsyncIterator[tuple[str, dict[str, str]]]:
+                for item in list(kept.items()):
+                    yield item
+
+        class pop:
+            @staticmethod
+            async def aio(room_id: str, default: None) -> None:
+                kept.pop(room_id, default)
+
+    async def hosted_rooms(room_url: str, token: str) -> list[Any]:
+        asked.append(token)
+        return [{"room": "open", "game": "racing", "people": 2, "bots": 1}] if token == "a" else []
+
+    async def get_url() -> str:
+        return "https://room.test"
+
+    monkeypatch.setattr(lobby, "rooms", Rooms)
+    monkeypatch.setattr(lobby, "hosted_rooms", hosted_rooms)
+    monkeypatch.setattr(lobby, "room_server", lambda: type("S", (), {"get_url": type("U", (), {"aio": get_url})})())
+
+    async def run() -> None:
+        api = lobby.build_api(warm=lambda: asyncio.sleep(0))
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=api), base_url="http://lobby") as client:
+            first = await client.get("/rooms", headers={"origin": LAUNCHER_URL})
+            again = await client.get("/rooms")
+        assert first.json() == again.json() == [{"room": "open", "game": "racing", "people": 2, "bots": 1}]
+        assert first.headers["access-control-allow-origin"] == "*"
+        assert sorted(asked) == ["a", "b", "c"], "asked once, the second answer from the first"
+        assert sorted(kept) == ["booting", "open", "secret"]
 
     asyncio.run(run())

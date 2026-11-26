@@ -10,6 +10,7 @@ import {
   placementFromQuery,
   type ClientLink,
   type GameModeId,
+  type RoomListing,
   type ServerMessage,
 } from '@world/shared';
 import { createBotSpawner } from './bots';
@@ -28,6 +29,8 @@ const rooms = new Map<string, Room>();
 // again: behind Modal a room is its session, which idles out with nobody in it, and a join that
 // reaches it meanwhile is told why it ended rather than made a new room under it.
 const ended = new Map<string, string>();
+// The public rooms, by key: the code and the game mode each was made under (GET /rooms).
+const listed = new Map<string, Pick<RoomListing, 'room' | 'game'>>();
 const spawnBot = createBotSpawner(log) ?? undefined;
 const emptyTimers = new Map<string, NodeJS.Timeout>();
 
@@ -35,8 +38,9 @@ function log(msg: string): void {
   console.log(`${new Date().toISOString()} ${msg}`);
 }
 
-// The room under `key`, made in `mode` if this is the join that makes it.
-function roomFor(key: string, mode: GameModeId): Room {
+// The room under `key`, made in `mode` if this is the join that makes it, and listed under `code`
+// if that join says it's public.
+function roomFor(key: string, mode: GameModeId, code: string | null): Room {
   const pending = emptyTimers.get(key);
   if (pending) {
     clearTimeout(pending);
@@ -54,6 +58,7 @@ function roomFor(key: string, mode: GameModeId): Room {
       spawnBot,
       onEnd: (reason) => {
         rooms.delete(key);
+        listed.delete(key);
         ended.set(key, reason);
         log(`room ${key} ended: ${reason}`);
       },
@@ -63,6 +68,7 @@ function roomFor(key: string, mode: GameModeId): Room {
           setTimeout(() => {
             rooms.get(key)?.stop();
             rooms.delete(key);
+            listed.delete(key);
             emptyTimers.delete(key);
             log(`room ${key} closed`);
           }, EMPTY_ROOM_GRACE_MS),
@@ -71,6 +77,7 @@ function roomFor(key: string, mode: GameModeId): Room {
     });
     room.start();
     rooms.set(key, room);
+    if (code) listed.set(key, { room: code, game: mode });
     log(`room ${key} opened`);
   }
   return room;
@@ -88,6 +95,21 @@ function roomKey(req: IncomingMessage, url: URL): string {
 function gameOf(url: URL): GameModeId {
   const game = url.searchParams.get('game');
   return isGameModeId(game) && url.searchParams.get('room') !== GLOBAL_ROOM ? game : FREEPLAY;
+}
+
+// The code a join says its room is listed under (?public=1 beside ?room=), or null: what the room's
+// creator picked, handed on as its game mode is. The global room has a button of its own.
+function publicCode(url: URL): string | null {
+  const room = url.searchParams.get('room');
+  return url.searchParams.get('public') === '1' && room !== GLOBAL_ROOM ? room : null;
+}
+
+// The public rooms running here: behind Modal the asking session's own, on a bare server all.
+function listings(req: IncomingMessage): RoomListing[] {
+  const session = req.headers[SESSION_HEADER];
+  return [...listed]
+    .filter(([key]) => typeof session !== 'string' || key === session)
+    .map(([key, made]) => ({ ...made, people: rooms.get(key)!.humanCount, bots: rooms.get(key)!.botCount }));
 }
 
 // Whether a join came through the lobby, which has checked it against the room's session and says
@@ -140,6 +162,11 @@ const http = createServer((req, res) => {
     res.end(JSON.stringify({ ok: true, rooms: rooms.size }));
     return;
   }
+  if (req.url === '/rooms') {
+    res.writeHead(200, { 'content-type': 'application/json' });
+    res.end(JSON.stringify(listings(req)));
+    return;
+  }
   if (serveStatic) {
     serveStatic(req, res);
     return;
@@ -162,7 +189,7 @@ http.on('upgrade', (req, socket, head) => {
       ws.close(1008, refused);
       return;
     }
-    const room = roomFor(key, gameOf(url));
+    const room = roomFor(key, gameOf(url), publicCode(url));
     // ?bot=1 is the bot framework declaring itself; the browser client never sends it. A bot may
     // also say where it stands (?x=&y=&z=); anyone may say how they look (?avatar= or ?color=).
     const id = room.join(url.searchParams.get('name') ?? '', linkFor(ws), {
