@@ -1,6 +1,6 @@
 // Home screen: the room on the left, under two tabs: JOIN one that's running (the global room, or
-// one by code) or CREATE a room under a code no one is using, in a game mode picked from a
-// dropdown with its line under it, the player on the right (their
+// one by code) or CREATE a room under a code no one is using, in a game mode picked from
+// those there are, with its line under it, the player on the right (their
 // name, and a skin from a dropdown shown on a turning stage with the name over its head, as the
 // guide and the menu show bodies, on foot or sat in a kart). Resolves with a live Connection. Also honours
 // ?room=&name=&avatar=&color= for invite links (a join) and tests, and ?error=&tab=&code= for a join
@@ -11,7 +11,6 @@ import {
   GAME_MODE_IDS,
   NAMED_COLORS,
   isAvatarId,
-  isGameModeId,
   isValidRoomId,
   sanitizeName,
   type AvatarId,
@@ -40,6 +39,7 @@ import {
 import type { BodyView, Shown } from '../render/BodyView';
 import { nameColour } from '../render/liveries';
 import { BOOK, GITHUB, pixelSvg } from '../ui/pixelIcons';
+import { Choice } from './Choice';
 import { Picker } from './Picker';
 import { COLOR, skinChoices } from './skins';
 
@@ -84,10 +84,10 @@ export function showHome(): Promise<HomeResult> {
   // The game mode a create makes its room in.
   const gameRow = document.getElementById('home-game-row')!;
   const gameBlurb = document.getElementById('home-game-blurb')!;
-  const describe = (id: string) => (gameBlurb.textContent = isGameModeId(id) ? GAME_MODES[id].blurb : '');
-  const game = new Picker(
+  const describe = (id: GameModeId) => (gameBlurb.textContent = GAME_MODES[id].blurb);
+  const game = new Choice(
     document.getElementById('home-game')!,
-    GAME_MODE_IDS.map((id) => ({ value: id, label: GAME_MODES[id].name, note: '' })),
+    GAME_MODE_IDS.map((id) => ({ value: id, label: GAME_MODES[id].name.toUpperCase() })),
     describe,
   );
   describe(game.value);
@@ -208,7 +208,7 @@ export function showHome(): Promise<HomeResult> {
         roomInput.focus();
         return;
       }
-      attempt(roomInput.value, mode, mode === 'create' && isGameModeId(game.value) ? game.value : FREEPLAY);
+      attempt(roomInput.value, mode, mode === 'create' ? game.value : FREEPLAY);
     };
     joinBtn.addEventListener('click', joinTyped);
     roomInput.addEventListener('keydown', (e) => {
@@ -284,7 +284,7 @@ class Stage {
   private disposed = false; // the chunk can arrive after a quick join has already left the form
   private frame = 0;
   private readonly tag = document.createElement('div');
-  private seated = false;
+  private readonly seat: Choice<'foot' | 'kart'>;
 
   constructor(
     private readonly box: HTMLElement,
@@ -293,12 +293,10 @@ class Stage {
   ) {
     this.tag.className = 'name-tag';
     box.append(this.tag);
-    const seats = [...box.querySelectorAll<HTMLButtonElement>('.home-seat button')];
-    for (const button of seats)
-      button.addEventListener('click', () => {
-        this.seated = button.dataset.seated === 'true';
-        for (const b of seats) b.classList.toggle('on', b === button);
-      });
+    this.seat = new Choice(box.querySelector<HTMLElement>('.home-seat')!, [
+      { value: 'foot', label: 'ON FOOT' },
+      { value: 'kart', label: 'IN KART' },
+    ]);
   }
 
   start(): void {
@@ -349,7 +347,7 @@ class Stage {
       chilled: false,
       ghost: false,
       shattered: [],
-      kart: this.seated ? SEATS_IN : null,
+      kart: this.seat.value === 'kart' ? SEATS_IN : null,
     };
   }
 
