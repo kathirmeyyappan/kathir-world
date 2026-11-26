@@ -1689,7 +1689,7 @@ labels over heads and the bots follow; a name is only a name, giving its player 
 is a page load through `roomLink` (`net/lobby.ts`), the link an invite is, with the player's name and
 skin on it.
 
-The home screen (`app/home.ts`) is the room on the left (a JOIN tab, the default, with JOIN GLOBAL over a code, and a CREATE tab;
+The home screen (`app/home.ts`) is the room on the left (a JOIN tab, the default, with JOIN GLOBAL over a code and, under it, a button for each public room running, with its code, its game mode and how many people and bots are in it (`publicRooms` in `net/lobby.ts`: the lobby's `GET /rooms`, which asks each public room's server for its own, or in dev the room server's; asked again every 15 s while the form is up), and a CREATE tab, which makes a room private, joined by its code alone, unless PUBLIC is picked (`?public=1`, kept and handed on as the game mode is);
 the lobby, or Node in dev, turns away a create on a running room and a join on none, back to home
 with `?error=`; global is always there to join, and so never anyone's to create; the CREATE tab
 picks the room's game mode from a row of them all (`app/Choice.ts`) with the picked mode's line under it, `GAME_MODES` in the shared

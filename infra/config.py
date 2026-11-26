@@ -16,6 +16,10 @@ SESSION_QUEUE_TIMEOUT = 120
 # session so a Room container boots before Join is clicked, then lingers this long with no sessions.
 ROOM_SCALEDOWN_WINDOW = 300
 WARMUP_SESSION_IDLE_TIMEOUT = 5
+# The lobby's list of public rooms: how long one answer serves every home page, and how long a new
+# room has to boot and seat its creator before saying nothing means it has closed.
+ROOMS_CACHE_SECONDS = 10
+ROOM_BOOT_SECONDS = 120
 MAX_SESSIONS_PER_CONTAINER = 64
 TARGET_SESSIONS_PER_CONTAINER = 3
 

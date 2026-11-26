@@ -20,6 +20,7 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     proxy: {
+      '/rooms': (process.env.ROOM_SERVER_URL ?? 'ws://localhost:8787').replace(/^ws/, 'http'),
       '/ws': {
         target: process.env.ROOM_SERVER_URL ?? 'ws://localhost:8787',
         ws: true,

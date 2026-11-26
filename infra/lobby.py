@@ -13,19 +13,28 @@ server by id, from the ids Modal hands every container of the running app, which
 
 import asyncio
 import re
+import time
 from collections.abc import Callable, Coroutine
 from typing import TYPE_CHECKING, Any, cast
 
 import modal
 
 from .common import app, lobby_image, rooms
-from .config import APP_NAME, LAUNCHER_URL, SESSION_IDLE_TIMEOUT, WARMUP_SESSION_IDLE_TIMEOUT
+from .config import (
+    APP_NAME,
+    LAUNCHER_URL,
+    ROOM_BOOT_SECONDS,
+    ROOMS_CACHE_SECONDS,
+    SESSION_IDLE_TIMEOUT,
+    WARMUP_SESSION_IDLE_TIMEOUT,
+)
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
 
-# What the rooms Dict holds per room code: the live session's id, its proxy token, and the game mode
-# the room was created in (empty for freeplay).
+# What the rooms Dict holds per room code: the live session's id, its proxy token, the game mode
+# the room was created in (empty for freeplay), "1" under `public` if it was created public (listed
+# by GET /rooms), and when the session was started (seconds since the epoch).
 Session = dict[str, str]
 
 ROOM_ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,23}$")
@@ -75,12 +84,45 @@ async def live_session(room_id: str, room_url: str) -> Session | None:
     return None
 
 
-async def start_session(room_id: str, game: str) -> Session:
-    """Start a fresh session for the room and cache it, with the game the room is in."""
+async def start_session(room_id: str, game: str, public: str) -> Session:
+    """Start a fresh session for the room and cache it, with the game the room is in and whether
+    it's public."""
     session = await room_server().sessions.start.aio(idle_timeout=SESSION_IDLE_TIMEOUT)
-    entry_info: Session = {"session_id": session.session_id, "token": session.token, "game": game}
+    entry_info: Session = {
+        "session_id": session.session_id,
+        "token": session.token,
+        "game": game,
+        "public": public,
+        "started": str(time.time()),
+    }
     await rooms.put.aio(room_id, entry_info)
     return entry_info
+
+
+async def hosted_rooms(room_url: str, token: str) -> list[Any]:
+    """The public rooms a session's Room server says it's running (its GET /rooms): the session's
+    own room with who's in it, or nothing once it has closed or the session is gone."""
+    import httpx
+
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            res = await client.get(f"{room_url}/rooms", headers={"Modal-Authorization": f"Bearer {token}"})
+        return cast(list[Any], res.json()) if res.status_code == 200 else []
+    except (httpx.HTTPError, ValueError):
+        return []
+
+
+async def public_rooms() -> list[Any]:
+    """Every public room that's running, as its Room server tells of it. Asking a session keeps it
+    from idling out, so a room that says nothing once it has had time to boot is forgotten, and is
+    never asked again."""
+    room_url = cast(str, await room_server().get_url.aio()).rstrip("/")
+    public = [(room_id, entry) async for room_id, entry in rooms.items.aio() if entry.get("public")]
+    answers = await asyncio.gather(*(hosted_rooms(room_url, entry["token"]) for _, entry in public))
+    for (room_id, entry), answer in zip(public, answers, strict=True):
+        if not answer and time.time() - float(entry.get("started", 0)) > ROOM_BOOT_SECONDS:
+            await rooms.pop.aio(room_id, None)
+    return [room for answer in answers for room in answer]
 
 
 async def warm_room() -> None:
@@ -114,9 +156,13 @@ def build_api(warm: Callable[[], Coroutine[Any, Any, None]] = warm_room) -> "Fas
     from urllib.parse import urlencode
 
     from fastapi import FastAPI, HTTPException, Request
+    from fastapi.middleware.cors import CORSMiddleware
     from fastapi.responses import RedirectResponse
 
     api = FastAPI()
+    # The launcher reads /rooms from its own origin.
+    api.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET"])
+    listing: dict[str, Any] = {"at": 0.0, "rooms": []}
 
     @api.get("/join/{room_id}")
     async def join(
@@ -128,13 +174,15 @@ def build_api(warm: Callable[[], Coroutine[Any, Any, None]] = warm_room) -> "Fas
         color: str = "",
         mode: str = "",
         game: str = "",
+        public: str = "",
     ) -> RedirectResponse:
         """Into a room as `mode` asks: `create` one no one is in, `join` one that's running, or
         with no mode (an older page) either. The global room is always there to join, started if
         it isn't running, and so never anyone's to create. A refused join is sent back to the page
         it came from with the reason as `?error=`. A room is in the game mode (`game`, freeplay
         when empty) of the join that starts it, kept with its session and handed to every join
-        from then on, whatever that join asks for; the global room is freeplay. The join that
+        from then on, whatever that join asks for, as is whether it's public (`public=1`: listed by /rooms); the
+        global room is freeplay, and has its own way in. The join that
         starts a room's session is told it made the room (`made=1`), which the room server takes
         its word for. A bot (`bot=1`, what the bot framework sends) only joins a
         room that is already running: bots don't keep rooms open, so one must never start a room
@@ -164,7 +212,8 @@ def build_api(warm: Callable[[], Coroutine[Any, Any, None]] = warm_room) -> "Fas
                 raise HTTPException(409, "no one here")
             if mode == "join" and not always_open:
                 return refuse(f"room {room_id} doesn't exist")
-            entry_info = await start_session(room_id, "" if always_open else game)
+            public = "1" if public == "1" and not always_open else ""
+            entry_info = await start_session(room_id, "" if always_open else game, public)
         lobby_url = (await lobby.get_web_url.aio() or "").rstrip("/")
         params = {
             "modal_session_token": entry_info["token"],
@@ -177,8 +226,9 @@ def build_api(warm: Callable[[], Coroutine[Any, Any, None]] = warm_room) -> "Fas
             params["avatar"] = avatar
         if color:
             params["color"] = color
-        if entry_info.get("game"):
-            params["game"] = entry_info["game"]
+        for said in ("game", "public"):
+            if entry_info.get(said):
+                params[said] = entry_info[said]
         if made:
             params["made"] = "1"
         # Where the room page sends the player to pick a room. From the room host itself that's its
@@ -186,6 +236,16 @@ def build_api(warm: Callable[[], Coroutine[Any, Any, None]] = warm_room) -> "Fas
         params["home"] = home_page(request.headers.get("referer", ""), room_url)
         query = urlencode(params)
         return RedirectResponse(f"{room_url}/?{query}", status_code=302)
+
+    @api.get("/rooms", response_model=None)
+    async def listed_rooms() -> list[Any]:
+        """The public rooms running now, for the home screen's list: each with its code, game mode
+        and how many people and bots are in it. Every home page asks every few seconds, so the
+        Room servers are asked at most once in ROOMS_CACHE_SECONDS."""
+        if time.monotonic() - listing["at"] > ROOMS_CACHE_SECONDS:
+            listing["at"] = time.monotonic()
+            listing["rooms"] = await public_rooms()
+        return cast(list[Any], listing["rooms"])
 
     # response_model=None: FastAPI would otherwise turn the return annotation into a response model.
     @api.get("/healthz", response_model=None)

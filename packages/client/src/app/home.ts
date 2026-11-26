@@ -1,12 +1,11 @@
-// Home screen: the room on the left, under two tabs: JOIN one that's running (the global room, or
-// one by code) or CREATE a room under a code no one is using, in a game mode picked from
-// those there are, with its line under it, the player on the right (their
+// Home screen: the room on the left, under two tabs: JOIN one that's running (the global room, one
+// by code, or a public one from the list of those running) or CREATE a room under a code no one is
+// using, private or public, in a game mode picked from those there are, with its line under it, the player on the right (their
 // name, and a skin from a dropdown shown on a turning stage with the name over its head, as the
 // guide and the menu show bodies, on foot or sat in a kart). Resolves with a live Connection. Also honours
 // ?room=&name=&avatar=&color= for invite links (a join) and tests, and ?error=&tab=&code= for a join
 // the lobby turned away, which it sends back here.
 import {
-  FREEPLAY,
   GAME_MODES,
   GAME_MODE_IDS,
   NAMED_COLORS,
@@ -28,6 +27,7 @@ import {
   forgetRoom,
   homeUrl,
   joinRoom,
+  publicRooms,
   rememberRoom,
   NAME_KEY,
   SKIN_KEY,
@@ -35,6 +35,7 @@ import {
   warmLobby,
   type JoinMode,
   type Joiner,
+  type Making,
 } from '../net/lobby';
 import type { BodyView, Shown } from '../render/BodyView';
 import { nameColour } from '../render/liveries';
@@ -55,6 +56,7 @@ const STANDARD = 'standard';
 const ROLLED = Object.keys(NAMED_COLORS)[Math.floor(Math.random() * Object.keys(NAMED_COLORS).length)];
 const UNPAINTED = '#ffffff'; // what the stage paints a skin of its own, which takes no paint
 const SEATS_IN: KartId = 'standard'; // the kart the stage's body is shown sat in, in its own paint
+const ROOMS_EVERY_MS = 15_000; // between looks at which public rooms are running
 const TAG_PX = 16; // the least the name over the stage's body is drawn at: the view is small and close
 
 // What each tab's button says, and the line under its code, if any.
@@ -82,7 +84,7 @@ export function showHome(): Promise<HomeResult> {
 
   const params = new URLSearchParams(location.search);
   // The game mode a create makes its room in.
-  const gameRow = document.getElementById('home-game-row')!;
+  const createRows = root.querySelectorAll('.home-create');
   const gameBlurb = document.getElementById('home-game-blurb')!;
   const describe = (id: GameModeId) => (gameBlurb.textContent = GAME_MODES[id].blurb);
   const game = new Choice(
@@ -91,13 +93,17 @@ export function showHome(): Promise<HomeResult> {
     describe,
   );
   describe(game.value);
+  const open = new Choice(document.getElementById('home-open')!, [
+    { value: 'private', label: 'PRIVATE' },
+    { value: 'public', label: 'PUBLIC' },
+  ]);
 
   const globalRow = document.getElementById('home-global-row')!;
   let mode: JoinMode = 'join';
   const pick = (to: JoinMode) => {
     mode = to;
     globalRow.classList.toggle('hidden', to !== 'join');
-    gameRow.classList.toggle('hidden', to !== 'create');
+    for (const row of createRows) row.classList.toggle('hidden', to !== 'create');
     for (const tab of tabs) tab.setAttribute('aria-selected', String(tab.dataset.mode === to));
     joinBtn.textContent = TABS[to].action;
     modeHint.textContent = TABS[to].hint;
@@ -163,12 +169,13 @@ export function showHome(): Promise<HomeResult> {
   return new Promise((finish) => {
     const resolve = (result: HomeResult) => {
       window.removeEventListener('pageshow', restore);
+      window.clearInterval(listing);
       stage.dispose();
       finish(result);
     };
     // `mode` null: the room host's own room, which the lobby has already let this page into.
-    // `game`: the mode a create makes the room in.
-    const attempt = async (roomId: string, mode: JoinMode | null, game: GameModeId = FREEPLAY) => {
+    // `making`: what a create makes.
+    const attempt = async (roomId: string, mode: JoinMode | null, making?: Making) => {
       if (busy) return;
       const you = joiner();
       roomId = roomId.trim().toLowerCase();
@@ -186,7 +193,7 @@ export function showHome(): Promise<HomeResult> {
       hideForm();
       loading.classList.remove('hidden');
       try {
-        const connection = await joinRoom(roomId, you, mode, game);
+        const connection = await joinRoom(roomId, you, mode, making);
         if (SERVED_BY_ROOM_HOST) {
           rememberRoom(roomId, you);
           history.replaceState(null, '', location.pathname);
@@ -208,7 +215,8 @@ export function showHome(): Promise<HomeResult> {
         roomInput.focus();
         return;
       }
-      attempt(roomInput.value, mode, mode === 'create' ? game.value : FREEPLAY);
+      const making = { game: game.value, public: open.value === 'public' };
+      attempt(roomInput.value, mode, mode === 'create' ? making : undefined);
     };
     joinBtn.addEventListener('click', joinTyped);
     roomInput.addEventListener('keydown', (e) => {
@@ -218,6 +226,26 @@ export function showHome(): Promise<HomeResult> {
       if (e.code === 'Enter') roomInput.value ? joinTyped() : roomInput.focus();
     });
     globalBtn.addEventListener('click', () => attempt(GLOBAL_ROOM, 'join'));
+    // The public rooms running, each a button that joins it, looked up again while the form is up.
+    const roomsRow = document.getElementById('home-rooms-row')!;
+    const listRooms = async () => {
+      if (root.classList.contains('hidden')) return;
+      const running = await publicRooms();
+      roomsRow.classList.toggle('empty', running.length === 0);
+      document.getElementById('home-rooms')!.replaceChildren(
+        ...running.map(({ room, game, people, bots }) => {
+          const button = document.createElement('button');
+          const span = (className: string, textContent: string) =>
+            Object.assign(document.createElement('span'), { className, textContent });
+          const mode = span('mode', GAME_MODES[game].name);
+          mode.dataset.game = game;
+          button.append(span('code', room), mode, span('count', `${people} online · ${bots} bots`));
+          button.addEventListener('click', () => attempt(room, 'join'));
+          return button;
+        }),
+      );
+    };
+    const listing = window.setInterval(listRooms, ROOMS_EVERY_MS);
     offlineBtn.addEventListener('click', () => {
       const you = joiner();
       keep(you);
@@ -244,6 +272,7 @@ export function showHome(): Promise<HomeResult> {
       if (!SERVED_BY_ROOM_HOST) warmLobby();
       (nameInput.value ? roomInput : nameInput).focus();
     }
+    void listRooms();
   });
 }
 

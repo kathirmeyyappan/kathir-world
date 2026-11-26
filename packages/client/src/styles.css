@@ -436,9 +436,69 @@ body {
   font-size: 17px;
   color: rgba(255, 255, 255, 0.5);
 }
-/* The game mode a create picks, over the code it's created under. */
-.home-tab-panel #home-game-row {
+/* What a create picks, over and under the code it's created under. */
+.home-tab-panel .home-create {
   margin-bottom: 18px;
+}
+.home-tab-panel .home-code-row + .home-create,
+.home-tab-panel .field + .home-create {
+  margin-top: 18px;
+}
+/* Private is the safe one. */
+.card #home-open button.on[data-value='private'] {
+  background: #5fd08a;
+  border-color: #5fd08a;
+}
+.card #home-open button.on[data-value='public'] {
+  background: #ff6b6b;
+  border-color: #ff6b6b;
+}
+/* The public rooms running, on the JOIN tab: a button each. */
+#home-rooms-row.empty,
+.home-create:not(.hidden) ~ #home-rooms-row {
+  display: none;
+}
+#home-rooms-row {
+  margin-top: 18px;
+}
+#home-rooms {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+.card #home-rooms button {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  padding: 10px 12px;
+  font: 20px var(--mono);
+  text-align: left;
+}
+#home-rooms .code {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#home-rooms .mode {
+  padding: 3px 7px;
+  font: 8px var(--pixel);
+  color: var(--panel);
+  background: #9aa4b2;
+}
+#home-rooms .mode[data-game='racing'] {
+  background: #6bb8ff;
+}
+#home-rooms .mode[data-game='shootout'] {
+  background: #ff6b6b;
+}
+#home-rooms .count {
+  flex-basis: 100%;
+  font-size: 17px;
+  color: rgba(255, 255, 255, 0.6);
 }
 #home-view .name-tag {
   pointer-events: none;

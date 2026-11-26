@@ -47,6 +47,15 @@ export const GAME_MODES: Record<GameModeId, GameModeSpec> = {
   },
 };
 
+// A running public room as the home screen lists it: the code it was made under, its game mode, and
+// who's in it. The room server answers with its own (GET /rooms) and the lobby with every server's.
+export interface RoomListing {
+  room: string;
+  game: GameModeId;
+  people: number;
+  bots: number;
+}
+
 export function isGameModeId(v: unknown): v is GameModeId {
   return typeof v === 'string' && (GAME_MODE_IDS as readonly string[]).includes(v);
 }
