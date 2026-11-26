@@ -5,13 +5,15 @@
 import {
   MAX_CHAT_LENGTH,
   MAX_HEARTS,
-  heartsOf,
+  lifeOf,
   type Appearance,
   type AvatarId,
   type Element,
   type KillItem,
+  type LifeSpec,
 } from '@world/shared';
-import { CROWN, GHOST, HEART, KNIFE, ROBOT, SKULL, pixelSvg } from './pixelIcons';
+import { lifeIcon } from './Hearts';
+import { CROWN, GHOST, KNIFE, ROBOT, SKULL, pixelSvg } from './pixelIcons';
 
 import { IS_TOUCH } from '../input/touch';
 import { roomLink } from '../net/lobby';
@@ -33,13 +35,15 @@ const MOVE_HINT_MS = 15_000; // how long the move hint is up: its animation's le
 const HINT_GAP = 8; // CSS pixels between the move hint and what it stacks against
 // The layout where the item hint is at the top of the screen, under the touch buttons (styles.css).
 const COARSE = window.matchMedia('(pointer: coarse)');
-// The roster reaches no further down the view than this share of its height, the rest of the room
-// paged through under it, your own row standing first on every page. The pages turn on their own,
-// since the mouse is the view's while playing and can't click through them.
+// The roster reaches no further down the view than this share of its height: your own row stands
+// first, in a cell apart, and under it as many of everyone else's cells as fit whole, stepping on a
+// cell at a time on their own (the mouse is the view's while playing and can't move them), resting
+// at each end, and with the wheel while the mouse is free; how many are above and below them is
+// said between your cell and theirs.
 const ROSTER_SHARE = 0.5;
-const ROSTER_ROW = 20; // CSS pixels, #player-list li's line-height
-const ROSTER_MIN_ROWS = 3; // you and two others, however short the view
-const ROSTER_PAGE_MS = 5_000;
+const ROSTER_STEP_MS = 2_500; // between one cell stepping into view and the next
+const ROSTER_REST_STEPS = 2; // steps it waits at either end before turning back
+const ROSTER_HELD_MS = 8_000; // how long a hand on the list keeps it from scrolling itself
 
 // A hint's words, with each key or touch button it names in square brackets drawn as one.
 function keyed(text: string): (string | HTMLElement)[] {
@@ -63,11 +67,13 @@ export class Hud {
   private readonly roomCode = document.getElementById('room-code') as HTMLButtonElement;
   private readonly panel = document.getElementById('room-panel')!;
   private readonly panelToggle = document.getElementById('panel-toggle') as HTMLButtonElement;
+  private readonly playerMe = document.getElementById('player-me')!;
   private readonly playerList = document.getElementById('player-list')!;
   private readonly ping = document.getElementById('ping')!;
-  private readonly rosterPageEl = document.getElementById('roster-page')!;
-  private rosterPage = 0;
-  private rosterPages = 1;
+  private readonly rosterMore = document.getElementById('roster-more')!;
+  private rosterFirst = 0; // the first of everyone else's cells shown
+  private rosterRest = 0; // steps left to wait at the end the list has scrolled to
+  private rosterHeld = 0; // performance.now() until which a hand on the list keeps it still
   private readonly chatLog = document.getElementById('chat-log')!;
   private readonly itemHint = document.getElementById('item-hint')!;
   private readonly itemHintMain = this.itemHint.querySelector('.main')!;
@@ -126,12 +132,19 @@ export class Hud {
       navigator.clipboard?.writeText(roomLink(roomId)).then(() => this.tip(this.roomCode, 'copied'));
     });
 
-    window.setInterval(() => {
-      if (this.rosterPages === 1 || this.panel.classList.contains('collapsed')) return;
-      this.rosterPage = (this.rosterPage + 1) % this.rosterPages;
-      this.renderPlayers();
-    }, ROSTER_PAGE_MS);
-    window.addEventListener('resize', () => this.renderPlayers());
+    const hold = () => (this.rosterHeld = performance.now() + ROSTER_HELD_MS);
+    for (const type of ['pointerdown', 'pointermove'] as const)
+      this.playerList.addEventListener(type, hold, { passive: true });
+    this.playerList.addEventListener(
+      'wheel',
+      (e) => {
+        hold();
+        this.stepRoster(Math.sign(e.deltaY));
+      },
+      { passive: true },
+    );
+    window.setInterval(() => this.scrollRoster(), ROSTER_STEP_MS);
+    window.addEventListener('resize', () => this.fitRoster());
 
     this.setPanelCollapsed(window.matchMedia('(pointer: coarse)').matches);
     this.panelToggle.addEventListener('click', () =>
@@ -304,6 +317,7 @@ export class Hud {
       avatar: AvatarId;
       colour: string; // the one they go by as the room's game stands (sight.ts `colourOf`)
       side: string | null; // the side they're on in it, by name, if any: the roster keeps a side together
+      kart: Wrenches | null; // the kart they drive, if they're in one
     }[],
   ): void {
     let changed = false;
@@ -311,7 +325,7 @@ export class Hud {
       const e = this.players.get(p.id);
       if (!e) continue;
       e.appearance = { avatar: p.avatar, color: p.color };
-      const life = heartsOf(p.avatar);
+      const life = lifeOf(p.avatar);
       const colour = p.colour;
       if (
         e.name !== p.name ||
@@ -322,7 +336,9 @@ export class Hud {
         e.deaths !== p.deaths ||
         e.dead !== p.dead ||
         e.ghost !== p.ghost ||
-        e.side !== p.side
+        e.side !== p.side ||
+        e.kart?.wrenches !== p.kart?.wrenches ||
+        e.kart?.full !== p.kart?.full
       ) {
         e.name = p.name;
         e.color = colour;
@@ -333,6 +349,7 @@ export class Hud {
         e.dead = p.dead;
         e.ghost = p.ghost;
         e.side = p.side;
+        e.kart = p.kart;
         changed = true;
       }
     }
@@ -534,29 +551,67 @@ export class Hud {
     setTimeout(() => li.classList.add('faded'), CHAT_FADE_MS);
   }
 
-  // Rows that fit between the top of the list and ROSTER_SHARE of the way down the view.
-  private rosterRows(): number {
+  // Shows everyone else's cells from the first on, as many as fit whole between the list's top and
+  // ROSTER_SHARE of the way down the view (one at the least), and says how many are left out.
+  private fitRoster(): void {
+    const cells = [...this.playerList.children] as HTMLElement[];
+    this.rosterFirst = Math.max(0, Math.min(this.rosterFirst, cells.length - 1));
+    cells.forEach((cell, i) => (cell.hidden = i < this.rosterFirst));
     const top = this.playerList.getBoundingClientRect().top;
-    return Math.max(ROSTER_MIN_ROWS, Math.floor((window.innerHeight * ROSTER_SHARE - top) / ROSTER_ROW));
+    const room = window.innerHeight * ROSTER_SHARE - top;
+    let shown = 0;
+    let full = false;
+    for (const cell of cells.slice(this.rosterFirst)) {
+      full ||= shown > 0 && cell.getBoundingClientRect().bottom - top > room;
+      cell.hidden = full;
+      if (!full) shown++;
+    }
+    const above = this.rosterFirst;
+    const below = cells.length - this.rosterFirst - shown;
+    this.rosterMore.textContent = [above && `▲${above}`, below && `▼${below}`].filter(Boolean).join(' ');
+  }
+
+  // Moves the cells shown a cell along (`by` 1) or back (-1), no further than shows the last.
+  private stepRoster(by: number): void {
+    const last = this.playerList.lastElementChild as HTMLElement | null;
+    if (by > 0 && (!last || !last.hidden)) return;
+    this.rosterFirst = Math.max(0, this.rosterFirst + by);
+    this.fitRoster();
+  }
+
+  // One step of the cells moving on their own: the next one in, or, having rested with the last one
+  // shown, back to the first. Not while they're put away, all fit, or a hand is on them.
+  private scrollRoster(): void {
+    if (this.panel.classList.contains('collapsed') || performance.now() < this.rosterHeld) return;
+    if (!this.rosterMore.textContent) return;
+    if (this.rosterRest > 0) {
+      this.rosterRest--;
+      return;
+    }
+    const last = this.playerList.lastElementChild as HTMLElement | null;
+    if (last && !last.hidden) this.rosterFirst = 0;
+    else this.rosterFirst++;
+    this.fitRoster();
+    const end = this.playerList.lastElementChild as HTMLElement | null;
+    if (this.rosterFirst === 0 || (end && !end.hidden)) this.rosterRest = ROSTER_REST_STEPS;
   }
 
   private renderPlayers(): void {
     const me = this.players.get(this.myId);
+    this.playerMe.replaceChildren(...(me ? [rosterRow(me, true, this.myId === this.master)] : []));
     // Everyone else, a side's players together (in the sides' order, those on none after them).
     const others = [...this.players]
       .filter(([id]) => id !== this.myId)
       .sort(([, a], [, b]) => (a.side ?? '~').localeCompare(b.side ?? '~'));
-    const fit = this.rosterRows();
-    const perPage = me ? fit - 1 : fit;
-    this.rosterPages = Math.max(1, Math.ceil(others.length / perPage));
-    this.rosterPage = Math.min(this.rosterPage, this.rosterPages - 1);
-    const start = this.rosterPage * perPage;
-    const rows = others.slice(start, start + perPage).map(([id, p]) => rosterRow(p, false, id === this.master));
-    if (me) rows.unshift(rosterRow(me, true, this.myId === this.master));
-    this.playerList.replaceChildren(...rows);
-    this.rosterPageEl.hidden = this.rosterPages === 1;
-    this.rosterPageEl.textContent = `${this.rosterPage + 1}/${this.rosterPages}`;
+    this.playerList.replaceChildren(...others.map(([id, p]) => rosterRow(p, false, id === this.master)));
+    this.fitRoster();
   }
+}
+
+// A kart's wrenches as its driver's row shows them: what's left of a full kart's.
+export interface Wrenches {
+  wrenches: number;
+  full: number;
 }
 
 function rosterRow(p: RosterEntry, mine: boolean, master: boolean): HTMLLIElement {
@@ -574,10 +629,17 @@ function rosterRow(p: RosterEntry, mine: boolean, master: boolean): HTMLLIElemen
   const stats = document.createElement('span');
   stats.className = 'stats';
   if (p.ghost) stats.append(pixelSvg(GHOST, 'ghost'));
-  else if (!p.dead) stats.append(pixelSvg(HEART, 'heart', { '+': 'hi' }), text(`${fmt(p.hearts)}/${p.life}`));
+  else if (!p.dead) stats.append(lifeIcon(p.life.sprite), text(`${fmt(p.hearts)}/${p.life.hearts}`));
   stats.append(pixelSvg(KNIFE, 'knife', { G: 'guard', H: 'hilt' }), text(String(p.kills)));
   stats.append(pixelSvg(SKULL, 'skull'), text(String(p.deaths)));
   li.append(stats);
+  // What they have besides their own life, a line of its own under the rest: the kart they drive.
+  if (p.kart && !p.dead) {
+    const extra = document.createElement('span');
+    extra.className = 'stats extra';
+    extra.append(lifeIcon('wrench'), text(`${fmt(p.kart.wrenches)}/${p.kart.full}`));
+    li.append(extra);
+  }
   return li;
 }
 
@@ -600,12 +662,13 @@ interface RosterEntry {
   color: string; // the one they go by (liveries.ts `nameColour`)
   bot: boolean;
   hearts: number;
-  life: number; // a full life for their class
+  life: LifeSpec; // a full life for the look they wear, and how it's drawn
   kills: number;
   deaths: number;
   dead: boolean;
   ghost: boolean; // in the room and not in its game (the shared package's sim/types.ts)
   side: string | null; // the side they're on in the room's game, by name, if any
+  kart: Wrenches | null; // the kart they drive, if they're in one
 }
 
 function entry(p: RosterPlayer): RosterEntry {
@@ -615,12 +678,13 @@ function entry(p: RosterPlayer): RosterEntry {
     color: nameColour(p),
     bot: !!p.bot,
     hearts: p.hearts ?? MAX_HEARTS,
-    life: heartsOf(p.avatar),
+    life: lifeOf(p.avatar),
     kills: p.kills ?? 0,
     deaths: p.deaths ?? 0,
     dead: !!p.dead,
     ghost: !!p.ghost,
     side: null,
+    kart: null,
   };
 }
 

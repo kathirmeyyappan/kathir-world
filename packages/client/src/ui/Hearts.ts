@@ -127,6 +127,15 @@ const SPRITES: Record<HeartSprite, { full: string[]; broken: string[]; half: str
       pix: { '+': 'hi', o: 'edge', R: 'grey', e: 'edge grey' },
     },
   };
+// One whole heart of `sprite`, as the bar draws one: what a list of players marks a life with.
+export function lifeIcon(sprite: HeartSprite): HTMLElement {
+  const art = SPRITES[sprite];
+  const icon = document.createElement('span');
+  icon.className = `heart ${sprite}`;
+  icon.append(pixelSvg(art.full, 'full', art.pix));
+  return icon;
+}
+
 const FILL_MS = 70; // between one heart filling and the next as hearts come back
 const RANK = { lost: 0, half: 1, full: 2 };
 type State = keyof typeof RANK;
