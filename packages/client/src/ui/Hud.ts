@@ -40,7 +40,7 @@ const COARSE = window.matchMedia('(pointer: coarse)');
 // cell at a time on their own (the mouse is the view's while playing and can't move them), resting
 // at each end, and with the wheel while the mouse is free; how many are above and below them is
 // said between your cell and theirs.
-const ROSTER_SHARE = 0.5;
+const ROSTER_SHARE = 0.6;
 const ROSTER_STEP_MS = 2_500; // between one cell stepping into view and the next
 const ROSTER_REST_STEPS = 2; // steps it waits at either end before turning back
 const ROSTER_HELD_MS = 8_000; // how long a hand on the list keeps it from scrolling itself
