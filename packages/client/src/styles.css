@@ -453,7 +453,7 @@ body {
   background: #ff6b6b;
   border-color: #ff6b6b;
 }
-/* The public rooms running, on the JOIN tab: a grey box each, to press. */
+/* The public rooms running, on the JOIN tab: a button each. */
 #home-rooms-row.empty,
 .home-create:not(.hidden) ~ #home-rooms-row {
   display: none;
@@ -476,13 +476,6 @@ body {
   padding: 10px 12px;
   font: 20px var(--mono);
   text-align: left;
-  color: #fff;
-  background: rgba(255, 255, 255, 0.1);
-  border: 2px solid rgba(255, 255, 255, 0.25);
-  box-shadow: none;
-}
-.card #home-rooms button:hover {
-  background: rgba(255, 255, 255, 0.2);
 }
 #home-rooms .code {
   min-width: 0;
