@@ -94,8 +94,8 @@ export function showHome(): Promise<HomeResult> {
   );
   describe(game.value);
   const open = new Choice(document.getElementById('home-open')!, [
-    { value: 'private', label: 'PRIVATE' },
     { value: 'public', label: 'PUBLIC' },
+    { value: 'private', label: 'PRIVATE' },
   ]);
 
   const globalRow = document.getElementById('home-global-row')!;
