@@ -463,14 +463,16 @@ body {
 }
 #home-rooms {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px;
   max-height: 180px;
   overflow-y: auto;
 }
 .card #home-rooms button {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
+  gap: 4px 10px;
   padding: 10px 12px;
   font: 20px var(--mono);
   text-align: left;
