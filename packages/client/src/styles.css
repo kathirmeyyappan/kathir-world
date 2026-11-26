@@ -436,20 +436,15 @@ body {
   font-size: 17px;
   color: rgba(255, 255, 255, 0.5);
 }
-/* What a create picks, over and under the code it's created under. */
+/* What a create picks, over the code it's created under. */
 .home-tab-panel .home-create {
   margin-bottom: 18px;
 }
-.home-tab-panel .home-code-row + .home-create,
-.home-tab-panel .field + .home-create {
-  margin-top: 18px;
-}
-/* Private is the safe one. */
-.card #home-open button.on[data-value='private'] {
+.card #home-open button.on[data-value='public'] {
   background: #5fd08a;
   border-color: #5fd08a;
 }
-.card #home-open button.on[data-value='public'] {
+.card #home-open button.on[data-value='private'] {
   background: #ff6b6b;
   border-color: #ff6b6b;
 }
